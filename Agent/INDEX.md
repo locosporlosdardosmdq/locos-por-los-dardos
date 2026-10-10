@@ -47,6 +47,8 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 ### 4. Capa de Datos y Modelos (`src/lib/` y `prisma/`)
 * **`src/lib/types.ts`:** Tipado TypeScript riguroso (PlayerProfile, MatchConfig, DartThrow, Tournament, Product, etc.).
 * **`src/lib/constants.ts`:** Provincias de Argentina, checkout guide, categorización por AVG y datasets mock.
+* **`src/lib/storage.ts`:** Persistencia offline-first con localStorage/IndexedDB y cola de sincronización.
+* **`src/lib/broadcast.ts`:** Canal de transmisión broadcast en tiempo real (BroadcastChannel API + storage sync) para marcadores de pista.
 * **`src/lib/sound-effects.ts`:** Motor de audio Web Audio API + Web Speech API.
 * **`src/lib/db-schema.sql`:** DDL en PostgreSQL / Supabase con enums, índices y funciones PL/pgSQL.
 * **`prisma/schema.prisma`:** Esquema declarativo de Prisma ORM.

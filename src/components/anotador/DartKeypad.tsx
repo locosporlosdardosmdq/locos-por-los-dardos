@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { DartThrow } from '@/lib/types';
-import { Delete, Check, CornerDownLeft, Sparkles, RefreshCw } from 'lucide-react';
+import { Delete, Check, CornerDownLeft } from 'lucide-react';
 
 interface DartKeypadProps {
   onConfirmVisit: (totalScore: number, darts?: DartThrow[]) => void;
@@ -71,11 +71,11 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
       // Bullseye
       if (mult === 2 || mult === 3) {
         val = 50;
-        mult = 2; // Double bull
+        mult = 2; // Double bull (Rojo centro)
         label = 'D-BULL (50)';
       } else {
         val = 25;
-        mult = 1;
+        mult = 1; // Outer bull (Verde)
         label = 'S-BULL (25)';
       }
     } else if (sector === 0) {
@@ -98,7 +98,7 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
     setIndividualDarts(nextDarts);
     setCurrentMultiplier(1); // Reset a Single tras tirar
 
-    // Si ya completó los 3 dardos, calcular total sugerido
+    // Si ya completó los 3 dardos, confirmar automáticamente
     if (nextDarts.length === 3) {
       const sum = nextDarts.reduce((acc, d) => acc + d.score, 0);
       onConfirmVisit(sum, nextDarts);
@@ -120,17 +120,17 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
   };
 
   return (
-    <div className="bg-[#101728] border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-2xl flex flex-col gap-3">
-      {/* Selector de Modo de Teclado */}
-      <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
-        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+    <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-3 sm:p-5 shadow-2xl flex flex-col gap-3">
+      {/* Selector de Modo de Teclado con estilo Diana */}
+      <div className="flex items-center justify-between gap-2 border-b border-[#313647] pb-3">
+        <div className="flex items-center gap-1 bg-[#14161f] p-1 rounded-xl border border-[#313647]">
           <button
             type="button"
             onClick={() => setInputMode('TOTAL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
               inputMode === 'TOTAL'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-[#00b853] text-[#0d0e12] shadow-md shadow-[#00b853]/30'
+                : 'text-[#b8ad98] hover:text-[#efe7d8]'
             }`}
           >
             Puntaje Total
@@ -138,10 +138,10 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
           <button
             type="button"
             onClick={() => setInputMode('INDIVIDUAL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
               inputMode === 'INDIVIDUAL'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-[#00b853] text-[#0d0e12] shadow-md shadow-[#00b853]/30'
+                : 'text-[#b8ad98] hover:text-[#efe7d8]'
             }`}
           >
             Dardo x Dardo (3)
@@ -152,24 +152,24 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
           <button
             type="button"
             onClick={onUndo}
-            className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold border border-slate-700/80 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#242836] hover:bg-[#2e3345] text-[#efe7d8] rounded-xl text-xs font-bold border border-[#313647] transition-all"
             title="Deshacer último turno"
           >
-            <CornerDownLeft className="w-3.5 h-3.5 text-amber-400" />
+            <CornerDownLeft className="w-3.5 h-3.5 text-[#e52521]" />
             <span>Deshacer</span>
           </button>
         )}
       </div>
 
       {inputMode === 'TOTAL' ? (
-        /* MODO TOTAL (ESTILO MY DART TRAINING) */
+        /* MODO TOTAL (ESTILO MY DART TRAINING CON COLORES DE LA DIANA) */
         <div className="flex flex-col gap-3">
-          {/* Display del puntaje ingresado */}
-          <div className="flex items-center justify-between bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 min-h-[56px]">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          {/* Display de puntuación ingresada */}
+          <div className="flex items-center justify-between bg-[#14161f] border-2 border-[#313647] rounded-2xl px-5 py-3 min-h-[64px]">
+            <span className="text-xs font-bold text-[#b8ad98] uppercase tracking-wider">
               Puntos del Turno:
             </span>
-            <span className="text-3xl font-black text-emerald-400 tracking-wider font-mono">
+            <span className="text-4xl font-black text-[#00b853] tracking-wider font-mono">
               {totalInput || '0'}
             </span>
           </div>
@@ -181,12 +181,12 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
                 key={score}
                 type="button"
                 onClick={() => handleQuickScore(score)}
-                className={`py-2 rounded-lg text-xs font-black transition-all ${
+                className={`py-2 rounded-xl text-xs font-black transition-all ${
                   score === 180
-                    ? 'bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-md shadow-amber-500/30 col-span-1'
+                    ? 'bg-gradient-to-r from-[#e52521] via-[#00b853] to-[#1d68ed] text-white shadow-md shadow-red-500/30'
                     : score >= 100
-                    ? 'bg-slate-800 text-emerald-400 hover:bg-slate-700 border border-emerald-500/20'
-                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/90 border border-slate-700/40'
+                    ? 'bg-[#242836] text-[#00b853] hover:bg-[#2b3040] border border-[#00b853]/40'
+                    : 'bg-[#242836]/80 text-[#efe7d8] hover:bg-[#2b3040] border border-[#313647]'
                 }`}
               >
                 {score}
@@ -201,26 +201,26 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
                 key={digit}
                 type="button"
                 onClick={() => handleNumClick(digit)}
-                className="py-3.5 sm:py-4 bg-slate-800 hover:bg-slate-700 active:bg-emerald-600 active:text-slate-950 text-white font-black text-xl rounded-xl border border-slate-700/60 shadow-sm transition-all"
+                className="py-4 bg-[#242836] hover:bg-[#2e3345] active:bg-[#00b853] active:text-[#0d0e12] text-white font-black text-2xl rounded-2xl border border-[#313647] shadow-sm transition-all"
               >
                 {digit}
               </button>
             ))}
 
-            {/* Fila inferior: CLR, 0, OK */}
+            {/* Fila inferior: CLR (Rojo Diana), 0, OK (Verde Diana) */}
             <button
               type="button"
               onClick={handleClearTotal}
-              className="py-3.5 sm:py-4 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 font-bold text-sm rounded-xl border border-rose-800/50 flex items-center justify-center gap-1 transition-all"
+              className="py-4 bg-[#e52521]/20 hover:bg-[#e52521]/40 text-[#e52521] font-black text-sm rounded-2xl border border-[#e52521]/50 flex items-center justify-center gap-1.5 transition-all"
             >
-              <Delete className="w-4 h-4" />
+              <Delete className="w-4 h-4 stroke-[2.5]" />
               <span>CLR</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleNumClick('0')}
-              className="py-3.5 sm:py-4 bg-slate-800 hover:bg-slate-700 text-white font-black text-xl rounded-xl border border-slate-700/60 shadow-sm transition-all"
+              className="py-4 bg-[#242836] hover:bg-[#2e3345] text-white font-black text-2xl rounded-2xl border border-[#313647] shadow-sm transition-all"
             >
               0
             </button>
@@ -228,35 +228,35 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
             <button
               type="button"
               onClick={handleConfirmTotal}
-              className="py-3.5 sm:py-4 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-base rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition-all"
+              className="py-4 bg-[#00b853] hover:bg-[#009e47] active:scale-95 text-[#0d0e12] font-black text-base rounded-2xl shadow-lg shadow-[#00b853]/30 flex items-center justify-center gap-1.5 transition-all"
             >
-              <Check className="w-5 h-5 stroke-[3]" />
+              <Check className="w-6 h-6 stroke-[3]" />
               <span>OK</span>
             </button>
           </div>
         </div>
       ) : (
-        /* MODO INDIVIDUAL (DARDO POR DARDO: SINGLE, DOUBLE, TRIPLE, BULL) */
+        /* MODO INDIVIDUAL (DARDO POR DARDO: COLORES DIANA SAMURAI 4) */
         <div className="flex flex-col gap-3">
           {/* Visualización de los 3 dardos de la visita */}
-          <div className="grid grid-cols-3 gap-2 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
+          <div className="grid grid-cols-3 gap-2 bg-[#14161f] p-3 rounded-2xl border border-[#313647]">
             {[0, 1, 2].map((idx) => {
               const dart = individualDarts[idx];
               return (
                 <div
                   key={idx}
-                  className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center min-h-[50px] ${
+                  className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center min-h-[54px] ${
                     dart
-                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                      ? 'bg-[#00b853]/20 border-[#00b853]/60 text-[#00b853]'
                       : idx === individualDarts.length
-                      ? 'bg-slate-900 border-amber-500/50 text-amber-400 animate-pulse'
-                      : 'bg-slate-900/50 border-slate-800 text-slate-600'
+                      ? 'bg-[#242836] border-[#e52521]/60 text-[#e52521] animate-pulse'
+                      : 'bg-[#1c1f2b] border-[#313647] text-[#b8ad98]/40'
                   }`}
                 >
-                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                  <span className="text-[10px] uppercase font-black text-[#b8ad98]">
                     Dardo {idx + 1}
                   </span>
-                  <span className="font-extrabold text-sm">
+                  <span className="font-black text-sm">
                     {dart ? dart.label : idx === individualDarts.length ? 'Tirar...' : '-'}
                   </span>
                 </div>
@@ -264,15 +264,15 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
             })}
           </div>
 
-          {/* Multiplicadores: Single, Double, Triple */}
-          <div className="grid grid-cols-3 gap-1.5">
+          {/* Multiplicadores: SIMPLE (Marfil Sisal), DOBLE (Rojo Diana), TRIPLE (Verde Diana) */}
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setCurrentMultiplier(1)}
-              className={`py-2 rounded-xl text-xs font-black transition-all ${
+              className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
                 currentMultiplier === 1
-                  ? 'bg-slate-200 text-slate-950 shadow-md'
-                  : 'bg-slate-800/90 text-slate-300 hover:bg-slate-700'
+                  ? 'bg-[#efe7d8] text-[#0d0e12] border-[#efe7d8] shadow-md'
+                  : 'bg-[#242836] text-[#efe7d8] hover:bg-[#2b3040] border-[#313647]'
               }`}
             >
               SIMPLE (1x)
@@ -280,10 +280,10 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
             <button
               type="button"
               onClick={() => setCurrentMultiplier(2)}
-              className={`py-2 rounded-xl text-xs font-black transition-all ${
+              className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
                 currentMultiplier === 2
-                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30'
-                  : 'bg-slate-800/90 text-cyan-400 hover:bg-slate-700'
+                  ? 'bg-[#e52521] text-white border-[#e52521] shadow-md shadow-red-500/30'
+                  : 'bg-[#242836] text-[#e52521] hover:bg-[#2b3040] border-[#e52521]/40'
               }`}
             >
               DOBLE (2x)
@@ -291,29 +291,29 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
             <button
               type="button"
               onClick={() => setCurrentMultiplier(3)}
-              className={`py-2 rounded-xl text-xs font-black transition-all ${
+              className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
                 currentMultiplier === 3
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
-                  : 'bg-slate-800/90 text-amber-400 hover:bg-slate-700'
+                  ? 'bg-[#00b853] text-[#0d0e12] border-[#00b853] shadow-md shadow-green-500/30'
+                  : 'bg-[#242836] text-[#00b853] hover:bg-[#2b3040] border-[#00b853]/40'
               }`}
             >
               TRIPLE (3x)
             </button>
           </div>
 
-          {/* Grilla de números 1 al 20 + Bull + Miss */}
+          {/* Grilla de números de la diana */}
           <div className="grid grid-cols-5 gap-1.5">
             {[20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
               <button
                 key={n}
                 type="button"
                 onClick={() => handleThrowDart(n)}
-                className={`py-2.5 rounded-lg font-black text-sm transition-all active:scale-95 ${
+                className={`py-2.5 rounded-xl font-black text-sm transition-all active:scale-95 border ${
                   currentMultiplier === 3
-                    ? 'bg-amber-950/40 border border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
+                    ? 'bg-[#00b853]/20 border-[#00b853]/50 text-[#00b853] hover:bg-[#00b853]/30'
                     : currentMultiplier === 2
-                    ? 'bg-cyan-950/40 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60'
-                    : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700/60'
+                    ? 'bg-[#e52521]/20 border-[#e52521]/50 text-[#e52521] hover:bg-[#e52521]/30'
+                    : 'bg-[#242836] hover:bg-[#2e3345] text-white border-[#313647]'
                 }`}
               >
                 {currentMultiplier === 3 ? `T${n}` : currentMultiplier === 2 ? `D${n}` : n}
@@ -321,26 +321,26 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
             ))}
           </div>
 
-          {/* Especiales: Diana (Bull), Fuera (Miss) y Acciones */}
+          {/* Especiales: Diana Bull, Fuera Miss, Borrar, Enviar */}
           <div className="grid grid-cols-4 gap-2 pt-1">
             <button
               type="button"
               onClick={() => handleThrowDart(25)}
-              className="py-2.5 bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 font-extrabold text-xs rounded-xl border border-rose-500/40 flex items-center justify-center gap-1"
+              className="py-2.5 bg-[#e52521] hover:bg-[#cf1e1a] text-white font-black text-xs rounded-xl shadow-md shadow-red-500/20 flex items-center justify-center gap-1"
             >
               🎯 BULL
             </button>
             <button
               type="button"
               onClick={() => handleThrowDart(0)}
-              className="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold text-xs rounded-xl border border-slate-700"
+              className="py-2.5 bg-[#242836] hover:bg-[#2e3345] text-[#b8ad98] font-bold text-xs rounded-xl border border-[#313647]"
             >
               MISS (0)
             </button>
             <button
               type="button"
               onClick={handleClearIndividual}
-              className="py-2.5 bg-rose-950/30 hover:bg-rose-900/50 text-rose-300 font-bold text-xs rounded-xl border border-rose-800/40"
+              className="py-2.5 bg-[#e52521]/20 hover:bg-[#e52521]/30 text-[#e52521] font-bold text-xs rounded-xl border border-[#e52521]/40"
             >
               BORRAR
             </button>
@@ -348,7 +348,7 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
               type="button"
               disabled={individualDarts.length === 0}
               onClick={handleConfirmIndividualEarly}
-              className="py-2.5 bg-emerald-500 disabled:opacity-40 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-md"
+              className="py-2.5 bg-[#00b853] disabled:opacity-40 hover:bg-[#009e47] text-[#0d0e12] font-black text-xs rounded-xl shadow-md"
             >
               ENVIAR ({individualDarts.reduce((acc, d) => acc + d.score, 0)})
             </button>

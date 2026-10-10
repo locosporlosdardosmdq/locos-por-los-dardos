@@ -37,3 +37,24 @@
 - **Contexto:** La plataforma debe operar transacciones comerciales y cobro de inscripciones a torneos en Pesos Argentinos (ARS) de forma confiable.
 - **Decisión:** Integración de Checkout Pro mediante endpoints `/api/checkout/mercadopago` (Preferencia de pago) y `/api/webhook/mercadopago` (IPN). Incluye fallback de simulación para desarrollo y pruebas offline locales sin bloquear el flujo cuando no hay token de producción configurado.
 - **Motivo:** Es el estándar de pago indiscutido en Argentina con soporte para dinero en cuenta, tarjetas de crédito en cuotas y débito.
+
+---
+
+## [ADR-006] Sistema de Diseño Basado en la Diana de Dardos (Samurai 4) + Fondo Gris Oscuro
+- **Fecha:** 2026-10-10
+- **Contexto:** Se requiere otorgar una identidad visual deportiva contundente y auténtica a la plataforma, inspirada directamente en los colores de la diana física (Samurai 4), respetando un fondo gris oscuro sobrio para evitar fatiga visual durante sesiones prolongadas.
+- **Decisión:** Se mapearon los tokens semánticos en `tailwind.config.ts`:
+  * Fondo base y contenedores: Gris Oscuro (`#14161f` / `#1c1f2b` / `#313647`).
+  * Aciertos, estadísticas y promedios: Verde Diana Oficial (`#00b853`).
+  * Dobles, Bullseye central, bogey checks y alertas: Rojo Diana Oficial (`#e52521`).
+  * Acentos de competición y marca Samurai: Azul Eléctrico (`#1d68ed`).
+  * Sectores claros y tipografía de alto contraste: Marfil/Sisal natural (`#efe7d8`).
+- **Motivo:** Refleja con fidelidad el deporte de los dardos y genera un fuerte impacto visual deportivo sin sacrificar la legibilidad ni la usabilidad bajo iluminación tenue en pubs y clubes.
+
+---
+
+## [ADR-007] Persistencia Offline-First y Espejo de Pista (Real-Time Broadcast)
+- **Fecha:** 2026-10-10
+- **Contexto:** En torneos presenciales, los jueces y jugadores usan tablets al pie del oche (cancha) y necesitan que los espectadores vean el tablero en una pantalla o proyector sin depender de una conexión a internet estable.
+- **Decisión:** Se diseñó `src/lib/storage.ts` para persistencia local de partidas terminadas con cola de sincronización asíncrona, y `src/lib/broadcast.ts` basado en `BroadcastChannel` (con fallback de `storage` events) que emite cada dardo y actualización de pierna instantáneamente a la nueva pestaña "Tablero en Vivo" de `/torneos`.
+- **Motivo:** Cero latencia, funcionamiento offline 100% garantizado en locales sin señal de internet y sincronización transparente entre pestañas y dispositivos.

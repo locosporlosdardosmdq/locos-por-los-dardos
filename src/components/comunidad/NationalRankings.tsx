@@ -2,18 +2,11 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { PlayerCategory, PlayerProfile } from '@/lib/types';
+import { PlayerCategory } from '@/lib/types';
 import { MOCK_RANKINGS, CATEGORY_DETAILS, PROVINCIAS_ARGENTINA } from '@/lib/constants';
 import { 
   Trophy, 
-  Medal, 
-  Filter, 
   MapPin, 
-  ArrowUpDown, 
-  Target, 
-  Award, 
-  Flame, 
-  Crosshair 
 } from 'lucide-react';
 
 export const NationalRankings: React.FC = () => {
@@ -31,32 +24,34 @@ export const NationalRankings: React.FC = () => {
 
   return (
     <div className="w-full space-y-6">
-      {/* Controles de Filtros */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#0d1322] border border-slate-800 rounded-2xl p-4 shadow-lg">
+      {/* Controles de Filtros con Estilo Diana */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#1c1f2b] border border-[#313647] rounded-3xl p-4 sm:p-5 shadow-lg">
         {/* Filtro por Categorías */}
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => setSelectedCategory('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
               selectedCategory === 'ALL'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'bg-slate-800/80 text-slate-300 hover:text-white'
+                ? 'bg-[#00b853] text-[#0d0e12] shadow-md shadow-[#00b853]/25'
+                : 'bg-[#242836] text-[#b8ad98] hover:text-white border border-[#313647]'
             }`}
           >
             Todas las Categorías
           </button>
           {(Object.keys(CATEGORY_DETAILS) as PlayerCategory[]).map((cat) => {
             const detail = CATEGORY_DETAILS[cat];
+            const isSelected = selectedCategory === cat;
+
             return (
               <button
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                  selectedCategory === cat
-                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500'
-                    : 'bg-slate-800/50 text-slate-400 border-slate-700/60 hover:text-white'
+                  isSelected
+                    ? 'bg-[#00b853]/20 text-[#00b853] border-[#00b853]'
+                    : 'bg-[#242836]/60 text-[#b8ad98] border-[#313647] hover:text-white'
                 }`}
               >
                 {detail.label}
@@ -67,11 +62,11 @@ export const NationalRankings: React.FC = () => {
 
         {/* Filtro por Provincia */}
         <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <MapPin className="w-4 h-4 text-[#00b853] flex-shrink-0" />
           <select
             value={selectedProvince}
             onChange={(e) => setSelectedProvince(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+            className="bg-[#14161f] border border-[#313647] rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-[#00b853]"
           >
             <option value="ALL">Todas las Provincias</option>
             {PROVINCIAS_ARGENTINA.map((prov) => (
@@ -83,93 +78,93 @@ export const NationalRankings: React.FC = () => {
         </div>
       </div>
 
-      {/* PODIO TOP 3 DESTACADO */}
+      {/* PODIO TOP 3 DESTACADO CON COLORES DE LA DIANA */}
       {top3.length >= 3 && selectedProvince === 'ALL' && selectedCategory === 'ALL' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-          {/* Segundo Lugar (Plata) */}
-          <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-5 text-center flex flex-col justify-between order-2 md:order-1 relative shadow-xl">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-400 text-slate-950 font-black text-xs px-3 py-0.5 rounded-full uppercase shadow">
+          {/* Segundo Lugar (Plata / Marfil Sisal) */}
+          <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-5 text-center flex flex-col justify-between order-2 md:order-1 relative shadow-xl">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#efe7d8] text-[#0d0e12] font-black text-xs px-3.5 py-0.5 rounded-full uppercase shadow">
               #2 Plata
             </div>
             <div className="pt-2">
-              <div className="relative w-16 h-16 mx-auto rounded-full overflow-hidden border-2 border-slate-400 bg-slate-900 p-1 mb-2">
+              <div className="relative w-16 h-16 mx-auto rounded-full overflow-hidden border-2 border-[#efe7d8] bg-[#14161f] p-1 mb-2">
                 <Image src={top3[1].avatarUrl} alt={top3[1].nickname} fill className="object-contain" />
               </div>
-              <h4 className="font-extrabold text-white text-base">{top3[1].nickname}</h4>
-              <p className="text-xs text-slate-400">{top3[1].city}, {top3[1].province}</p>
+              <h4 className="font-black text-white text-base">{top3[1].nickname}</h4>
+              <p className="text-xs text-[#b8ad98]">{top3[1].city}, {top3[1].province}</p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-800 flex justify-around text-xs">
+            <div className="mt-4 pt-3 border-t border-[#313647] flex justify-around text-xs">
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block">AVG</span>
-                <strong className="text-emerald-400 font-mono text-base">{top3[1].stats.overallAvg.toFixed(1)}</strong>
+                <span className="text-[10px] text-[#b8ad98] font-black block">AVG</span>
+                <strong className="text-[#00b853] font-mono text-base">{top3[1].stats.overallAvg.toFixed(1)}</strong>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block">180s</span>
-                <strong className="text-amber-400 text-base">{top3[1].stats.count180s}</strong>
+                <span className="text-[10px] text-[#b8ad98] font-black block">180s</span>
+                <strong className="text-[#e52521] text-base">{top3[1].stats.count180s}</strong>
               </div>
             </div>
           </div>
 
-          {/* Primer Lugar (Oro) - Más alto y destacado */}
-          <div className="bg-gradient-to-b from-[#182744] to-[#0d1629] border-2 border-amber-500/60 rounded-3xl p-6 text-center flex flex-col justify-between order-1 md:order-2 relative shadow-2xl shadow-amber-500/10 -mt-2">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 font-black text-xs px-4 py-1 rounded-full uppercase shadow-md flex items-center gap-1">
-              <Trophy className="w-3.5 h-3.5 fill-slate-950" />
+          {/* Primer Lugar (Oro / Verde Diana Campeón) */}
+          <div className="bg-[#1e2332] border-2 border-[#00b853] rounded-3xl p-6 text-center flex flex-col justify-between order-1 md:order-2 relative shadow-2xl shadow-[#00b853]/20 -mt-2">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#00b853] text-[#0d0e12] font-black text-xs px-4 py-1 rounded-full uppercase shadow-md flex items-center gap-1">
+              <Trophy className="w-3.5 h-3.5 fill-[#0d0e12]" />
               #1 Campeón Nacional
             </div>
             <div className="pt-2">
-              <div className="relative w-20 h-20 mx-auto rounded-full overflow-hidden border-2 border-amber-400 bg-slate-900 p-1 mb-2 shadow-lg shadow-amber-500/20">
+              <div className="relative w-20 h-20 mx-auto rounded-full overflow-hidden border-2 border-[#00b853] bg-[#14161f] p-1 mb-2 shadow-lg shadow-[#00b853]/30">
                 <Image src={top3[0].avatarUrl} alt={top3[0].nickname} fill className="object-contain" />
               </div>
               <h4 className="font-black text-white text-lg tracking-tight">{top3[0].nickname}</h4>
-              <p className="text-xs text-slate-300">{top3[0].city}, {top3[0].province}</p>
+              <p className="text-xs text-[#efe7d8]">{top3[0].city}, {top3[0].province}</p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-800/80 flex justify-around text-xs">
+            <div className="mt-4 pt-3 border-t border-[#313647] flex justify-around text-xs">
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block">AVG GLOBAL</span>
-                <strong className="text-emerald-400 font-mono text-xl">{top3[0].stats.overallAvg.toFixed(1)}</strong>
+                <span className="text-[10px] text-[#b8ad98] font-black block">AVG GLOBAL</span>
+                <strong className="text-[#00b853] font-mono text-2xl">{top3[0].stats.overallAvg.toFixed(1)}</strong>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block">180s</span>
-                <strong className="text-amber-400 text-xl">{top3[0].stats.count180s}</strong>
+                <span className="text-[10px] text-[#b8ad98] font-black block">180s</span>
+                <strong className="text-[#e52521] text-2xl">{top3[0].stats.count180s}</strong>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block">MAX CIERRE</span>
-                <strong className="text-cyan-400 text-xl">{top3[0].stats.highestCheckout}</strong>
+                <span className="text-[10px] text-[#b8ad98] font-black block">MAX CIERRE</span>
+                <strong className="text-[#1d68ed] text-2xl">{top3[0].stats.highestCheckout}</strong>
               </div>
             </div>
           </div>
 
-          {/* Tercer Lugar (Bronce) */}
-          <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-5 text-center flex flex-col justify-between order-3 relative shadow-xl">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-700 text-white font-black text-xs px-3 py-0.5 rounded-full uppercase shadow">
+          {/* Tercer Lugar (Bronce / Rojo Bullseye) */}
+          <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-5 text-center flex flex-col justify-between order-3 relative shadow-xl">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#e52521] text-white font-black text-xs px-3.5 py-0.5 rounded-full uppercase shadow">
               #3 Bronce
             </div>
             <div className="pt-2">
-              <div className="relative w-16 h-16 mx-auto rounded-full overflow-hidden border-2 border-amber-700 bg-slate-900 p-1 mb-2">
+              <div className="relative w-16 h-16 mx-auto rounded-full overflow-hidden border-2 border-[#e52521] bg-[#14161f] p-1 mb-2">
                 <Image src={top3[2].avatarUrl} alt={top3[2].nickname} fill className="object-contain" />
               </div>
-              <h4 className="font-extrabold text-white text-base">{top3[2].nickname}</h4>
-              <p className="text-xs text-slate-400">{top3[2].city}, {top3[2].province}</p>
+              <h4 className="font-black text-white text-base">{top3[2].nickname}</h4>
+              <p className="text-xs text-[#b8ad98]">{top3[2].city}, {top3[2].province}</p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-800 flex justify-around text-xs">
+            <div className="mt-4 pt-3 border-t border-[#313647] flex justify-around text-xs">
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block">AVG</span>
-                <strong className="text-emerald-400 font-mono text-base">{top3[2].stats.overallAvg.toFixed(1)}</strong>
+                <span className="text-[10px] text-[#b8ad98] font-black block">AVG</span>
+                <strong className="text-[#00b853] font-mono text-base">{top3[2].stats.overallAvg.toFixed(1)}</strong>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block">180s</span>
-                <strong className="text-amber-400 text-base">{top3[2].stats.count180s}</strong>
+                <span className="text-[10px] text-[#b8ad98] font-black block">180s</span>
+                <strong className="text-[#e52521] text-base">{top3[2].stats.count180s}</strong>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* TABLA COMPLETA DE CLASIFICACIÓN */}
-      <div className="bg-[#0b101d] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+      {/* TABLA COMPLETA DE CLASIFICACIÓN CON FONDO GRIS OSCURO */}
+      <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-[#0e1628] text-slate-400 uppercase font-black tracking-wider border-b border-slate-800 text-[11px]">
+            <thead className="bg-[#14161f] text-[#b8ad98] uppercase font-black tracking-wider border-b border-[#313647] text-[11px]">
               <tr>
                 <th className="py-4 px-4 text-center">Pos</th>
                 <th className="py-4 px-4">Jugador</th>
@@ -183,24 +178,24 @@ export const NationalRankings: React.FC = () => {
                 <th className="py-4 px-3 text-center">% Dobles</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80 text-slate-300">
+            <tbody className="divide-y divide-[#313647]/70 text-[#efe7d8]">
               {filteredRankings.map((player, idx) => {
                 const catInfo = CATEGORY_DETAILS[player.category];
                 return (
                   <tr
                     key={player.id}
-                    className="hover:bg-slate-900/60 transition-colors"
+                    className="hover:bg-[#242836] transition-colors"
                   >
                     <td className="py-3.5 px-4 text-center font-black">
                       <span
                         className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs ${
                           idx === 0
-                            ? 'bg-amber-400 text-slate-950 font-black'
+                            ? 'bg-[#00b853] text-[#0d0e12] font-black'
                             : idx === 1
-                            ? 'bg-slate-300 text-slate-950 font-bold'
+                            ? 'bg-[#efe7d8] text-[#0d0e12] font-bold'
                             : idx === 2
-                            ? 'bg-amber-700 text-white font-bold'
-                            : 'text-slate-500'
+                            ? 'bg-[#e52521] text-white font-bold'
+                            : 'text-[#b8ad98]'
                         }`}
                       >
                         {idx + 1}
@@ -209,48 +204,56 @@ export const NationalRankings: React.FC = () => {
 
                     <td className="py-3.5 px-4 font-bold text-white">
                       <div className="flex items-center gap-3">
-                        <div className="relative w-7 h-7 rounded-full overflow-hidden bg-slate-800 flex-shrink-0">
+                        <div className="relative w-7 h-7 rounded-full overflow-hidden bg-[#14161f] flex-shrink-0">
                           <Image src={player.avatarUrl} alt={player.nickname} fill className="object-contain" />
                         </div>
                         <div>
                           <strong className="text-white block text-sm">{player.nickname}</strong>
-                          <span className="text-[11px] text-slate-400">{player.fullName}</span>
+                          <span className="text-[11px] text-[#b8ad98]">{player.fullName}</span>
                         </div>
                       </div>
                     </td>
 
                     <td className="py-3.5 px-3">
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${catInfo.badgeClass}`}>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${
+                        player.category === 'ELITE'
+                          ? 'bg-[#00b853]/20 text-[#00b853] border-[#00b853]/40'
+                          : player.category === 'AVANZADA'
+                          ? 'bg-[#1d68ed]/20 text-[#38bdf8] border-[#1d68ed]/40'
+                          : player.category === 'INTERMEDIA'
+                          ? 'bg-[#e52521]/20 text-[#e52521] border-[#e52521]/40'
+                          : 'bg-[#efe7d8]/20 text-[#efe7d8] border-[#efe7d8]/40'
+                      }`}>
                         {catInfo.label}
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-3 text-slate-400">
+                    <td className="py-3.5 px-3 text-[#b8ad98]">
                       {player.city}, {player.province.replace('Ciudad Autónoma de Buenos Aires (CABA)', 'CABA')}
                     </td>
 
-                    <td className="py-3.5 px-4 text-center font-mono font-black text-emerald-400 text-sm">
+                    <td className="py-3.5 px-4 text-center font-mono font-black text-[#00b853] text-sm">
                       {player.stats.overallAvg.toFixed(1)}
                     </td>
 
-                    <td className="py-3.5 px-3 text-center font-mono text-slate-300">
+                    <td className="py-3.5 px-3 text-center font-mono text-[#efe7d8]">
                       {player.stats.first9Avg.toFixed(1)}
                     </td>
 
                     <td className="py-3.5 px-3 text-center">
                       <span className="text-white font-bold">{player.stats.matchesWon}</span>
-                      <span className="text-slate-500">/{player.stats.matchesPlayed}</span>
+                      <span className="text-[#b8ad98]">/{player.stats.matchesPlayed}</span>
                     </td>
 
-                    <td className="py-3.5 px-3 text-center font-bold text-amber-400">
+                    <td className="py-3.5 px-3 text-center font-bold text-[#e52521]">
                       {player.stats.count180s}
                     </td>
 
-                    <td className="py-3.5 px-3 text-center font-bold text-cyan-400">
+                    <td className="py-3.5 px-3 text-center font-bold text-[#1d68ed]">
                       {player.stats.highestCheckout}
                     </td>
 
-                    <td className="py-3.5 px-3 text-center font-mono text-emerald-300">
+                    <td className="py-3.5 px-3 text-center font-mono text-[#00b853]">
                       {player.stats.checkoutPercentage.toFixed(1)}%
                     </td>
                   </tr>

@@ -1,5 +1,21 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 3] - 2026-10-10
+- **Objetivo:** Redefinición integral del sistema de diseño basado en la diana de dardos (Samurai 4) con fondo gris oscuro, persistencia offline-first y transmisión de partidas en vivo (Live Broadcast).
+- **Realizado:**
+  - Rediseño de toda la paleta cromática en `tailwind.config.ts` y `globals.css` utilizando los colores exactos de la diana Samurai 4: Gris Oscuro (`#14161f` / `#1c1f2b`), Verde Diana (`#00b853`), Rojo Bullseye (`#e52521`), Azul Samurai (`#1d68ed`) y Sisal natural (`#efe7d8`).
+  - Actualización completa de todos los módulos (`BrandLogo`, `Navbar`, `Footer`, `DartKeypad`, `CheckoutGuide`, `DartScorer`, `TournamentHeroBanner`, `NationalRankings`, `TournamentBracket`, `TournamentManager`, `RegisterAndProfile`, `ProductCatalog`, `CartDrawer` y páginas del App Router).
+  - Creación de `src/lib/storage.ts`: persistencia local offline-first para guardar partidas completadas y cola de sincronización remota (`SyncItem`).
+  - Creación de `src/lib/broadcast.ts`: canal en tiempo real mediante `BroadcastChannel API` que conecta el Oche (`DartScorer`) con una nueva pestaña interactiva "Tablero en Vivo" en el Gestor de Torneos (`TournamentManager`).
+  - Validación de compilación limpia de producción (`npm run build`) en Next.js 15 con 0 errores de tipado o linting.
+  - Registro de cambios y documentación en `Agent/INDEX.md`, `Agent/TODO.md`, `Agent/DECISIONS.md` y `Agent/SESSIONS.md`.
+- **Estado del Proyecto:** La plataforma cuenta con una estética deportiva de élite inspirada fielmente en la diana Samurai 4, soporte offline y espejo de pista en vivo en tiempo real para torneos.
+- **Próximos pasos:**
+  1. Conexión de autenticación de usuarios y perfiles persistentes en base de datos.
+  2. Automatización del sorteo de emparejamientos y cabezas de serie en torneos.
+
+---
+
 ## [Sesión 2] - 2026-10-10
 - **Objetivo:** Auditoría de arquitectura, sincronización del protocolo de agentes (`AGENTS.md`) y definición de próximos pasos técnicos y estratégicos del proyecto.
 - **Realizado:**

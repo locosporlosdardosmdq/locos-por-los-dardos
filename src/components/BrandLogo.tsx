@@ -27,7 +27,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
         {/* Logo Darderos Mar del Plata: +25% Preponderancia visual */}
         <div
           style={{ width: `${dimensions.mdq}px`, height: `${dimensions.mdq}px` }}
-          className="relative transition-transform duration-300 hover:scale-105 filter drop-shadow-[0_0_12px_rgba(16,185,129,0.35)]"
+          className="relative transition-transform duration-300 hover:scale-105 filter drop-shadow-[0_0_12px_rgba(0,184,83,0.4)]"
           title="Darderos Mar del Plata - Sede Principal (+25% Preponderancia)"
         >
           <Image
@@ -39,13 +39,13 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           />
         </div>
 
-        {/* Separador deportivo sutil */}
-        <span className="text-slate-600 font-bold select-none text-xs">✕</span>
+        {/* Separador diana con tono rojo Bullseye */}
+        <span className="text-[#e52521] font-black select-none text-xs">✕</span>
 
         {/* Logo Locos por los Dardos Argentina */}
         <div
           style={{ width: `${dimensions.arg}px`, height: `${dimensions.arg}px` }}
-          className="relative transition-transform duration-300 hover:scale-105 filter drop-shadow-[0_0_8px_rgba(6,182,212,0.25)] opacity-95"
+          className="relative transition-transform duration-300 hover:scale-105 filter drop-shadow-[0_0_8px_rgba(29,104,237,0.35)] opacity-95"
           title="Locos por los Dardos Argentina - Comunidad Nacional"
         >
           <Image
@@ -61,16 +61,16 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       {showText && (
         <div className="flex flex-col leading-tight">
           <div className="flex items-center gap-1.5">
-            <span className={`font-black tracking-tight text-white uppercase ${dimensions.text}`}>
-              Locos por los <span className="text-emerald-400">Dardos</span>
+            <span className={`font-black tracking-tight text-[#efe7d8] uppercase ${dimensions.text}`}>
+              Locos por los <span className="text-[#00b853]">Dardos</span>
             </span>
-            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wider uppercase">
+            <span className="bg-[#e52521]/20 text-[#e52521] border border-[#e52521]/40 text-[10px] font-black px-1.5 py-0.5 rounded tracking-wider uppercase">
               ARG
             </span>
           </div>
-          <span className="text-[11px] font-semibold text-slate-400 tracking-wide flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            impulsado por <strong className="text-emerald-300">Darderos MDQ</strong>
+          <span className="text-[11px] font-semibold text-[#b8ad98] tracking-wide flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00b853] animate-pulse"></span>
+            impulsado por <strong className="text-[#00b853]">Darderos MDQ</strong>
           </span>
         </div>
       )}

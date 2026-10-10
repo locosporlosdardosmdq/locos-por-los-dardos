@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { CHECKOUT_GUIDE } from '@/lib/constants';
 import { Target, Zap } from 'lucide-react';
@@ -21,12 +23,12 @@ export const CheckoutGuide: React.FC<CheckoutGuideProps> = ({
 
   if (isBogey) {
     return (
-      <div className="bg-amber-950/30 border border-amber-800/40 rounded-xl px-3 py-2 flex items-center justify-between text-xs">
-        <span className="text-amber-400 font-semibold flex items-center gap-1.5">
-          <Zap className="w-3.5 h-3.5" />
-          Puntuación Bogey ({remaining}): No hay cierre directo de 3 dardos.
+      <div className="bg-[#e52521]/15 border border-[#e52521]/40 rounded-2xl px-4 py-2.5 flex items-center justify-between text-xs">
+        <span className="text-[#e52521] font-bold flex items-center gap-1.5">
+          <Zap className="w-4 h-4 stroke-[2.5]" />
+          Puntuación Bogey ({remaining}): Imposible cerrar en 3 dardos.
         </span>
-        <span className="text-slate-400 text-[11px]">Bajar a número par o seguro</span>
+        <span className="text-[#b8ad98] text-[11px] font-semibold">Bajar a número de cierre seguro</span>
       </div>
     );
   }
@@ -57,12 +59,12 @@ export const CheckoutGuide: React.FC<CheckoutGuideProps> = ({
   }
 
   return (
-    <div className="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-teal-950/60 border border-emerald-500/40 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-lg shadow-emerald-950/20">
-      <div className="flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></div>
-        <Target className="w-4 h-4 text-emerald-400" />
-        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-          Ruta de Cierre ({remaining}):
+    <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl px-4 py-3 flex items-center justify-between shadow-xl">
+      <div className="flex items-center gap-2.5">
+        <div className="w-2.5 h-2.5 rounded-full bg-[#00b853] animate-ping"></div>
+        <Target className="w-4 h-4 text-[#00b853]" />
+        <span className="text-xs font-black text-[#efe7d8] uppercase tracking-wider">
+          Ruta de Cierre Oficial ({remaining}):
         </span>
       </div>
 
@@ -70,12 +72,12 @@ export const CheckoutGuide: React.FC<CheckoutGuideProps> = ({
         {displayRoute.map((step, idx) => (
           <span
             key={idx}
-            className={`font-black text-xs px-2.5 py-1 rounded-lg border shadow-sm ${
+            className={`font-black text-xs px-3 py-1.5 rounded-xl border shadow-sm font-mono ${
               step.startsWith('D') || step === 'BULL'
-                ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-mono text-sm'
+                ? 'bg-[#e52521] text-white border-[#e52521] text-sm shadow-red-500/20' // Cierre Doble en Rojo Diana
                 : step.startsWith('T')
-                ? 'bg-amber-500 text-slate-950 border-amber-400'
-                : 'bg-slate-800 text-slate-200 border-slate-700'
+                ? 'bg-[#00b853] text-[#0d0e12] border-[#00b853] text-sm shadow-green-500/20' // Triples preparatorios en Verde Diana
+                : 'bg-[#efe7d8] text-[#0d0e12] border-[#efe7d8]' // Simples en Marfil Sisal
             }`}
           >
             {step}

@@ -45,22 +45,22 @@ export const CATEGORY_DETAILS: Record<PlayerCategory, { label: string; minAvg: n
   INTERMEDIA: {
     label: 'Intermedia',
     minAvg: 40,
-    color: '#06b6d4',
-    badgeClass: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40',
+    color: '#1d68ed',
+    badgeClass: 'bg-board-blue/20 text-blue-400 border-board-blue/40',
     desc: 'Consolidación de técnica y cierres regulares (40.0 - 54.9 AVG)'
   },
   AVANZADA: {
     label: 'Avanzada',
     minAvg: 55,
-    color: '#eab308',
-    badgeClass: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
+    color: '#e52521',
+    badgeClass: 'bg-board-red/20 text-red-400 border-board-red/40',
     desc: 'Alta consistencia competitiva y dobles seguros (55.0 - 69.9 AVG)'
   },
   ELITE: {
     label: 'Elite Pro',
     minAvg: 70,
-    color: '#10b981',
-    badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
+    color: '#00b853',
+    badgeClass: 'bg-board-green/20 text-board-green border-board-green/40',
     desc: 'Máximo nivel nacional y aspiración internacional (70.0+ AVG)'
   }
 };

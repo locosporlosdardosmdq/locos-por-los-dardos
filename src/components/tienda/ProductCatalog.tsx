@@ -8,11 +8,7 @@ import {
   ShoppingBag, 
   Search, 
   Check, 
-  Star, 
-  Sparkles, 
-  ShieldCheck, 
-  Tag, 
-  Filter 
+  Tag 
 } from 'lucide-react';
 
 interface ProductCatalogProps {
@@ -59,28 +55,28 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
 
   return (
     <div className="w-full space-y-6">
-      {/* Filtros Superiores & Buscador */}
-      <div className="bg-[#0c1222] border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xl space-y-4">
+      {/* Filtros Superiores en Gris Oscuro */}
+      <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-4 sm:p-5 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Barra de Búsqueda */}
+          {/* Buscador */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-[#b8ad98] absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por modelo, marca o material (ej: Luke Littler, Sisal, Carbono)..."
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              placeholder="Buscar por modelo, marca o material (ej: Samurai, Winmau, Carbono)..."
+              className="w-full bg-[#14161f] border border-[#313647] rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-[#b8ad98]/60 focus:outline-none focus:border-[#00b853]"
             />
           </div>
 
           {/* Selector de Marca */}
           <div className="flex items-center gap-2">
-            <Tag className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <Tag className="w-4 h-4 text-[#00b853] flex-shrink-0" />
             <select
               value={selectedBrand}
               onChange={(e) => setSelectedBrand(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+              className="bg-[#14161f] border border-[#313647] rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#00b853]"
             >
               <option value="ALL">Todas las Marcas</option>
               {brands.filter(b => b !== 'ALL').map((b) => (
@@ -90,17 +86,17 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
           </div>
         </div>
 
-        {/* Pestañas de Categoría */}
+        {/* Pestañas de Categoría con Estilo Diana */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
           {categories.map((c) => (
             <button
               key={c.key}
               type="button"
               onClick={() => setSelectedCategory(c.key)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all uppercase tracking-wider ${
                 selectedCategory === c.key
-                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                  : 'bg-slate-900/90 text-slate-400 hover:text-white border border-slate-800'
+                  ? 'bg-[#00b853] text-[#0d0e12] shadow-md shadow-[#00b853]/25'
+                  : 'bg-[#242836] text-[#b8ad98] hover:text-white border border-[#313647]'
               }`}
             >
               {c.label}
@@ -109,7 +105,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
         </div>
       </div>
 
-      {/* Grid de Productos */}
+      {/* Grid de Productos con Contenedores en Gris Oscuro */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredProducts.map((product) => {
           const isJustAdded = addedId === product.id;
@@ -117,10 +113,10 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
           return (
             <div
               key={product.id}
-              className="group bg-[#0b101c] border border-slate-800/90 hover:border-emerald-500/50 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col justify-between"
+              className="group bg-[#1c1f2b] border border-[#313647] hover:border-[#00b853]/60 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col justify-between"
             >
               {/* Imagen y Badges */}
-              <div className="relative aspect-[4/3] bg-slate-950 overflow-hidden">
+              <div className="relative aspect-[4/3] bg-[#14161f] overflow-hidden">
                 <Image
                   src={product.imageUrl}
                   alt={product.name}
@@ -129,18 +125,18 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
                 />
 
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-900/90 text-white border border-slate-700 backdrop-blur-md">
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#14161f]/90 text-white border border-[#313647] backdrop-blur-md">
                     {product.brand}
                   </span>
                   {product.material && (
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 backdrop-blur-md">
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#00b853]/20 text-[#00b853] border border-[#00b853]/40 backdrop-blur-md">
                       {product.material}
                     </span>
                   )}
                 </div>
 
                 {product.isFeatured && (
-                  <span className="absolute top-3 right-3 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 shadow-md">
+                  <span className="absolute top-3 right-3 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-[#e52521] text-white shadow-md shadow-red-500/30">
                     Destacado
                   </span>
                 )}
@@ -149,40 +145,40 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
               {/* Información */}
               <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
                 <div>
-                  <h3 className="font-extrabold text-sm sm:text-base text-white group-hover:text-emerald-400 transition-colors line-clamp-2">
+                  <h3 className="font-black text-sm sm:text-base text-white group-hover:text-[#00b853] transition-colors line-clamp-2">
                     {product.name}
                   </h3>
-                  <p className="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                  <p className="text-xs text-[#b8ad98] line-clamp-2 mt-1 leading-relaxed">
                     {product.description}
                   </p>
                 </div>
 
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                <div className="pt-2 border-t border-[#313647] flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                    <span className="text-[10px] font-bold text-[#b8ad98] uppercase block">
                       Precio Oficial
                     </span>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="font-mono font-black text-lg text-emerald-400">
+                      <span className="font-mono font-black text-lg text-[#00b853]">
                         ${product.priceArs.toLocaleString('es-AR')}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-bold">ARS</span>
+                      <span className="text-[10px] text-[#b8ad98] font-bold">ARS</span>
                     </div>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => handleAdd(product)}
-                    className={`px-3.5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md ${
+                    className={`px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md ${
                       isJustAdded
-                        ? 'bg-emerald-400 text-slate-950'
-                        : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
+                        ? 'bg-[#00b853] text-[#0d0e12]'
+                        : 'bg-[#00b853] hover:bg-[#009e47] text-[#0d0e12] shadow-[#00b853]/25'
                     }`}
                   >
                     {isJustAdded ? (
                       <>
                         <Check className="w-4 h-4 stroke-[3]" />
-                        <span>¡Agregado!</span>
+                        <span>¡Listo!</span>
                       </>
                     ) : (
                       <>

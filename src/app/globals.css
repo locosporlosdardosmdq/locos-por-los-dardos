@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --background: #090d16;
-  --foreground: #f8fafc;
+  /* Fondo Gris Oscuro oficial de la plataforma */
+  --background: #14161f;
+  --foreground: #efe7d8; /* Marfil / Sisal natural */
 }
 
 body {
@@ -16,26 +17,32 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Scrollbar for Dart Sports Dark Theme */
+/* Scrollbar con colores de la diana: carril gris oscuro, pulgar verde y rojo diana */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #14161f;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #2b3040;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #10b981;
+  background: #00b853; /* Verde Diana */
 }
 
-/* Touch active styles for fast scoring */
+/* Selección en Verde Diana vibrante con texto carbón */
+::selection {
+  background-color: #00b853;
+  color: #0d0e12;
+}
+
+/* Touch active styles para tiro rápido en dispositivos táctiles */
 button {
   user-select: none;
   -webkit-tap-highlight-color: transparent;

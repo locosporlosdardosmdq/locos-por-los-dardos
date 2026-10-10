@@ -8,8 +8,9 @@
   - Creación de `src/lib/storage.ts`: persistencia local offline-first para guardar partidas completadas y cola de sincronización remota (`SyncItem`).
   - Creación de `src/lib/broadcast.ts`: canal en tiempo real mediante `BroadcastChannel API` que conecta el Oche (`DartScorer`) con una nueva pestaña interactiva "Tablero en Vivo" en el Gestor de Torneos (`TournamentManager`).
   - Validación de compilación limpia de producción (`npm run build`) en Next.js 15 con 0 errores de tipado o linting.
+  - Resolución de colisión de caché de servidor de desarrollo: purga de `.next`, reinicio limpio de `next dev` con respuesta HTTP 200 y fijación de dimensiones estrictas en [BrandLogo.tsx](file:///d:/Locos%20por%20los%20dardos/src/components/BrandLogo.tsx) para prevenir desbordes de imagen.
   - Registro de cambios y documentación en `Agent/INDEX.md`, `Agent/TODO.md`, `Agent/DECISIONS.md` y `Agent/SESSIONS.md`.
-- **Estado del Proyecto:** La plataforma cuenta con una estética deportiva de élite inspirada fielmente en la diana Samurai 4, soporte offline y espejo de pista en vivo en tiempo real para torneos.
+- **Estado del Proyecto:** La plataforma cuenta con una estética deportiva de élite inspirada fielmente en la diana Samurai 4, fondo gris oscuro, soporte offline y espejo de pista en vivo en tiempo real para torneos. Servidor de desarrollo corriendo de forma óptima en `http://localhost:3000`.
 - **Próximos pasos:**
   1. Conexión de autenticación de usuarios y perfiles persistentes en base de datos.
   2. Automatización del sorteo de emparejamientos y cabezas de serie en torneos.

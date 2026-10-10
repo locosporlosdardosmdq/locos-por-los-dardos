@@ -459,10 +459,10 @@ export const DartScorer: React.FC<DartScorerProps> = ({
 
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col gap-4 p-2 sm:p-4">
-      {/* Barra Superior en Gris Oscuro de Competición */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#1c1f2b] border border-[#313647] rounded-3xl p-4 sm:px-6 shadow-xl">
+      {/* Barra Superior de Competición (Captura 1) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0f1422] border border-[#1e2638] rounded-3xl p-4 sm:px-6 shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-[#00b853]/15 border border-[#00b853]/30 text-[#00b853]">
+          <div className="p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-[#00e676]">
             <Target className="w-5 h-5 stroke-[2.5]" />
           </div>
           <div>
@@ -470,14 +470,14 @@ export const DartScorer: React.FC<DartScorerProps> = ({
               <span className="font-black text-white text-base">
                 {gameType === 'X01' ? `${startingScore}` : gameType === 'CRICKET' ? 'CRICKET' : 'ROUND THE CLOCK'}
               </span>
-              <span className="text-xs px-2.5 py-0.5 rounded-lg font-black bg-[#e52521]/20 text-[#e52521] border border-[#e52521]/40">
+              <span className="text-xs px-2.5 py-0.5 rounded-lg font-black bg-red-500/20 text-red-400 border border-red-500/30">
                 {outMode.replace('_', ' ')}
               </span>
-              <span className="text-xs px-2.5 py-0.5 rounded-lg font-bold bg-[#242836] text-[#efe7d8] border border-[#313647]">
+              <span className="text-xs px-2.5 py-0.5 rounded-lg font-bold bg-[#131929] text-white border border-[#1e2638]">
                 Leg {legNumber} • Mejor de {bestOfLegs}
               </span>
             </div>
-            <span className="text-xs text-[#b8ad98]">
+            <span className="text-xs text-slate-400">
               {isVsCpu ? `Entrenamiento vs Bot (${cpuDifficulty})` : 'Partido Oficial 2 Jugadores'}
             </span>
           </div>
@@ -491,8 +491,8 @@ export const DartScorer: React.FC<DartScorerProps> = ({
             onClick={() => setVoiceCallerEnabled(!voiceCallerEnabled)}
             className={`p-2.5 rounded-2xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
               voiceCallerEnabled
-                ? 'bg-[#00b853]/20 text-[#00b853] border-[#00b853]/50 shadow-sm'
-                : 'bg-[#242836] text-[#b8ad98] border-[#313647]'
+                ? 'bg-emerald-500/15 text-[#00e676] border-emerald-500/40 shadow-sm'
+                : 'bg-[#131929] text-slate-400 border-[#1e2638]'
             }`}
             title="Activar / Desactivar Árbitro de Voz"
           >
@@ -504,9 +504,9 @@ export const DartScorer: React.FC<DartScorerProps> = ({
           <button
             type="button"
             onClick={() => setShowConfigModal(true)}
-            className="p-2.5 rounded-2xl bg-[#242836] hover:bg-[#2b3040] text-[#efe7d8] border border-[#313647] flex items-center gap-1.5 text-xs font-bold transition-all"
+            className="p-2.5 rounded-2xl bg-[#131929] hover:bg-[#1a233a] text-slate-300 border border-[#1e2638] flex items-center gap-1.5 text-xs font-bold transition-all"
           >
-            <Settings2 className="w-4 h-4 text-[#1d68ed]" />
+            <Settings2 className="w-4 h-4 text-[#0284c7]" />
             <span className="hidden sm:inline">Configuración</span>
           </button>
 
@@ -514,7 +514,7 @@ export const DartScorer: React.FC<DartScorerProps> = ({
           <button
             type="button"
             onClick={() => resetMatch()}
-            className="p-2.5 rounded-2xl bg-[#e52521]/20 hover:bg-[#e52521]/30 text-[#e52521] border border-[#e52521]/40 text-xs font-bold transition-all"
+            className="p-2.5 rounded-2xl bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 text-xs font-bold transition-all"
             title="Reiniciar Partido"
           >
             <RotateCcw className="w-4 h-4" />
@@ -522,76 +522,76 @@ export const DartScorer: React.FC<DartScorerProps> = ({
         </div>
       </div>
 
-      {/* BANNER DINÁMICO DE ANUNCIO EN VERDE DIANA */}
+      {/* BANNER DINÁMICO DE ANUNCIO EN VERDE NEÓN */}
       {lastAnnouncement && (
-        <div className="text-center py-2 px-4 bg-[#14161f] border border-[#00b853]/40 rounded-2xl text-xs font-black text-[#00b853] animate-pulse shadow-md">
+        <div className="text-center py-2 px-4 bg-[#0a0e17] border border-emerald-500/40 rounded-2xl text-xs font-black text-[#00e676] animate-pulse shadow-md">
           📢 {lastAnnouncement}
         </div>
       )}
 
-      {/* MARCADOR DUAL: PUNTUACIÓN GIGANTE ESTILO COMPETICIÓN PDC */}
+      {/* MARCADOR DUAL: PUNTUACIÓN GIGANTE ESTILO COMPETICIÓN PDC (CAPTURA 1) */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {/* JUGADOR 1 */}
         <div
           className={`relative rounded-3xl p-5 sm:p-7 transition-all duration-300 border flex flex-col justify-between ${
             currentTurn === 0
-              ? 'bg-[#1e2332] border-[#00b853] shadow-[0_0_25px_rgba(0,184,83,0.35)] ring-2 ring-[#00b853]/50'
-              : 'bg-[#1c1f2b]/80 border-[#313647] opacity-85'
+              ? 'bg-[#111728] border-[#00e676] shadow-[0_0_25px_rgba(0,230,118,0.22)] ring-1 ring-[#00e676]/40'
+              : 'bg-[#0f1422] border-[#1e2638] opacity-85'
           }`}
         >
           {/* Header Jugador 1 */}
-          <div className="flex items-center justify-between border-b border-[#313647] pb-3">
+          <div className="flex items-center justify-between border-b border-[#1e2638] pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-[#00b853]/20 border border-[#00b853]/40 flex items-center justify-center text-[#00b853] font-bold text-xs">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-[#00e676] font-bold text-xs">
                 <User className="w-4 h-4" />
               </div>
               <div>
                 <h3 className="font-black text-sm sm:text-base text-white flex items-center gap-2">
                   {player1Name}
                   {currentTurn === 0 && (
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#00b853] animate-ping"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#00e676] animate-ping"></span>
                   )}
                 </h3>
-                <span className="text-[11px] font-bold text-[#00b853]">
+                <span className="text-[11px] font-bold text-[#00e676]">
                   Piernas: {legsWon[0]} / {targetLegsToWin}
                 </span>
               </div>
             </div>
 
-            {/* Piernas Ganadas (Verde Diana) */}
+            {/* Piernas Ganadas */}
             <div className="flex gap-1.5">
               {Array.from({ length: targetLegsToWin }).map((_, i) => (
                 <div
                   key={i}
                   className={`w-3.5 h-6 rounded-md ${
-                    i < legsWon[0] ? 'bg-[#00b853] shadow-md shadow-[#00b853]' : 'bg-[#242836]'
+                    i < legsWon[0] ? 'bg-[#00e676] shadow-md shadow-emerald-500/50' : 'bg-[#1a233a]'
                   }`}
                 />
               ))}
             </div>
           </div>
 
-          {/* Puntaje Gigante en Blanco Alambre */}
+          {/* Puntaje Gigante en Blanco Puro */}
           <div className="py-6 sm:py-8 text-center">
             {gameType === 'X01' ? (
               <div className="space-y-1">
                 <span className="font-black text-6xl sm:text-8xl tracking-tight text-white font-mono drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
                   {scores[0]}
                 </span>
-                <div className="text-xs font-semibold text-[#b8ad98]">
+                <div className="text-xs font-semibold text-slate-400">
                   Dardos en pierna: <strong className="text-white">{dartsThrownLeg[0]}</strong>
                 </div>
               </div>
             ) : gameType === 'CRICKET' ? (
               <div className="space-y-1">
-                <span className="font-black text-5xl sm:text-7xl tracking-tight text-[#00b853] font-mono">
+                <span className="font-black text-5xl sm:text-7xl tracking-tight text-[#00e676] font-mono">
                   {cricketPoints[0]} pts
                 </span>
               </div>
             ) : (
               <div className="space-y-1">
-                <span className="text-xs uppercase font-bold text-[#b8ad98]">Objetivo:</span>
-                <div className="font-black text-6xl text-[#e52521] font-mono">
+                <span className="text-xs uppercase font-bold text-slate-400">Objetivo:</span>
+                <div className="font-black text-6xl text-[#ef4444] font-mono">
                   {rtcTarget === 21 ? 'BULL' : `D${rtcTarget}`}
                 </div>
               </div>
@@ -599,20 +599,20 @@ export const DartScorer: React.FC<DartScorerProps> = ({
           </div>
 
           {/* Estadísticas en Vivo Jugador 1 */}
-          <div className="grid grid-cols-3 gap-2 bg-[#14161f] rounded-2xl p-2.5 border border-[#313647] text-center text-xs">
+          <div className="grid grid-cols-3 gap-2 bg-[#07090e] rounded-2xl p-2.5 border border-[#1e2638] text-center text-xs">
             <div>
-              <span className="text-[10px] text-[#b8ad98] uppercase font-black block">AVG</span>
-              <span className="font-black text-[#00b853] text-sm font-mono">
+              <span className="text-[10px] text-slate-400 uppercase font-black block">AVG</span>
+              <span className="font-black text-[#00e676] text-sm font-mono">
                 {calcAvg(0)}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-[#b8ad98] uppercase font-black block">180s</span>
-              <span className="font-black text-[#e52521] text-sm">{count180s[0]}</span>
+              <span className="text-[10px] text-slate-400 uppercase font-black block">180s</span>
+              <span className="font-black text-[#ef4444] text-sm">{count180s[0]}</span>
             </div>
             <div>
-              <span className="text-[10px] text-[#b8ad98] uppercase font-black block">Cierre Max</span>
-              <span className="font-black text-[#1d68ed] text-sm">
+              <span className="text-[10px] text-slate-400 uppercase font-black block">CIERRE MAX</span>
+              <span className="font-black text-[#0284c7] text-sm">
                 {highestCheckout[0] > 0 ? highestCheckout[0] : '-'}
               </span>
             </div>
@@ -623,17 +623,17 @@ export const DartScorer: React.FC<DartScorerProps> = ({
         <div
           className={`relative rounded-3xl p-5 sm:p-7 transition-all duration-300 border flex flex-col justify-between ${
             currentTurn === 1
-              ? 'bg-[#1e2332] border-[#00b853] shadow-[0_0_25px_rgba(0,184,83,0.35)] ring-2 ring-[#00b853]/50'
-              : 'bg-[#1c1f2b]/80 border-[#313647] opacity-85'
+              ? 'bg-[#111728] border-[#00e676] shadow-[0_0_25px_rgba(0,230,118,0.22)] ring-1 ring-[#00e676]/40'
+              : 'bg-[#0f1422] border-[#1e2638] opacity-85'
           }`}
         >
           {/* Header Jugador 2 */}
-          <div className="flex items-center justify-between border-b border-[#313647] pb-3">
+          <div className="flex items-center justify-between border-b border-[#1e2638] pb-3">
             <div className="flex items-center gap-2.5">
               <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold text-xs ${
                 isVsCpu 
-                  ? 'bg-[#1d68ed]/20 border-[#1d68ed]/40 text-[#38bdf8]' 
-                  : 'bg-[#00b853]/20 border-[#00b853]/40 text-[#00b853]'
+                  ? 'bg-sky-500/20 border-sky-500/40 text-[#38bdf8]' 
+                  : 'bg-emerald-500/20 border-emerald-500/40 text-[#00e676]'
               }`}>
                 {isVsCpu ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
               </div>
@@ -641,10 +641,10 @@ export const DartScorer: React.FC<DartScorerProps> = ({
                 <h3 className="font-black text-sm sm:text-base text-white flex items-center gap-2">
                   {isVsCpu ? `CPU (${cpuDifficulty})` : player2Name}
                   {currentTurn === 1 && (
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#00b853] animate-ping"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#00e676] animate-ping"></span>
                   )}
                 </h3>
-                <span className="text-[11px] font-bold text-[#00b853]">
+                <span className="text-[11px] font-bold text-[#00e676]">
                   Piernas: {legsWon[1]} / {targetLegsToWin}
                 </span>
               </div>
@@ -656,34 +656,34 @@ export const DartScorer: React.FC<DartScorerProps> = ({
                 <div
                   key={i}
                   className={`w-3.5 h-6 rounded-md ${
-                    i < legsWon[1] ? 'bg-[#00b853] shadow-md shadow-[#00b853]' : 'bg-[#242836]'
+                    i < legsWon[1] ? 'bg-[#00e676] shadow-md shadow-emerald-500/50' : 'bg-[#1a233a]'
                   }`}
                 />
               ))}
             </div>
           </div>
 
-          {/* Puntaje Gigante en Blanco Alambre */}
+          {/* Puntaje Gigante en Blanco Puro */}
           <div className="py-6 sm:py-8 text-center">
             {gameType === 'X01' ? (
               <div className="space-y-1">
                 <span className="font-black text-6xl sm:text-8xl tracking-tight text-white font-mono drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
                   {scores[1]}
                 </span>
-                <div className="text-xs font-semibold text-[#b8ad98]">
+                <div className="text-xs font-semibold text-slate-400">
                   Dardos en pierna: <strong className="text-white">{dartsThrownLeg[1]}</strong>
                 </div>
               </div>
             ) : gameType === 'CRICKET' ? (
               <div className="space-y-1">
-                <span className="font-black text-5xl sm:text-7xl tracking-tight text-[#00b853] font-mono">
+                <span className="font-black text-5xl sm:text-7xl tracking-tight text-[#00e676] font-mono">
                   {cricketPoints[1]} pts
                 </span>
               </div>
             ) : (
               <div className="space-y-1">
-                <span className="text-xs uppercase font-bold text-[#b8ad98]">Aciertos:</span>
-                <div className="font-black text-6xl text-[#00b853] font-mono">
+                <span className="text-xs uppercase font-bold text-slate-400">Aciertos:</span>
+                <div className="font-black text-6xl text-[#00e676] font-mono">
                   {rtcHits}
                 </div>
               </div>
@@ -691,20 +691,20 @@ export const DartScorer: React.FC<DartScorerProps> = ({
           </div>
 
           {/* Estadísticas en Vivo Jugador 2 */}
-          <div className="grid grid-cols-3 gap-2 bg-[#14161f] rounded-2xl p-2.5 border border-[#313647] text-center text-xs">
+          <div className="grid grid-cols-3 gap-2 bg-[#07090e] rounded-2xl p-2.5 border border-[#1e2638] text-center text-xs">
             <div>
-              <span className="text-[10px] text-[#b8ad98] uppercase font-black block">AVG</span>
-              <span className="font-black text-[#00b853] text-sm font-mono">
+              <span className="text-[10px] text-slate-400 uppercase font-black block">AVG</span>
+              <span className="font-black text-[#00e676] text-sm font-mono">
                 {calcAvg(1)}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-[#b8ad98] uppercase font-black block">180s</span>
-              <span className="font-black text-[#e52521] text-sm">{count180s[1]}</span>
+              <span className="text-[10px] text-slate-400 uppercase font-black block">180s</span>
+              <span className="font-black text-[#ef4444] text-sm">{count180s[1]}</span>
             </div>
             <div>
-              <span className="text-[10px] text-[#b8ad98] uppercase font-black block">Cierre Max</span>
-              <span className="font-black text-[#1d68ed] text-sm">
+              <span className="text-[10px] text-slate-400 uppercase font-black block">CIERRE MAX</span>
+              <span className="font-black text-[#0284c7] text-sm">
                 {highestCheckout[1] > 0 ? highestCheckout[1] : '-'}
               </span>
             </div>

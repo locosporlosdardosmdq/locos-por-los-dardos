@@ -27,6 +27,8 @@ export const PROVINCIAS_ARGENTINA = [
   'Tucumán'
 ];
 
+export const ARGENTINE_PROVINCES = PROVINCIAS_ARGENTINA;
+
 export function calculateCategory(avg: number): PlayerCategory {
   if (avg >= 70) return 'ELITE';
   if (avg >= 55) return 'AVANZADA';
@@ -64,6 +66,8 @@ export const CATEGORY_DETAILS: Record<PlayerCategory, { label: string; minAvg: n
     desc: 'Máximo nivel nacional y aspiración internacional (70.0+ AVG)'
   }
 };
+
+export const PLAYER_CATEGORIES = CATEGORY_DETAILS;
 
 // Tabla de Checkout profesional para 2 a 170
 export const CHECKOUT_GUIDE: Record<number, string[]> = {

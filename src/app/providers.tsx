@@ -2,9 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, CartItem } from '@/lib/types';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { CartDrawer } from '@/components/tienda/CartDrawer';
+import { AppShell } from '@/components/layout/AppShell';
 
 interface CartContextType {
   items: CartItem[];
@@ -92,19 +90,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         totalItems,
       }}
     >
-      <Navbar cartCount={totalItems} onOpenCart={() => setIsCartOpen(true)} />
-      <main className="flex-1">
+      <AppShell>
         {children}
-      </main>
-      <Footer />
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        items={items}
-        onUpdateQuantity={updateQuantity}
-        onRemoveItem={removeFromCart}
-        onClearCart={clearCart}
-      />
+      </AppShell>
     </CartContext.Provider>
   );
 }

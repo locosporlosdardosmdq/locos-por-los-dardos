@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  /* Fondo Gris Oscuro oficial de la plataforma */
-  --background: #14161f;
-  --foreground: #efe7d8; /* Marfil / Sisal natural */
+  /* Fondo Negro Deportivo Profundo (Captura 1) */
+  --background: #07090e;
+  --foreground: #ffffff;
 }
 
 body {
@@ -17,29 +17,29 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar con colores de la diana: carril gris oscuro, pulgar verde y rojo diana */
+/* Scrollbar con colores deportivos oscuros */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #14161f;
+  background: #07090e;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2b3040;
+  background: #1e293b;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #00b853; /* Verde Diana */
+  background: #00e676; /* Verde Neón Diana */
 }
 
-/* Selección en Verde Diana vibrante con texto carbón */
+/* Selección en Verde Neón vibrante con texto negro */
 ::selection {
-  background-color: #00b853;
-  color: #0d0e12;
+  background-color: #00e676;
+  color: #07090e;
 }
 
 /* Touch active styles para tiro rápido en dispositivos táctiles */

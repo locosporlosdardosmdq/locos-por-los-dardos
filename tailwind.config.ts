@@ -12,22 +12,21 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        // Paleta oficial inspirada 100% en la Diana de Dardos (Samurai 4) + Fondo Gris Oscuro
+        // Paleta deportiva ultra-oscura basada en la diana (Captura 1) con fondo profundo hacia el negro
         board: {
-          dark: "#14161f",        // Gris oscuro base (fondo)
-          card: "#1c1f2b",        // Gris oscuro para tarjetas y contenedores
-          elevated: "#242836",    // Gris oscuro elevado para botones e inputs
-          border: "#313647",      // Gris borde neutro
-          green: "#00b853",       // Verde diana oficial (dobles/triples y outer bull)
-          "green-dark": "#02853d",// Verde diana saturado
-          red: "#e52521",         // Rojo diana oficial (dobles/triples y bullseye central)
-          "red-dark": "#b01815",  // Rojo diana profundo
-          sisal: "#efe7d8",       // Marfil/Sisal natural de sectores claros
-          "sisal-muted": "#b8ad98", // Sisal envejecido para subtítulos
-          blue: "#1d68ed",        // Azul eléctrico oficial marca Samurai 4
+          dark: "#07090e",        // Fondo ultra oscuro profundo (hacia el negro)
+          card: "#0f1422",        // Contenedores y tarjetas oscuras de alto contraste
+          elevated: "#151d30",    // Elementos interactivos elevados
+          border: "#1e293b",      // Borde sutil y limpio
+          green: "#00e676",       // Verde neón de la diana (aciertos, activo y promedios)
+          "green-dark": "#00c853",// Verde diana sólido
+          red: "#ef4444",         // Rojo diana deportivo (dobles, bullseye y bogey)
+          "red-dark": "#dc2626",  // Rojo oscuro
+          blue: "#0284c7",        // Azul vibrante de torneos y acciones secundarias
           "blue-glow": "#38bdf8", // Azul brillo
-          charcoal: "#0d0e12",    // Negro carbón de sectores oscuros y aro
-          wire: "#ffffff",        // Blanco alambre/spider de los números
+          charcoal: "#05070a",    // Negro azabache
+          wire: "#ffffff",        // Blanco puro para dígitos de tanteo y títulos
+          muted: "#94a3b8",       // Texto secundario limpio (slate-400)
         },
       },
       boxShadow: {

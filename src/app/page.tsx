@@ -26,67 +26,67 @@ export default function HomePage() {
 
       {/* 2. SECCIÓN INFORMATIVA & COMUNIDAD DE DARDOS ARGENTINA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-1/3 w-80 h-80 bg-[#00b853]/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="bg-[#0f1422] border border-[#1e2638] rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-1/3 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
           <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-7 space-y-4">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#00b853] animate-ping"></span>
-                <span className="text-xs font-black uppercase text-[#00b853] tracking-wider">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#00e676] animate-ping"></span>
+                <span className="text-xs font-black uppercase text-[#00e676] tracking-wider">
                   Comunidad Nacional de Dardos
                 </span>
               </div>
 
               <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
-                La plataforma que une a todos los <span className="text-[#00b853]">darderos del país</span>.
+                La plataforma que une a todos los <span className="text-[#00e676]">darderos del país</span>.
               </h2>
 
-              <p className="text-[#efe7d8] text-sm sm:text-base leading-relaxed">
-                Nacida de la pasión de los jugadores de <strong className="text-[#00b853]">Darderos Mar del Plata</strong> y expandida a cada rincón de Argentina. Aquí puedes registrar tus partidas tiro a tiro, medir tu promedio histórico, competir en torneos presenciales y online estilo Nakka n01, y equiparte con material profesional importado.
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+                Nacida de la pasión de los jugadores de <strong className="text-[#00e676]">Darderos Mar del Plata</strong> y expandida a cada rincón de Argentina. Aquí puedes registrar tus partidas tiro a tiro, medir tu promedio histórico, competir en torneos presenciales y online estilo Nakka n01, y equiparte con material profesional importado.
               </p>
 
-              {/* Pilares clave con estilo diana */}
+              {/* Pilares clave con estilo deportivo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div className="flex items-center gap-2.5 text-xs text-[#efe7d8] bg-[#14161f] p-3 rounded-2xl border border-[#313647]">
-                  <CheckCircle2 className="w-4 h-4 text-[#00b853] flex-shrink-0" />
+                <div className="flex items-center gap-2.5 text-xs text-slate-300 bg-[#07090e] p-3 rounded-2xl border border-[#1e2638]">
+                  <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Anotador PWA:</strong> funciona offline en cualquier pub o club.</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-[#efe7d8] bg-[#14161f] p-3 rounded-2xl border border-[#313647]">
-                  <CheckCircle2 className="w-4 h-4 text-[#00b853] flex-shrink-0" />
+                <div className="flex items-center gap-2.5 text-xs text-slate-300 bg-[#07090e] p-3 rounded-2xl border border-[#1e2638]">
+                  <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Categorización por AVG:</strong> Principiante a Elite.</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-[#efe7d8] bg-[#14161f] p-3 rounded-2xl border border-[#313647]">
-                  <CheckCircle2 className="w-4 h-4 text-[#00b853] flex-shrink-0" />
+                <div className="flex items-center gap-2.5 text-xs text-slate-300 bg-[#07090e] p-3 rounded-2xl border border-[#1e2638]">
+                  <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Torneos Nakka n01:</strong> llaves y cruces en vivo.</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-[#efe7d8] bg-[#14161f] p-3 rounded-2xl border border-[#313647]">
-                  <CheckCircle2 className="w-4 h-4 text-[#00b853] flex-shrink-0" />
+                <div className="flex items-center gap-2.5 text-xs text-slate-300 bg-[#07090e] p-3 rounded-2xl border border-[#1e2638]">
+                  <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Mercado Pago:</strong> cuotas en pesos y envíos al país.</span>
                 </div>
               </div>
             </div>
 
             {/* Showcase Visual de la Comunidad */}
-            <div className="lg:col-span-5 bg-[#14161f] border border-[#313647] rounded-3xl p-6 text-center shadow-xl space-y-4">
+            <div className="lg:col-span-5 bg-[#07090e] border border-[#1e2638] rounded-3xl p-6 text-center shadow-xl space-y-4">
               <div className="flex justify-center pb-2">
                 <BrandLogo size="lg" />
               </div>
-              <p className="text-xs text-[#b8ad98] leading-snug">
+              <p className="text-xs text-slate-400 leading-snug">
                 Más de <strong className="text-white">1.200 jugadores</strong> activos compitiendo en ligas provinciales y torneos abiertos.
               </p>
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#313647] text-center">
-                <div className="bg-[#1c1f2b] p-3 rounded-2xl border border-[#313647]">
-                  <span className="font-black text-[#00b853] text-lg font-mono">24</span>
-                  <span className="text-[10px] text-[#b8ad98] block font-bold">Provincias</span>
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#1e2638] text-center">
+                <div className="bg-[#0f1422] p-3 rounded-2xl border border-[#1e2638]">
+                  <span className="font-black text-[#00e676] text-lg font-mono">24</span>
+                  <span className="text-[10px] text-slate-400 block font-bold">Provincias</span>
                 </div>
-                <div className="bg-[#1c1f2b] p-3 rounded-2xl border border-[#313647]">
-                  <span className="font-black text-[#e52521] text-lg font-mono">35+</span>
-                  <span className="text-[10px] text-[#b8ad98] block font-bold">Torneos / Año</span>
+                <div className="bg-[#0f1422] p-3 rounded-2xl border border-[#1e2638]">
+                  <span className="font-black text-[#ef4444] text-lg font-mono">35+</span>
+                  <span className="text-[10px] text-slate-400 block font-bold">Torneos / Año</span>
                 </div>
-                <div className="bg-[#1c1f2b] p-3 rounded-2xl border border-[#313647]">
-                  <span className="font-black text-[#1d68ed] text-lg font-mono">180s</span>
-                  <span className="text-[10px] text-[#b8ad98] block font-bold">Registro Vivo</span>
+                <div className="bg-[#0f1422] p-3 rounded-2xl border border-[#1e2638]">
+                  <span className="font-black text-[#0284c7] text-lg font-mono">180s</span>
+                  <span className="text-[10px] text-slate-400 block font-bold">Registro Vivo</span>
                 </div>
               </div>
             </div>
@@ -109,20 +109,20 @@ export default function HomePage() {
           {/* Card 1: Anotador */}
           <Link
             href="/anotador"
-            className="group bg-[#1c1f2b] hover:bg-[#242836] border border-[#313647] hover:border-[#00b853]/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
+            className="group bg-[#0f1422] hover:bg-[#151d30] border border-[#1e2638] hover:border-[#00e676]/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
           >
             <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#00b853]/15 border border-[#00b853]/40 flex items-center justify-center text-[#00b853] group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-[#00e676] group-hover:scale-110 transition-transform">
                 <Target className="w-6 h-6 stroke-[2.5]" />
               </div>
-              <h3 className="text-lg font-black text-white group-hover:text-[#00b853] transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-[#00e676] transition-colors">
                 Anotador en Vivo
               </h3>
-              <p className="text-xs text-[#b8ad98] leading-relaxed">
+              <p className="text-xs text-slate-400 leading-relaxed">
                 Estilo My Dart Training con teclado táctil rápido, modo X01, Cricket, bot inteligente, referee de voz ("180", "Game shot") y entrenamientos.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-[#313647] flex items-center justify-between text-xs font-black text-[#00b853]">
+            <div className="mt-4 pt-3 border-t border-[#1e2638] flex items-center justify-between text-xs font-black text-[#00e676]">
               <span>Lanzar Marcador</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -131,20 +131,20 @@ export default function HomePage() {
           {/* Card 2: Torneos Nakka */}
           <Link
             href="/torneos"
-            className="group bg-[#1c1f2b] hover:bg-[#242836] border border-[#313647] hover:border-[#1d68ed]/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
+            className="group bg-[#0f1422] hover:bg-[#151d30] border border-[#1e2638] hover:border-sky-500/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
           >
             <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#1d68ed]/15 border border-[#1d68ed]/40 flex items-center justify-center text-[#38bdf8] group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-sky-500/15 border border-sky-500/40 flex items-center justify-center text-[#38bdf8] group-hover:scale-110 transition-transform">
                 <Trophy className="w-6 h-6 stroke-[2.5]" />
               </div>
               <h3 className="text-lg font-black text-white group-hover:text-[#38bdf8] transition-colors">
                 Torneos Nakka n01
               </h3>
-              <p className="text-xs text-[#b8ad98] leading-relaxed">
+              <p className="text-xs text-slate-400 leading-relaxed">
                 Gestión de llaves eliminatorias directas, doble eliminación y fase de grupos presenciales y online con actualización ronda a ronda.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-[#313647] flex items-center justify-between text-xs font-black text-[#38bdf8]">
+            <div className="mt-4 pt-3 border-t border-[#1e2638] flex items-center justify-between text-xs font-black text-[#38bdf8]">
               <span>Ver Cuadros y Llaves</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -153,20 +153,20 @@ export default function HomePage() {
           {/* Card 3: Ranking & Categorías */}
           <Link
             href="/ranking"
-            className="group bg-[#1c1f2b] hover:bg-[#242836] border border-[#313647] hover:border-[#00b853]/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
+            className="group bg-[#0f1422] hover:bg-[#151d30] border border-[#1e2638] hover:border-[#00e676]/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
           >
             <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#00b853]/15 border border-[#00b853]/40 flex items-center justify-center text-[#00b853] group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-[#00e676] group-hover:scale-110 transition-transform">
                 <TrendingUp className="w-6 h-6 stroke-[2.5]" />
               </div>
-              <h3 className="text-lg font-black text-white group-hover:text-[#00b853] transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-[#00e676] transition-colors">
                 Ranking Nacional
               </h3>
-              <p className="text-xs text-[#b8ad98] leading-relaxed">
+              <p className="text-xs text-slate-400 leading-relaxed">
                 Tabla oficial de posiciones por AVG en 501 dividida por categorías: Principiante, Intermedia, Avanzada y Elite en Argentina.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-[#313647] flex items-center justify-between text-xs font-black text-[#00b853]">
+            <div className="mt-4 pt-3 border-t border-[#1e2638] flex items-center justify-between text-xs font-black text-[#00e676]">
               <span>Consultar Leaderboard</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -175,20 +175,20 @@ export default function HomePage() {
           {/* Card 4: Tienda Oficial Mercado Pago */}
           <Link
             href="/tienda"
-            className="group bg-[#1c1f2b] hover:bg-[#242836] border border-[#313647] hover:border-[#e52521]/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
+            className="group bg-[#0f1422] hover:bg-[#151d30] border border-[#1e2638] hover:border-red-500/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
           >
             <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#e52521]/15 border border-[#e52521]/40 flex items-center justify-center text-[#e52521] group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/40 flex items-center justify-center text-[#ef4444] group-hover:scale-110 transition-transform">
                 <ShoppingBag className="w-6 h-6 stroke-[2.5]" />
               </div>
-              <h3 className="text-lg font-black text-white group-hover:text-[#e52521] transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-[#ef4444] transition-colors">
                 Tienda Oficial
               </h3>
-              <p className="text-xs text-[#b8ad98] leading-relaxed">
+              <p className="text-xs text-slate-400 leading-relaxed">
                 Dardos 90% Tungsteno (Target, Red Dragon, Winmau), dianas profesionales sisal, plumas K-Flex y envíos en ARS por Mercado Pago.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-[#313647] flex items-center justify-between text-xs font-black text-[#e52521]">
+            <div className="mt-4 pt-3 border-t border-[#1e2638] flex items-center justify-between text-xs font-black text-[#ef4444]">
               <span>Comprar Equipamiento</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>

@@ -1,5 +1,19 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 4] - 2026-10-10
+- **Objetivo:** Retorno estricto a la estética de alto contraste de la primera captura (fondo negro `#07090e`, textos blancos nítidos, acentos neón `#00e676`), arquitectura de navegación con Menú Lateral Colapsable (`AppSidebar`), y definición de la jerarquía modular de 6 secciones con creación del módulo `/jugadores`.
+- **Realizado:**
+  - Redefinición cromática: Reemplazo del fondo gris por negro profundo (`#07090e`), tarjetas en `#0f1422` y bordes `#1e2638`. Eliminación de matices marfil/sisal opacos en textos reemplazándolos por blanco puro `#ffffff` y puntuaciones gigantes de alto contraste para máxima visibilidad en el oche.
+  - Implementación del Menú Lateral Colapsable: Creados `AppSidebar.tsx`, `AppTopBar.tsx` y `AppShell.tsx`. Configuración de los 6 módulos en el orden exacto solicitado (1. Tienda Online, 2. Torneos Nakka, 3. Anotador, 4. Ranking, 5. Jugadores, 6. Configuración / Mi Perfil) con badges distintivos, memoria de estado en `localStorage` y drawer para dispositivos móviles.
+  - Creación del Módulo Jugadores: Implementados `src/components/jugadores/PlayerDirectory.tsx` y la ruta `src/app/jugadores/page.tsx` con buscador en tiempo real, selector federal de provincias, filtros por categoría de AVG y botón de reto directo al Anotador.
+  - Alineación de diseño en `DartScorer.tsx`, `DartKeypad.tsx`, `NationalRankings.tsx` y `TournamentManager.tsx` para coincidir pixel-perfect con la primera captura de referencia.
+  - Verificación de compilación de producción con Next.js 15 (`npm run build`).
+- **Estado del Proyecto:** Interfaz con contraste de élite y fondo negro, navegación lateral colapsable fluida, 6 módulos estructurados y listos para avanzar al siguiente hito. Servidor dev operativo en `http://localhost:3000`.
+- **Próximos pasos:**
+  1. Desarrollo a fondo del módulo Torneos con comportamiento idéntico a Nakka n01 (sorteo automático, llaves N01, asignación de pistas y control de partidos).
+
+---
+
 ## [Sesión 3] - 2026-10-10
 - **Objetivo:** Redefinición integral del sistema de diseño basado en la diana de dardos (Samurai 4) con fondo gris oscuro, persistencia offline-first y transmisión de partidas en vivo (Live Broadcast).
 - **Realizado:**

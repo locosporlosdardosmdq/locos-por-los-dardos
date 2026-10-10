@@ -58,3 +58,14 @@
 - **Contexto:** En torneos presenciales, los jueces y jugadores usan tablets al pie del oche (cancha) y necesitan que los espectadores vean el tablero en una pantalla o proyector sin depender de una conexión a internet estable.
 - **Decisión:** Se diseñó `src/lib/storage.ts` para persistencia local de partidas terminadas con cola de sincronización asíncrona, y `src/lib/broadcast.ts` basado en `BroadcastChannel` (con fallback de `storage` events) que emite cada dardo y actualización de pierna instantáneamente a la nueva pestaña "Tablero en Vivo" de `/torneos`.
 - **Motivo:** Cero latencia, funcionamiento offline 100% garantizado en locales sin señal de internet y sincronización transparente entre pestañas y dispositivos.
+
+---
+
+## [ADR-008] Navegación por Menú Lateral Colapsable y Paleta Deportiva Negra Profunda
+- **Fecha:** 2026-10-10
+- **Contexto:** El usuario solicitó unificar la experiencia visual devolviéndola al estándar de máxima legibilidad y estética de la primera captura (fondo casi negro `#07090e`, tipografías en blanco nítido y acentos verdes neón `#00e676`), junto con un menú lateral colapsable para alojar los 6 módulos evolutivos de la plataforma deportiva.
+- **Decisión:**
+  * Se implementó `AppSidebar.tsx` con soporte de estado colapsado (64px) / expandido (256px), persistido en `localStorage` y drawer para pantallas móviles.
+  * Jerarquía de navegación unificada en 6 módulos: 1. Tienda Online (`/tienda`), 2. Torneos Nakka n01 (`/torneos`), 3. Anotador (`/anotador`), 4. Ranking (`/ranking`), 5. Jugadores (`/jugadores`), 6. Configuración / Mi Perfil (`/perfil`).
+  * Tokens de color: Fondo negro azabache (`#07090e`), tarjetas `#0f1422`, bordes `#1e2638`, textos en blanco puro y marcadores de puntuación gigantes de alto contraste para máxima visibilidad a la distancia de tiro (oche).
+- **Motivo:** Brinda una ergonomía visual óptima para salas de juego, evita fatiga por grises intermedios lavados y organiza la arquitectura de navegación para escalar el desarrollo módulo a módulo.

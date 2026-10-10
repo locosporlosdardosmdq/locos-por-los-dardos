@@ -14,10 +14,10 @@ export default function AnotadorPage() {
             <Target className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-black text-board-sisal">
+            <h1 className="text-base sm:text-lg font-black text-white">
               Anotador en Vivo Profesional
             </h1>
-            <p className="text-xs text-board-sisal-muted">
+            <p className="text-xs text-slate-400">
               Inspirado en My Dart Training • X01, Cricket, Bot AI, Teclado Táctil y Árbitro de Voz
             </p>
           </div>

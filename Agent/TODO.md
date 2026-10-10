@@ -13,14 +13,19 @@
 - [x] Rediseño integral de la paleta de colores basado 100% en la Diana de Dardos (Samurai 4) con fondo gris oscuro (`#14161f`).
 - [x] Persistencia offline-first de partidas y cola de sincronización en `src/lib/storage.ts`.
 - [x] Transmisión broadcast en tiempo real entre el Oche y pantallas de torneos (`src/lib/broadcast.ts` y pestaña "Tablero en Vivo" en `/torneos`).
+- [x] Paleta deportiva de alto contraste con fondo negro profundo (`#07090e`), tarjetas `#0f1422` y acentos neón (#00e676, #ef4444, #0284c7) idénticos a la primera captura de referencia.
+- [x] Menú lateral colapsable responsive (`AppSidebar.tsx` + `AppTopBar.tsx` + `AppShell.tsx`) con memoria de estado en `localStorage` y jerarquía oficial de 6 módulos.
+- [x] Módulo Directorio Federal de Jugadores (`/jugadores` y `PlayerDirectory.tsx`) con filtros por provincia, categoría de AVG y reto directo.
 - [x] Verificación de compilación limpia de producción (`npm run build`) con 0 errores de tipos y lint.
 
 ---
 
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos
-- [ ] Integración de Supabase Auth para inicio de sesión social (Google / Email) y gestión de roles (Jugador vs Organizador de Torneos).
-- [ ] Sincronización remota activa de la cola offline (`SyncItem`) hacia la base de datos Supabase/PostgreSQL cuando vuelve la conexión.
-- [ ] Canal WebSocket / Supabase Realtime multi-dispositivo vía internet para clubes geográficamente distribuidos.
+- [ ] **Módulo de Torneos Avanzado (Comportamiento Nakka n01):**
+  * Sorteo automático de llaves y grupos estilo N01 (Single Elimination, Double Elimination, Round Robin).
+  * Panel de control de árbitro de mesa y asignación de pistas de juego (Oche 1, Oche 2, Oche 3...).
+  * Integración en caliente del marcador en vivo de pista con la planilla del torneo.
+  * Generación y exportación de cuadros a PDF / PNG.
 
 ---
 

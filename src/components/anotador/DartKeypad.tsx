@@ -120,17 +120,17 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
   };
 
   return (
-    <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-3 sm:p-5 shadow-2xl flex flex-col gap-3">
+    <div className="bg-[#0f1422] border border-[#1e2638] rounded-3xl p-3 sm:p-5 shadow-2xl flex flex-col gap-3">
       {/* Selector de Modo de Teclado con estilo Diana */}
-      <div className="flex items-center justify-between gap-2 border-b border-[#313647] pb-3">
-        <div className="flex items-center gap-1 bg-[#14161f] p-1 rounded-xl border border-[#313647]">
+      <div className="flex items-center justify-between gap-2 border-b border-[#1e2638] pb-3">
+        <div className="flex items-center gap-1 bg-[#07090e] p-1 rounded-xl border border-[#1e2638]">
           <button
             type="button"
             onClick={() => setInputMode('TOTAL')}
             className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
               inputMode === 'TOTAL'
-                ? 'bg-[#00b853] text-[#0d0e12] shadow-md shadow-[#00b853]/30'
-                : 'text-[#b8ad98] hover:text-[#efe7d8]'
+                ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-emerald-500/30'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             Puntaje Total
@@ -140,8 +140,8 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
             onClick={() => setInputMode('INDIVIDUAL')}
             className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
               inputMode === 'INDIVIDUAL'
-                ? 'bg-[#00b853] text-[#0d0e12] shadow-md shadow-[#00b853]/30'
-                : 'text-[#b8ad98] hover:text-[#efe7d8]'
+                ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-emerald-500/30'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             Dardo x Dardo (3)
@@ -152,24 +152,24 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
           <button
             type="button"
             onClick={onUndo}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#242836] hover:bg-[#2e3345] text-[#efe7d8] rounded-xl text-xs font-bold border border-[#313647] transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#131929] hover:bg-[#1a233a] text-slate-200 rounded-xl text-xs font-bold border border-[#1e2638] transition-all"
             title="Deshacer último turno"
           >
-            <CornerDownLeft className="w-3.5 h-3.5 text-[#e52521]" />
+            <CornerDownLeft className="w-3.5 h-3.5 text-[#ef4444]" />
             <span>Deshacer</span>
           </button>
         )}
       </div>
 
       {inputMode === 'TOTAL' ? (
-        /* MODO TOTAL (ESTILO MY DART TRAINING CON COLORES DE LA DIANA) */
+        /* MODO TOTAL (ESTILO MY DART TRAINING CON COLORES DE LA CAPTURA 1) */
         <div className="flex flex-col gap-3">
           {/* Display de puntuación ingresada */}
-          <div className="flex items-center justify-between bg-[#14161f] border-2 border-[#313647] rounded-2xl px-5 py-3 min-h-[64px]">
-            <span className="text-xs font-bold text-[#b8ad98] uppercase tracking-wider">
+          <div className="flex items-center justify-between bg-[#07090e] border border-[#1e2638] rounded-2xl px-5 py-3 min-h-[64px]">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
               Puntos del Turno:
             </span>
-            <span className="text-4xl font-black text-[#00b853] tracking-wider font-mono">
+            <span className="text-4xl font-black text-[#00e676] tracking-wider font-mono">
               {totalInput || '0'}
             </span>
           </div>
@@ -183,10 +183,10 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
                 onClick={() => handleQuickScore(score)}
                 className={`py-2 rounded-xl text-xs font-black transition-all ${
                   score === 180
-                    ? 'bg-gradient-to-r from-[#e52521] via-[#00b853] to-[#1d68ed] text-white shadow-md shadow-red-500/30'
+                    ? 'bg-gradient-to-r from-red-500 to-amber-500 text-white shadow-md shadow-red-500/30'
                     : score >= 100
-                    ? 'bg-[#242836] text-[#00b853] hover:bg-[#2b3040] border border-[#00b853]/40'
-                    : 'bg-[#242836]/80 text-[#efe7d8] hover:bg-[#2b3040] border border-[#313647]'
+                    ? 'bg-[#131929] text-[#00e676] hover:bg-[#1a233a] border border-emerald-500/40'
+                    : 'bg-[#131929]/80 text-white hover:bg-[#1a233a] border border-[#1e2638]'
                 }`}
               >
                 {score}
@@ -201,7 +201,7 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
                 key={digit}
                 type="button"
                 onClick={() => handleNumClick(digit)}
-                className="py-4 bg-[#242836] hover:bg-[#2e3345] active:bg-[#00b853] active:text-[#0d0e12] text-white font-black text-2xl rounded-2xl border border-[#313647] shadow-sm transition-all"
+                className="py-4 bg-[#131929] hover:bg-[#1c263d] active:bg-[#00e676] active:text-[#07090e] text-white font-black text-2xl rounded-2xl border border-[#1e2638] shadow-sm transition-all"
               >
                 {digit}
               </button>
@@ -211,7 +211,7 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
             <button
               type="button"
               onClick={handleClearTotal}
-              className="py-4 bg-[#e52521]/20 hover:bg-[#e52521]/40 text-[#e52521] font-black text-sm rounded-2xl border border-[#e52521]/50 flex items-center justify-center gap-1.5 transition-all"
+              className="py-4 bg-red-500/15 hover:bg-red-500/25 text-red-400 font-black text-sm rounded-2xl border border-red-500/30 flex items-center justify-center gap-1.5 transition-all"
             >
               <Delete className="w-4 h-4 stroke-[2.5]" />
               <span>CLR</span>
@@ -220,7 +220,7 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
             <button
               type="button"
               onClick={() => handleNumClick('0')}
-              className="py-4 bg-[#242836] hover:bg-[#2e3345] text-white font-black text-2xl rounded-2xl border border-[#313647] shadow-sm transition-all"
+              className="py-4 bg-[#131929] hover:bg-[#1c263d] active:bg-[#00e676] active:text-[#07090e] text-white font-black text-2xl rounded-2xl border border-[#1e2638] shadow-sm transition-all"
             >
               0
             </button>
@@ -228,7 +228,7 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
             <button
               type="button"
               onClick={handleConfirmTotal}
-              className="py-4 bg-[#00b853] hover:bg-[#009e47] active:scale-95 text-[#0d0e12] font-black text-base rounded-2xl shadow-lg shadow-[#00b853]/30 flex items-center justify-center gap-1.5 transition-all"
+              className="py-4 bg-[#00e676] hover:bg-[#00c853] active:scale-95 text-[#07090e] font-black text-base rounded-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-1.5 transition-all"
             >
               <Check className="w-6 h-6 stroke-[3]" />
               <span>OK</span>

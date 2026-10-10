@@ -103,3 +103,20 @@
   * `MatchPdcStatsModal.tsx`: Modal oficial de estadísticas comparativas PDC.
   * `DartScorer.tsx`: Orquestador principal que preserva persistencia offline-first (`saveCompletedMatch`) y broadcast de pista (`matchBroadcast.publish`).
 - **Motivo:** Cero acoplamiento, alta velocidad de renderizado, fidelidad absoluta a las necesidades de los jugadores al pie del oche y base sólida para conectar el módulo de Torneos.
+
+---
+
+## ADR-011: Despachador de Partidos de Torneo (Match Dispatcher) y Puente en Caliente con el Anotador
+
+- **Fecha:** 2026-10-10
+- **Estado:** ACEPTADA
+- **Contexto:**
+  Los torneos de dardos combinan partidas jugadas en oches presenciales de clubes, partidas a distancia conectadas por internet con cámara apuntando a la diana, y cierres administrativos por walkover o planillas manuales. Se requería un mecanismo no bloqueante que permitiera desde cualquier celda del fixture (cuadro eliminatorio o fase de grupos) resolver el partido.
+- **Decisión:**
+  1. Se implementó `MatchDispatcherModal.tsx` como el despachador universal de partidas con 3 vías:
+     * *Partida Online:* Sala conectada remota con soporte de webcam y segundo dispositivo (celular).
+     * *Anotador en Vivo (En el Club):* Abre en caliente el nuevo `DartScorer.tsx` en el oche físico.
+     * *Registrar Resultados:* Carga directa de legs ganados para validación rápida.
+  2. Al cantar victoria en el Anotador (`Game Shot and the Match`), el resultado alimenta directamente al cuadro (`TournamentBracket.tsx`) avanzando al ganador a la siguiente ronda, o computa los puntos y diferencia de legs ($+/-$) en la tabla de posiciones de `TournamentGroupStage.tsx`.
+  3. Soporte de hardware de pista en `WebcamSetupModal.tsx` con WebRTC `getUserMedia`, auto-zoom a la diana del rival y código QR para conectar el celular como cámara de diana remota.
+- **Motivo:** Interoperabilidad total entre los torneos y el motor de juego, evitando duplicación de lógica y permitiendo una experiencia ininterrumpida al pie del oche.

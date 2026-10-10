@@ -44,8 +44,12 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `MatchPdcStatsModal.tsx`: Modal oficial de estadísticas estándar PDC con comparativa lado a lado (Legs, 3 Darts AVG, First 9, 100+, 140+, 180s, High Finish, Best Leg, MPR).
   * `CheckoutGuide.tsx`: Guía interactiva de combinaciones para cierre en dobles y alerta de números bogey.
 * **`torneos/`:**
-  * `TournamentManager.tsx`: Administrador de torneos, pestañas de llaves, grupos e inscriptos.
-  * `TournamentBracket.tsx`: Visor visual de brackets con actualización en vivo de resultados.
+  * `TournamentManager.tsx`: Orquestador principal de torneos con pestañas de Brackets, Grupos (Round Robin), Inscriptos y Pantalla TV de Club.
+  * `TournamentBracket.tsx`: Visor visual interactivo del cuadro eliminatorio con partidas clickeables.
+  * `TournamentGroupStage.tsx`: Fase de grupos (Round Robin) con tabla de posiciones oficial (PJ, G, P, LF, LC, +/-, Pts) y cruces a playoffs.
+  * `MatchDispatcherModal.tsx`: Menú contextual de lanzamiento de partido (Partida Online, Anotador en Vivo de Club, o Registrar Resultados).
+  * `PlayerEnrollModal.tsx`: Modal de inscripción y acreditación de competidores con contraseña de participante y toggle de webcam.
+  * `WebcamSetupModal.tsx`: Configuración de hardware de pista (cámara, micrófono, vúmetro de audio y soporte para celular como cámara de diana secundaria).
 * **`comunidad/`:**
   * `TournamentHeroBanner.tsx`: Head banner promocional de torneos con modal de inscripción.
   * `NationalRankings.tsx`: Tabla de posiciones y podio con filtros provinciales.

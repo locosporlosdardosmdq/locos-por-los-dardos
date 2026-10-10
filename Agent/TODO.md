@@ -27,12 +27,19 @@
 
 ---
 
+- [x] **Módulo de Torneos Avanzado y Partidas Conectadas (Integrado con el Anotador Oficial):**
+  * Despachador de partidos (`MatchDispatcherModal.tsx`) con 3 vías: *Online*, *Live en el Club*, o *Carga Rápida*.
+  * Conexión en caliente del fixture de torneos con `DartScorer.tsx`, reportando el resultado en vivo y avanzando al ganador en el cuadro.
+  * Fase de Grupos Round Robin (`TournamentGroupStage.tsx`) con tabla de posiciones oficial (PJ, G, P, LF, LC, +/- Dif, Pts).
+  * Acreditación de jugador (`PlayerEnrollModal.tsx`) y configuración de hardware de pista (`WebcamSetupModal.tsx`) con soporte para celular como cámara de diana secundaria.
+  * Pantalla TV de Club (`LIVE_BOARD`) para retransmisión dardo a dardo en monitores o proyectores.
+
+---
+
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos
-- [ ] **Módulo de Torneos Avanzado y Partidas Conectadas (Integrado con el nuevo Anotador):**
-  * Despachador de partidos (*Online*, *Live Presencial en el Club*, o *Carga Rápida de Resultado*).
-  * Conexión directa del fixture con el nuevo Anotador (`DartScorer.tsx`) para jugar el match y reportar el resultado en caliente.
-  * Fase de Grupos (Round Robin) con desempate por diferencia de legs ($+/-$) y fase eliminatoria (Brackets).
-  * Acreditación de jugador y configuración de hardware (Webcam, micrófono y segundo dispositivo / celular).
+- [ ] **Exportación y Cartelera de Club:**
+  * Generación de PDF / PNG imprimible del cuadro final del torneo para la cartelera física del club.
+  * Sorteo automatizado de cabezas de serie (*seeding*) según el AVG oficial del ranking nacional.
 
 ---
 

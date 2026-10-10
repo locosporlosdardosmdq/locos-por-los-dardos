@@ -1,5 +1,22 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 5] - 2026-10-10
+- **Objetivo:** Desarrollo e integración del Módulo de Torneos Avanzado conectado en caliente con el Anotador Oficial, Despachador de Partidas (*Match Dispatcher*), Acreditación con contraseña y hardware de pista (Webcam y segundo dispositivo celular).
+- **Realizado:**
+  - Creación de `MatchDispatcherModal.tsx`: Menú contextual de lanzamiento de partidos desde cualquier celda del fixture (Online, Live presencial en el club, o Carga Rápida de resultados).
+  - Conexión del fixture (Grupos y Brackets) con `DartScorer.tsx`: al lanzar un partido en vivo, se abre el Anotador en pantalla completa para el oche asignado y al finalizar el juego avanza automáticamente al ganador en la llave o en la tabla de posiciones.
+  - Creación de `TournamentGroupStage.tsx`: Fase de grupos (Round Robin) con tabla oficial de posiciones (PJ, G, P, LF, LC, +/- Dif, Pts) y cruces interactivos hacia la fase eliminatoria.
+  - Creación de `PlayerEnrollModal.tsx`: Acreditación de competidores con contraseña de participante y validación de webcam.
+  - Creación de `WebcamSetupModal.tsx`: Configuración de hardware de pista con WebRTC, auto-zoom al tiro del rival, vúmetro de audio y soporte para conectar el celular vía QR como cámara de diana remota.
+  - Actualización de `TournamentBracket.tsx` y `TournamentManager.tsx` con la paleta de la diana (fondo `#07090e`, rojo `#ef4444`, verde `#00e676`) y pestaña para pantalla TV/proyector del club (`LIVE_BOARD`).
+  - Validación con compilación TypeScript 100% limpia (`0 errores`) y pruebas en navegador.
+- **Estado del Proyecto:** Ecosistema completo de Torneos y Anotador plenamente funcional y conectado.
+- **Próximos pasos:**
+  1. Generación de PDF / PNG imprimible de los cuadros para la cartelera física del club.
+  2. Automatización del sorteo de cabezas de serie según el ranking federal.
+
+---
+
 ## [Sesión 4] - 2026-10-10
 - **Objetivo:** Retorno estricto a la estética de alto contraste de la primera captura (fondo negro `#07090e`, textos blancos nítidos, acentos neón `#00e676`), arquitectura de navegación con Menú Lateral Colapsable (`AppSidebar`), y definición de la jerarquía modular de 6 secciones con creación del módulo `/jugadores`.
 - **Realizado:**

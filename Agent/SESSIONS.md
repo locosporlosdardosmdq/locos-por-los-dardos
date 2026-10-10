@@ -1,5 +1,25 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 6] - 2026-10-10
+- **Objetivo:** Integración de la voz de Clemens Kuntze (`Recursos/Clemens Kuntze.mp3`) en el motor de audio del Anotador oficial de partidas de dardos para cantar los tantos del 1 al 180 con modulación emocional precisa.
+- **Realizado:**
+  - Copia e integración del sample oficial de alta fidelidad `Recursos/Clemens Kuntze.mp3` en `public/sounds/clemens-kuntze.mp3`.
+  - Implementación en `src/lib/sound-effects.ts` del motor de audio híbrido (`SoundEngine.playClemens180()` y `VoiceCaller.announceScore()`):
+    * **Tantos < 20 (Muy pesimista):** Pitch 0.65, Rate 0.82 (tono grave, apagado y desganado; ej: "Sin puntuación...", "7...").
+    * **Tantos 21 a 59 (Normal):** Pitch 1.0, Rate 1.0 (entonación arbitral clara y neutra).
+    * **Tantos 60 a 89 (Con énfasis):** Pitch 1.15, Rate 1.1 (entonación enérgica y firme).
+    * **Tantos 90 a 119 (Con más énfasis):** Pitch 1.25, Rate 1.18 (locución acelerada con impacto).
+    * **Tantos 120 a 169 (Con mucho énfasis):** Pitch 1.35, Rate 1.25 (grito eufórico de visita alta).
+    * **Tantos 170 a 180 (Audio Original de Clemens Kuntze):** Disparo directo del audio original `clemens-kuntze.mp3` para tiros cumbre y 180 perfecto.
+  - Validación en navegador (`http://localhost:3000/anotador`) dardo a dardo en tiempo real: comprobados lanzamientos en las 5 bandas (7, 45, 85, 140 y 180) con subagente de navegación y grabación de video/capturas.
+  - Verificación de compilación TypeScript (`npx tsc --noEmit`) con 0 errores y registro de decisión técnica ADR-012 en `Agent/DECISIONS.md`.
+- **Estado del Proyecto:** Anotador equipado con locución profesional inmersiva, 100% offline, cero latencia y audio auténtico de Clemens Kuntze.
+- **Próximos pasos:**
+  1. Exportación de cuadros de torneo a PDF / PNG imprimible para la cartelera del club.
+  2. Algoritmo de sorteo automatizado de cabezas de serie (*seeding*) según el ranking nacional.
+
+---
+
 ## [Sesión 5] - 2026-10-10
 - **Objetivo:** Desarrollo e integración del Módulo de Torneos Avanzado conectado en caliente con el Anotador Oficial, Despachador de Partidas (*Match Dispatcher*), Acreditación con contraseña y hardware de pista (Webcam y segundo dispositivo celular).
 - **Realizado:**

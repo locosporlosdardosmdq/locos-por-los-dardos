@@ -120,3 +120,23 @@
   2. Al cantar victoria en el Anotador (`Game Shot and the Match`), el resultado alimenta directamente al cuadro (`TournamentBracket.tsx`) avanzando al ganador a la siguiente ronda, o computa los puntos y diferencia de legs ($+/-$) en la tabla de posiciones de `TournamentGroupStage.tsx`.
   3. Soporte de hardware de pista en `WebcamSetupModal.tsx` con WebRTC `getUserMedia`, auto-zoom a la diana del rival y código QR para conectar el celular como cámara de diana remota.
 - **Motivo:** Interoperabilidad total entre los torneos y el motor de juego, evitando duplicación de lógica y permitiendo una experiencia ininterrumpida al pie del oche.
+
+---
+
+## ADR-012: Motor de Locución Emocional de Partidas y Audio Original de Clemens Kuntze
+
+- **Fecha:** 2026-10-10
+- **Estado:** ACEPTADA
+- **Contexto:**
+  La experiencia inmersiva del dardo profesional depende críticamente de la entonación y dramatismo del árbitro (*caller*). El usuario solicitó cantar todos los tantos del 1 al 180 con una modulación emocional específica basada en el rendimiento del tiro, integrando el audio original del reconocido locutor Clemens Kuntze presente en `Recursos/Clemens Kuntze.mp3`.
+- **Decisión:**
+  Se diseñó un motor híbrido inteligente en `src/lib/sound-effects.ts`:
+  1. **Tantos de 170 a 180 (Banda Clímax / 180 Perfecto):**
+     * Dispara directamente el audio original de alta fidelidad `public/sounds/clemens-kuntze.mp3` (`SoundEngine.playClemens180()`).
+  2. **Tantos de 1 a 169 (Modulación Paramétrica por Web Speech API):**
+     * **Banda 1 (< 20 - Muy pesimista):** Pitch 0.65, Rate 0.82 (tono grave, apagado y desganado).
+     * **Banda 2 (20 a 59 - Normal):** Pitch 1.0, Rate 1.0 (entonación arbitral clara y neutra).
+     * **Banda 3 (60 a 89 - Con énfasis):** Pitch 1.15, Rate 1.1 (entonación enérgica y firme).
+     * **Banda 4 (90 a 119 - Con más énfasis):** Pitch 1.25, Rate 1.18 (locución acelerada con impacto).
+     * **Banda 5 (120 a 169 - Con mucho énfasis):** Pitch 1.35, Rate 1.25 (grito eufórico de visita alta).
+- **Motivo:** Cero latencia, funcionamiento offline 100% garantizado en PWA, máximo realismo competitivo y preservación del sample original para las jugadas cumbre.

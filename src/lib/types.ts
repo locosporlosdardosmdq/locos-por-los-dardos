@@ -136,6 +136,42 @@ export interface TournamentStats {
   totalLegsPlayed?: number;
 }
 
+export type CompetitionMode = 'STANDALONE_DAY' | 'LOCAL_LEAGUE' | 'NATIONAL_LEAGUE';
+export type NationalStageType = 'ONLINE' | 'PRESENCIAL_OFICIAL';
+export type LeagueScope = 'LOCAL' | 'NATIONAL';
+
+export interface LeagueStanding {
+  playerId: string;
+  playerName: string;
+  nickname: string;
+  avatarUrl?: string;
+  club: string;
+  city: string;
+  province: string;
+  points: number;
+  playedDates: number;
+  tournamentsWon: number;
+  podiums: number;
+  avg: number;
+}
+
+export interface League {
+  id: string;
+  slug: string;
+  name: string;
+  scope: LeagueScope;
+  description: string;
+  season: string;
+  organizerClub: string;
+  city?: string;
+  province?: string;
+  isOfficialNational?: boolean;
+  doublePointsOnPresential?: boolean;
+  activeTournamentsCount: number;
+  standings: LeagueStanding[];
+  createdAt: string;
+}
+
 export interface Tournament {
   id: string;
   slug: string;
@@ -143,6 +179,11 @@ export interface Tournament {
   description: string;
   type: TournamentType;
   format: TournamentFormat;
+  competitionMode?: CompetitionMode;
+  leagueId?: string;
+  leagueName?: string;
+  nationalStageType?: NationalStageType;
+  pointsMultiplier?: number;
   startingScore: number;
   outMode: OutMode;
   bestOfLegs: number;

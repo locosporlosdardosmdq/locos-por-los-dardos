@@ -14,6 +14,7 @@ import {
   isUserAdmin 
 } from '@/lib/constants';
 import { getCurrentPlayerProfile, saveCurrentPlayerProfile } from '@/lib/storage';
+import { UltimateDartsCard, UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
 import { 
   User, 
   MapPin, 
@@ -120,6 +121,31 @@ export const RegisterAndProfile: React.FC = () => {
   const currentCategoryInfo = CATEGORY_DETAILS[profile.category];
   const flag = getCountryFlag(profile.countryCode || profile.nationality);
   const isProfileAdmin = isUserAdmin(profile);
+
+  const currentUserCardData: UltimateDartsCardData = {
+    id: profile.id,
+    name: profile.fullName || profile.nickname,
+    nickname: profile.nickname,
+    avatarUrl: profile.avatarUrl,
+    photoUrl: profile.id === 'user-iceman' ? '/images/players/iceman.jpg' : (profile.id === 'user-facundo' ? '/images/players/halcon.jpg' : '/images/players/iceman.jpg'),
+    nationality: profile.nationality || 'Argentina',
+    countryCode: profile.countryCode || 'AR',
+    province: profile.province,
+    city: profile.city,
+    club: (profile as any).club || 'Darderos Mar del Plata',
+    avg: profile.stats.overallAvg || profile.estimatedAvg,
+    category: profile.category,
+    matchesWon: profile.stats.matchesWon,
+    matchesTotal: profile.stats.matchesPlayed,
+    count180s: profile.stats.count180s,
+    highestCheckout: profile.stats.highestCheckout,
+    isVerified: profile.isVerified,
+    majorTitle: profile.id === 'user-iceman' ? '1x SUPERADMIN & CAMPEÓN MDQ' : '1x CAMPEÓN COSTA ATLÁNTICA',
+    walkOnSong: profile.id === 'user-iceman' ? 'AC/DC - THUNDERSTRUCK' : 'PITBULL - GREENLIGHT',
+    dartBrand: 'TARGET 90%',
+    dartWeight: profile.preferredDartWeight || 24,
+    bestLeg: profile.stats.bestLegDarts || 12
+  };
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6">
@@ -261,6 +287,36 @@ export const RegisterAndProfile: React.FC = () => {
                   <span>Dardos: <strong className="text-white">{profile.preferredDartWeight}g</strong></span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Carta Coleccionable Oficial Ultimate Darts del Jugador */}
+          <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-8">
+            <div className="space-y-4 max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/10 border border-amber-400/30 text-amber-400 text-xs font-black uppercase tracking-wider">
+                <Trophy className="w-3.5 h-3.5" />
+                <span>Colección Oficial Ultimate Darts 2026</span>
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                Tu Carta Coleccionable Oficial
+              </h3>
+              <p className="text-sm text-[#b8ad98] leading-relaxed">
+                Esta es tu tarjeta oficial de competición en el circuito federado. Cuenta con silueta de escudo coleccionable, bandera nacional, registro de 180s y tus atributos deportivos sincronizados en tiempo real.
+              </p>
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <span className="px-3 py-1 rounded-xl bg-[#14161f] border border-[#313647] text-xs font-bold text-[#efe7d8] flex items-center gap-1.5">
+                  <span className="text-base select-none">{flag}</span>
+                  <span>{profile.nationality || 'Argentina'}</span>
+                </span>
+                <span className="px-3 py-1 rounded-xl bg-[#00b853]/15 border border-[#00b853]/30 text-xs font-bold text-[#00b853] flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Darderos Mar del Plata Oficial</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-center flex-shrink-0">
+              <UltimateDartsCard player={currentUserCardData} showActions={false} />
             </div>
           </div>
 

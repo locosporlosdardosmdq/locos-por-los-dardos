@@ -35,7 +35,8 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `AppShell.tsx`: Shell unificado con margen desktop fijo (`lg:pl-20`) para evitar saltos de pantalla (0 layout-shift) mientras el menú flota en hover.
 * **`Navbar.tsx` & `Footer.tsx`:** Navegación responsive, contador dinámico de carrito, botón de instalación PWA e información de clubes.
 * **`jugadores/`:**
-  * `PlayerDirectory.tsx`: Directorio federal con buscador en vivo, filtros combinados y fichas deportivas.
+  * `PlayerDirectory.tsx`: Directorio federal con buscador en vivo, filtros combinados (Mayor AVG, Liga Argentina, Liga Marplatense y Presenciales MDQ) y fichas deportivas.
+  * `UltimateDartsCard.tsx`: Cartas coleccionables estilo FIFA Ultimate Team con insignia dinámica según el criterio activo (#1 AVG, #1 Liga Nacional, etc.), foto oficial, patrocinadores, apodo y métricas clave.
 * **`anotador/`:**
   * `DartScorer.tsx`: Orquestador principal de partidas, selector de vistas (Settings -> Game Board -> Stats) y canal de broadcast en vivo.
   * `MatchGameSettings.tsx`: Pantalla de configuración previa para 501 y Cricket, con soporte individual y por parejas (2 vs 2), distancias (Legs/Sets) y reglas de cierre.
@@ -44,7 +45,9 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `MatchPdcStatsModal.tsx`: Modal oficial de estadísticas estándar PDC con comparativa lado a lado (Legs, 3 Darts AVG, First 9, 100+, 140+, 180s, High Finish, Best Leg, MPR).
   * `CheckoutGuide.tsx`: Guía interactiva de combinaciones para cierre en dobles y alerta de números bogey.
 * **`torneos/`:**
-  * `TournamentManager.tsx`: Orquestador principal de torneos con selector de pestañas (Torneos Activos con tabla oficial vs Historial de Torneos con desarrollo completo de la llave eliminatoria y panel de estadísticas consolidadas).
+  * `TournamentManager.tsx`: Orquestador principal de torneos con selector de 3 pestañas (Torneos Activos, Ligas & Posiciones, e Historial de Torneos con estadísticas consolidadas), soporte de 3 modalidades de torneo (De un día, Local y Liga Nacional) y multiplicador x2 en presenciales.
+  * `LeagueManager.tsx`: Gestor oficial de ligas y tabla de posiciones acumulada (PJ, Títulos, Podios, AVG 501, Pts) con selector entre Liga Nacional Oficial y Ligas Locales.
+  * `CreateLeagueModal.tsx`: Formulario de creación de ligas locales y nacionales con sede, temporada y regla de puntos dobles.
   * `TournamentBracket.tsx`: Visor visual interactivo del cuadro eliminatorio con banderas oficiales de nacionalidad, estados de partida, partidas clickeables y accesos de administración.
   * `AdminMatchModal.tsx`: Modal exclusivo para Administradores Oficiales (ICEMAN) con edición manual de legs, avance por Walkover (W.O.) ante jugador ausente y reseteo de partida a 0-0.
   * `TournamentGroupStage.tsx`: Fase de grupos (Round Robin) con tabla de posiciones oficial (PJ, G, P, LF, LC, +/-, Pts) y cruces a playoffs.

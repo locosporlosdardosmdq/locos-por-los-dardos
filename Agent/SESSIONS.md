@@ -1,5 +1,24 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 9] - 2026-10-10
+- **Objetivo:** Implementación del sistema oficial de Ligas en la creación de torneos con 4 modalidades canónicas (Torneos de un día sin liga, Torneos locales que suman a su liga local, Torneos Nacionales para la Única Liga Nacional clasificatoria internacional con duplicación de puntos x2 en fechas presenciales oficiales, y Modo de partida individual en anotador), sumado al diseño de Cartas Coleccionables de Jugadores (Ultimate Darts Cards estilo FUT) y filtros multidimensionales de ranking en el Directorio.
+- **Realizado:**
+  - Definición de tipos de dominio en `src/lib/types.ts`: `CompetitionMode`, `NationalStageType`, `LeagueScope`, `LeagueStanding` y `League`, actualizando `Tournament` con `competitionMode`, `leagueId`, `leagueName`, `nationalStageType` y `pointsMultiplier`.
+  - Creación de datasets y métodos de almacenamiento en `src/lib/constants.ts` y `src/lib/storage.ts`: `DEFAULT_LEAGUES` con la Liga Nacional Oficial de Argentina (`league-national-argentina`, clasificatoria internacional con bonificación x2 en presenciales) y la Liga Marplatense 2026 (`league-local-mdq` • Darderos MDQ).
+  - Implementación del componente `CreateLeagueModal.tsx` para alta interactiva de ligas con selector de ámbito (Local vs Nacional), sede, temporada y regla de puntos dobles.
+  - Implementación de `LeagueManager.tsx` y su integración en la nueva pestaña "Ligas & Posiciones" de `/torneos`, con selector de ligas, aviso oficial de clasificatoria internacional y tabla acumulada de posiciones (PJ, Títulos, Podios, AVG 501, Puntos).
+  - Modificación de la creación de torneos en `TournamentManager.tsx` con soporte para las 3 modalidades, selector de liga local y selector de fechas nacionales (Online vs Presencial Oficial con banner destacado `⚡ ¡DUPLICA PUNTOS (x2)!`).
+  - Actualización de la tabla de Torneos Activos para exhibir badges distintivos de modalidad y multiplicador de puntos.
+  - Creación del componente `UltimateDartsCard.tsx` (cartas coleccionables estilo FUT con placa dorada, foto de jugador, marcas de dardos, música de entrada y estadísticas) e integración en `PlayerDirectory.tsx` con filtros por:
+    1. Mayor AVG registrado en la App
+    2. Ranking de la Liga Argentina (Circuito Federal)
+    3. Ranking de la Liga Marplatense (con checkbox "Solo jugadores de la Liga MDQ")
+    4. Desempeño en torneos oficiales presenciales de Mar del Plata (2 fechas al año).
+  - Verificación de compilación TypeScript (`npx tsc --noEmit`) con 0 errores y navegación automatizada exitosa con `browser_subagent` validando todas las pantallas y modales.
+- **Estado del Proyecto:** Ecosistema de competición profesional completamente estructurado: ligas locales y nacionales operativas, fechas presenciales con bonificación de puntos, directorio con cartas coleccionables y anotador desacoplado para partidas casuales.
+
+---
+
 ## [Sesión 8] - 2026-10-10
 - **Objetivo:** Descarga e integración del banco oficial de voces de Russ Bray (1-180), configuración del rol de Superadministrador ICEMAN (`marianodeux@gmail.com`) con control total sobre llaves y torneos, reestructuración de la vista de Torneos (Tabla de Torneos Activos vs Historial de Torneos con estadísticas y desarrollo de llave), y adición de nacionalidad con banderas oficiales en perfil y cuadros.
 - **Realizado:**

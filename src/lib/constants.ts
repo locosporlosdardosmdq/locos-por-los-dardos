@@ -1,4 +1,4 @@
-import { PlayerCategory, Tournament, Product, PlayerProfile } from './types';
+import { PlayerCategory, Tournament, Product, PlayerProfile, League } from './types';
 
 export const PROVINCIAS_ARGENTINA = [
   'Buenos Aires',
@@ -501,3 +501,236 @@ export const MOCK_RANKINGS: PlayerProfile[] = [
     }
   }
 ];
+
+// Ligas Oficiales de Dardos (Nacional y Locales)
+export const DEFAULT_LEAGUES: League[] = [
+  {
+    id: 'league-national-argentina',
+    slug: 'liga-nacional-argentina-2026',
+    name: 'Liga Nacional Oficial de Argentina • Clasificatorio Internacional 2026',
+    scope: 'NATIONAL',
+    description: 'Única Liga Nacional Oficial de dardos en Argentina. Clasificatoria para los torneos y mundiales internacionales. Modalidad online con fechas oficiales presenciales en Mar del Plata que duplican la puntuación (x2).',
+    season: 'Temporada 2026',
+    organizerClub: 'Locos por los Dardos & Federación Argentina',
+    isOfficialNational: true,
+    doublePointsOnPresential: true,
+    activeTournamentsCount: 4,
+    createdAt: '2026-01-15T00:00:00.000Z',
+    standings: [
+      {
+        playerId: 'user-iceman-admin',
+        playerName: 'Mariano Deux (ICEMAN)',
+        nickname: 'ICEMAN',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 1850,
+        playedDates: 4,
+        tournamentsWon: 2,
+        podiums: 3,
+        avg: 75.0
+      },
+      {
+        playerId: 'user-mdq-001',
+        playerName: 'Facundo López',
+        nickname: 'El Halcón MDQ',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 1780,
+        playedDates: 4,
+        tournamentsWon: 1,
+        podiums: 3,
+        avg: 74.8
+      },
+      {
+        playerId: 'rank-1',
+        playerName: 'Martín Rossi',
+        nickname: 'Sniper CABA',
+        avatarUrl: '/logos/dardos-argentina.png',
+        club: 'Dardos Capital',
+        city: 'Buenos Aires',
+        province: 'CABA',
+        points: 1690,
+        playedDates: 4,
+        tournamentsWon: 1,
+        podiums: 2,
+        avg: 71.2
+      },
+      {
+        playerId: 'rank-3',
+        playerName: 'Diego Gómez',
+        nickname: 'Tungsteno Rosario',
+        avatarUrl: '/logos/dardos-argentina.png',
+        club: 'Rosario Darts Club',
+        city: 'Rosario',
+        province: 'Santa Fe',
+        points: 1520,
+        playedDates: 4,
+        tournamentsWon: 0,
+        podiums: 2,
+        avg: 66.5
+      },
+      {
+        playerId: 'rank-4',
+        playerName: 'Lucas Pereyra',
+        nickname: 'Bullseye Córdoba',
+        avatarUrl: '/logos/dardos-argentina.png',
+        club: 'Córdoba Dardos Asoc.',
+        city: 'Córdoba Capital',
+        province: 'Córdoba',
+        points: 1410,
+        playedDates: 4,
+        tournamentsWon: 0,
+        podiums: 1,
+        avg: 63.8
+      },
+      {
+        playerId: 'rank-5',
+        playerName: 'Carlos Méndez',
+        nickname: 'Charly 180 MDQ',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 1340,
+        playedDates: 4,
+        tournamentsWon: 0,
+        podiums: 1,
+        avg: 59.4
+      },
+      {
+        playerId: 'rank-6',
+        playerName: 'Rodrigo Morales',
+        nickname: 'El Rayo Cuyano',
+        avatarUrl: '/logos/dardos-argentina.png',
+        club: 'Cuyo Darts',
+        city: 'Godoy Cruz',
+        province: 'Mendoza',
+        points: 1190,
+        playedDates: 3,
+        tournamentsWon: 0,
+        podiums: 0,
+        avg: 52.1
+      },
+      {
+        playerId: 'p-7',
+        playerName: 'Joaquín Benítez',
+        nickname: 'Tiro Certero',
+        avatarUrl: '/logos/dardos-argentina.png',
+        club: 'Patagonia Darts',
+        city: 'Neuquén',
+        province: 'Neuquén',
+        points: 1080,
+        playedDates: 3,
+        tournamentsWon: 0,
+        podiums: 0,
+        avg: 48.9
+      },
+      {
+        playerId: 'p-8',
+        playerName: 'Esteban Navarro',
+        nickname: 'Doble 20 Litoral',
+        avatarUrl: '/logos/dardos-argentina.png',
+        club: 'Litoral Darts',
+        city: 'Paraná',
+        province: 'Entre Ríos',
+        points: 990,
+        playedDates: 3,
+        tournamentsWon: 0,
+        podiums: 0,
+        avg: 43.5
+      },
+      {
+        playerId: 'p-9',
+        playerName: 'Mariano Silva',
+        nickname: 'Flecha MDQ',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 820,
+        playedDates: 3,
+        tournamentsWon: 0,
+        podiums: 0,
+        avg: 38.2
+      }
+    ]
+  },
+  {
+    id: 'league-local-mdq',
+    slug: 'liga-marplatense-2026',
+    name: 'Liga Marplatense 2026 • Darderos Mar del Plata',
+    scope: 'LOCAL',
+    description: 'Campeonato oficial regular de la ciudad de Mar del Plata. Disputado fecha a fecha en la sede oficial de Darderos Mar del Plata.',
+    season: 'Temporada 2026',
+    organizerClub: 'Darderos Mar del Plata (Sede Oficial)',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    isOfficialNational: false,
+    doublePointsOnPresential: false,
+    activeTournamentsCount: 6,
+    createdAt: '2026-01-20T00:00:00.000Z',
+    standings: [
+      {
+        playerId: 'user-iceman-admin',
+        playerName: 'Mariano Deux (ICEMAN)',
+        nickname: 'ICEMAN',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 980,
+        playedDates: 6,
+        tournamentsWon: 4,
+        podiums: 5,
+        avg: 75.0
+      },
+      {
+        playerId: 'user-mdq-001',
+        playerName: 'Facundo López',
+        nickname: 'El Halcón MDQ',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 940,
+        playedDates: 6,
+        tournamentsWon: 2,
+        podiums: 5,
+        avg: 74.8
+      },
+      {
+        playerId: 'rank-5',
+        playerName: 'Carlos Méndez',
+        nickname: 'Charly 180 MDQ',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 790,
+        playedDates: 6,
+        tournamentsWon: 0,
+        podiums: 3,
+        avg: 59.4
+      },
+      {
+        playerId: 'p-9',
+        playerName: 'Mariano Silva',
+        nickname: 'Flecha MDQ',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 610,
+        playedDates: 5,
+        tournamentsWon: 0,
+        podiums: 1,
+        avg: 38.2
+      }
+    ]
+  }
+];
+

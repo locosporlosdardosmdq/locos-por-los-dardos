@@ -189,3 +189,26 @@
   2. **Arquitectura de Torneos:** Se reestructuró `TournamentManager.tsx` en dos vistas de primer nivel: "Torneos Activos" (con tabla de torneos o estado vacío si no hay torneos creados) e "Historial de Torneos" (con visor de estadísticas y desarrollo de llave).
   3. **Nacionalidad y Banderas:** Se incorporó el catálogo oficial `COUNTRIES` con códigos ISO y banderas emoji, agregando `nationality` y `countryCode` en `PlayerProfile`, formulario en `RegisterAndProfile.tsx`, barra inferior en `AppSidebar.tsx` y tarjetas en `PlayerDirectory.tsx`.
 - **Motivo:** Separación clara entre torneos en curso y archivo histórico, gobernanza completa de llaves para organizadores y representación federal e internacional fidedigna de los competidores.
+
+---
+
+## ADR-016: Arquitectura de Competición en 4 Modalidades, Modelo de Ligas y Bonificación Presencial x2
+
+- **Fecha:** 2026-10-10
+- **Estado:** ACEPTADA
+- **Contexto:**
+  La plataforma requería estructurar las competiciones en 4 modalidades canónicas:
+  1. Torneos de un día sin liga asociada (abiertos o relámpagos independientes).
+  2. Torneos locales asociados a su respectiva Liga Local (ej. Liga Marplatense • Darderos MDQ) que acumulan puntos en dicha tabla.
+  3. Torneos Nacionales regidos por una Única Liga Nacional Oficial de Argentina, de carácter clasificatorio para certámenes internacionales, con calendario online y fechas presenciales oficiales que duplican puntos (x2) para premiar la concurrencia a la sede.
+  4. Modo de partida individual en el anotador que no altera fixtures de torneos ni tablas de ligas, computando exclusivamente en las estadísticas del jugador.
+  Además, en el Directorio de Jugadores se requirió modelar tarjetas coleccionables (Ultimate Darts Cards) con 4 dimensiones de clasificación y ordenamiento dinámico.
+- **Decisión:**
+  1. **Tipos y Dominio (`types.ts`):** Se introdujeron `League`, `LeagueStanding`, `CompetitionMode` (`STANDALONE_DAY`, `LOCAL_LEAGUE`, `NATIONAL_LEAGUE`), `NationalStageType` (`ONLINE`, `PRESENCIAL_OFICIAL`) y `pointsMultiplier` en `Tournament`.
+  2. **Persistencia y Datasets Oficiales (`storage.ts` y `constants.ts`):** `DEFAULT_LEAGUES` inicializa la Liga Nacional Oficial de Argentina (`league-national-argentina`) con aviso de clasificatoria internacional y la Liga Marplatense 2026 (`league-local-mdq`), con persistencia local (`getStoredLeagues` / `saveStoredLeagues`).
+  3. **UI y Componentes:**
+     * `CreateLeagueModal.tsx`: Permite a organizadores y clubes dar de alta ligas locales con sede, temporada y regla de duplicación en presenciales.
+     * `LeagueManager.tsx`: Pestaña dedicada "Ligas & Posiciones" en `/torneos` que expone las tablas acumuladas de posiciones (PJ, Títulos, Podios, AVG 501, Puntos) y el switch entre ligas.
+     * `TournamentManager.tsx`: Selector en la creación de torneo de las 3 modalidades, liga local de pertenencia y selector de fecha nacional (online vs presencial oficial con multiplicador x2).
+     * `UltimateDartsCard.tsx` & `PlayerDirectory.tsx`: Tarjetas estilo FIFA Ultimate Team con insignia superior dinámica que conmuta según el ranking activo: Mayor AVG App, Liga Nacional, Liga Marplatense o Torneos Presenciales MDQ (2 fechas al año).
+- **Motivo:** Coherencia federativa total, incentivo a la participación presencial oficial con puntaje doble y desacoplamiento limpio entre partidas casuales y competiciones oficiales.

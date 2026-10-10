@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { ARGENTINE_PROVINCES, PLAYER_CATEGORIES, getCountryFlag } from '@/lib/constants';
+import { UltimateDartsCard, UltimateDartsCardData, RankingMode } from './UltimateDartsCard';
 import { 
   Users, 
   Search, 
@@ -14,52 +15,50 @@ import {
   ArrowUpRight,
   Filter,
   Medal,
-  Activity
+  Activity,
+  Calendar,
+  Sparkles,
+  ChevronDown
 } from 'lucide-react';
 
-interface PlayerCardData {
-  id: string;
-  name: string;
-  nickname: string;
-  avatarUrl: string;
-  nationality?: string;
-  countryCode?: string;
-  province: string;
-  city: string;
-  club: string;
-  avg: number;
-  category: 'ELITE' | 'AVANZADA' | 'INTERMEDIA' | 'PRINCIPIANTE';
-  matchesWon: number;
-  matchesTotal: number;
-  count180s: number;
-  highestCheckout: number;
-  isVerified: boolean;
-}
-
-const MOCK_PLAYERS: PlayerCardData[] = [
+const MOCK_PLAYERS: UltimateDartsCardData[] = [
   {
     id: 'p-0',
     name: 'Mariano Deux (ICEMAN)',
     nickname: 'ICEMAN',
     avatarUrl: '/logos/logo-mdq.png',
+    photoUrl: '/images/players/iceman.jpg',
     nationality: 'Argentina',
     countryCode: 'AR',
     province: 'Buenos Aires',
     city: 'Mar del Plata',
-    club: 'Darderos Mar del Plata (Admin)',
+    club: 'Darderos Mar del Plata',
     avg: 75.0,
     category: 'ELITE',
     matchesWon: 95,
     matchesTotal: 120,
     count180s: 58,
     highestCheckout: 170,
-    isVerified: true
+    isVerified: true,
+    majorTitle: '1x SUPERADMIN & CAMPEÓN MDQ',
+    walkOnSong: 'AC/DC - THUNDERSTRUCK',
+    dartBrand: 'TARGET 90%',
+    dartWeight: 24,
+    bestLeg: 11,
+    nationalPoints: 1850,
+    nationalRank: 1,
+    mdqLeaguePoints: 980,
+    mdqLeagueRank: 1,
+    presentialPoints: 420,
+    presentialRank: 1,
+    presentialPodiums: '1x Campeón • 1x Finalista'
   },
   {
     id: 'p-1',
     name: 'Facundo López',
     nickname: 'El Halcón MDQ',
     avatarUrl: '/logos/logo-mdq.png',
+    photoUrl: '/images/players/halcon.jpg',
     nationality: 'Argentina',
     countryCode: 'AR',
     province: 'Buenos Aires',
@@ -71,13 +70,26 @@ const MOCK_PLAYERS: PlayerCardData[] = [
     matchesTotal: 48,
     count180s: 38,
     highestCheckout: 161,
-    isVerified: true
+    isVerified: true,
+    majorTitle: '1x CAMPEÓN COSTA ATLÁNTICA',
+    walkOnSong: 'PITBULL - GREENLIGHT',
+    dartBrand: 'TARGET SWISS 90%',
+    dartWeight: 23,
+    bestLeg: 12,
+    nationalPoints: 1780,
+    nationalRank: 2,
+    mdqLeaguePoints: 940,
+    mdqLeagueRank: 2,
+    presentialPoints: 390,
+    presentialRank: 2,
+    presentialPodiums: '1x Campeón Costa Atlántica'
   },
   {
     id: 'p-2',
     name: 'Martín Rossi',
     nickname: 'Sniper CABA',
     avatarUrl: '/logos/dardos-argentina.png',
+    photoUrl: '/images/players/sniper.jpg',
     nationality: 'Argentina',
     countryCode: 'AR',
     province: 'CABA',
@@ -89,13 +101,28 @@ const MOCK_PLAYERS: PlayerCardData[] = [
     matchesTotal: 44,
     count180s: 29,
     highestCheckout: 156,
-    isVerified: true
+    isVerified: true,
+    majorTitle: '1x LÍDER RANKING CABA',
+    walkOnSong: 'QUEEN - WE WILL ROCK YOU',
+    dartBrand: 'WINMAU BLADE 24G',
+    dartWeight: 24,
+    bestLeg: 11,
+    nationalPoints: 1690,
+    nationalRank: 3,
+    mdqLeaguePoints: 0,
+    mdqLeagueRank: 0,
+    presentialPoints: 260,
+    presentialRank: 4,
+    presentialPodiums: '1x Semifinalista MDQ'
   },
   {
     id: 'p-3',
     name: 'Diego Gómez',
     nickname: 'Tungsteno Rosario',
     avatarUrl: '/logos/dardos-argentina.png',
+    photoUrl: '/images/players/tungsteno.jpg',
+    nationality: 'Argentina',
+    countryCode: 'AR',
     province: 'Santa Fe',
     city: 'Rosario',
     club: 'Rosario Darts Club',
@@ -105,13 +132,28 @@ const MOCK_PLAYERS: PlayerCardData[] = [
     matchesTotal: 38,
     count180s: 21,
     highestCheckout: 140,
-    isVerified: true
+    isVerified: true,
+    majorTitle: '1x CAMPEÓN SANTA FE',
+    walkOnSong: 'LOS PALMERAS - EL BOMBÓN',
+    dartBrand: 'RED DRAGON 24G',
+    dartWeight: 24,
+    bestLeg: 13,
+    nationalPoints: 1520,
+    nationalRank: 4,
+    mdqLeaguePoints: 0,
+    mdqLeagueRank: 0,
+    presentialPoints: 240,
+    presentialRank: 5,
+    presentialPodiums: '1x Semifinalista MDQ'
   },
   {
     id: 'p-4',
     name: 'Lucas Pereyra',
     nickname: 'Bullseye Córdoba',
     avatarUrl: '/logos/dardos-argentina.png',
+    photoUrl: '/images/players/sniper.jpg',
+    nationality: 'Argentina',
+    countryCode: 'AR',
     province: 'Córdoba',
     city: 'Córdoba Capital',
     club: 'Córdoba Dardos Asoc.',
@@ -121,13 +163,28 @@ const MOCK_PLAYERS: PlayerCardData[] = [
     matchesTotal: 34,
     count180s: 18,
     highestCheckout: 130,
-    isVerified: true
+    isVerified: true,
+    majorTitle: '1x SUB-CAMPEÓN CENTRO',
+    walkOnSong: 'LA KONGA - UNIVERSO',
+    dartBrand: 'HARROWS CARBON',
+    dartWeight: 23,
+    bestLeg: 14,
+    nationalPoints: 1410,
+    nationalRank: 5,
+    mdqLeaguePoints: 0,
+    mdqLeagueRank: 0,
+    presentialPoints: 180,
+    presentialRank: 6,
+    presentialPodiums: 'Cuartos de Final MDQ'
   },
   {
     id: 'p-5',
     name: 'Carlos Méndez',
     nickname: 'Charly 180 MDQ',
     avatarUrl: '/logos/logo-mdq.png',
+    photoUrl: '/images/players/halcon.jpg',
+    nationality: 'Argentina',
+    countryCode: 'AR',
     province: 'Buenos Aires',
     city: 'Mar del Plata',
     club: 'Darderos Mar del Plata',
@@ -137,13 +194,28 @@ const MOCK_PLAYERS: PlayerCardData[] = [
     matchesTotal: 31,
     count180s: 16,
     highestCheckout: 121,
-    isVerified: true
+    isVerified: true,
+    majorTitle: '1x FINALISTA MDQ 2026',
+    walkOnSong: 'SODA STEREO - DE MÚSICA LIGERA',
+    dartBrand: 'WINMAU 22G',
+    dartWeight: 22,
+    bestLeg: 14,
+    nationalPoints: 1340,
+    nationalRank: 6,
+    mdqLeaguePoints: 790,
+    mdqLeagueRank: 3,
+    presentialPoints: 310,
+    presentialRank: 3,
+    presentialPodiums: '1x Finalista Presencial'
   },
   {
     id: 'p-6',
     name: 'Rodrigo Morales',
     nickname: 'El Rayo Cuyano',
     avatarUrl: '/logos/dardos-argentina.png',
+    photoUrl: '/images/players/tungsteno.jpg',
+    nationality: 'Argentina',
+    countryCode: 'AR',
     province: 'Mendoza',
     city: 'Godoy Cruz',
     club: 'Cuyo Darts',
@@ -153,29 +225,59 @@ const MOCK_PLAYERS: PlayerCardData[] = [
     matchesTotal: 29,
     count180s: 11,
     highestCheckout: 116,
-    isVerified: false
+    isVerified: false,
+    majorTitle: '1x CAMPEÓN CUYANO',
+    walkOnSong: 'ENANITOS VERDES - LAMENTO',
+    dartBrand: 'TARGET 80%',
+    dartWeight: 23,
+    bestLeg: 16,
+    nationalPoints: 1190,
+    nationalRank: 7,
+    mdqLeaguePoints: 0,
+    mdqLeagueRank: 0,
+    presentialPoints: 120,
+    presentialRank: 8,
+    presentialPodiums: 'Ronda 2 Presencial'
   },
   {
     id: 'p-7',
     name: 'Joaquín Benítez',
     nickname: 'Tiro Certero',
     avatarUrl: '/logos/dardos-argentina.png',
+    photoUrl: '/images/players/iceman.jpg',
+    nationality: 'Argentina',
+    countryCode: 'AR',
     province: 'Neuquén',
     city: 'Neuquén',
-    club: 'Patagonia Dardos',
-    avg: 48.7,
+    club: 'Patagonia Darts',
+    avg: 48.9,
     category: 'INTERMEDIA',
-    matchesWon: 14,
+    matchesWon: 15,
     matchesTotal: 26,
-    count180s: 7,
-    highestCheckout: 104,
-    isVerified: false
+    count180s: 8,
+    highestCheckout: 108,
+    isVerified: false,
+    majorTitle: '1x CAMPEÓN PATAGONIA',
+    walkOnSong: 'BERSUIT - MI CARAMELO',
+    dartBrand: 'TARGET 90%',
+    dartWeight: 24,
+    bestLeg: 17,
+    nationalPoints: 1080,
+    nationalRank: 8,
+    mdqLeaguePoints: 0,
+    mdqLeagueRank: 0,
+    presentialPoints: 110,
+    presentialRank: 9,
+    presentialPodiums: 'Ronda 1 Presencial'
   },
   {
     id: 'p-8',
     name: 'Esteban Navarro',
     nickname: 'Doble 20 Litoral',
     avatarUrl: '/logos/dardos-argentina.png',
+    photoUrl: '/images/players/sniper.jpg',
+    nationality: 'Argentina',
+    countryCode: 'AR',
     province: 'Entre Ríos',
     city: 'Paraná',
     club: 'Litoral Darts',
@@ -185,13 +287,28 @@ const MOCK_PLAYERS: PlayerCardData[] = [
     matchesTotal: 22,
     count180s: 5,
     highestCheckout: 96,
-    isVerified: false
+    isVerified: false,
+    majorTitle: '1x DESTACADO LITORAL',
+    walkOnSong: 'CHARLY GARCÍA - REZO POR VOS',
+    dartBrand: 'WINMAU BRASS',
+    dartWeight: 22,
+    bestLeg: 18,
+    nationalPoints: 990,
+    nationalRank: 9,
+    mdqLeaguePoints: 0,
+    mdqLeagueRank: 0,
+    presentialPoints: 90,
+    presentialRank: 10,
+    presentialPodiums: 'Ronda 1 Presencial'
   },
   {
     id: 'p-9',
     name: 'Mariano Silva',
     nickname: 'Flecha MDQ',
     avatarUrl: '/logos/logo-mdq.png',
+    photoUrl: '/images/players/halcon.jpg',
+    nationality: 'Argentina',
+    countryCode: 'AR',
     province: 'Buenos Aires',
     city: 'Mar del Plata',
     club: 'Darderos Mar del Plata',
@@ -201,7 +318,19 @@ const MOCK_PLAYERS: PlayerCardData[] = [
     matchesTotal: 18,
     count180s: 2,
     highestCheckout: 80,
-    isVerified: false
+    isVerified: false,
+    majorTitle: 'PROMESA MDQ 2026',
+    walkOnSong: 'LA RENGA - EL REVELDE',
+    dartBrand: 'HARROWS SILVER',
+    dartWeight: 21,
+    bestLeg: 21,
+    nationalPoints: 820,
+    nationalRank: 10,
+    mdqLeaguePoints: 610,
+    mdqLeagueRank: 4,
+    presentialPoints: 150,
+    presentialRank: 7,
+    presentialPodiums: 'Ronda 2 Presencial'
   }
 ];
 
@@ -209,9 +338,12 @@ export const PlayerDirectory: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvince, setSelectedProvince] = useState('TODAS');
   const [selectedCategory, setSelectedCategory] = useState<string>('TODAS');
+  const [rankingMode, setRankingMode] = useState<RankingMode>('AVG');
+  const [onlyMdqLeague, setOnlyMdqLeague] = useState(false);
 
-  const filteredPlayers = useMemo(() => {
-    return MOCK_PLAYERS.filter((player) => {
+  // Filtrado y Ordenamiento
+  const filteredAndSortedPlayers = useMemo(() => {
+    let result = MOCK_PLAYERS.filter((player) => {
       const matchesSearch = 
         player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         player.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -221,13 +353,166 @@ export const PlayerDirectory: React.FC = () => {
       const matchesProvince = selectedProvince === 'TODAS' || player.province === selectedProvince;
       const matchesCategory = selectedCategory === 'TODAS' || player.category === selectedCategory;
 
-      return matchesSearch && matchesProvince && matchesCategory;
+      // Filtro especial si se desea ver exclusivamente a jugadores de la Liga Marplatense
+      const matchesMdqExclusive = !onlyMdqLeague || 
+        player.club.includes('Darderos Mar del Plata') || 
+        player.city === 'Mar del Plata' || 
+        (player.mdqLeaguePoints && player.mdqLeaguePoints > 0);
+
+      return matchesSearch && matchesProvince && matchesCategory && matchesMdqExclusive;
     });
-  }, [searchTerm, selectedProvince, selectedCategory]);
+
+    // Ordenamiento estricto según la competencia seleccionada
+    return result.sort((a, b) => {
+      if (rankingMode === 'AVG') {
+        return b.avg - a.avg;
+      }
+      if (rankingMode === 'LIGA_ARG') {
+        return (b.nationalPoints || 0) - (a.nationalPoints || 0);
+      }
+      if (rankingMode === 'LIGA_MDQ') {
+        return (b.mdqLeaguePoints || 0) - (a.mdqLeaguePoints || 0);
+      }
+      if (rankingMode === 'PRESENCIAL_MDQ') {
+        return (b.presentialPoints || 0) - (a.presentialPoints || 0);
+      }
+      return 0;
+    });
+  }, [searchTerm, selectedProvince, selectedCategory, rankingMode, onlyMdqLeague]);
 
   return (
     <div className="space-y-6">
-      {/* Filtros y Buscador */}
+      {/* SELECTOR PRINCIPAL DE CRITERIO DE COMPETICIÓN / RANKING (4 MODALIDADES) */}
+      <div className="bg-[#0f1422] border border-[#1e2638] rounded-3xl p-4 sm:p-5 shadow-2xl space-y-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div>
+            <span className="text-[11px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5 mb-1">
+              <Flame className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <span>Criterio Oficial de Ordenamiento & Competición</span>
+            </span>
+            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+              Clasificación y Cartas Coleccionables 2026
+            </h2>
+          </div>
+
+          {/* Botones / Chips de Selección de Ranking */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full lg:w-auto">
+            {/* 1. Mayor AVG en la App */}
+            <button
+              type="button"
+              onClick={() => {
+                setRankingMode('AVG');
+                setOnlyMdqLeague(false);
+              }}
+              className={`px-3.5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                rankingMode === 'AVG'
+                  ? 'bg-[#00e676] text-[#07090e] shadow-lg shadow-[#00e676]/25 ring-2 ring-[#00e676]/50'
+                  : 'bg-[#07090e] text-slate-300 hover:text-white border border-[#1e2638] hover:border-slate-600'
+              }`}
+            >
+              <Target className="w-4 h-4 stroke-[2.5]" />
+              <span>Mayor AVG (App)</span>
+            </button>
+
+            {/* 2. Liga Argentina */}
+            <button
+              type="button"
+              onClick={() => {
+                setRankingMode('LIGA_ARG');
+                setOnlyMdqLeague(false);
+              }}
+              className={`px-3.5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                rankingMode === 'LIGA_ARG'
+                  ? 'bg-[#38bdf8] text-[#07090e] shadow-lg shadow-[#38bdf8]/25 ring-2 ring-[#38bdf8]/50'
+                  : 'bg-[#07090e] text-slate-300 hover:text-white border border-[#1e2638] hover:border-slate-600'
+              }`}
+            >
+              <span className="text-base select-none leading-none">🇦🇷</span>
+              <span>Liga Argentina</span>
+            </button>
+
+            {/* 3. Liga Marplatense */}
+            <button
+              type="button"
+              onClick={() => setRankingMode('LIGA_MDQ')}
+              className={`px-3.5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                rankingMode === 'LIGA_MDQ'
+                  ? 'bg-[#ffe600] text-[#07090e] shadow-lg shadow-[#ffe600]/25 ring-2 ring-[#ffe600]/50'
+                  : 'bg-[#07090e] text-slate-300 hover:text-white border border-[#1e2638] hover:border-slate-600'
+              }`}
+            >
+              <span className="text-base select-none leading-none">🌊</span>
+              <span>Liga Marplatense</span>
+            </button>
+
+            {/* 4. Torneos Oficiales Presenciales en Mar del Plata */}
+            <button
+              type="button"
+              onClick={() => {
+                setRankingMode('PRESENCIAL_MDQ');
+                setOnlyMdqLeague(false);
+              }}
+              className={`px-3.5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                rankingMode === 'PRESENCIAL_MDQ'
+                  ? 'bg-[#ef4444] text-white shadow-lg shadow-[#ef4444]/25 ring-2 ring-[#ef4444]/50'
+                  : 'bg-[#07090e] text-slate-300 hover:text-white border border-[#1e2638] hover:border-slate-600'
+              }`}
+            >
+              <Trophy className="w-4 h-4 stroke-[2.5]" />
+              <span>Presenciales MDQ</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Barra de Contexto y Toggle de Liga Marplatense */}
+        <div className="pt-3 border-t border-[#1e2638] flex flex-col md:flex-row items-start md:items-center justify-between text-xs text-slate-400 gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></span>
+            {rankingMode === 'AVG' && (
+              <span>
+                Ordenando por <strong>Mayor Promedio 501 (AVG)</strong> registrado en las partidas del anotador oficial de la App.
+              </span>
+            )}
+            {rankingMode === 'LIGA_ARG' && (
+              <span>
+                Ordenando por <strong>Puntos Acumulados de la Liga Argentina</strong> (Circuito Federal con partidas y torneos oficiales).
+              </span>
+            )}
+            {rankingMode === 'LIGA_MDQ' && (
+              <span>
+                Ordenando por la <strong>Liga Marplatense Oficial</strong> (Puntaje de campeonato regular en Club Darderos Mar del Plata).
+              </span>
+            )}
+            {rankingMode === 'PRESENCIAL_MDQ' && (
+              <span>
+                Ordenando por desempeño en <strong>Torneos Oficiales Presenciales</strong> (Se disputan dos fechas al año en Mar del Plata: Gran Open y Copa Costa Atlántica).
+              </span>
+            )}
+          </div>
+
+          {/* Toggle para filtrar exclusivamente miembros de la Liga Marplatense */}
+          {rankingMode === 'LIGA_MDQ' && (
+            <label className="flex items-center gap-2 cursor-pointer bg-[#07090e] px-3 py-1.5 rounded-xl border border-[#ffe600]/40 text-[#ffe600] font-bold text-xs select-none">
+              <input
+                type="checkbox"
+                checked={onlyMdqLeague}
+                onChange={(e) => setOnlyMdqLeague(e.target.checked)}
+                className="w-4 h-4 accent-[#ffe600] rounded cursor-pointer"
+              />
+              <span>Solo jugadores de la Liga MDQ</span>
+            </label>
+          )}
+
+          {rankingMode === 'PRESENCIAL_MDQ' && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#fca5a5] font-bold text-[11px]">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Circuito 2 Fechas Anuales en MDQ</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* FILTROS ADICIONALES: BUSCADOR Y SELECTORES */}
       <div className="bg-[#0f1422] border border-[#1e2638] rounded-3xl p-5 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Barra de Búsqueda */}
         <div className="relative w-full md:w-80">
@@ -249,7 +534,7 @@ export const PlayerDirectory: React.FC = () => {
             <select
               value={selectedProvince}
               onChange={(e) => setSelectedProvince(e.target.value)}
-              className="bg-transparent text-white font-bold text-xs focus:outline-none"
+              className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
             >
               <option value="TODAS">Toda la Argentina</option>
               {ARGENTINE_PROVINCES.map((p) => (
@@ -266,7 +551,7 @@ export const PlayerDirectory: React.FC = () => {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-transparent text-white font-bold text-xs focus:outline-none"
+              className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
             >
               <option value="TODAS">Todas las Categorías</option>
               <option value="ELITE">Elite Pro (70+ AVG)</option>
@@ -278,117 +563,33 @@ export const PlayerDirectory: React.FC = () => {
         </div>
       </div>
 
-      {/* Métricas Generales */}
-      <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-        <span>Mostrando <strong>{filteredPlayers.length}</strong> jugadores registrados</span>
+      {/* METADATOS Y CONTADOR DE CARTAS */}
+      <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 px-1 gap-2">
+        <div className="flex items-center gap-2">
+          <span>Mostrando <strong>{filteredAndSortedPlayers.length}</strong> cartas oficiales</span>
+          <span className="text-slate-600">•</span>
+          <span className="text-amber-400 font-bold flex items-center gap-1">
+            <Trophy className="w-3.5 h-3.5" />
+            Colección Oficial Ultimate Darts 2026
+          </span>
+        </div>
+
         <span className="flex items-center gap-1 text-[#00e676]">
           <ShieldCheck className="w-4 h-4" />
           <span>Federación Oficial Locos por los Dardos & Darderos MDQ</span>
         </span>
       </div>
 
-      {/* Grilla de Jugadores */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredPlayers.map((player) => {
-          const winRate = Math.round((player.matchesWon / player.matchesTotal) * 100);
-          const catConfig = PLAYER_CATEGORIES[player.category];
-
-          return (
-            <div
-              key={player.id}
-              className="bg-[#0f1422] border border-[#1e2638] hover:border-[#00e676]/60 rounded-3xl p-5 transition-all duration-200 hover:shadow-xl hover:shadow-emerald-500/10 flex flex-col justify-between group"
-            >
-              {/* Header de Tarjeta */}
-              <div>
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-[#07090e] border border-[#1e2638] flex items-center justify-center font-black text-sm text-[#00e676] overflow-hidden flex-shrink-0">
-                      {player.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base select-none" title={player.nationality || 'Argentina'}>
-                          {getCountryFlag(player.countryCode || player.nationality || 'AR')}
-                        </span>
-                        <h3 className="font-black text-white text-sm truncate">
-                          {player.name}
-                        </h3>
-                        {player.isVerified && (
-                          <span title="Jugador Verificado">
-                            <ShieldCheck className="w-3.5 h-3.5 text-[#00e676] flex-shrink-0" />
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-[#00e676] font-bold block truncate">
-                        &quot;{player.nickname}&quot;
-                      </span>
-                    </div>
-                  </div>
-
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border uppercase ${catConfig.badgeClass}`}>
-                    {catConfig.label}
-                  </span>
-                </div>
-
-                {/* Ubicación y Club */}
-                <div className="text-xs text-slate-400 space-y-1 mb-4 pb-3 border-b border-[#1e2638]">
-                  <p className="flex items-center gap-1.5 truncate">
-                    <MapPin className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                    <span>{player.city}, {player.province}</span>
-                  </p>
-                  <p className="text-[11px] text-slate-500 truncate">
-                    Club: <strong className="text-slate-300">{player.club}</strong>
-                  </p>
-                </div>
-
-                {/* Estadísticas Clave */}
-                <div className="grid grid-cols-4 gap-2 text-center py-2 bg-[#07090e] rounded-2xl border border-[#1e2638] mb-4">
-                  <div>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase block">AVG</span>
-                    <strong className="text-sm font-black text-[#00e676] font-mono">
-                      {player.avg.toFixed(1)}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase block">180s</span>
-                    <strong className="text-sm font-black text-[#ef4444] font-mono">
-                      {player.count180s}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase block">Max Out</span>
-                    <strong className="text-sm font-black text-[#0284c7] font-mono">
-                      {player.highestCheckout}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase block">Win %</span>
-                    <strong className="text-sm font-black text-amber-400 font-mono">
-                      {winRate}%
-                    </strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Acciones */}
-              <div className="flex items-center gap-2 pt-1">
-                <Link
-                  href="/anotador"
-                  className="flex-1 py-2 px-3 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs text-center uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20"
-                >
-                  Desafiar
-                </Link>
-                <Link
-                  href="/perfil"
-                  className="py-2 px-3 rounded-xl bg-[#131929] hover:bg-[#1c263d] text-slate-300 hover:text-white font-bold text-xs border border-[#1e2638] transition-all flex items-center gap-1"
-                >
-                  <span>Ficha</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
-          );
-        })}
+      {/* GRILLA DE CARTAS COLECCIONABLES ULTIMATE DARTS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10 justify-items-center pt-2">
+        {filteredAndSortedPlayers.map((player, index) => (
+          <UltimateDartsCard 
+            key={player.id} 
+            player={player} 
+            rankingMode={rankingMode}
+            displayRank={index + 1}
+          />
+        ))}
       </div>
     </div>
   );

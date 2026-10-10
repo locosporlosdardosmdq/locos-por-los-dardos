@@ -181,3 +181,32 @@ export function saveStoredTournamentHistory(history: any[]): void {
     console.warn('[Storage] Error guardando historial de torneos:', err);
   }
 }
+
+// --- Persistencia de Ligas Oficiales y Locales ---
+const LEAGUE_KEYS = {
+  LEAGUES: 'lpld_leagues_v1'
+};
+
+export function getStoredLeagues(fallback: any[] = []): any[] {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const data = localStorage.getItem(LEAGUE_KEYS.LEAGUES);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveStoredLeagues(leagues: any[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LEAGUE_KEYS.LEAGUES, JSON.stringify(leagues));
+  } catch (err) {
+    console.warn('[Storage] Error guardando ligas:', err);
+  }
+}
+

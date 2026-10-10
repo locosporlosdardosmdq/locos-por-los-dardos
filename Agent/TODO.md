@@ -51,6 +51,24 @@
 
 ---
 
+- [x] **Sistema Oficial de Ligas y Modalidades de Torneo:**
+  * Creación del modelo `League` y soporte de 3 modalidades de torneo:
+    1. Torneo de un día (sin liga asociada / relámpago).
+    2. Torneo local que suma puntos a su Liga Local (`CreateLeagueModal.tsx` y `LeagueManager.tsx`).
+    3. Torneo Nacional Oficial: Única Liga Nacional de Argentina, clasificatoria a torneos internacionales, con fechas online y fechas presenciales oficiales que duplican puntos (x2).
+    4. Partida individual en el anotador que no altera tablas de torneo ni liga (solo estadísticas personales del jugador).
+  * Pestaña "Ligas & Posiciones" en `/torneos` con visualización de tablas acumuladas (PJ, Títulos, Podios, AVG 501, Puntos) y selector de ligas.
+  * Formulario de creación de torneos enriquecido con selector interactivo de modalidad, liga y fechas presenciales con bonificación x2.
+
+---
+
+- [x] **Directorio Federal de Jugadores & Cartas Coleccionables (FUT Style):**
+  * Tarjetas coleccionables `UltimateDartsCard.tsx` con diseño dorado de alta gama, foto del jugador, bandera nacional, club, patrocinador de dardos y canción de entrada (*walk-on*).
+  * 4 filtros de ordenamiento y ranking interactivos: Mayor AVG App, Liga Argentina (Circuito Federal), Liga Marplatense (con checkbox "Solo jugadores MDQ") y Torneos Presenciales MDQ (2 fechas oficiales al año).
+  * Insignia dinámica que actualiza el puesto y puntuación (#1 AVG • 75.0, #1 LIGA ARGENTINA • 1850 PTS, #1 TORNEO MDQ • 1x Campeón).
+
+---
+
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos
 - [ ] **Exportación y Cartelera de Club:**
   * Generación de PDF / PNG imprimible del cuadro final del torneo para la cartelera física del club.

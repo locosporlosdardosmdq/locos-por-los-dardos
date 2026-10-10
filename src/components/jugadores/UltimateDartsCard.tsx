@@ -1,0 +1,591 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { Target, ArrowUpRight } from 'lucide-react';
+
+export interface UltimateDartsCardData {
+  id: string;
+  name: string;
+  nickname: string;
+  avatarUrl?: string;
+  photoUrl?: string;
+  nationality?: string;
+  countryCode?: string;
+  province: string;
+  city: string;
+  club: string;
+  avg: number;
+  category: 'ELITE' | 'AVANZADA' | 'INTERMEDIA' | 'PRINCIPIANTE';
+  matchesWon: number;
+  matchesTotal: number;
+  count180s: number;
+  highestCheckout: number;
+  isVerified?: boolean;
+  majorTitle?: string;
+  walkOnSong?: string;
+  dartBrand?: string;
+  dartWeight?: number;
+  bestLeg?: number;
+  nationalPoints?: number;
+  nationalRank?: number;
+  mdqLeaguePoints?: number;
+  mdqLeagueRank?: number;
+  presentialPoints?: number;
+  presentialRank?: number;
+  presentialPodiums?: string;
+}
+
+export type RankingMode = 'AVG' | 'LIGA_ARG' | 'LIGA_MDQ' | 'PRESENCIAL_MDQ';
+
+interface UltimateDartsCardProps {
+  player: UltimateDartsCardData;
+  showActions?: boolean;
+  rankingMode?: RankingMode;
+  displayRank?: number;
+}
+
+const TIER_THEMES = {
+  ELITE: {
+    borderColor: '#ffe600', // Oro brillante auténtico Luke Littler
+    borderGlow: 'rgba(255, 230, 0, 0.45)',
+    accentColor: '#ffe600',
+    subColor: '#fef08a',
+    bgDark: '#090214',
+    bgMid: '#1e0a38',
+    bgLight: '#3d1b6e',
+    swirlColor: '#7c3aed',
+    labelColor: '#e9d5ff',
+    badgeText: 'ELITE PRO'
+  },
+  AVANZADA: {
+    borderColor: '#ef4444', // Rojo Diana Oficial
+    borderGlow: 'rgba(239, 68, 68, 0.45)',
+    accentColor: '#ef4444',
+    subColor: '#fca5a5',
+    bgDark: '#0d0204',
+    bgMid: '#28050b',
+    bgLight: '#4d0d18',
+    swirlColor: '#b91c1c',
+    labelColor: '#fecaca',
+    badgeText: 'AVANZADA'
+  },
+  INTERMEDIA: {
+    borderColor: '#38bdf8', // Azul Eléctrico
+    borderGlow: 'rgba(56, 189, 248, 0.45)',
+    accentColor: '#38bdf8',
+    subColor: '#bae6fd',
+    bgDark: '#020914',
+    bgMid: '#061733',
+    bgLight: '#0d3266',
+    swirlColor: '#0284c7',
+    labelColor: '#bfdbfe',
+    badgeText: 'INTERMEDIA'
+  },
+  PRINCIPIANTE: {
+    borderColor: '#00e676', // Verde Diana Oficial
+    borderGlow: 'rgba(0, 230, 118, 0.45)',
+    accentColor: '#00e676',
+    subColor: '#86efac',
+    bgDark: '#010d07',
+    bgMid: '#052414',
+    bgLight: '#0d4828',
+    swirlColor: '#16a34a',
+    labelColor: '#bbf7d0',
+    badgeText: 'PRINCIPIANTE'
+  }
+};
+
+/**
+ * Renderiza la bandera nacional oficial en formato vectorial SVG
+ */
+const renderSvgFlag = (countryCode: string = 'AR') => {
+  const code = countryCode.toUpperCase();
+
+  if (code === 'AR' || code === 'ARGENTINA') {
+    return (
+      <g>
+        {/* Bandera Argentina: Celeste, Blanco, Celeste + Sol de Mayo */}
+        <rect x="0" y="0" width="46" height="28" rx="2" fill="#75AADB" />
+        <rect x="0" y="9.33" width="46" height="9.33" fill="#FFFFFF" />
+        <circle cx="23" cy="14" r="3.6" fill="#F6B40E" />
+        <circle cx="23" cy="14" r="1.8" fill="#85340A" opacity="0.4" />
+      </g>
+    );
+  }
+
+  if (code === 'GB' || code === 'EN' || code === 'UK' || code === 'INGLATERRA') {
+    return (
+      <g>
+        {/* Cruz de San Jorge (Inglaterra - Luke Littler style) */}
+        <rect x="0" y="0" width="46" height="28" rx="2" fill="#FFFFFF" />
+        <rect x="19" y="0" width="8" height="28" fill="#CE1124" />
+        <rect x="0" y="10" width="46" height="8" fill="#CE1124" />
+      </g>
+    );
+  }
+
+  if (code === 'ES' || code === 'ESPAÑA') {
+    return (
+      <g>
+        {/* Bandera de España */}
+        <rect x="0" y="0" width="46" height="28" rx="2" fill="#AA151B" />
+        <rect x="0" y="7" width="46" height="14" fill="#F1BF00" />
+      </g>
+    );
+  }
+
+  if (code === 'UY' || code === 'URUGUAY') {
+    return (
+      <g>
+        {/* Bandera de Uruguay */}
+        <rect x="0" y="0" width="46" height="28" rx="2" fill="#FFFFFF" />
+        <rect x="0" y="0" width="46" height="3.5" fill="#0038A8" />
+        <rect x="0" y="7" width="46" height="3.5" fill="#0038A8" />
+        <rect x="0" y="14" width="46" height="3.5" fill="#0038A8" />
+        <rect x="0" y="21" width="46" height="3.5" fill="#0038A8" />
+        <rect x="0" y="0" width="16" height="14" fill="#FFFFFF" />
+        <circle cx="8" cy="7" r="3" fill="#F6B40E" />
+      </g>
+    );
+  }
+
+  // Fallback: bandera argentina por defecto
+  return (
+    <g>
+      <rect x="0" y="0" width="46" height="28" rx="2" fill="#75AADB" />
+      <rect x="0" y="9.33" width="46" height="9.33" fill="#FFFFFF" />
+      <circle cx="23" cy="14" r="3.6" fill="#F6B40E" />
+    </g>
+  );
+};
+
+export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
+  player,
+  showActions = true,
+  rankingMode,
+  displayRank
+}) => {
+  const theme = TIER_THEMES[player.category] || TIER_THEMES.ELITE;
+  const cardId = `card-${player.id}`;
+  const clipId = `fut-clip-${player.id}`;
+  const bgGradId = `bg-grad-${player.id}`;
+  const fadeGradId = `fade-grad-${player.id}`;
+
+  // Geometría del escudo de Luke Littler / Ultimate Darts (viewBox: 0 0 340 540)
+  const outerPath = "M 34,44 C 70,14 125,18 152,32 C 160,36 180,36 188,32 C 215,18 270,14 306,44 C 324,56 328,70 328,95 L 328,255 L 310,270 L 328,285 L 328,435 C 328,458 314,476 295,488 L 170,536 L 45,488 C 26,476 12,458 12,435 L 12,285 L 30,270 L 12,255 L 12,95 C 12,70 16,56 34,44 Z";
+  const innerPath = "M 39,49 C 72,21 123,25 151,37 C 160,41 180,41 189,37 C 217,25 268,21 301,49 C 317,60 321,74 321,97 L 321,254 L 306,270 L 321,286 L 321,431 C 321,451 309,467 292,478 L 170,523 L 48,478 C 31,467 19,451 19,431 L 19,286 L 34,270 L 19,254 L 19,97 C 19,74 23,60 39,49 Z";
+
+  // Parseo del título o badge según el criterio de ranking seleccionado
+  let titleNumber = '1x';
+  let titleText = 'CAMPEÓN MDQ';
+  let subtitleText = 'OFICIAL';
+
+  if (rankingMode === 'AVG') {
+    titleNumber = `#${displayRank || 1}`;
+    titleText = `${player.avg.toFixed(1)} AVG`;
+    subtitleText = 'APP 501 OFICIAL';
+  } else if (rankingMode === 'LIGA_ARG') {
+    titleNumber = `#${player.nationalRank || displayRank || 1}`;
+    titleText = 'LIGA ARGENTINA';
+    subtitleText = `${player.nationalPoints || 0} PUNTOS`;
+  } else if (rankingMode === 'LIGA_MDQ') {
+    titleNumber = player.mdqLeagueRank ? `#${player.mdqLeagueRank}` : 'MDQ';
+    titleText = 'LIGA DARDEROS';
+    subtitleText = player.mdqLeaguePoints ? `${player.mdqLeaguePoints} PTS MDQ` : 'NO FEDERADO';
+  } else if (rankingMode === 'PRESENCIAL_MDQ') {
+    titleNumber = `#${player.presentialRank || displayRank || 1}`;
+    titleText = 'TORNEO MDQ';
+    subtitleText = player.presentialPodiums ? player.presentialPodiums.split('•')[0].trim() : `${player.presentialPoints || 0} PTS`;
+  } else {
+    const majorTitleParts = player.majorTitle ? player.majorTitle.split(' ') : ['1x', 'CAMPEÓN', 'MDQ'];
+    titleNumber = majorTitleParts[0] || '1x';
+    titleText = majorTitleParts.slice(1).join(' ') || 'CAMPEÓN OFICIAL MDQ';
+    subtitleText = 'WINNER';
+  }
+
+  return (
+    <div className="flex flex-col items-center group select-none w-full max-w-[290px]">
+      {/* Contenedor SVG Escalable Vectorial Completo */}
+      <div 
+        className="w-full aspect-[340/545] transition-all duration-300 transform group-hover:-translate-y-2 group-hover:scale-[1.02]"
+        style={{
+          filter: `drop-shadow(0 15px 25px rgba(0,0,0,0.85)) drop-shadow(0 0 18px ${theme.borderGlow})`
+        }}
+      >
+        <svg 
+          viewBox="0 0 340 545" 
+          className="w-full h-full overflow-visible"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            {/* Clip Path que recorta exactamente el interior del escudo */}
+            <clipPath id={clipId}>
+              <path d={innerPath} />
+            </clipPath>
+
+            {/* Gradiente de fondo líquido / mármol */}
+            <radialGradient id={bgGradId} cx="65%" cy="30%" r="75%">
+              <stop offset="0%" stopColor={theme.bgLight} />
+              <stop offset="45%" stopColor={theme.bgMid} />
+              <stop offset="100%" stopColor={theme.bgDark} />
+            </radialGradient>
+
+            {/* Difuminado suave para fundir el torso del jugador con la textura */}
+            <linearGradient id={fadeGradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={theme.bgDark} stopOpacity="0" />
+              <stop offset="60%" stopColor={theme.bgDark} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={theme.bgDark} stopOpacity="1" />
+            </linearGradient>
+
+            {/* Sombra para textos */}
+            <filter id={`text-shadow-${cardId}`} x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000000" floodOpacity="0.95" />
+            </filter>
+          </defs>
+
+          {/* CONTENIDO INTERNO RECORTADO */}
+          <g clipPath={`url(#${clipId})`}>
+            {/* Fondo base */}
+            <rect x="0" y="0" width="340" height="540" fill={`url(#${bgGradId})`} />
+
+            {/* Texturas orgánicas de humo / mármol (estilo Luke Littler) */}
+            <path 
+              d="M -20,120 Q 80,40 160,110 T 360,90 L 360,-20 L -20,-20 Z" 
+              fill={theme.swirlColor} 
+              opacity="0.18" 
+            />
+            <path 
+              d="M -30,220 C 60,180 120,290 220,220 C 280,180 320,260 380,210 L 380,360 C 280,390 180,310 100,380 Z" 
+              fill={theme.swirlColor} 
+              opacity="0.12" 
+            />
+            <circle cx="240" cy="120" r="140" fill={theme.swirlColor} opacity="0.22" filter="blur(30px)" />
+            <circle cx="80" cy="380" r="120" fill={theme.swirlColor} opacity="0.15" filter="blur(30px)" />
+
+            {/* RETRATO FOTOGRÁFICO DEL JUGADOR (Posicionado a la derecha, pose PDC) */}
+            {player.photoUrl ? (
+              <g>
+                <image 
+                  href={player.photoUrl} 
+                  x="85" 
+                  y="20" 
+                  width="240" 
+                  height="260" 
+                  preserveAspectRatio="xMidYMin slice"
+                />
+                {/* Degradado inferior para fundir el corte del torso */}
+                <rect x="0" y="200" width="340" height="70" fill={`url(#${fadeGradId})`} />
+              </g>
+            ) : (
+              <g>
+                <rect x="130" y="55" width="140" height="170" rx="20" fill="#000000" opacity="0.4" />
+                <text 
+                  x="200" 
+                  y="155" 
+                  textAnchor="middle" 
+                  fill={theme.accentColor} 
+                  fontSize="48" 
+                  fontWeight="900"
+                  fontFamily="'Impact', 'Arial Black', sans-serif"
+                >
+                  {player.nickname.slice(0, 2).toUpperCase()}
+                </text>
+              </g>
+            )}
+
+            {/* COLUMNA SUPERIOR IZQUIERDA: LOGRO, BANDERA Y 180S */}
+            <g transform="translate(40, 52)">
+              {/* Título o Logro Principal (1x o Ranking) */}
+              <text 
+                x="0" 
+                y="36" 
+                fill={theme.accentColor} 
+                fontSize={titleNumber.length > 3 ? "34" : "40"} 
+                fontWeight="900" 
+                fontFamily="'Impact', 'Arial Black', sans-serif"
+                letterSpacing="-1"
+                filter={`url(#text-shadow-${cardId})`}
+              >
+                {titleNumber}
+              </text>
+              
+              <text 
+                x="0" 
+                y="50" 
+                fill={theme.accentColor} 
+                fontSize="8" 
+                fontWeight="800" 
+                fontFamily="system-ui, -apple-system, sans-serif"
+                letterSpacing="0.4"
+              >
+                {titleText.length > 18 ? titleText.slice(0, 16) + '...' : titleText}
+              </text>
+              <text 
+                x="0" 
+                y="61" 
+                fill={theme.subColor} 
+                fontSize="7" 
+                fontWeight="700" 
+                fontFamily="system-ui, -apple-system, sans-serif"
+                letterSpacing="0.4"
+              >
+                {subtitleText.length > 20 ? subtitleText.slice(0, 18) + '...' : subtitleText}
+              </text>
+
+              {/* Bandera Nacional Vectorial */}
+              <g transform="translate(0, 72)">
+                <rect x="-1.5" y="-1.5" width="49" height="31" rx="3" fill="#000000" stroke={theme.borderColor} strokeWidth="1.5" />
+                {renderSvgFlag(player.countryCode || player.nationality || 'AR')}
+              </g>
+
+              {/* Métrica de 180s en Carrera */}
+              <g transform="translate(0, 126)">
+                <text 
+                  x="0" 
+                  y="20" 
+                  fill={theme.accentColor} 
+                  fontSize="25" 
+                  fontWeight="900" 
+                  fontFamily="'Impact', 'Arial Black', sans-serif"
+                  filter={`url(#text-shadow-${cardId})`}
+                >
+                  {player.count180s}
+                </text>
+                <text 
+                  x="28" 
+                  y="11" 
+                  fill={theme.subColor} 
+                  fontSize="7.5" 
+                  fontWeight="800" 
+                  fontFamily="system-ui, -apple-system, sans-serif"
+                >
+                  CAREER
+                </text>
+                <text 
+                  x="28" 
+                  y="20" 
+                  fill="#ffffff" 
+                  fontSize="7.5" 
+                  fontWeight="800" 
+                  fontFamily="system-ui, -apple-system, sans-serif"
+                >
+                  180s
+                </text>
+              </g>
+            </g>
+
+            {/* FRANJA CENTRAL: NOMBRE DEL JUGADOR (Dorado / Impact) */}
+            <g transform="translate(170, 260)">
+              <text 
+                x="0" 
+                y="0" 
+                textAnchor="middle" 
+                fill={theme.accentColor} 
+                fontSize="27" 
+                fontWeight="900" 
+                fontFamily="'Impact', 'Arial Black', sans-serif"
+                letterSpacing="1.2"
+                filter={`url(#text-shadow-${cardId})`}
+              >
+                {player.name.toUpperCase()}
+              </text>
+              
+              {/* Walk-on Song o Apodo */}
+              <text 
+                x="0" 
+                y="18" 
+                textAnchor="middle" 
+                fill={theme.subColor} 
+                fontSize="9.5" 
+                fontWeight="700" 
+                fontStyle="italic"
+                fontFamily="system-ui, -apple-system, sans-serif"
+                letterSpacing="0.8"
+              >
+                ♫ {player.walkOnSong ? player.walkOnSong.toUpperCase() : `"${player.nickname.toUpperCase()}"`}
+              </text>
+            </g>
+
+            {/* SEPARADOR HORIZONTAL DORADO */}
+            <line 
+              x1="45" 
+              y1="294" 
+              x2="295" 
+              y2="294" 
+              stroke={theme.borderColor} 
+              strokeWidth="1.5" 
+              opacity="0.85" 
+            />
+
+            {/* SEPARADOR VERTICAL ENTRE LAS 2 COLUMNAS */}
+            <line 
+              x1="170" 
+              y1="304" 
+              x2="170" 
+              y2="438" 
+              stroke={theme.borderColor} 
+              strokeWidth="1.5" 
+              opacity="0.85" 
+            />
+
+            {/* GRILLA DE ATRIBUTOS (2 COLUMNAS IDÉNTICAS A LUKE LITTLER) */}
+            {/* Fila 1: HOME TOWN | DARTS */}
+            <g transform="translate(0, 318)">
+              {/* Columna Izquierda */}
+              <text x="105" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
+                HOME TOWN
+              </text>
+              <text x="105" y="16" textAnchor="middle" fill="#ffffff" fontSize="12.5" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="0.5">
+                {player.city.toUpperCase()}
+              </text>
+
+              {/* Columna Derecha */}
+              <text x="235" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
+                DARTS
+              </text>
+              <text x="235" y="16" textAnchor="middle" fill={theme.accentColor} fontSize="12.5" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="0.5">
+                {player.dartBrand ? player.dartBrand.toUpperCase() : 'TARGET 90%'}
+              </text>
+            </g>
+
+            {/* Fila 2: NICKNAME | WEIGHT */}
+            <g transform="translate(0, 362)">
+              {/* Columna Izquierda */}
+              <text x="105" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
+                NICKNAME
+              </text>
+              <text x="105" y="16" textAnchor="middle" fill={theme.accentColor} fontSize="12" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="0.5">
+                {player.nickname.toUpperCase()}
+              </text>
+
+              {/* Columna Derecha */}
+              <text x="235" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
+                WEIGHT
+              </text>
+              <text x="235" y="16" textAnchor="middle" fill="#ffffff" fontSize="12.5" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="0.5">
+                {player.dartWeight ? `${player.dartWeight} grams` : '24 grams'}
+              </text>
+            </g>
+
+            {/* Fila 3: PROMEDIO 501 | MAYOR CIERRE */}
+            <g transform="translate(0, 406)">
+              {/* Columna Izquierda */}
+              <text x="105" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
+                PROMEDIO 501
+              </text>
+              <text x="105" y="16" textAnchor="middle" fill="#ffffff" fontSize="13" fontWeight="900" fontFamily="'Impact', 'Arial Black', sans-serif" letterSpacing="0.5">
+                {player.avg.toFixed(1)} AVG
+              </text>
+
+              {/* Columna Derecha */}
+              <text x="235" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
+                MAYOR CIERRE
+              </text>
+              <text x="235" y="16" textAnchor="middle" fill={theme.accentColor} fontSize="13" fontWeight="900" fontFamily="'Impact', 'Arial Black', sans-serif" letterSpacing="0.5">
+                {player.highestCheckout} PTS
+              </text>
+            </g>
+
+            {/* ESCUDO DE MARCA EN LA PUNTA INFERIOR: ULTIMATE DARTS */}
+            <g transform="translate(170, 466)">
+              {/* Escudito / Placa dorada */}
+              <path 
+                d="M -24,-14 L 24,-14 L 28,4 L 0,18 L -28,4 Z" 
+                fill="#000000" 
+                stroke={theme.borderColor} 
+                strokeWidth="1.2" 
+                opacity="0.95"
+              />
+              <text 
+                x="0" 
+                y="-3" 
+                textAnchor="middle" 
+                fill={theme.accentColor} 
+                fontSize="6.5" 
+                fontWeight="900" 
+                letterSpacing="1.2"
+                fontFamily="system-ui, sans-serif"
+              >
+                ULTIMATE
+              </text>
+              <text 
+                x="0" 
+                y="5" 
+                textAnchor="middle" 
+                fill={theme.accentColor} 
+                fontSize="6.5" 
+                fontWeight="900" 
+                letterSpacing="1.2"
+                fontFamily="system-ui, sans-serif"
+              >
+                DARTS
+              </text>
+              <text 
+                x="0" 
+                y="13" 
+                textAnchor="middle" 
+                fill="#cbd5e1" 
+                fontSize="4.8" 
+                fontWeight="700" 
+                letterSpacing="0.5"
+                fontFamily="system-ui, sans-serif"
+              >
+                DARDEROS MDQ
+              </text>
+            </g>
+          </g>
+
+          {/* BORDES DORADOS Y MUESCAS LATERALES (SUPERPUESTOS AL FRENTE) */}
+          {/* Borde Exterior Grueso */}
+          <path 
+            d={outerPath} 
+            stroke={theme.borderColor} 
+            strokeWidth="6" 
+            strokeLinejoin="round"
+            fill="none"
+          />
+
+          {/* Borde Interior Fino */}
+          <path 
+            d={innerPath} 
+            stroke={theme.borderColor} 
+            strokeWidth="1.6" 
+            strokeLinejoin="round"
+            fill="none"
+            opacity="0.95"
+          />
+
+          {/* Muescas / Flechas triangulares amarillas en laterales medios */}
+          <polygon points="328,255 310,270 328,285" fill={theme.borderColor} />
+          <polygon points="12,255 30,270 12,285" fill={theme.borderColor} />
+        </svg>
+      </div>
+
+      {/* BOTONES DE ACCIÓN PARA LA PLATAFORMA DE JUEGO */}
+      {showActions && (
+        <div className="w-full max-w-[300px] flex items-center gap-2 mt-3 z-30">
+          <Link
+            href="/anotador"
+            className="flex-1 py-2 px-3 rounded-xl font-black text-xs text-center uppercase tracking-wider transition-all shadow-lg flex items-center justify-center gap-1.5 hover:brightness-110 active:scale-95"
+            style={{
+              backgroundColor: '#00e676',
+              color: '#07090e'
+            }}
+          >
+            <Target className="w-4 h-4 stroke-[2.5]" />
+            <span>Desafiar</span>
+          </Link>
+
+          <Link
+            href="/perfil"
+            className="py-2 px-4 rounded-xl bg-[#111622] hover:bg-[#1a2234] text-slate-300 hover:text-white font-bold text-xs border border-slate-700 transition-all flex items-center gap-1 active:scale-95"
+          >
+            <span>Ficha</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+};

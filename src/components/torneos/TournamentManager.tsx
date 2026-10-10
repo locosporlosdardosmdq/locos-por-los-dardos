@@ -9,7 +9,10 @@ import {
   TournamentBracketMatch, 
   MatchConfig,
   TournamentStats,
-  PlayerProfile
+  PlayerProfile,
+  League,
+  CompetitionMode,
+  NationalStageType
 } from '@/lib/types';
 import { 
   MOCK_TOURNAMENTS, 
@@ -17,6 +20,7 @@ import {
   MOCK_CURRENT_USER, 
   USER_ICEMAN,
   COUNTRIES, 
+  DEFAULT_LEAGUES,
   getCountryFlag, 
   isUserAdmin 
 } from '@/lib/constants';
@@ -25,7 +29,9 @@ import {
   getStoredTournaments, 
   saveStoredTournaments,
   getStoredTournamentHistory,
-  saveStoredTournamentHistory
+  saveStoredTournamentHistory,
+  getStoredLeagues,
+  saveStoredLeagues
 } from '@/lib/storage';
 import { matchBroadcast, BroadcastMatchPayload } from '@/lib/broadcast';
 import { TournamentBracket } from './TournamentBracket';
@@ -34,6 +40,8 @@ import { MatchDispatcherModal } from './MatchDispatcherModal';
 import { PlayerEnrollModal } from './PlayerEnrollModal';
 import { WebcamSetupModal } from './WebcamSetupModal';
 import { AdminMatchModal } from './AdminMatchModal';
+import { CreateLeagueModal } from './CreateLeagueModal';
+import { LeagueManager } from './LeagueManager';
 import { DartScorer } from '@/components/anotador/DartScorer';
 import { 
   Trophy, 
@@ -43,6 +51,8 @@ import {
   DollarSign, 
   Shuffle, 
   Radio, 
+  Globe,
+  Shield, 
   Flame, 
   Target, 
   Video, 
@@ -177,8 +187,14 @@ const SAMPLE_HISTORY_TOURNAMENT: Tournament = {
 };
 
 export const TournamentManager: React.FC = () => {
-  // Pestaña principal: Torneos Activos vs Historial
-  const [mainTab, setMainTab] = useState<'ACTIVE_TAB' | 'HISTORY_TAB'>('ACTIVE_TAB');
+  // Pestaña principal: Torneos Activos vs Ligas & Posiciones vs Historial
+  const [mainTab, setMainTab] = useState<'ACTIVE_TAB' | 'LEAGUES_TAB' | 'HISTORY_TAB'>('ACTIVE_TAB');
+
+  // Ligas registradas (Nacional y Locales)
+  const [leagues, setLeagues] = useState<League[]>(() => {
+    return getStoredLeagues(DEFAULT_LEAGUES);
+  });
+  const [showCreateLeagueModal, setShowCreateLeagueModal] = useState(false);
 
   // Estado de torneos activos
   const [tournaments, setTournaments] = useState<Tournament[]>(() => {
@@ -228,8 +244,11 @@ export const TournamentManager: React.FC = () => {
     ...MOCK_RANKINGS.map((p) => ({ id: p.id, name: p.fullName, nickname: p.nickname, avg: p.estimatedAvg, hasWebcam: true }))
   ]);
 
-  // Formulario nuevo torneo
+  // Formulario nuevo torneo y modalidades
   const [newTitle, setNewTitle] = useState('');
+  const [newCompetitionMode, setNewCompetitionMode] = useState<CompetitionMode>('STANDALONE_DAY');
+  const [newLeagueId, setNewLeagueId] = useState<string>('league-local-mdq');
+  const [newNationalStageType, setNewNationalStageType] = useState<NationalStageType>('ONLINE');
   const [newType, setNewType] = useState<TournamentType>('PRESENCIAL');
   const [newFormat, setNewFormat] = useState<TournamentFormat>('SINGLE_ELIMINATION');
   const [newBestOfLegs, setNewBestOfLegs] = useState(5);
@@ -542,11 +561,28 @@ export const TournamentManager: React.FC = () => {
     ]);
   };
 
+  // Crear nueva Liga Oficial
+  const handleCreateLeague = (newLeague: League) => {
+    setLeagues((prev) => {
+      const updated = [...prev, newLeague];
+      saveStoredLeagues(updated);
+      return updated;
+    });
+    setNewLeagueId(newLeague.id);
+    alert(`¡Liga "${newLeague.name}" creada con éxito!`);
+  };
+
   // Crear nuevo torneo
   const handleCreateTournament = (e: React.FormEvent) => {
     e.preventDefault();
     const newId = `torneo-${Date.now()}`;
     const newMatches = newFormat === 'SINGLE_ELIMINATION' ? generateDefaultBracket(newId) : [];
+
+    const selectedLeague = newCompetitionMode === 'LOCAL_LEAGUE'
+      ? leagues.find((l) => l.id === newLeagueId)
+      : (newCompetitionMode === 'NATIONAL_LEAGUE' ? leagues.find((l) => l.scope === 'NATIONAL') : undefined);
+
+    const pointsMultiplier = newCompetitionMode === 'NATIONAL_LEAGUE' && newNationalStageType === 'PRESENCIAL_OFICIAL' ? 2 : 1;
 
     const newTourney: Tournament = {
       id: newId,
@@ -555,6 +591,11 @@ export const TournamentManager: React.FC = () => {
       description: `Torneo oficial de competición federada. Modalidad ${newType.toLowerCase()}, mejor de ${newBestOfLegs} legs.`,
       type: newType,
       format: newFormat,
+      competitionMode: newCompetitionMode,
+      leagueId: selectedLeague?.id,
+      leagueName: selectedLeague?.name,
+      nationalStageType: newCompetitionMode === 'NATIONAL_LEAGUE' ? newNationalStageType : undefined,
+      pointsMultiplier,
       startingScore: 501,
       outMode: 'DOUBLE_OUT',
       bestOfLegs: newBestOfLegs,
@@ -568,7 +609,7 @@ export const TournamentManager: React.FC = () => {
       bannerImageUrl: '/logos/logo-mdq.png',
       entryFeeArs: newEntryFee,
       prizePoolArs: newPrizePool,
-      organizer: 'Locos por los Dardos & Darderos Mar del Plata',
+      organizer: selectedLeague ? selectedLeague.organizerClub : 'Locos por los Dardos & Darderos Mar del Plata',
       matches: newMatches
     };
 
@@ -632,6 +673,26 @@ export const TournamentManager: React.FC = () => {
                   mainTab === 'ACTIVE_TAB' ? 'bg-[#07090e] text-[#00e676]' : 'bg-[#1e2a40] text-slate-300'
                 }`}>
                   {tournaments.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMainTab('LEAGUES_TAB');
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                  mainTab === 'LEAGUES_TAB'
+                    ? 'bg-[#ffe600] text-[#07090e] shadow-lg shadow-[#ffe600]/20'
+                    : 'text-slate-400 hover:text-white hover:bg-[#141a29]'
+                }`}
+              >
+                <Shield className="w-4 h-4 text-[#ffe600]" />
+                <span>Ligas & Posiciones</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  mainTab === 'LEAGUES_TAB' ? 'bg-[#07090e] text-[#ffe600]' : 'bg-[#1e2a40] text-slate-300'
+                }`}>
+                  {leagues.length}
                 </span>
               </button>
 
@@ -771,16 +832,45 @@ export const TournamentManager: React.FC = () => {
                               </td>
 
                               <td className="py-4 px-4">
-                                <div className="space-y-1">
-                                  <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                                    t.type === 'PRESENCIAL'
-                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                      : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
-                                  }`}>
-                                    {t.type}
-                                  </span>
-                                  <div className="text-[11px] text-slate-300">
-                                    501 DO • Mejor de {t.bestOfLegs} legs
+                                <div className="space-y-1.5">
+                                  {/* Badge de Modalidad de Competición / Liga */}
+                                  {t.competitionMode === 'NATIONAL_LEAGUE' && (
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/40 w-fit">
+                                        <span>🇦🇷 Liga Nacional</span>
+                                        {t.pointsMultiplier === 2 && (
+                                          <span className="text-amber-300 font-extrabold">⚡ x2 PTS</span>
+                                        )}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400">
+                                        {t.nationalStageType === 'PRESENCIAL_OFICIAL' ? 'Presencial Oficial' : 'Fecha Online'}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {t.competitionMode === 'LOCAL_LEAGUE' && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase bg-[#ffe600]/20 text-[#ffe600] border border-[#ffe600]/40 w-fit">
+                                      <Shield className="w-3 h-3" />
+                                      <span className="truncate max-w-[140px]">{t.leagueName || 'Liga Local'}</span>
+                                    </span>
+                                  )}
+                                  {(t.competitionMode === 'STANDALONE_DAY' || !t.competitionMode) && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-800 text-slate-300 border border-slate-700 w-fit">
+                                      <Target className="w-3 h-3 text-[#ef4444]" />
+                                      <span>Torneo de Un Día</span>
+                                    </span>
+                                  )}
+
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
+                                      t.type === 'PRESENCIAL'
+                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                        : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                                    }`}>
+                                      {t.type}
+                                    </span>
+                                    <span className="text-[11px] text-slate-400">
+                                      501 DO • Mejor de {t.bestOfLegs} legs
+                                    </span>
                                   </div>
                                 </div>
                               </td>
@@ -1172,7 +1262,17 @@ export const TournamentManager: React.FC = () => {
           )}
 
           {/* ======================================================== */}
-          {/* SECCIÓN 2: PESTAÑA DE HISTORIAL DE TORNEOS */}
+          {/* SECCIÓN 2: PESTAÑA DE LIGAS & POSICIONES */}
+          {/* ======================================================== */}
+          {mainTab === 'LEAGUES_TAB' && (
+            <LeagueManager
+              leagues={leagues}
+              onOpenCreateLeague={() => setShowCreateLeagueModal(true)}
+            />
+          )}
+
+          {/* ======================================================== */}
+          {/* SECCIÓN 3: PESTAÑA DE HISTORIAL DE TORNEOS */}
           {/* ======================================================== */}
           {mainTab === 'HISTORY_TAB' && (
             <div className="space-y-6">
@@ -1434,15 +1534,196 @@ export const TournamentManager: React.FC = () => {
                 />
               </div>
 
+              {/* MODALIDAD DE COMPETICIÓN & ASOCIACIÓN A LIGA */}
+              <div className="space-y-2 bg-[#111622] p-3 rounded-2xl border border-slate-800">
+                <label className="text-white font-black text-xs block mb-1">
+                  Modalidad del Torneo & Liga Asociada *
+                </label>
+                
+                <div className="space-y-2">
+                  {/* Opción 1: Torneo de Un Día */}
+                  <label
+                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                      newCompetitionMode === 'STANDALONE_DAY'
+                        ? 'bg-[#00e676]/10 border-[#00e676] text-white ring-1 ring-[#00e676]/30'
+                        : 'bg-[#07090e] border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="compMode"
+                      value="STANDALONE_DAY"
+                      checked={newCompetitionMode === 'STANDALONE_DAY'}
+                      onChange={() => setNewCompetitionMode('STANDALONE_DAY')}
+                      className="mt-0.5 text-[#00e676] focus:ring-0"
+                    />
+                    <div>
+                      <div className="text-xs font-black text-white flex items-center gap-1.5">
+                        <Target className="w-3.5 h-3.5 text-[#ef4444]" />
+                        <span>Torneo de Un Día (Sin Liga Asociada)</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        Torneo abierto o relámpago independiente. No suma puntos a ninguna liga.
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Opción 2: Torneo Local con Liga */}
+                  <label
+                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                      newCompetitionMode === 'LOCAL_LEAGUE'
+                        ? 'bg-[#ffe600]/10 border-[#ffe600] text-white ring-1 ring-[#ffe600]/30'
+                        : 'bg-[#07090e] border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="compMode"
+                      value="LOCAL_LEAGUE"
+                      checked={newCompetitionMode === 'LOCAL_LEAGUE'}
+                      onChange={() => setNewCompetitionMode('LOCAL_LEAGUE')}
+                      className="mt-0.5 text-[#ffe600] focus:ring-0"
+                    />
+                    <div className="w-full">
+                      <div className="text-xs font-black text-white flex items-center gap-1.5">
+                        <Shield className="w-3.5 h-3.5 text-[#ffe600]" />
+                        <span>Torneo Local (Suma puntos a su Liga Local)</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        Fecha puntuable de una liga local (ej. Liga Marplatense • Darderos MDQ).
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Opción 3: Torneo Nacional Oficial */}
+                  <label
+                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                      newCompetitionMode === 'NATIONAL_LEAGUE'
+                        ? 'bg-[#38bdf8]/10 border-[#38bdf8] text-white ring-1 ring-[#38bdf8]/30'
+                        : 'bg-[#07090e] border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="compMode"
+                      value="NATIONAL_LEAGUE"
+                      checked={newCompetitionMode === 'NATIONAL_LEAGUE'}
+                      onChange={() => setNewCompetitionMode('NATIONAL_LEAGUE')}
+                      className="mt-0.5 text-[#38bdf8] focus:ring-0"
+                    />
+                    <div>
+                      <div className="text-xs font-black text-white flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-[#38bdf8]" />
+                        <span>Torneo Nacional (Única Liga Nacional Oficial)</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        Suma puntos para clasificar a torneos internacionales. Fechas presenciales duplican puntos (x2).
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Si seleccionó LOCAL_LEAGUE: selector de liga local y botón de crear nueva */}
+                {newCompetitionMode === 'LOCAL_LEAGUE' && (
+                  <div className="mt-2.5 pt-2.5 border-t border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-300">Seleccionar Liga Local:</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateLeagueModal(true)}
+                        className="text-[10px] text-[#ffe600] font-black hover:underline flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>+ Crear Liga</span>
+                      </button>
+                    </div>
+                    <select
+                      value={newLeagueId}
+                      onChange={(e) => setNewLeagueId(e.target.value)}
+                      className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-[#ffe600] text-xs font-bold"
+                    >
+                      {leagues
+                        .filter((l) => l.scope === 'LOCAL')
+                        .map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name} ({l.city}, {l.season})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Si seleccionó NATIONAL_LEAGUE: selector de Online vs Presencial Oficial (x2) */}
+                {newCompetitionMode === 'NATIONAL_LEAGUE' && (
+                  <div className="mt-2.5 pt-2.5 border-t border-slate-800 space-y-2">
+                    <span className="text-[11px] font-bold text-slate-300 block">
+                      Tipo de Fecha de la Liga Nacional Oficial:
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewNationalStageType('ONLINE');
+                          setNewType('ONLINE');
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          newNationalStageType === 'ONLINE'
+                            ? 'bg-[#38bdf8]/20 border-[#38bdf8] text-white ring-1 ring-[#38bdf8]'
+                            : 'bg-[#07090e] border-slate-800 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="text-xs font-black flex items-center gap-1 text-[#38bdf8]">
+                          <Globe className="w-3.5 h-3.5" />
+                          <span>Fecha Online</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Puntos regulares (1x)
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewNationalStageType('PRESENCIAL_OFICIAL');
+                          setNewType('PRESENCIAL');
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          newNationalStageType === 'PRESENCIAL_OFICIAL'
+                            ? 'bg-amber-500/20 border-amber-400 text-white ring-2 ring-amber-400 shadow-lg shadow-amber-500/20'
+                            : 'bg-[#07090e] border-slate-800 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="text-xs font-black flex items-center gap-1 text-amber-300">
+                          <Zap className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Presencial Oficial</span>
+                        </div>
+                        <div className="text-[10px] text-amber-300/90 font-bold mt-0.5">
+                          ⚡ ¡DUPLICA PUNTOS (x2)!
+                        </div>
+                      </button>
+                    </div>
+
+                    {newNationalStageType === 'PRESENCIAL_OFICIAL' && (
+                      <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 flex items-start gap-1.5">
+                        <Flame className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Fecha Presencial en Sede:</strong> Los jugadores deben competir de manera presencial en las fechas oficiales para sumar el doble de puntos (x2) para el ranking clasificatorio internacional.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-slate-300 font-bold block mb-1">Modalidad</label>
+                  <label className="text-slate-300 font-bold block mb-1">Modalidad de Juego</label>
                   <select
                     value={newType}
                     onChange={(e) => setNewType(e.target.value as any)}
                     className="w-full bg-[#111622] border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-[#00e676]"
                   >
-                    <option value="PRESENCIAL">Presencial (Club)</option>
+                    <option value="PRESENCIAL">Presencial (En Club)</option>
                     <option value="ONLINE">Online Conectado</option>
                   </select>
                 </div>
@@ -1559,6 +1840,14 @@ export const TournamentManager: React.FC = () => {
           </form>
         </div>
       )}
+
+      {/* MODAL: CREAR NUEVA LIGA OFICIAL */}
+      <CreateLeagueModal
+        isOpen={showCreateLeagueModal}
+        onClose={() => setShowCreateLeagueModal(false)}
+        onCreateLeague={handleCreateLeague}
+        canCreateNational={isAdmin}
+      />
     </div>
   );
 };

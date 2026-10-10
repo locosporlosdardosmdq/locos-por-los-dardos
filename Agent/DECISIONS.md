@@ -66,6 +66,19 @@
 - **Contexto:** El usuario solicitó unificar la experiencia visual devolviéndola al estándar de máxima legibilidad y estética de la primera captura (fondo casi negro `#07090e`, tipografías en blanco nítido y acentos verdes neón `#00e676`), junto con un menú lateral colapsable para alojar los 6 módulos evolutivos de la plataforma deportiva.
 - **Decisión:**
   * Se implementó `AppSidebar.tsx` con soporte de estado colapsado (64px) / expandido (256px), persistido en `localStorage` y drawer para pantallas móviles.
-  * Jerarquía de navegación unificada en 6 módulos: 1. Tienda Online (`/tienda`), 2. Torneos Nakka n01 (`/torneos`), 3. Anotador (`/anotador`), 4. Ranking (`/ranking`), 5. Jugadores (`/jugadores`), 6. Configuración / Mi Perfil (`/perfil`).
+  * Jerarquía de navegación unificada en 6 módulos: 1. Tienda Online (`/tienda`), 2. Torneos (`/torneos`), 3. Anotador (`/anotador`), 4. Ranking (`/ranking`), 5. Jugadores (`/jugadores`), 6. Configuración / Mi Perfil (`/perfil`).
   * Tokens de color: Fondo negro azabache (`#07090e`), tarjetas `#0f1422`, bordes `#1e2638`, textos en blanco puro y marcadores de puntuación gigantes de alto contraste para máxima visibilidad a la distancia de tiro (oche).
 - **Motivo:** Brinda una ergonomía visual óptima para salas de juego, evita fatiga por grises intermedios lavados y organiza la arquitectura de navegación para escalar el desarrollo módulo a módulo.
+
+---
+
+## [ADR-009] Identidad de Marca Propia y Ergonomía Responsiva Dual (PC vs Celulares)
+- **Fecha:** 2026-10-10
+- **Contexto:**
+  1. Se definió como premisa de producto superar a cualquier plataforma existente (Nakka01) por mérito propio, eliminando cualquier comparación o referencia explícita de la UI, metadata y base de datos.
+  2. El menú lateral requería un control de colapso obvio e inmediato en PC, y una adaptación táctil perfecta para jugadores que usan el celular con una sola mano al pie de la diana.
+- **Decisión:**
+  * **Erradicación de marcas externas:** Se renombraron todos los cuadros y gestores a "Gestor de Torneos Oficial" y "Cuadro Eliminatorio Oficial en Tiempo Real", asegurando identidad 100% soberana.
+  * **Colapso en PC (Desktop):** Se integraron botones de colapso/expansión claros (`PanelLeftClose` y `PanelLeftOpen`) tanto en la cabecera superior del Sidebar como en la barra superior (`AppTopBar`), permitiendo alternar entre 256px y 72px con un solo clic.
+  * **Navegación Móvil (Celulares/Tablets):** Se implementó `AppBottomNav.tsx` fija en el pie de pantalla con 5 accesos táctiles, destacando el botón central de Anotador en verde neón elevado (`w-13 h-13`) para tiro rápido, y un drawer lateral fluido para opciones adicionales sin robar espacio horizontal durante el juego.
+- **Motivo:** Máxima ergonomía en el mundo real (pantallas móviles en torneos presenciales) y control total del espacio de visualización en monitores de PC.

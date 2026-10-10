@@ -231,7 +231,7 @@ export const MOCK_TOURNAMENTS: Tournament[] = [
     id: 'torneo-nacional-online-501',
     slug: 'liga-nacional-online-501',
     title: 'Liga Federal Argentina 501 Online • Fecha 4',
-    description: 'Torneo 100% online con cámaras y anotador sincronizado para darderos de todo el país. Formato Nakka n01 doble eliminación.',
+    description: 'Torneo 100% online con cámaras y anotador sincronizado para darderos de todo el país. Formato oficial de doble eliminación.',
     type: 'ONLINE',
     format: 'DOUBLE_ELIMINATION',
     startingScore: 501,

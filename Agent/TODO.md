@@ -6,7 +6,7 @@
 - [x] Identidad de marca unificada con +25% de preponderancia para Darderos Mar del Plata (`BrandLogo.tsx`).
 - [x] Módulo 1: Formulario de Registro y Perfil con estimación de AVG y categorización automática (Principiante, Intermedia, Avanzada, Elite) en tiempo real.
 - [x] Módulo 2: Anotador en Vivo táctil (My Dart Training) con X01, Cricket, Bot AI, Checkout Guide interactiva y Referee de voz.
-- [x] Módulo 3: Gestor de Torneos (Nakka n01) con llaves eliminatorias en vivo y fase de grupos (Round Robin).
+- [x] Módulo 3: Gestor de Torneos Oficial con llaves eliminatorias en vivo y fase de grupos (Round Robin).
 - [x] Módulo 4: Landing Page comunitaria con Head Banner promocional superior (Hero Torneos) y Leaderboard público.
 - [x] Módulo 5: E-commerce integrado con catálogo, carrito lateral (`CartDrawer`) y API de Mercado Pago en ARS.
 - [x] Definición completa del esquema relacional en PostgreSQL / Supabase (`db-schema.sql`) y Prisma (`schema.prisma`).
@@ -14,15 +14,16 @@
 - [x] Persistencia offline-first de partidas y cola de sincronización en `src/lib/storage.ts`.
 - [x] Transmisión broadcast en tiempo real entre el Oche y pantallas de torneos (`src/lib/broadcast.ts` y pestaña "Tablero en Vivo" en `/torneos`).
 - [x] Paleta deportiva de alto contraste con fondo negro profundo (`#07090e`), tarjetas `#0f1422` y acentos neón (#00e676, #ef4444, #0284c7) idénticos a la primera captura de referencia.
-- [x] Menú lateral colapsable responsive (`AppSidebar.tsx` + `AppTopBar.tsx` + `AppShell.tsx`) con memoria de estado en `localStorage` y jerarquía oficial de 6 módulos.
+- [x] Menú lateral colapsable responsive con toggle superior e inferior para PC y Bottom Navigation Bar para celulares (`AppSidebar.tsx` + `AppTopBar.tsx` + `AppBottomNav.tsx` + `AppShell.tsx`).
 - [x] Módulo Directorio Federal de Jugadores (`/jugadores` y `PlayerDirectory.tsx`) con filtros por provincia, categoría de AVG y reto directo.
 - [x] Verificación de compilación limpia de producción (`npm run build`) con 0 errores de tipos y lint.
+- [x] Erradicación completa de referencias externas (Nakka01): identidad de producto soberana y 100% propia.
 
 ---
 
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos
-- [ ] **Módulo de Torneos Avanzado (Comportamiento Nakka n01):**
-  * Sorteo automático de llaves y grupos estilo N01 (Single Elimination, Double Elimination, Round Robin).
+- [ ] **Módulo de Torneos Avanzado (Motor de Competición Propio):**
+  * Sorteo automático de llaves y grupos oficial (Single Elimination, Double Elimination, Round Robin).
   * Panel de control de árbitro de mesa y asignación de pistas de juego (Oche 1, Oche 2, Oche 3...).
   * Integración en caliente del marcador en vivo de pista con la planilla del torneo.
   * Generación y exportación de cuadros a PDF / PNG.

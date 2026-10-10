@@ -13,8 +13,8 @@ export default function TorneosPage() {
             <span className="p-1.5 rounded-lg bg-board-blue/20 text-board-blue border border-board-blue/30">
               <Trophy className="w-5 h-5" />
             </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-board-sisal tracking-tight">
-              Gestor de Torneos • Formato Nakka n01
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Gestor de Torneos Oficial • Llaves y Grupos en Vivo
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-board-sisal-muted mt-1">

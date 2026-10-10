@@ -16,7 +16,7 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 ### 1. Páginas Públicas y de Juego (`src/app/`)
 * **`/` (Landing Page):** Banner promocional superior (Hero Torneos con countdown e inscripción rápida), presentación de la comunidad, accesos a los 4 módulos, ranking previo y sedes destacadas.
 * **`/anotador` (Anotador en Vivo estilo My Dart Training):** Marcador táctil para X01 (170, 301, 501, 701 con Single/Double/Master Out), Cricket (Classic y Scoring con marcas), Práctica vs Bot/CPU con 4 dificultades, tabla de cierre interactiva y árbitro de voz ("180", "Game shot").
-* **`/torneos` (Gestor de Torneos estilo Nakka n01):** Visualización y actualización en vivo de llaves eliminatorias (Cuartos, Semis, Final), fase de grupos (Round Robin) y formulario de creación de torneos presenciales y online.
+* **`/torneos` (Gestor de Torneos Oficial):** Visualización y actualización en vivo de llaves eliminatorias (Cuartos, Semis, Final), fase de grupos (Round Robin) y formulario de creación de torneos presenciales y online.
 * **`/ranking` (Ranking Nacional):** Leaderboard público con podio (Oro, Plata, Bronce) y filtros simultáneos por categoría y provincia de Argentina.
 * **`/jugadores` (Directorio Federal de Jugadores):** Directorio de la comunidad con buscador por nombre/apodo/club, selector federal de provincias, categorización por AVG y desafío directo al anotador.
 * **`/perfil` (Perfil & Registro):** Ficha deportiva del jugador con selector de provincias argentinas, slider de AVG con categorización automática en tiempo real y dashboard con métricas de rendimiento.
@@ -29,9 +29,10 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 ### 3. Componentes Principales (`src/components/`)
 * **`BrandLogo.tsx`:** Lockup de marca oficial con **+25% de preponderancia visual** para Darderos Mar del Plata (`/logos/logo-mdq.png`) respecto a Dardos Argentina (`/logos/dardos-argentina.png`).
 * **`layout/`:**
-  * `AppSidebar.tsx`: Menú lateral colapsable responsive con orden jerárquico oficial (Tienda, Torneos Nakka, Anotador, Ranking, Jugadores, Mi Perfil), persistencia de colapso en localStorage y drawer móvil.
-  * `AppTopBar.tsx`: Barra superior con switch móvil, indicador de módulo, botón PWA e inicio rápido de anotación.
-  * `AppShell.tsx`: Shell unificado con ajuste dinámico de márgenes y contenedor responsivo.
+  * `AppSidebar.tsx`: Menú lateral colapsable responsive con orden jerárquico oficial (Tienda, Torneos, Anotador, Ranking, Jugadores, Mi Perfil), toggle destacado superior/inferior, persistencia de colapso en localStorage y drawer móvil.
+  * `AppTopBar.tsx`: Barra superior con switch móvil, toggle de colapso para desktop, indicador de módulo, botón PWA e inicio rápido de anotación.
+  * `AppBottomNav.tsx`: Barra de navegación inferior ergonómica para celulares con botón de tiro central elevado.
+  * `AppShell.tsx`: Shell unificado con ajuste dinámico de márgenes (`pl-64` vs `pl-20`) y contenedor responsivo.
 * **`Navbar.tsx` & `Footer.tsx`:** Navegación responsive, contador dinámico de carrito, botón de instalación PWA e información de clubes.
 * **`jugadores/`:**
   * `PlayerDirectory.tsx`: Directorio federal con buscador en vivo, filtros combinados y fichas deportivas.

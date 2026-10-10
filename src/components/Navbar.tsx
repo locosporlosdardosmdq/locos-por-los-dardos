@@ -69,7 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
     {
       href: '/torneos',
       label: 'Torneos',
-      badge: 'N01',
+      badge: 'VIVO',
       badgeColor: 'bg-[#1d68ed]/20 text-[#38bdf8] border-[#1d68ed]/40', // Azul Samurai
       icon: Trophy
     },

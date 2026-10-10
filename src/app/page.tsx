@@ -43,7 +43,7 @@ export default function HomePage() {
               </h2>
 
               <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-                Nacida de la pasión de los jugadores de <strong className="text-[#00e676]">Darderos Mar del Plata</strong> y expandida a cada rincón de Argentina. Aquí puedes registrar tus partidas tiro a tiro, medir tu promedio histórico, competir en torneos presenciales y online estilo Nakka n01, y equiparte con material profesional importado.
+                Nacida de la pasión de los jugadores de <strong className="text-[#00e676]">Darderos Mar del Plata</strong> y expandida a cada rincón de Argentina. Aquí puedes registrar tus partidas tiro a tiro, medir tu promedio histórico, competir en torneos presenciales y online con cuadros interactivos, y equiparte con material profesional importado.
               </p>
 
               {/* Pilares clave con estilo deportivo */}
@@ -58,7 +58,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-center gap-2.5 text-xs text-slate-300 bg-[#07090e] p-3 rounded-2xl border border-[#1e2638]">
                   <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
-                  <span><strong>Torneos Nakka n01:</strong> llaves y cruces en vivo.</span>
+                  <span><strong>Torneos Oficiales:</strong> llaves y cruces en vivo.</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-xs text-slate-300 bg-[#07090e] p-3 rounded-2xl border border-[#1e2638]">
                   <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
@@ -128,7 +128,7 @@ export default function HomePage() {
             </div>
           </Link>
 
-          {/* Card 2: Torneos Nakka */}
+          {/* Card 2: Torneos Oficiales */}
           <Link
             href="/torneos"
             className="group bg-[#0f1422] hover:bg-[#151d30] border border-[#1e2638] hover:border-sky-500/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
@@ -138,7 +138,7 @@ export default function HomePage() {
                 <Trophy className="w-6 h-6 stroke-[2.5]" />
               </div>
               <h3 className="text-lg font-black text-white group-hover:text-[#38bdf8] transition-colors">
-                Torneos Nakka n01
+                Torneos en Vivo
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Gestión de llaves eliminatorias directas, doble eliminación y fase de grupos presenciales y online con actualización ronda a ronda.

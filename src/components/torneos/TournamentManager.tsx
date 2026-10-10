@@ -93,7 +93,7 @@ export const TournamentManager: React.FC = () => {
       id: `torneo-${Date.now()}`,
       slug: newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       title: newTitle,
-      description: `Torneo oficial organizado bajo formato Nakka n01. Modalidad ${newType.toLowerCase()}, mejor de ${newBestOfLegs} legs.`,
+      description: `Torneo oficial de competición federada. Modalidad ${newType.toLowerCase()}, mejor de ${newBestOfLegs} legs.`,
       type: newType,
       format: newFormat,
       startingScore: 501,
@@ -274,7 +274,7 @@ export const TournamentManager: React.FC = () => {
             <div>
               <h3 className="text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-[#00b853]" />
-                Llave Eliminatoria en Tiempo Real (Estilo Nakka n01)
+                Cuadro Eliminatorio Oficial en Tiempo Real
               </h3>
               <p className="text-xs text-[#b8ad98]">
                 Haz clic en el botón &apos;+&apos; para actualizar piernas ganadas o registrar el paso a la siguiente ronda.
@@ -517,7 +517,7 @@ export const TournamentManager: React.FC = () => {
           <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-white uppercase tracking-wider mb-2 flex items-center gap-2">
               <Trophy className="w-6 h-6 text-[#00b853]" />
-              Crear Nuevo Torneo (Nakka n01)
+              Crear Nuevo Torneo Oficial
             </h3>
             <p className="text-xs text-[#b8ad98] mb-6">
               Configura torneos presenciales en sedes o competiciones 100% online con brackets automatizados.

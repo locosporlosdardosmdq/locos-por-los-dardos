@@ -11,9 +11,14 @@
   - Diagnóstico y resolución de colisión de Webpack & Service Worker:
     * Causa raíz de pantalla sin estilos y lentitud: ejecución concurrente de `npm run build` mientras `next dev` estaba activo, lo que corrompió el bundle de CSS (`layout.css` 404). Además, el Service Worker en `localhost` interceptaba peticiones de desarrollo y las congelaba.
     * Solución: purga completa de `.next`, reinicio limpio del dev server daemon, bypass de caché para `/_next/` en `public/sw.js`, desregistración del Service Worker en `providers.tsx` durante desarrollo y activación de `prefetch={true}` en los enlaces del Sidebar para transiciones instantáneas (<300ms).
-- **Estado del Proyecto:** CSS plenamente operativo (HTTP 200, 60 KB de Tailwind activo), fondo negro deportivo profundo, tiempos de respuesta entre 250ms y 450ms por módulo, navegación lateral fluida. Servidor dev operativo en `http://localhost:3000`.
+  - Soberanía de Marca e Identidad Propia:
+    * Erradicación completa de cualquier mención a "Nakka", "Nakka01" y "n01" en la UI, layout, páginas, esquemas y textos (ahora: "Gestor de Torneos Oficial" y "Cuadros en Vivo").
+  - Adaptabilidad Responsiva Total (PC y Celulares):
+    * En PC: Botón de colapso y expansión prominente en la cabecera superior del Sidebar (`PanelLeftClose` / `PanelLeftOpen`) y botón toggle duplicado en la barra superior (`AppTopBar`) para alternar con 1 clic entre 256px y 72px.
+    * En Celulares: Implementación de `AppBottomNav.tsx` con 5 accesos táctiles y botón de Anotador central elevado (`#00e676`), dejando la pantalla limpia y operable con una sola mano sin invadir el área de juego.
+- **Estado del Proyecto:** Identidad 100% propia y soberana, navegación de élite adaptada a celulares y PC, CSS plenamente operativo (HTTP 200) y servidor dev activo en `http://localhost:3000`.
 - **Próximos pasos:**
-  1. Desarrollo a fondo del módulo Torneos con comportamiento idéntico a Nakka n01 (sorteo automático, llaves N01, asignación de pistas y control de partidos).
+  1. Desarrollo a fondo del motor de competición y llaves del Módulo Torneos Oficial.
 
 ---
 

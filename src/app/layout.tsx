@@ -4,13 +4,13 @@ import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'Locos por los Dardos • Argentina & Darderos Mar del Plata',
-  description: 'Plataforma oficial de la comunidad de dardos en Argentina: Anotador en vivo táctil (My Dart Training), Torneos Nakka n01, Ranking nacional y Tienda con Mercado Pago.',
+  description: 'Plataforma oficial de la comunidad de dardos en Argentina: Anotador en vivo táctil, Torneos oficiales con llaves en vivo, Ranking nacional y Tienda con Mercado Pago.',
   manifest: '/manifest.json',
   icons: {
     icon: '/logos/logo-mdq.png',
     apple: '/logos/logo-mdq.png',
   },
-  keywords: ['dardos argentina', 'darderos mar del plata', 'anotador de dardos', 'nakka n01 torneos', 'my dart training', '501 doble out', 'cricket dardos'],
+  keywords: ['dardos argentina', 'darderos mar del plata', 'anotador de dardos', 'torneos de dardos', '501 doble out', 'cricket dardos', 'ranking nacional dardos'],
   authors: [{ name: 'Locos por los Dardos & Darderos MDQ' }],
 };
 

@@ -16,7 +16,10 @@ import {
   PlusCircle,
   X,
   Sparkles,
-  Shield
+  Shield,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelLeft
 } from 'lucide-react';
 
 interface AppSidebarProps {
@@ -36,7 +39,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   // Módulos requeridos por el usuario en el orden exacto solicitado:
   // 1. La tienda online
-  // 2. Torneos (comportamiento Nakka n01)
+  // 2. Torneos (Gestor propio de llaves, grupos y competición en vivo)
   // 3. Anotador
   // 4. Ranking
   // 5. Jugadores
@@ -52,12 +55,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     },
     {
       title: 'Torneos',
-      subTitle: 'Nakka n01',
+      subTitle: 'Llaves y Grupos',
       href: '/torneos',
       icon: Trophy,
-      badge: 'N01',
+      badge: 'VIVO',
       badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-      description: 'Gestor y llaves en vivo estilo Nakka'
+      description: 'Gestor de cuadros, cruces y partidas en vivo'
     },
     {
       title: 'Anotador',
@@ -96,17 +99,18 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-[#0a0e17] border-r border-[#1a2333] select-none">
-      {/* Encabezado con Identidad Oficial */}
-      <div className={`p-4 border-b border-[#1a2333] flex items-center justify-between transition-all ${
-        collapsed ? 'justify-center p-3' : 'px-4'
+      {/* Encabezado con Identidad Oficial y Botón de Colapso destacado */}
+      <div className={`p-3.5 border-b border-[#1a2333] flex items-center justify-between transition-all ${
+        collapsed ? 'flex-col gap-2 p-2.5' : 'px-4'
       }`}>
         <Link 
           href="/" 
           onClick={onCloseMobile}
           className="flex items-center gap-2 overflow-hidden"
+          title="Locos por los Dardos • Argentina & Darderos MDQ"
         >
           {collapsed ? (
-            <div className="w-10 h-10 rounded-xl bg-[#0f1524] border border-[#1e2a40] flex items-center justify-center p-1 hover:border-[#00e676] transition-colors" title="Locos por los Dardos • Argentina & Darderos MDQ">
+            <div className="w-9 h-9 rounded-xl bg-[#0f1524] border border-[#1e2a40] flex items-center justify-center p-1 hover:border-[#00e676] transition-colors">
               <BrandLogo size="sm" showText={false} />
             </div>
           ) : (
@@ -114,11 +118,37 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           )}
         </Link>
 
+        {/* Botón de Colapso en Desktop (visible cuando está expandido) */}
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="hidden lg:flex items-center justify-center p-1.5 rounded-xl text-slate-400 hover:text-white bg-[#0f1524] hover:bg-[#141c2e] border border-[#1e2a40] hover:border-[#00e676] transition-all"
+            title="Colapsar menú lateral"
+            aria-label="Colapsar menú lateral"
+          >
+            <PanelLeftClose className="w-4 h-4 text-slate-300 hover:text-[#00e676]" />
+          </button>
+        )}
+
+        {/* Botón de Expansión en Desktop (visible cuando está colapsado) */}
+        {collapsed && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="hidden lg:flex items-center justify-center w-9 h-8 rounded-xl text-[#00e676] hover:text-white bg-[#0f1524] hover:bg-[#141c2e] border border-[#1e2a40] hover:border-[#00e676] transition-all shadow-sm"
+            title="Expandir menú lateral"
+            aria-label="Expandir menú lateral"
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Botón Cerrar en móvil */}
         <button
           type="button"
           onClick={onCloseMobile}
-          className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141c2e]"
+          className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white bg-[#0f1524] hover:bg-[#141c2e] border border-[#1e2a40]"
           aria-label="Cerrar menú"
         >
           <X className="w-5 h-5" />

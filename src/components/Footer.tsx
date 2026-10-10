@@ -38,7 +38,7 @@ export const Footer: React.FC = () => {
             </li>
             <li>
               <Link href="/torneos" className="hover:text-[#00b853] transition-colors">
-                Torneos y Llaves Nakka n01
+                Torneos y Llaves Oficiales
               </Link>
             </li>
             <li>

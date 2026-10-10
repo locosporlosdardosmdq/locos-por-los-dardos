@@ -33,6 +33,21 @@
   * Fase de Grupos Round Robin (`TournamentGroupStage.tsx`) con tabla de posiciones oficial (PJ, G, P, LF, LC, +/- Dif, Pts).
   * Acreditación de jugador (`PlayerEnrollModal.tsx`) y configuración de hardware de pista (`WebcamSetupModal.tsx`) con soporte para celular como cámara de diana secundaria.
   * Pantalla TV de Club (`LIVE_BOARD`) para retransmisión dardo a dardo en monitores o proyectores.
+  * Superadministrador oficial "ICEMAN" (`marianodeux@gmail.com`) con `AdminMatchModal.tsx` para edición manual de legs, avance por Walkover (W.O.) ante rival ausente, reseteo a 0-0 y eliminación de torneos.
+  * Reestructuración de la vista `/torneos`: Pestaña "Torneos Activos" (con tabla de torneos creados sin mocks no deseados) y pestaña "Historial de Torneos" con desarrollo completo de la llave eliminatoria y panel de estadísticas (Campeón, Subcampeón, AVG, Mayor Cierre, 180s, Mejor Pierna).
+
+---
+
+- [x] **Audios Oficiales de Árbitro (Russ Bray 1-180 & Clemens Kuntze):**
+  * Descarga concurrente y almacenamiento de los 180 archivos MP3 oficiales en `audios_russ_bray/` y `public/sounds/russ_bray/`.
+  * Integración en `src/lib/sound-effects.ts` para reproducción auténtica dardo a dardo y sample original para el 180.
+
+---
+
+- [x] **Nacionalidad y Banderas en Perfil y Cuadros:**
+  * Catálogo oficial `COUNTRIES` con códigos ISO y banderas emoji.
+  * Selector interactivo de nacionalidad en la ficha de jugador (`RegisterAndProfile.tsx`).
+  * Visualización de banderas en perfil, sobre el avatar, en el pie del sidebar (`AppSidebar.tsx`), en el directorio de jugadores (`PlayerDirectory.tsx`) y en los cuadros de torneos (`TournamentBracket.tsx`).
 
 ---
 

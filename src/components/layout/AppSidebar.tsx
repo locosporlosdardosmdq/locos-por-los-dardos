@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { MOCK_CURRENT_USER, getCountryFlag } from '@/lib/constants';
+import { getCurrentPlayerProfile } from '@/lib/storage';
+import { PlayerProfile } from '@/lib/types';
 import { 
   ShoppingBag, 
   Trophy, 
@@ -13,7 +16,8 @@ import {
   Settings, 
   UserCog,
   LogOut,
-  X
+  X,
+  ShieldCheck
 } from 'lucide-react';
 
 interface AppSidebarProps {
@@ -27,9 +31,20 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const [isHovered, setIsHovered] = useState(false);
+  const [currentUser, setCurrentUser] = useState<PlayerProfile>(() => {
+    return getCurrentPlayerProfile(MOCK_CURRENT_USER);
+  });
+
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail) setCurrentUser(e.detail);
+    };
+    window.addEventListener('lpld_profile_updated', handleUpdate);
+    return () => window.removeEventListener('lpld_profile_updated', handleUpdate);
+  }, []);
 
   const handleLogout = () => {
-    if (confirm('¿Deseas cerrar la sesión de Facundo López?')) {
+    if (confirm(`¿Deseas cerrar la sesión de ${currentUser.nickname || currentUser.fullName}?`)) {
       alert('Sesión cerrada. Hasta la próxima partida.');
     }
   };
@@ -258,17 +273,27 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity"
             title="Ir a mi perfil"
           >
-            <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[#00e676] flex items-center justify-center font-black text-xs flex-shrink-0">
-              FL
+            <div className="relative w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[#00e676] flex items-center justify-center font-black text-xs flex-shrink-0">
+              <span>{currentUser.nickname?.slice(0, 2).toUpperCase() || 'PL'}</span>
+              <span className="absolute -bottom-1 -right-1 text-xs select-none" title={currentUser.nationality || 'Argentina'}>
+                {getCountryFlag(currentUser.countryCode || currentUser.nationality)}
+              </span>
             </div>
 
             {isExpanded && (
               <div className="min-w-0 flex-1">
-                <span className="text-xs font-black text-white block truncate leading-tight">
-                  Facundo López
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-black text-white block truncate leading-tight">
+                    {currentUser.nickname || currentUser.fullName}
+                  </span>
+                  {currentUser.role === 'ADMIN' && (
+                    <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-[#ef4444] text-white uppercase tracking-wider">
+                      ADMIN
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] font-semibold text-[#00e676] block truncate">
-                  62.4 AVG • Avanzada
+                  {currentUser.estimatedAvg.toFixed(1)} AVG • {currentUser.category}
                 </span>
               </div>
             )}

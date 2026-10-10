@@ -26,12 +26,15 @@ export interface PlayerProfile {
   phone?: string;
   province: string;
   city: string;
+  nationality?: string;
+  countryCode?: string;
   avatarUrl: string;
   estimatedAvg: number;
   category: PlayerCategory;
   isVerified?: boolean;
   bio?: string;
   preferredDartWeight?: number;
+  role?: 'ADMIN' | 'PLAYER';
   stats: PlayerStats;
   createdAt?: string;
 }
@@ -106,13 +109,31 @@ export interface TournamentBracketMatch {
   id: string;
   round: number; // 1, 2, 3...
   matchIndex: number;
-  player1?: { id: string; name: string; avatarUrl: string; seed?: number };
-  player2?: { id: string; name: string; avatarUrl: string; seed?: number };
+  player1?: { id: string; name: string; avatarUrl: string; seed?: number; nationality?: string; countryCode?: string };
+  player2?: { id: string; name: string; avatarUrl: string; seed?: number; nationality?: string; countryCode?: string };
   scoreP1: number;
   scoreP2: number;
   winnerId?: string;
   status: 'SCHEDULED' | 'LIVE' | 'FINISHED';
   scheduledTime?: string;
+  note?: string; // ej: "W.O. (Walkover)", "Abandono", "Manual"
+}
+
+export interface TournamentStats {
+  championId?: string;
+  championName?: string;
+  championAvatar?: string;
+  runnerUpId?: string;
+  runnerUpName?: string;
+  highestAvgPlayer?: string;
+  highestAvgScore?: number;
+  total180s?: number;
+  highestCheckout?: number;
+  highestCheckoutPlayer?: string;
+  bestLegDarts?: number;
+  bestLegPlayer?: string;
+  totalMatchesPlayed?: number;
+  totalLegsPlayed?: number;
 }
 
 export interface Tournament {
@@ -138,6 +159,7 @@ export interface Tournament {
   prizePoolArs: number;
   organizer: string;
   matches?: TournamentBracketMatch[];
+  stats?: TournamentStats;
 }
 
 export type ProductCategory = 'DARDOS' | 'PLUMAS' | 'CANAS' | 'CARTUCHERAS' | 'DIANAS' | 'ACCESORIOS';

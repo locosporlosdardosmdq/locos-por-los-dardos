@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ARGENTINE_PROVINCES, PLAYER_CATEGORIES } from '@/lib/constants';
+import { ARGENTINE_PROVINCES, PLAYER_CATEGORIES, getCountryFlag } from '@/lib/constants';
 import { 
   Users, 
   Search, 
@@ -22,6 +22,8 @@ interface PlayerCardData {
   name: string;
   nickname: string;
   avatarUrl: string;
+  nationality?: string;
+  countryCode?: string;
   province: string;
   city: string;
   club: string;
@@ -36,10 +38,30 @@ interface PlayerCardData {
 
 const MOCK_PLAYERS: PlayerCardData[] = [
   {
+    id: 'p-0',
+    name: 'Mariano Deux (ICEMAN)',
+    nickname: 'ICEMAN',
+    avatarUrl: '/logos/logo-mdq.png',
+    nationality: 'Argentina',
+    countryCode: 'AR',
+    province: 'Buenos Aires',
+    city: 'Mar del Plata',
+    club: 'Darderos Mar del Plata (Admin)',
+    avg: 75.0,
+    category: 'ELITE',
+    matchesWon: 95,
+    matchesTotal: 120,
+    count180s: 58,
+    highestCheckout: 170,
+    isVerified: true
+  },
+  {
     id: 'p-1',
     name: 'Facundo López',
     nickname: 'El Halcón MDQ',
     avatarUrl: '/logos/logo-mdq.png',
+    nationality: 'Argentina',
+    countryCode: 'AR',
     province: 'Buenos Aires',
     city: 'Mar del Plata',
     club: 'Darderos Mar del Plata',
@@ -56,6 +78,8 @@ const MOCK_PLAYERS: PlayerCardData[] = [
     name: 'Martín Rossi',
     nickname: 'Sniper CABA',
     avatarUrl: '/logos/dardos-argentina.png',
+    nationality: 'Argentina',
+    countryCode: 'AR',
     province: 'CABA',
     city: 'Buenos Aires',
     club: 'Dardos Capital',
@@ -283,6 +307,9 @@ export const PlayerDirectory: React.FC = () => {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
+                        <span className="text-base select-none" title={player.nationality || 'Argentina'}>
+                          {getCountryFlag(player.countryCode || player.nationality || 'AR')}
+                        </span>
                         <h3 className="font-black text-white text-sm truncate">
                           {player.name}
                         </h3>

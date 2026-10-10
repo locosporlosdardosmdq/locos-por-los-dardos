@@ -106,3 +106,78 @@ export function clearSyncQueue(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(STORAGE_KEYS.OFFLINE_QUEUE);
 }
+
+// --- Persistencia de Perfil de Jugador ---
+export function getCurrentPlayerProfile(defaultProfile?: any): any {
+  if (typeof window === 'undefined') return defaultProfile;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.CURRENT_PLAYER);
+    if (!data) return defaultProfile;
+    return JSON.parse(data);
+  } catch {
+    return defaultProfile;
+  }
+}
+
+export function saveCurrentPlayerProfile(profile: any): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.CURRENT_PLAYER, JSON.stringify(profile));
+    // Notificar cambio a componentes oyentes
+    window.dispatchEvent(new CustomEvent('lpld_profile_updated', { detail: profile }));
+  } catch (err) {
+    console.warn('[Storage] Error al guardar perfil de jugador:', err);
+  }
+}
+
+// --- Persistencia de Torneos Activos e Historial ---
+const TOURNAMENT_KEYS = {
+  ACTIVE: 'lpld_tournaments_active_v2',
+  HISTORY: 'lpld_tournaments_history_v2'
+};
+
+export function getStoredTournaments(fallback: any[] = []): any[] {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const data = localStorage.getItem(TOURNAMENT_KEYS.ACTIVE);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveStoredTournaments(tournaments: any[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(TOURNAMENT_KEYS.ACTIVE, JSON.stringify(tournaments));
+  } catch (err) {
+    console.warn('[Storage] Error guardando torneos activos:', err);
+  }
+}
+
+export function getStoredTournamentHistory(fallback: any[] = []): any[] {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const data = localStorage.getItem(TOURNAMENT_KEYS.HISTORY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveStoredTournamentHistory(history: any[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(TOURNAMENT_KEYS.HISTORY, JSON.stringify(history));
+  } catch (err) {
+    console.warn('[Storage] Error guardando historial de torneos:', err);
+  }
+}

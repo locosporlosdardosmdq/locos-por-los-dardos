@@ -2,14 +2,38 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Tournament, TournamentFormat, TournamentType, TournamentBracketMatch, MatchConfig } from '@/lib/types';
-import { MOCK_TOURNAMENTS, MOCK_RANKINGS, MOCK_CURRENT_USER } from '@/lib/constants';
+import { 
+  Tournament, 
+  TournamentFormat, 
+  TournamentType, 
+  TournamentBracketMatch, 
+  MatchConfig,
+  TournamentStats,
+  PlayerProfile
+} from '@/lib/types';
+import { 
+  MOCK_TOURNAMENTS, 
+  MOCK_RANKINGS, 
+  MOCK_CURRENT_USER, 
+  USER_ICEMAN,
+  COUNTRIES, 
+  getCountryFlag, 
+  isUserAdmin 
+} from '@/lib/constants';
+import { 
+  getCurrentPlayerProfile, 
+  getStoredTournaments, 
+  saveStoredTournaments,
+  getStoredTournamentHistory,
+  saveStoredTournamentHistory
+} from '@/lib/storage';
 import { matchBroadcast, BroadcastMatchPayload } from '@/lib/broadcast';
 import { TournamentBracket } from './TournamentBracket';
 import { TournamentGroupStage, GroupMatch } from './TournamentGroupStage';
 import { MatchDispatcherModal } from './MatchDispatcherModal';
 import { PlayerEnrollModal } from './PlayerEnrollModal';
 import { WebcamSetupModal } from './WebcamSetupModal';
+import { AdminMatchModal } from './AdminMatchModal';
 import { DartScorer } from '@/components/anotador/DartScorer';
 import { 
   Trophy, 
@@ -26,15 +50,161 @@ import {
   ArrowLeft,
   X,
   Tv,
-  Calendar
+  Calendar,
+  History,
+  ShieldAlert,
+  Trash2,
+  Archive,
+  Award,
+  Zap,
+  Clock,
+  Eye,
+  ChevronRight
 } from 'lucide-react';
 
-export const TournamentManager: React.FC = () => {
-  const [tournaments, setTournaments] = useState<Tournament[]>(MOCK_TOURNAMENTS);
-  const [selectedTournamentId, setSelectedTournamentId] = useState<string>(MOCK_TOURNAMENTS[0].id);
-  const [activeTab, setActiveTab] = useState<'BRACKET' | 'GROUPS' | 'PLAYERS' | 'LIVE_BOARD'>('BRACKET');
+// Generador de llave eliminatoria oficial de 8 jugadores
+function generateDefaultBracket(tournamentId: string): TournamentBracketMatch[] {
+  const pList = [
+    { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'user-mdq-001', name: 'Facundo López (El Halcón)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'rank-1', name: 'Martín Rossi (Sniper CABA)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'rank-3', name: 'Diego Gómez (Tungsteno)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'p-4', name: 'Lucas Pereyra (Bullseye)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'p-5', name: 'Carlos Méndez (Charly 180)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'p-6', name: 'Rodrigo Morales (El Rayo)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' }
+  ];
 
-  // Transmisión en vivo
+  return [
+    // Cuartos de Final (Ronda 1)
+    { id: `${tournamentId}-m1`, round: 1, matchIndex: 0, player1: pList[0], player2: pList[1], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:00' },
+    { id: `${tournamentId}-m2`, round: 1, matchIndex: 1, player1: pList[2], player2: pList[3], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:30' },
+    { id: `${tournamentId}-m3`, round: 1, matchIndex: 2, player1: pList[4], player2: pList[5], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:00' },
+    { id: `${tournamentId}-m4`, round: 1, matchIndex: 3, player1: pList[6], player2: pList[7], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:30' },
+    // Semifinales (Ronda 2)
+    { id: `${tournamentId}-m5`, round: 2, matchIndex: 0, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:15' },
+    { id: `${tournamentId}-m6`, round: 2, matchIndex: 1, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:45' },
+    // Gran Final (Ronda 3)
+    { id: `${tournamentId}-m7`, round: 3, matchIndex: 0, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:30' }
+  ];
+}
+
+// Torneo de muestra histórico precargado para visualizar estadísticas si el usuario lo desea
+const SAMPLE_HISTORY_TOURNAMENT: Tournament = {
+  id: 'hist-torneo-apertura-2026',
+  slug: 'torneo-apertura-verano-2026',
+  title: 'Torneo Apertura Verano 2026 • Copa Mar del Plata',
+  description: 'Primer torneo oficial del circuito federal de dardos con presencia de los mejores jugadores del país.',
+  type: 'PRESENCIAL',
+  format: 'SINGLE_ELIMINATION',
+  startingScore: 501,
+  outMode: 'DOUBLE_OUT',
+  bestOfLegs: 5,
+  maxParticipants: 16,
+  registeredCount: 16,
+  venueName: 'Sede Darderos Mar del Plata',
+  city: 'Mar del Plata',
+  province: 'Buenos Aires',
+  startDate: '2026-02-15T15:00:00.000Z',
+  endDate: '2026-02-15T21:00:00.000Z',
+  status: 'COMPLETED',
+  bannerImageUrl: '/logos/logo-mdq.png',
+  entryFeeArs: 8000,
+  prizePoolArs: 200000,
+  organizer: 'Darderos Mar del Plata & Locos por los Dardos',
+  stats: {
+    championId: 'user-iceman-admin',
+    championName: 'Mariano Deux (ICEMAN)',
+    championAvatar: '/logos/logo-mdq.png',
+    runnerUpId: 'rank-1',
+    runnerUpName: 'Martín Rossi (Sniper CABA)',
+    highestAvgPlayer: 'Mariano Deux (ICEMAN)',
+    highestAvgScore: 79.8,
+    total180s: 18,
+    highestCheckout: 170,
+    highestCheckoutPlayer: 'Mariano Deux (ICEMAN)',
+    bestLegDarts: 11,
+    bestLegPlayer: 'Martín Rossi',
+    totalMatchesPlayed: 7,
+    totalLegsPlayed: 29
+  },
+  matches: [
+    {
+      id: 'hist-m1', round: 1, matchIndex: 0,
+      player1: { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+      player2: { id: 'user-mdq-001', name: 'Facundo López (El Halcón)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+      scoreP1: 3, scoreP2: 1, winnerId: 'user-iceman-admin', status: 'FINISHED'
+    },
+    {
+      id: 'hist-m2', round: 1, matchIndex: 1,
+      player1: { id: 'p-4', name: 'Lucas Pereyra (Bullseye)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+      player2: { id: 'p-5', name: 'Carlos Méndez (Charly)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+      scoreP1: 3, scoreP2: 0, winnerId: 'p-4', status: 'FINISHED', note: 'W.O. (Carlos Méndez ausente)'
+    },
+    {
+      id: 'hist-m3', round: 1, matchIndex: 2,
+      player1: { id: 'rank-1', name: 'Martín Rossi (Sniper)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+      player2: { id: 'rank-3', name: 'Diego Gómez (Tungsteno)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+      scoreP1: 3, scoreP2: 2, winnerId: 'rank-1', status: 'FINISHED'
+    },
+    {
+      id: 'hist-m4', round: 1, matchIndex: 3,
+      player1: { id: 'p-6', name: 'Rodrigo Morales (El Rayo)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+      player2: { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+      scoreP1: 1, scoreP2: 3, winnerId: 'p-7', status: 'FINISHED'
+    },
+    // Semifinales
+    {
+      id: 'hist-m5', round: 2, matchIndex: 0,
+      player1: { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+      player2: { id: 'p-4', name: 'Lucas Pereyra (Bullseye)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+      scoreP1: 3, scoreP2: 0, winnerId: 'user-iceman-admin', status: 'FINISHED'
+    },
+    {
+      id: 'hist-m6', round: 2, matchIndex: 1,
+      player1: { id: 'rank-1', name: 'Martín Rossi (Sniper)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+      player2: { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+      scoreP1: 3, scoreP2: 1, winnerId: 'rank-1', status: 'FINISHED'
+    },
+    // Gran Final
+    {
+      id: 'hist-m7', round: 3, matchIndex: 0,
+      player1: { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+      player2: { id: 'rank-1', name: 'Martín Rossi (Sniper)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+      scoreP1: 3, scoreP2: 2, winnerId: 'user-iceman-admin', status: 'FINISHED'
+    }
+  ]
+};
+
+export const TournamentManager: React.FC = () => {
+  // Pestaña principal: Torneos Activos vs Historial
+  const [mainTab, setMainTab] = useState<'ACTIVE_TAB' | 'HISTORY_TAB'>('ACTIVE_TAB');
+
+  // Estado de torneos activos
+  const [tournaments, setTournaments] = useState<Tournament[]>(() => {
+    return getStoredTournaments(MOCK_TOURNAMENTS);
+  });
+
+  // Vista dentro de activos: Tabla General ('TABLE') o Detalle del Torneo ('DETAIL')
+  const [activeViewMode, setActiveViewMode] = useState<'TABLE' | 'DETAIL'>('TABLE');
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
+
+  // Subpestañas del torneo en detalle
+  const [tournamentSubTab, setTournamentSubTab] = useState<'BRACKET' | 'GROUPS' | 'PLAYERS' | 'LIVE_BOARD'>('BRACKET');
+
+  // Historial de torneos
+  const [historyTournaments, setHistoryTournaments] = useState<Tournament[]>(() => {
+    return getStoredTournamentHistory([]);
+  });
+  const [selectedHistoryTournamentId, setSelectedHistoryTournamentId] = useState<string | null>(null);
+
+  // Perfil del usuario activo y permisos de administrador
+  const [currentUser, setCurrentUser] = useState<PlayerProfile>(() => {
+    return getCurrentPlayerProfile(MOCK_CURRENT_USER);
+  });
+  const isAdmin = isUserAdmin(currentUser.email) || currentUser.role === 'ADMIN';
+
+  // Transmisión en vivo de pista
   const [liveMatch, setLiveMatch] = useState<BroadcastMatchPayload | null>(null);
 
   // Modales
@@ -42,8 +212,11 @@ export const TournamentManager: React.FC = () => {
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showWebcamModal, setShowWebcamModal] = useState(false);
 
-  // Partido seleccionado en bracket para dispatch
+  // Partido seleccionado en bracket para dispatch interactivo
   const [selectedBracketMatch, setSelectedBracketMatch] = useState<TournamentBracketMatch | null>(null);
+
+  // Partido para administración manual (ICEMAN full admin)
+  const [adminMatchToEdit, setAdminMatchToEdit] = useState<TournamentBracketMatch | null>(null);
 
   // Partida en vivo activa en el Anotador Oficial
   const [activeLiveMatchConfig, setActiveLiveMatchConfig] = useState<MatchConfig | null>(null);
@@ -51,7 +224,7 @@ export const TournamentManager: React.FC = () => {
 
   // Lista de inscriptos locales
   const [enrolledPlayers, setEnrolledPlayers] = useState([
-    { id: MOCK_CURRENT_USER.id, name: MOCK_CURRENT_USER.fullName, nickname: MOCK_CURRENT_USER.nickname, avg: MOCK_CURRENT_USER.estimatedAvg, hasWebcam: true },
+    { id: currentUser.id, name: currentUser.fullName, nickname: currentUser.nickname, avg: currentUser.estimatedAvg, hasWebcam: true },
     ...MOCK_RANKINGS.map((p) => ({ id: p.id, name: p.fullName, nickname: p.nickname, avg: p.estimatedAvg, hasWebcam: true }))
   ]);
 
@@ -67,19 +240,30 @@ export const TournamentManager: React.FC = () => {
   const [newPrizePool, setNewPrizePool] = useState(250000);
   const [newMaxParticipants, setNewMaxParticipants] = useState(32);
 
+  // Suscripción a broadcast y eventos de perfil
   useEffect(() => {
     const unsub = matchBroadcast.subscribe((data) => {
       setLiveMatch(data);
     });
-    return () => unsub();
+    const handleProfileUpdate = (e: any) => {
+      if (e.detail) setCurrentUser(e.detail);
+    };
+    window.addEventListener('lpld_profile_updated', handleProfileUpdate);
+    return () => {
+      unsub();
+      window.removeEventListener('lpld_profile_updated', handleProfileUpdate);
+    };
   }, []);
 
-  const currentTournament = tournaments.find((t) => t.id === selectedTournamentId) || tournaments[0];
+  const currentTournament = tournaments.find((t) => t.id === selectedTournamentId) || null;
+  const currentHistoryTournament = historyTournaments.find((t) => t.id === selectedHistoryTournamentId) || historyTournaments[0] || null;
 
-  // Actualizar resultado en el Cuadro Eliminatorio
-  const handleUpdateMatchScore = (matchId: string, p1Score: number, p2Score: number, winnerId?: string) => {
-    setTournaments((prev) =>
-      prev.map((t) => {
+  // Actualizar resultado en el Cuadro Eliminatorio (en caliente)
+  const handleUpdateMatchScore = (matchId: string, p1Score: number, p2Score: number, winnerId?: string, note?: string) => {
+    if (!selectedTournamentId) return;
+
+    setTournaments((prev) => {
+      const updated = prev.map((t) => {
         if (t.id !== selectedTournamentId || !t.matches) return t;
 
         const updatedMatches = t.matches.map((m) => {
@@ -90,13 +274,14 @@ export const TournamentManager: React.FC = () => {
               scoreP1: p1Score,
               scoreP2: p2Score,
               winnerId,
+              note: note !== undefined ? note : m.note,
               status: isFinished ? ('FINISHED' as const) : ('LIVE' as const)
             };
           }
           return m;
         });
 
-        // Avanzar al ganador a la siguiente ronda si es R1 (Cuartos) o R2 (Semis)
+        // Si se declaró ganador, avanzar a la siguiente ronda
         if (winnerId) {
           const match = t.matches.find((m) => m.id === matchId);
           if (match && match.round < 3) {
@@ -118,15 +303,163 @@ export const TournamentManager: React.FC = () => {
         }
 
         return { ...t, matches: updatedMatches };
-      })
-    );
+      });
+
+      saveStoredTournaments(updated);
+      return updated;
+    });
+  };
+
+  // Administrador: Declarar Walkover (W.O.) y avanzar
+  const handleAdminAdvanceWalkover = (matchId: string, winnerId: string, absentPlayerName: string) => {
+    if (!currentTournament) return;
+    const match = currentTournament.matches?.find((m) => m.id === matchId);
+    if (!match) return;
+
+    const legsToWin = Math.ceil(currentTournament.bestOfLegs / 2);
+    const p1Score = match.player1?.id === winnerId ? legsToWin : 0;
+    const p2Score = match.player2?.id === winnerId ? legsToWin : 0;
+    const note = `W.O. (${absentPlayerName} ausente)`;
+
+    handleUpdateMatchScore(matchId, p1Score, p2Score, winnerId, note);
+  };
+
+  // Administrador: Resetear partido
+  const handleAdminResetMatch = (matchId: string) => {
+    if (!selectedTournamentId) return;
+
+    setTournaments((prev) => {
+      const updated = prev.map((t) => {
+        if (t.id !== selectedTournamentId || !t.matches) return t;
+
+        const targetMatch = t.matches.find((m) => m.id === matchId);
+        if (!targetMatch) return t;
+
+        const updatedMatches = t.matches.map((m) => {
+          if (m.id === matchId) {
+            return {
+              ...m,
+              scoreP1: 0,
+              scoreP2: 0,
+              winnerId: undefined,
+              note: undefined,
+              status: 'SCHEDULED' as const
+            };
+          }
+          return m;
+        });
+
+        // Limpiar al jugador de la siguiente ronda si ya había avanzado
+        if (targetMatch.round < 3) {
+          const nextRound = targetMatch.round + 1;
+          const nextMatchIndex = Math.floor(targetMatch.matchIndex / 2);
+          const targetNext = updatedMatches.find(
+            (m) => m.round === nextRound && m.matchIndex === nextMatchIndex
+          );
+          if (targetNext) {
+            if (targetMatch.matchIndex % 2 === 0) {
+              targetNext.player1 = undefined;
+            } else {
+              targetNext.player2 = undefined;
+            }
+          }
+        }
+
+        return { ...t, matches: updatedMatches };
+      });
+
+      saveStoredTournaments(updated);
+      return updated;
+    });
+  };
+
+  // Administrador: Eliminar Torneo Activo
+  const handleDeleteTournament = (tourneyId: string, tourneyTitle: string) => {
+    if (!isAdmin) {
+      alert('Solo el administrador oficial (ICEMAN) puede eliminar torneos.');
+      return;
+    }
+
+    if (confirm(`¿Estás seguro de eliminar el torneo "${tourneyTitle}"? Esta acción no se puede deshacer.`)) {
+      setTournaments((prev) => {
+        const filtered = prev.filter((t) => t.id !== tourneyId);
+        saveStoredTournaments(filtered);
+        return filtered;
+      });
+      if (selectedTournamentId === tourneyId) {
+        setSelectedTournamentId(null);
+        setActiveViewMode('TABLE');
+      }
+    }
+  };
+
+  // Administrador: Finalizar Torneo y Archivar en Historial con Estadísticas
+  const handleArchiveTournamentToHistory = (tourney: Tournament) => {
+    if (!isAdmin) return;
+
+    if (confirm(`¿Deseas finalizar el torneo "${tourney.title}" y moverlo al Historial Oficial de Torneos?`)) {
+      // Determinar campeón si hay partido final
+      const finalMatch = tourney.matches?.find((m) => m.round === 3 && m.matchIndex === 0);
+      const champion = finalMatch?.winnerId && finalMatch.player1 && finalMatch.player2
+        ? (finalMatch.winnerId === finalMatch.player1.id ? finalMatch.player1 : finalMatch.player2)
+        : null;
+      const runnerUp = champion && finalMatch?.player1 && finalMatch?.player2
+        ? (champion.id === finalMatch.player1.id ? finalMatch.player2 : finalMatch.player1)
+        : null;
+
+      const archived: Tournament = {
+        ...tourney,
+        status: 'COMPLETED',
+        endDate: new Date().toISOString(),
+        stats: tourney.stats || {
+          championId: champion?.id || 'campeon-oficial',
+          championName: champion?.name || 'Por definir',
+          championAvatar: champion?.avatarUrl || '/logos/logo-mdq.png',
+          runnerUpId: runnerUp?.id,
+          runnerUpName: runnerUp?.name,
+          highestAvgPlayer: champion?.name || 'Facundo López',
+          highestAvgScore: 74.5,
+          total180s: 14,
+          highestCheckout: 156,
+          highestCheckoutPlayer: champion?.name || 'ICEMAN',
+          bestLegDarts: 12,
+          totalMatchesPlayed: tourney.matches?.filter((m) => m.status === 'FINISHED').length || 7
+        }
+      };
+
+      const updatedHistory = [archived, ...historyTournaments];
+      setHistoryTournaments(updatedHistory);
+      saveStoredTournamentHistory(updatedHistory);
+
+      // Remover de activos
+      setTournaments((prev) => {
+        const filtered = prev.filter((t) => t.id !== tourney.id);
+        saveStoredTournaments(filtered);
+        return filtered;
+      });
+
+      setSelectedTournamentId(null);
+      setActiveViewMode('TABLE');
+      setSelectedHistoryTournamentId(archived.id);
+      setMainTab('HISTORY_TAB');
+      alert(`¡Torneo "${tourney.title}" archivado con éxito en el Historial Oficial!`);
+    }
+  };
+
+  // Cargar torneo de muestra en historial para demostración
+  const handleLoadSampleHistory = () => {
+    const updated = [SAMPLE_HISTORY_TOURNAMENT, ...historyTournaments];
+    setHistoryTournaments(updated);
+    saveStoredTournamentHistory(updated);
+    setSelectedHistoryTournamentId(SAMPLE_HISTORY_TOURNAMENT.id);
   };
 
   // Lanzar partido de Grupo en el Anotador
   const handleLaunchGroupMatch = (match: GroupMatch, mode: 'LIVE' | 'ONLINE') => {
+    if (!currentTournament) return;
     const config: MatchConfig = {
       gameType: 'X01',
-      startingScore: currentTournament.startingScore as any || 501,
+      startingScore: (currentTournament.startingScore as any) || 501,
       outMode: currentTournament.outMode || 'DOUBLE_OUT',
       inputFormat: 'SCORE',
       distanceType: 'LEGS',
@@ -150,11 +483,11 @@ export const TournamentManager: React.FC = () => {
 
   // Lanzar partido de Bracket en el Anotador
   const handleLaunchBracketLive = (match: TournamentBracketMatch) => {
-    if (!match.player1 || !match.player2) return;
+    if (!currentTournament || !match.player1 || !match.player2) return;
 
     const config: MatchConfig = {
       gameType: 'X01',
-      startingScore: currentTournament.startingScore as any || 501,
+      startingScore: (currentTournament.startingScore as any) || 501,
       outMode: currentTournament.outMode || 'DOUBLE_OUT',
       inputFormat: 'SCORE',
       distanceType: 'LEGS',
@@ -191,7 +524,6 @@ export const TournamentManager: React.FC = () => {
       handleUpdateMatchScore(activeLiveMatchOrigin.id, p1Score, p2Score, winnerId);
     }
 
-    // Salir del modo anotador
     setActiveLiveMatchConfig(null);
     setActiveLiveMatchOrigin(null);
   };
@@ -210,10 +542,14 @@ export const TournamentManager: React.FC = () => {
     ]);
   };
 
+  // Crear nuevo torneo
   const handleCreateTournament = (e: React.FormEvent) => {
     e.preventDefault();
+    const newId = `torneo-${Date.now()}`;
+    const newMatches = newFormat === 'SINGLE_ELIMINATION' ? generateDefaultBracket(newId) : [];
+
     const newTourney: Tournament = {
-      id: `torneo-${Date.now()}`,
+      id: newId,
       slug: newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       title: newTitle,
       description: `Torneo oficial de competición federada. Modalidad ${newType.toLowerCase()}, mejor de ${newBestOfLegs} legs.`,
@@ -223,20 +559,25 @@ export const TournamentManager: React.FC = () => {
       outMode: 'DOUBLE_OUT',
       bestOfLegs: newBestOfLegs,
       maxParticipants: newMaxParticipants,
-      registeredCount: 0,
+      registeredCount: 8,
       venueName: newVenue,
       city: newCity,
       province: newProvince,
-      startDate: new Date(Date.now() + 86400000 * 7).toISOString(),
+      startDate: new Date().toISOString(),
       status: 'REGISTRATION_OPEN',
       bannerImageUrl: '/logos/logo-mdq.png',
       entryFeeArs: newEntryFee,
       prizePoolArs: newPrizePool,
-      organizer: 'Locos por los Dardos & Darderos Mar del Plata'
+      organizer: 'Locos por los Dardos & Darderos Mar del Plata',
+      matches: newMatches
     };
 
-    setTournaments([newTourney, ...tournaments]);
+    const updated = [newTourney, ...tournaments];
+    setTournaments(updated);
+    saveStoredTournaments(updated);
+
     setSelectedTournamentId(newTourney.id);
+    setActiveViewMode('DETAIL');
     setShowCreateModal(false);
   };
 
@@ -271,291 +612,765 @@ export const TournamentManager: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Header del Torneo con Paleta Diana */}
-          <div className="bg-[#0f1422] border border-[#ef4444]/30 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-black border-2 border-[#ef4444] p-2 flex items-center justify-center flex-shrink-0 shadow-lg shadow-[#ef4444]/20">
-                <Image
-                  src={currentTournament.bannerImageUrl || '/logos/logo-mdq.png'}
-                  alt={currentTournament.title}
-                  fill
-                  className="object-contain p-1"
-                />
-              </div>
+          {/* PESTAÑAS PRINCIPALES: TORNEOS ACTIVOS vs HISTORIAL */}
+          <div className="flex flex-wrap items-center justify-between bg-[#0f1422] border border-[#1e2a40] p-2 rounded-2xl gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMainTab('ACTIVE_TAB');
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                  mainTab === 'ACTIVE_TAB'
+                    ? 'bg-[#00e676] text-[#07090e] shadow-lg shadow-[#00e676]/20'
+                    : 'text-slate-400 hover:text-white hover:bg-[#141a29]'
+                }`}
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Torneos Activos</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  mainTab === 'ACTIVE_TAB' ? 'bg-[#07090e] text-[#00e676]' : 'bg-[#1e2a40] text-slate-300'
+                }`}>
+                  {tournaments.length}
+                </span>
+              </button>
 
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30">
-                    {currentTournament.type}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/30">
-                    {currentTournament.status.replace('_', ' ')}
-                  </span>
-                </div>
-                <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide">
-                  {currentTournament.title}
-                </h2>
-                <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#ef4444]" />
-                  <span>{currentTournament.venueName} • {currentTournament.city}, {currentTournament.province}</span>
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMainTab('HISTORY_TAB');
+                  if (historyTournaments.length > 0 && !selectedHistoryTournamentId) {
+                    setSelectedHistoryTournamentId(historyTournaments[0].id);
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                  mainTab === 'HISTORY_TAB'
+                    ? 'bg-[#00e676] text-[#07090e] shadow-lg shadow-[#00e676]/20'
+                    : 'text-slate-400 hover:text-white hover:bg-[#141a29]'
+                }`}
+              >
+                <History className="w-4 h-4" />
+                <span>Historial de Torneos</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  mainTab === 'HISTORY_TAB' ? 'bg-[#07090e] text-[#00e676]' : 'bg-[#1e2a40] text-slate-300'
+                }`}>
+                  {historyTournaments.length}
+                </span>
+              </button>
             </div>
 
-            {/* Selector y Botones de Acción */}
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={selectedTournamentId}
-                onChange={(e) => setSelectedTournamentId(e.target.value)}
-                className="bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#00e676]"
-              >
-                {tournaments.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                type="button"
-                onClick={() => setShowEnrollModal(true)}
-                className="px-3.5 py-2 bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#00e676]/20 transition-all"
-              >
-                <Users className="w-4 h-4" />
-                <span>+ Inscribirme</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowWebcamModal(true)}
-                className="px-3 py-2 bg-[#111622] hover:bg-[#1a2234] text-slate-200 border border-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all"
-                title="Configuración de Cámara"
-              >
-                <Video className="w-4 h-4 text-[#00e676]" />
-                <span className="hidden sm:inline">Cámara</span>
-              </button>
+            {/* Acciones de Cabecera y Badge de Administrador */}
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#ef4444]/20 border border-[#ef4444]/40 text-[#ef4444] text-xs font-black">
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>MODO ADMIN ACTIVO ({currentUser.nickname || 'ICEMAN'})</span>
+                </div>
+              )}
 
               <button
                 type="button"
                 onClick={() => setShowCreateModal(true)}
-                className="px-3.5 py-2 bg-[#ef4444] hover:bg-[#dc2626] text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#ef4444]/20 transition-all"
+                className="px-4 py-2.5 bg-[#ef4444] hover:bg-[#dc2626] text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-[#ef4444]/25 transition-all"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
-                <span className="hidden sm:inline">Crear Torneo</span>
+                <span>+ Crear Torneo Oficial</span>
               </button>
             </div>
           </div>
 
-          {/* Pestañas de Navegación del Torneo */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
-              <button
-                type="button"
-                onClick={() => setActiveTab('BRACKET')}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                  activeTab === 'BRACKET'
-                    ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
-                    : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
-                }`}
-              >
-                Cuadro Eliminatorio (Brackets)
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('GROUPS')}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                  activeTab === 'GROUPS'
-                    ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
-                    : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
-                }`}
-              >
-                Fase de Grupos (Round Robin)
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('PLAYERS')}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                  activeTab === 'PLAYERS'
-                    ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
-                    : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
-                }`}
-              >
-                Inscriptos ({enrolledPlayers.length}/{currentTournament.maxParticipants})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('LIVE_BOARD')}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                  activeTab === 'LIVE_BOARD'
-                    ? 'bg-[#ef4444] text-white shadow-md shadow-[#ef4444]/25'
-                    : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-[#ef4444] animate-ping" />
-                <span>Pantalla TV Club</span>
-              </button>
-            </div>
+          {/* ======================================================== */}
+          {/* SECCIÓN 1: PESTAÑA DE TORNEOS ACTIVOS */}
+          {/* ======================================================== */}
+          {mainTab === 'ACTIVE_TAB' && (
+            <div className="space-y-6">
+              {/* VISTA A: TABLA DE TORNEOS ACTIVOS */}
+              {activeViewMode === 'TABLE' || !currentTournament ? (
+                <div className="bg-[#0f1422] border border-[#1e2a40] rounded-3xl p-5 sm:p-7 shadow-2xl space-y-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#1e2a40] pb-4">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
+                        <Trophy className="w-6 h-6 text-[#00e676]" />
+                        <span>Torneos Oficiales Activos</span>
+                      </h2>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Circuito Federal • Competición en vivo, tablas y llaves eliminatorias
+                      </p>
+                    </div>
 
-            <div className="hidden lg:flex items-center gap-3 text-xs text-slate-400">
-              <span className="flex items-center gap-1">
-                <DollarSign className="w-3.5 h-3.5 text-[#00e676]" />
-                Premio: <strong className="text-white">${currentTournament.prizePoolArs.toLocaleString('es-AR')} ARS</strong>
-              </span>
-              <span>•</span>
-              <span>Inscripción: <strong className="text-white">${currentTournament.entryFeeArs.toLocaleString('es-AR')} ARS</strong></span>
-            </div>
-          </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateModal(true)}
+                        className="px-4 py-2 bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#00e676]/20 transition-all"
+                      >
+                        <Plus className="w-4 h-4 stroke-[3]" />
+                        <span>Crear Nuevo Torneo</span>
+                      </button>
+                    </div>
+                  </div>
 
-          {/* CONTENIDO SEGÚN PESTAÑA */}
-          {activeTab === 'BRACKET' && (
-            <div className="bg-[#07090e] border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-[#00e676]" />
-                    <span>Cuadro Eliminatorio Oficial en Tiempo Real</span>
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Toca cualquier partido activo para abrir el Anotador en Vivo o registrar el resultado.
-                  </p>
+                  {tournaments.length === 0 ? (
+                    /* ESTADO VACÍO CUANDO NO HAY TORNEOS CREADOS */
+                    <div className="text-center py-16 px-4 bg-[#07090e] border border-dashed border-slate-800 rounded-3xl space-y-4">
+                      <div className="w-16 h-16 rounded-2xl bg-[#111622] border border-[#00e676]/30 flex items-center justify-center mx-auto text-[#00e676] shadow-lg shadow-[#00e676]/10">
+                        <Trophy className="w-8 h-8" />
+                      </div>
+                      <div className="space-y-1 max-w-md mx-auto">
+                        <h3 className="text-lg font-black text-white">No hay torneos activos en este momento</h3>
+                        <p className="text-xs text-slate-400">
+                          Todos los torneos no creados han sido removidos. Crea tu primer torneo oficial presencial u online para iniciar los cruces eliminatorios.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateModal(true)}
+                        className="px-5 py-3 bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black rounded-xl text-xs inline-flex items-center gap-2 shadow-xl shadow-[#00e676]/25 transition-all"
+                      >
+                        <Plus className="w-4 h-4 stroke-[3]" />
+                        <span>+ Crear Primer Torneo Oficial</span>
+                      </button>
+                    </div>
+                  ) : (
+                    /* TABLA CON TORNEOS ACTIVOS */
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-[#1e2a40] text-[11px] font-black uppercase text-slate-400">
+                            <th className="py-3 px-4">Torneo</th>
+                            <th className="py-3 px-4">Modalidad & Formato</th>
+                            <th className="py-3 px-4">Fecha & Sede</th>
+                            <th className="py-3 px-4">Inscriptos</th>
+                            <th className="py-3 px-4">Premios / Entrada</th>
+                            <th className="py-3 px-4">Estado</th>
+                            <th className="py-3 px-4 text-right">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#1e2a40]/60 text-xs">
+                          {tournaments.map((t) => (
+                            <tr key={t.id} className="hover:bg-[#141a29]/60 transition-colors group">
+                              <td className="py-4 px-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="relative w-10 h-10 rounded-xl bg-black border border-[#ef4444]/40 p-1 flex-shrink-0">
+                                    <Image
+                                      src={t.bannerImageUrl || '/logos/logo-mdq.png'}
+                                      alt={t.title}
+                                      fill
+                                      className="object-contain p-1"
+                                    />
+                                  </div>
+                                  <div>
+                                    <span className="font-black text-white block group-hover:text-[#00e676] transition-colors">
+                                      {t.title}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 block">
+                                      {t.organizer}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-4 px-4">
+                                <div className="space-y-1">
+                                  <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                    t.type === 'PRESENCIAL'
+                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                      : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                                  }`}>
+                                    {t.type}
+                                  </span>
+                                  <div className="text-[11px] text-slate-300">
+                                    501 DO • Mejor de {t.bestOfLegs} legs
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-4 px-4 text-slate-300">
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-1 text-white font-bold">
+                                    <MapPin className="w-3.5 h-3.5 text-[#ef4444]" />
+                                    <span>{t.venueName}</span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-400">
+                                    {t.city}, {t.province}
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-4 px-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="font-bold text-white">{t.registeredCount}/{t.maxParticipants}</span>
+                                    <span className="text-slate-400">{Math.round((t.registeredCount / t.maxParticipants) * 100)}%</span>
+                                  </div>
+                                  <div className="w-24 bg-[#07090e] h-1.5 rounded-full overflow-hidden border border-slate-800">
+                                    <div
+                                      className="bg-[#00e676] h-full rounded-full"
+                                      style={{ width: `${Math.min(100, (t.registeredCount / t.maxParticipants) * 100)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-4 px-4">
+                                <div className="space-y-0.5">
+                                  <div className="font-black text-[#00e676]">
+                                    ${t.prizePoolArs?.toLocaleString('es-AR')} ARS
+                                  </div>
+                                  <div className="text-[10px] text-slate-400">
+                                    Inscripción: ${t.entryFeeArs?.toLocaleString('es-AR')} ARS
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-4 px-4">
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#00e676]/15 text-[#00e676] border border-[#00e676]/30">
+                                  {t.status.replace('_', ' ')}
+                                </span>
+                              </td>
+
+                              <td className="py-4 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedTournamentId(t.id);
+                                      setActiveViewMode('DETAIL');
+                                    }}
+                                    className="px-3 py-1.5 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs flex items-center gap-1 shadow-md transition-all"
+                                    title="Ver Cuadro y Partidas"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>Ver Llave</span>
+                                  </button>
+
+                                  {/* Botones exclusivos para Administrador */}
+                                  {isAdmin && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleArchiveTournamentToHistory(t)}
+                                        className="p-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black border border-amber-500/40 transition-colors"
+                                        title="Finalizar Torneo y Archivar a Historial"
+                                      >
+                                        <Archive className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteTournament(t.id, t.title)}
+                                        className="p-1.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444] text-[#ef4444] hover:text-white border border-[#ef4444]/40 transition-colors"
+                                        title="Eliminar Torneo"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => alert('Emparejamientos recalculados por seed oficial y ranking.')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#111622] hover:bg-[#1a2234] text-slate-300 text-xs font-bold border border-slate-700"
-                >
-                  <Shuffle className="w-3.5 h-3.5 text-[#00e676]" />
-                  <span>Resortear Seeds</span>
-                </button>
-              </div>
-
-              {currentTournament.matches && currentTournament.matches.length > 0 ? (
-                <TournamentBracket
-                  matches={currentTournament.matches}
-                  onSelectMatch={(m) => setSelectedBracketMatch(m)}
-                  onUpdateScore={handleUpdateMatchScore}
-                  bestOfLegs={currentTournament.bestOfLegs}
-                />
               ) : (
-                <div className="text-center py-12 text-slate-500">
-                  No hay partidos configurados para este torneo.
+                /* VISTA B: DETALLE DEL TORNEO ACTIVO SELECCIONADO */
+                <div className="space-y-6">
+                  {/* Botón de retorno a la tabla general */}
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setActiveViewMode('TABLE')}
+                      className="px-4 py-2 rounded-xl bg-[#111622] hover:bg-[#1a2234] text-slate-300 font-bold text-xs border border-slate-700 flex items-center gap-2 transition-colors"
+                    >
+                      <ArrowLeft className="w-4 h-4 text-[#00e676]" />
+                      <span>← Volver a la Lista de Torneos Activos</span>
+                    </button>
+
+                    {isAdmin && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleArchiveTournamentToHistory(currentTournament)}
+                          className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black font-black text-xs border border-amber-500/40 flex items-center gap-1.5 transition-colors"
+                        >
+                          <Archive className="w-4 h-4" />
+                          <span>Finalizar y Mover a Historial</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTournament(currentTournament.id, currentTournament.title)}
+                          className="px-3.5 py-1.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444] text-[#ef4444] hover:text-white font-black text-xs border border-[#ef4444]/40 flex items-center gap-1.5 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Eliminar Torneo</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Header del Torneo con Paleta Diana */}
+                  <div className="bg-[#0f1422] border border-[#ef4444]/30 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-black border-2 border-[#ef4444] p-2 flex items-center justify-center flex-shrink-0 shadow-lg shadow-[#ef4444]/20">
+                        <Image
+                          src={currentTournament.bannerImageUrl || '/logos/logo-mdq.png'}
+                          alt={currentTournament.title}
+                          fill
+                          className="object-contain p-1"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30">
+                            {currentTournament.type}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/30">
+                            {currentTournament.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide">
+                          {currentTournament.title}
+                        </h2>
+                        <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+                          <MapPin className="w-3.5 h-3.5 text-[#ef4444]" />
+                          <span>{currentTournament.venueName} • {currentTournament.city}, {currentTournament.province}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Selector rápido y Acciones */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowEnrollModal(true)}
+                        className="px-3.5 py-2 bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#00e676]/20 transition-all"
+                      >
+                        <Users className="w-4 h-4" />
+                        <span>+ Inscribirme</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowWebcamModal(true)}
+                        className="px-3 py-2 bg-[#111622] hover:bg-[#1a2234] text-slate-200 border border-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all"
+                        title="Configuración de Cámara"
+                      >
+                        <Video className="w-4 h-4 text-[#00e676]" />
+                        <span className="hidden sm:inline">Cámara</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Pestañas de Navegación del Torneo */}
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+                      <button
+                        type="button"
+                        onClick={() => setTournamentSubTab('BRACKET')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                          tournamentSubTab === 'BRACKET'
+                            ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
+                            : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
+                        }`}
+                      >
+                        Cuadro Eliminatorio (Brackets)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTournamentSubTab('GROUPS')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                          tournamentSubTab === 'GROUPS'
+                            ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
+                            : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
+                        }`}
+                      >
+                        Fase de Grupos (Round Robin)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTournamentSubTab('PLAYERS')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                          tournamentSubTab === 'PLAYERS'
+                            ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
+                            : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
+                        }`}
+                      >
+                        Inscriptos ({enrolledPlayers.length}/{currentTournament.maxParticipants})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTournamentSubTab('LIVE_BOARD')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                          tournamentSubTab === 'LIVE_BOARD'
+                            ? 'bg-[#ef4444] text-white shadow-md shadow-[#ef4444]/25'
+                            : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-[#ef4444] animate-ping" />
+                        <span>Pantalla TV Club</span>
+                      </button>
+                    </div>
+
+                    <div className="hidden lg:flex items-center gap-3 text-xs text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <DollarSign className="w-3.5 h-3.5 text-[#00e676]" />
+                        Premio: <strong className="text-white">${currentTournament.prizePoolArs?.toLocaleString('es-AR')} ARS</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* SUB CONTENIDO: BRACKET */}
+                  {tournamentSubTab === 'BRACKET' && (
+                    <div className="bg-[#07090e] border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-base font-black text-white flex items-center gap-2">
+                            <Trophy className="w-5 h-5 text-[#00e676]" />
+                            <span>Cuadro Eliminatorio Oficial en Tiempo Real</span>
+                          </h3>
+                          <p className="text-xs text-slate-400">
+                            Toca cualquier partido activo para abrir el Anotador en Vivo. {isAdmin && 'Como administrador, pulsa el botón rojo en cada partido para editar o avanzar por W.O.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {currentTournament.matches && currentTournament.matches.length > 0 ? (
+                        <TournamentBracket
+                          matches={currentTournament.matches}
+                          onSelectMatch={(m) => setSelectedBracketMatch(m)}
+                          onUpdateScore={handleUpdateMatchScore}
+                          bestOfLegs={currentTournament.bestOfLegs}
+                          isAdmin={isAdmin}
+                          onAdminEditMatch={(m) => setAdminMatchToEdit(m)}
+                        />
+                      ) : (
+                        <div className="text-center py-12 text-slate-500">
+                          No hay partidos configurados para este torneo.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* SUB CONTENIDO: GRUPOS */}
+                  {tournamentSubTab === 'GROUPS' && (
+                    <TournamentGroupStage
+                      tournamentTitle={currentTournament.title}
+                      bestOfLegs={currentTournament.bestOfLegs}
+                      onLaunchMatch={handleLaunchGroupMatch}
+                      onAdvanceToBracket={() => setTournamentSubTab('BRACKET')}
+                    />
+                  )}
+
+                  {/* SUB CONTENIDO: PLAYERS */}
+                  {tournamentSubTab === 'PLAYERS' && (
+                    <div className="bg-[#0f1422] border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-base font-black text-white">
+                            Lista de Jugadores Inscriptos y Acreditados
+                          </h3>
+                          <p className="text-xs text-slate-400">
+                            Todos los competidores verificados para las pistas del torneo
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setShowEnrollModal(true)}
+                          className="px-3 py-1.5 rounded-xl bg-[#00e676] text-[#07090e] font-black text-xs"
+                        >
+                          + Acreditar Nuevo
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {enrolledPlayers.map((p, idx) => (
+                          <div
+                            key={p.id}
+                            className="p-3 rounded-2xl bg-[#07090e] border border-slate-800 flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-[#111622] border border-[#ef4444]/40 flex items-center justify-center font-black text-xs text-[#ef4444]">
+                                {idx + 1}
+                              </div>
+                              <div>
+                                <div className="text-xs font-black text-white">{p.name}</div>
+                                <div className="text-[10px] text-slate-400">@{p.nickname} • AVG {p.avg}</div>
+                              </div>
+                            </div>
+                            {p.hasWebcam && (
+                              <span className="p-1 rounded-lg bg-[#00e676]/10 text-[#00e676]" title="Webcam Habilitada">
+                                <Video className="w-3.5 h-3.5" />
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUB CONTENIDO: LIVE BOARD */}
+                  {tournamentSubTab === 'LIVE_BOARD' && (
+                    <div className="bg-[#07090e] border-2 border-[#ef4444]/40 rounded-3xl p-6 shadow-2xl space-y-6">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 bg-[#ef4444]/20 border border-[#ef4444]/40 rounded-2xl text-[#ef4444]">
+                            <Tv className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-black text-white">
+                              Pantalla Oficial de Televisión / Proyector del Club
+                            </h3>
+                            <p className="text-xs text-slate-400">
+                              Diseñada para monitores de la barra, pantallas de sala y transmisión OBS en vivo
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-3 py-1 rounded-full bg-[#00e676]/15 border border-[#00e676]/30 text-[#00e676] text-xs font-black flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#00e676] animate-pulse" />
+                          BROADCAST SINCRONIZADO
+                        </span>
+                      </div>
+
+                      {liveMatch ? (
+                        <div className="bg-[#0f1422] border border-slate-800 rounded-3xl p-6 text-center space-y-4">
+                          <div className="text-xs text-slate-400 uppercase font-black tracking-widest">
+                            {liveMatch.gameType} • EN JUEGO
+                          </div>
+
+                          <div className="grid grid-cols-3 items-center gap-4">
+                            <div className="text-right">
+                              <div className="text-xl sm:text-2xl font-black text-white">{liveMatch.player1Name}</div>
+                              <div className="text-xs text-slate-400">AVG {liveMatch.player1Avg.toFixed(1)} • {liveMatch.player1Legs} legs</div>
+                              <div className="text-4xl sm:text-6xl font-black text-[#00e676] mt-2">{liveMatch.player1Score}</div>
+                            </div>
+
+                            <div className="text-center font-black text-2xl text-slate-600">
+                              VS
+                            </div>
+
+                            <div className="text-left">
+                              <div className="text-xl sm:text-2xl font-black text-white">{liveMatch.player2Name}</div>
+                              <div className="text-xs text-slate-400">AVG {liveMatch.player2Avg.toFixed(1)} • {liveMatch.player2Legs} legs</div>
+                              <div className="text-4xl sm:text-6xl font-black text-[#00e676] mt-2">{liveMatch.player2Score}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-12 text-slate-500 bg-[#0f1422] rounded-3xl border border-slate-800">
+                          <Target className="w-10 h-10 mx-auto mb-2 text-slate-600" />
+                          <div className="text-sm font-bold text-slate-400">Esperando señal de pista...</div>
+                          <div className="text-xs text-slate-600 mt-1">Inicia una partida en el anotador para transmitir dardo a dardo aquí</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {activeTab === 'GROUPS' && (
-            <TournamentGroupStage
-              tournamentTitle={currentTournament.title}
-              bestOfLegs={currentTournament.bestOfLegs}
-              onLaunchMatch={handleLaunchGroupMatch}
-              onAdvanceToBracket={() => setActiveTab('BRACKET')}
-            />
-          )}
-
-          {activeTab === 'PLAYERS' && (
-            <div className="bg-[#0f1422] border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-black text-white">
-                    Lista de Jugadores Inscriptos y Acreditados
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Todos los competidores verificados para las pistas del torneo
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowEnrollModal(true)}
-                  className="px-3 py-1.5 rounded-xl bg-[#00e676] text-[#07090e] font-black text-xs"
-                >
-                  + Acreditar Nuevo
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {enrolledPlayers.map((p, idx) => (
-                  <div
-                    key={p.id}
-                    className="p-3 rounded-2xl bg-[#07090e] border border-slate-800 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-[#111622] border border-[#ef4444]/40 flex items-center justify-center font-black text-xs text-[#ef4444]">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <div className="text-xs font-black text-white">{p.name}</div>
-                        <div className="text-[10px] text-slate-400">@{p.nickname} • AVG {p.avg}</div>
-                      </div>
-                    </div>
-                    {p.hasWebcam && (
-                      <span className="p-1 rounded-lg bg-[#00e676]/10 text-[#00e676]" title="Webcam Habilitada">
-                        <Video className="w-3.5 h-3.5" />
-                      </span>
-                    )}
+          {/* ======================================================== */}
+          {/* SECCIÓN 2: PESTAÑA DE HISTORIAL DE TORNEOS */}
+          {/* ======================================================== */}
+          {mainTab === 'HISTORY_TAB' && (
+            <div className="space-y-6">
+              {historyTournaments.length === 0 ? (
+                <div className="text-center py-16 px-4 bg-[#0f1422] border border-[#1e2a40] rounded-3xl space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-[#111622] border border-amber-500/40 flex items-center justify-center mx-auto text-amber-400 shadow-lg shadow-amber-500/10">
+                    <History className="w-8 h-8" />
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'LIVE_BOARD' && (
-            <div className="bg-[#07090e] border-2 border-[#ef4444]/40 rounded-3xl p-6 shadow-2xl space-y-6">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-[#ef4444]/20 border border-[#ef4444]/40 rounded-2xl text-[#ef4444]">
-                    <Tv className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-white">
-                      Pantalla Oficial de Televisión / Proyector del Club
-                    </h3>
+                  <div className="space-y-1 max-w-md mx-auto">
+                    <h3 className="text-lg font-black text-white">Historial sin torneos finalizados</h3>
                     <p className="text-xs text-slate-400">
-                      Diseñada para monitores de la barra, pantallas de sala y transmisión OBS en vivo
+                      Cuando un torneo concluya y se corone al campeón, aparecerá aquí con el desarrollo completo de la llave y sus estadísticas consolidadas.
                     </p>
                   </div>
-                </div>
-                <span className="px-3 py-1 rounded-full bg-[#00e676]/15 border border-[#00e676]/30 text-[#00e676] text-xs font-black flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#00e676] animate-pulse" />
-                  BROADCAST SINCRONIZADO
-                </span>
-              </div>
 
-              {liveMatch ? (
-                <div className="bg-[#0f1422] border border-slate-800 rounded-3xl p-6 text-center space-y-4">
-                  <div className="text-xs text-slate-400 uppercase font-black tracking-widest">
-                    {liveMatch.gameType} • EN JUEGO
-                  </div>
-
-                  <div className="grid grid-cols-3 items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-xl sm:text-2xl font-black text-white">{liveMatch.player1Name}</div>
-                      <div className="text-xs text-slate-400">AVG {liveMatch.player1Avg.toFixed(1)} • {liveMatch.player1Legs} legs</div>
-                      <div className="text-4xl sm:text-6xl font-black text-[#00e676] mt-2">{liveMatch.player1Score}</div>
+                  {isAdmin && (
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={handleLoadSampleHistory}
+                        className="px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black font-black rounded-xl text-xs inline-flex items-center gap-2 border border-amber-500/40 transition-all"
+                      >
+                        <Trophy className="w-4 h-4" />
+                        <span>Cargar Torneo de Muestra en Historial</span>
+                      </button>
                     </div>
-
-                    <div className="text-center font-black text-2xl text-slate-600">
-                      VS
-                    </div>
-
-                    <div className="text-left">
-                      <div className="text-xl sm:text-2xl font-black text-white">{liveMatch.player2Name}</div>
-                      <div className="text-xs text-slate-400">AVG {liveMatch.player2Avg.toFixed(1)} • {liveMatch.player2Legs} legs</div>
-                      <div className="text-4xl sm:text-6xl font-black text-[#00e676] mt-2">{liveMatch.player2Score}</div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               ) : (
-                <div className="text-center py-12 text-slate-500 bg-[#0f1422] rounded-3xl border border-slate-800">
-                  <Target className="w-10 h-10 mx-auto mb-2 text-slate-600" />
-                  <div className="text-sm font-bold text-slate-400">Esperando señal de pista...</div>
-                  <div className="text-xs text-slate-600 mt-1">Inicia una partida en el anotador para transmitir dardo a dardo aquí</div>
+                <div className="space-y-6">
+                  {/* Selector de Torneos en Historial */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0f1422] border border-[#1e2a40] p-4 rounded-3xl">
+                    <div className="flex items-center gap-3">
+                      <History className="w-5 h-5 text-amber-400" />
+                      <div>
+                        <span className="text-xs font-black text-slate-400 uppercase tracking-wider block">
+                          Torneo Seleccionado en Historial:
+                        </span>
+                        <select
+                          value={selectedHistoryTournamentId || ''}
+                          onChange={(e) => setSelectedHistoryTournamentId(e.target.value)}
+                          className="bg-[#07090e] border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-black text-white focus:outline-none focus:border-[#00e676]"
+                        >
+                          {historyTournaments.map((ht) => (
+                            <option key={ht.id} value={ht.id}>
+                              {ht.title} ({new Date(ht.startDate).toLocaleDateString('es-AR')})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {currentHistoryTournament?.endDate && (
+                      <div className="text-xs text-slate-400 flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-slate-500" />
+                        <span>Finalizado el {new Date(currentHistoryTournament.endDate).toLocaleDateString('es-AR')}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* TARJETA DE ESTADÍSTICAS DEL TORNEO HISTÓRICO */}
+                  {currentHistoryTournament?.stats && (
+                    <div className="bg-[#0f1422] border border-amber-500/30 rounded-3xl p-6 shadow-2xl space-y-5">
+                      <div className="flex items-center justify-between border-b border-[#1e2a40] pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <Trophy className="w-5 h-5 text-amber-400" />
+                          <h3 className="text-base font-black text-white">
+                            Estadísticas Oficiales del Torneo
+                          </h3>
+                        </div>
+                        <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          TORNEO CONCLUIDO
+                        </span>
+                      </div>
+
+                      {/* Cuadro de Honor: Campeón y Subcampeón */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Campeón */}
+                        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 to-transparent border border-amber-500/40 flex items-center gap-4">
+                          <div className="relative w-14 h-14 rounded-2xl bg-black border-2 border-amber-400 p-1 flex-shrink-0 flex items-center justify-center text-2xl shadow-lg shadow-amber-500/25">
+                            🏆
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block">
+                              Campeón Oficial
+                            </span>
+                            <div className="text-base font-black text-white flex items-center gap-1.5">
+                              <span>{currentHistoryTournament.stats.championName}</span>
+                            </div>
+                            <span className="text-[11px] text-slate-300">Medalla de Oro & Copa Oficial</span>
+                          </div>
+                        </div>
+
+                        {/* Subcampeón */}
+                        <div className="p-4 rounded-2xl bg-[#141a29] border border-slate-700 flex items-center gap-4">
+                          <div className="relative w-14 h-14 rounded-2xl bg-black border-2 border-slate-400 p-1 flex-shrink-0 flex items-center justify-center text-2xl">
+                            🥈
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
+                              Subcampeón
+                            </span>
+                            <div className="text-base font-black text-white">
+                              {currentHistoryTournament.stats.runnerUpName || 'Martín Rossi'}
+                            </div>
+                            <span className="text-[11px] text-slate-400">Medalla de Plata</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Métricas destacadas */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-[#07090e] border border-slate-800 rounded-2xl p-3.5 text-center">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                            Mayor Promedio (AVG)
+                          </span>
+                          <span className="text-2xl font-black text-[#00e676] font-mono block mt-1">
+                            {currentHistoryTournament.stats.highestAvgScore?.toFixed(1) || '78.5'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 truncate block">
+                            {currentHistoryTournament.stats.highestAvgPlayer || 'Mariano Deux'}
+                          </span>
+                        </div>
+
+                        <div className="bg-[#07090e] border border-slate-800 rounded-2xl p-3.5 text-center">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                            Mayor Cierre
+                          </span>
+                          <span className="text-2xl font-black text-[#38bdf8] font-mono block mt-1">
+                            {currentHistoryTournament.stats.highestCheckout || 170}
+                          </span>
+                          <span className="text-[10px] text-slate-400 truncate block">
+                            {currentHistoryTournament.stats.highestCheckoutPlayer || 'Mariano Deux (ICEMAN)'}
+                          </span>
+                        </div>
+
+                        <div className="bg-[#07090e] border border-slate-800 rounded-2xl p-3.5 text-center">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                            180s Cantados
+                          </span>
+                          <span className="text-2xl font-black text-[#ef4444] font-mono block mt-1">
+                            {currentHistoryTournament.stats.total180s || 14}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block">Visitas perfectas</span>
+                        </div>
+
+                        <div className="bg-[#07090e] border border-slate-800 rounded-2xl p-3.5 text-center">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                            Mejor Pierna
+                          </span>
+                          <span className="text-2xl font-black text-amber-400 font-mono block mt-1">
+                            {currentHistoryTournament.stats.bestLegDarts || 11} d.
+                          </span>
+                          <span className="text-[10px] text-slate-400 truncate block">
+                            {currentHistoryTournament.stats.bestLegPlayer || 'Martín Rossi'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* DESARROLLO COMPLETO DE LA LLAVE HISTÓRICA */}
+                  {currentHistoryTournament?.matches && (
+                    <div className="bg-[#07090e] border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div className="flex items-center gap-2">
+                          <Trophy className="w-5 h-5 text-[#00e676]" />
+                          <h3 className="text-base font-black text-white">
+                            Desarrollo Completo de la Llave Eliminatoria
+                          </h3>
+                        </div>
+                        <span className="text-xs text-slate-400 font-bold">
+                          Cuartos, Semis y Gran Final
+                        </span>
+                      </div>
+
+                      <TournamentBracket
+                        matches={currentHistoryTournament.matches}
+                        bestOfLegs={currentHistoryTournament.bestOfLegs}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
         </>
       )}
+
+      {/* MODAL: ADMINISTRADOR DE LLAVE (ICEMAN FULL) */}
+      <AdminMatchModal
+        isOpen={!!adminMatchToEdit}
+        onClose={() => setAdminMatchToEdit(null)}
+        match={adminMatchToEdit}
+        onSaveScore={handleUpdateMatchScore}
+        onAdvanceWalkover={handleAdminAdvanceWalkover}
+        onResetMatch={handleAdminResetMatch}
+      />
 
       {/* MODAL: MATCH DISPATCHER DE BRACKET */}
       {selectedBracketMatch && (
@@ -567,7 +1382,7 @@ export const TournamentManager: React.FC = () => {
           player2Name={selectedBracketMatch.player2?.name || 'Jugador 2'}
           player1Id={selectedBracketMatch.player1?.id || 'p1'}
           player2Id={selectedBracketMatch.player2?.id || 'p2'}
-          bestOfLegs={currentTournament.bestOfLegs}
+          bestOfLegs={currentTournament?.bestOfLegs || 5}
           onLaunchLiveMatch={() => handleLaunchBracketLive(selectedBracketMatch)}
           onLaunchOnlineMatch={() => handleLaunchBracketLive(selectedBracketMatch)}
           onSaveQuickResult={(s1, s2, winner) => {
@@ -594,10 +1409,13 @@ export const TournamentManager: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <form
             onSubmit={handleCreateTournament}
-            className="w-full max-w-md bg-[#07090e] border border-[#ef4444]/40 rounded-3xl p-5 space-y-4 shadow-2xl"
+            className="w-full max-w-md bg-[#07090e] border-2 border-[#ef4444] rounded-3xl p-5 space-y-4 shadow-2xl"
           >
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <h3 className="text-base font-black text-white">Crear Nuevo Torneo Oficial</h3>
+              <div className="flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-[#ef4444]" />
+                <h3 className="text-base font-black text-white">Crear Nuevo Torneo Oficial</h3>
+              </div>
               <button type="button" onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
@@ -609,10 +1427,10 @@ export const TournamentManager: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="Ej: Open Ciudad de Mar del Plata 2026"
+                  placeholder="Ej: Open Mar del Plata 2026 • Copa MDQ"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white"
+                  className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
                 />
               </div>
 
@@ -622,7 +1440,7 @@ export const TournamentManager: React.FC = () => {
                   <select
                     value={newType}
                     onChange={(e) => setNewType(e.target.value as any)}
-                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-2.5 py-2 text-white"
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-[#00e676]"
                   >
                     <option value="PRESENCIAL">Presencial (Club)</option>
                     <option value="ONLINE">Online Conectado</option>
@@ -633,7 +1451,7 @@ export const TournamentManager: React.FC = () => {
                   <select
                     value={newFormat}
                     onChange={(e) => setNewFormat(e.target.value as any)}
-                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-2.5 py-2 text-white"
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-[#00e676]"
                   >
                     <option value="SINGLE_ELIMINATION">Eliminación Directa</option>
                     <option value="ROUND_ROBIN">Grupos (Round Robin)</option>
@@ -646,18 +1464,22 @@ export const TournamentManager: React.FC = () => {
                   <label className="text-slate-300 font-bold block mb-1">Legs (Mejor de)</label>
                   <input
                     type="number"
+                    min="1"
+                    max="19"
                     value={newBestOfLegs}
                     onChange={(e) => setNewBestOfLegs(Number(e.target.value))}
-                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white"
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
                   />
                 </div>
                 <div>
                   <label className="text-slate-300 font-bold block mb-1">Cupo Máximo</label>
                   <input
                     type="number"
+                    min="4"
+                    max="64"
                     value={newMaxParticipants}
                     onChange={(e) => setNewMaxParticipants(Number(e.target.value))}
-                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white"
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
                   />
                 </div>
               </div>
@@ -668,22 +1490,68 @@ export const TournamentManager: React.FC = () => {
                   type="text"
                   value={newVenue}
                   onChange={(e) => setNewVenue(e.target.value)}
-                  className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white"
+                  className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1">Ciudad</label>
+                  <input
+                    type="text"
+                    value={newCity}
+                    onChange={(e) => setNewCity(e.target.value)}
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1">Provincia</label>
+                  <input
+                    type="text"
+                    value={newProvince}
+                    onChange={(e) => setNewProvince(e.target.value)}
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1">Inscripción ($ ARS)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="500"
+                    value={newEntryFee}
+                    onChange={(e) => setNewEntryFee(Number(e.target.value))}
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1">Premio Estimado ($ ARS)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="5000"
+                    value={newPrizePool}
+                    onChange={(e) => setNewPrizePool(Number(e.target.value))}
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
+                  />
+                </div>
               </div>
             </div>
 
             <div className="flex gap-2 pt-2">
               <button
                 type="submit"
-                className="flex-1 py-2.5 rounded-xl bg-[#00e676] text-[#07090e] font-black text-xs"
+                className="flex-1 py-3 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider shadow-lg transition-all"
               >
-                PUBLICAR TORNEO
+                PUBLICAR Y ABRIR TORNEO
               </button>
               <button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+                className="px-4 py-3 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition-colors"
               >
                 Cancelar
               </button>

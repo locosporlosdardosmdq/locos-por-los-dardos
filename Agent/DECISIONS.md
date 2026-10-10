@@ -159,3 +159,33 @@
      * **Final del Menú:** Logo de Darderos Mar del Plata (`/logos/logo-mdq.png`) con la leyenda "Sede Oficial del Circuito" antes de la división del jugador.
      * **División de Usuario:** Accesos directos con iconos para "Modificar Perfil" (`/perfil`) y "Cerrar Sesión" (`LogOut`).
 - **Motivo:** Máximo aprovechamiento de la pantalla para los tableros de juego y fixtures, mayor ergonomía visual y accesos directos de perfil y sesión.
+
+---
+
+## ADR-014: Banco de Audios Oficiales MP3 (Russ Bray 1-180) y Clemens Kuntze Clímax
+
+- **Fecha:** 2026-10-10
+- **Estado:** ACEPTADA
+- **Contexto:**
+  La síntesis de voz sintética nativa de navegadores carecía de la fuerza acústica y aspereza característica del dardo profesional. El usuario requirió descargar el set oficial de audios MP3 del legendario árbitro de la PDC Russ Bray (del 1 al 180) y mantener el audio original de Clemens Kuntze para la máxima visita de 180.
+- **Decisión:**
+  1. Se implementó y ejecutó `descargar.js` para recuperar los 180 audios MP3 oficiales en `audios_russ_bray/` y copiarlos a `public/sounds/russ_bray/` (3.67 MB, 181 archivos).
+  2. Para las puntuaciones matemáticas imposibles en 3 dardos (176, 178 y 179) que arrojaban 404 en el servidor remoto, se crearon copias de seguridad de visita para blindar contra fallos en tiempo de ejecución.
+  3. En `src/lib/sound-effects.ts`, `VoiceCaller.announceScore(score)` reproduce el archivo MP3 `/sounds/russ_bray/${score}.mp3` con fallback transparente a Web Speech API en caso de error, y reproduce `clemens-kuntze.mp3` para la visita perfecta de 180.
+- **Motivo:** Calidad de audio idéntica a las retransmisiones oficiales de PDC y preservación del clip de Clemens Kuntze.
+
+---
+
+## ADR-015: Rol de Administrador Full (ICEMAN), Historial de Torneos y Banderas de Nacionalidad
+
+- **Fecha:** 2026-10-10
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. El gestor de torneos requería un sistema de superadministración para `marianodeux@gmail.com` ("ICEMAN") y futuros administradores autorizados, con permisos para editar marcadores de cualquier partido, declarar victorias por Walkover (W.O.) si un jugador no se presenta, resetear partidas a 0-0 y eliminar/archivar torneos.
+  2. En la vista de torneos debía separarse la tabla oficial de torneos activos de una pestaña dedicada para el Historial de Torneos con estadísticas consolidadas (Campeón, Subcampeón, Highest AVG, Highest Checkout, 180s y Mejor Pierna) y visualización del cuadro eliminatorio resuelto.
+  3. Los perfiles de jugador y cuadros de juego debían incorporar selección de nacionalidad y visualización de la bandera oficial correspondiente.
+- **Decisión:**
+  1. **Control de Acceso Admin:** Se definió `ADMIN_EMAILS` en `src/lib/constants.ts` y la función `isUserAdmin()`. Si el usuario activo es administrador, se habilita `AdminMatchModal.tsx` con acciones de edición de legs, declaración de W.O. y reseteo.
+  2. **Arquitectura de Torneos:** Se reestructuró `TournamentManager.tsx` en dos vistas de primer nivel: "Torneos Activos" (con tabla de torneos o estado vacío si no hay torneos creados) e "Historial de Torneos" (con visor de estadísticas y desarrollo de llave).
+  3. **Nacionalidad y Banderas:** Se incorporó el catálogo oficial `COUNTRIES` con códigos ISO y banderas emoji, agregando `nationality` y `countryCode` en `PlayerProfile`, formulario en `RegisterAndProfile.tsx`, barra inferior en `AppSidebar.tsx` y tarjetas en `PlayerDirectory.tsx`.
+- **Motivo:** Separación clara entre torneos en curso y archivo histórico, gobernanza completa de llaves para organizadores y representación federal e internacional fidedigna de los competidores.

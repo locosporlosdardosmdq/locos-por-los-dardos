@@ -3,20 +3,25 @@
 import React from 'react';
 import Image from 'next/image';
 import { TournamentBracketMatch } from '@/lib/types';
-import { Trophy, Clock, CheckCircle2, Play } from 'lucide-react';
+import { getCountryFlag } from '@/lib/constants';
+import { Trophy, Clock, CheckCircle2, Play, ShieldAlert } from 'lucide-react';
 
 interface TournamentBracketProps {
   matches: TournamentBracketMatch[];
   onSelectMatch?: (match: TournamentBracketMatch) => void;
-  onUpdateScore?: (matchId: string, p1Score: number, p2Score: number, winnerId?: string) => void;
+  onUpdateScore?: (matchId: string, p1Score: number, p2Score: number, winnerId?: string, note?: string) => void;
   bestOfLegs?: number;
+  isAdmin?: boolean;
+  onAdminEditMatch?: (match: TournamentBracketMatch) => void;
 }
 
 export const TournamentBracket: React.FC<TournamentBracketProps> = ({
   matches,
   onSelectMatch,
   onUpdateScore,
-  bestOfLegs = 5
+  bestOfLegs = 5,
+  isAdmin = false,
+  onAdminEditMatch
 }) => {
   const round1 = matches.filter((m) => m.round === 1);
   const round2 = matches.filter((m) => m.round === 2);
@@ -38,7 +43,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
             onSelectMatch(m);
           }
         }}
-        className={`w-72 rounded-2xl border p-3.5 shadow-xl transition-all cursor-pointer group ${
+        className={`w-72 rounded-2xl border p-3.5 shadow-xl transition-all cursor-pointer group relative ${
           m.status === 'LIVE'
             ? 'bg-[#0f1422] border-[#00e676] ring-2 ring-[#00e676]/40 shadow-[#00e676]/20'
             : isFinished
@@ -50,23 +55,48 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
       >
         {/* Match Header */}
         <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 border-b border-slate-800 pb-2 mb-2">
-          <span>Partida #{m.matchIndex + 1}</span>
-          {m.status === 'LIVE' ? (
-            <span className="flex items-center gap-1.5 text-[#00e676] bg-[#00e676]/15 px-2.5 py-0.5 rounded-full border border-[#00e676]/40 animate-pulse font-black text-[10px]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00e676]"></span>
-              EN VIVO
-            </span>
-          ) : isFinished ? (
-            <span className="text-slate-400 flex items-center gap-1 font-semibold">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#00e676]" />
-              Finalizado
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-slate-500">
-              <Clock className="w-3 h-3" />
-              {m.scheduledTime || 'Pendiente'}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            <span>Partida #{m.matchIndex + 1}</span>
+            {m.note && (
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                {m.note}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {m.status === 'LIVE' ? (
+              <span className="flex items-center gap-1.5 text-[#00e676] bg-[#00e676]/15 px-2.5 py-0.5 rounded-full border border-[#00e676]/40 animate-pulse font-black text-[10px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00e676]"></span>
+                EN VIVO
+              </span>
+            ) : isFinished ? (
+              <span className="text-slate-400 flex items-center gap-1 font-semibold text-[10px]">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#00e676]" />
+                Finalizado
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-slate-500 text-[10px]">
+                <Clock className="w-3 h-3" />
+                {m.scheduledTime || 'Pendiente'}
+              </span>
+            )}
+
+            {/* Botón de Herramientas de Administrador */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onAdminEditMatch) onAdminEditMatch(m);
+                }}
+                className="p-1 rounded-lg bg-[#ef4444]/20 hover:bg-[#ef4444] text-[#ef4444] hover:text-white border border-[#ef4444]/40 transition-colors"
+                title="Administrar Llave (Editar resultado / W.O. / Reset)"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Jugador 1 */}
@@ -78,6 +108,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
           }`}
         >
           <div className="flex items-center gap-2 truncate">
+            <span className="text-sm select-none" title={m.player1?.nationality || 'Argentina'}>
+              {getCountryFlag(m.player1?.countryCode || m.player1?.nationality || 'AR')}
+            </span>
             {m.player1?.avatarUrl ? (
               <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-black">
                 <Image src={m.player1.avatarUrl} alt={m.player1.name} fill className="object-contain" />
@@ -110,6 +143,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
           }`}
         >
           <div className="flex items-center gap-2 truncate">
+            <span className="text-sm select-none" title={m.player2?.nationality || 'Argentina'}>
+              {getCountryFlag(m.player2?.countryCode || m.player2?.nationality || 'AR')}
+            </span>
             {m.player2?.avatarUrl ? (
               <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-black">
                 <Image src={m.player2.avatarUrl} alt={m.player2.name} fill className="object-contain" />

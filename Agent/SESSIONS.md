@@ -1,5 +1,23 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 8] - 2026-10-10
+- **Objetivo:** Descarga e integración del banco oficial de voces de Russ Bray (1-180), configuración del rol de Superadministrador ICEMAN (`marianodeux@gmail.com`) con control total sobre llaves y torneos, reestructuración de la vista de Torneos (Tabla de Torneos Activos vs Historial de Torneos con estadísticas y desarrollo de llave), y adición de nacionalidad con banderas oficiales en perfil y cuadros.
+- **Realizado:**
+  - Descarga y almacenamiento de 181 archivos de audio MP3 oficiales en `audios_russ_bray/` y `public/sounds/russ_bray/`, integrados en `src/lib/sound-effects.ts` (`VoiceCaller.announceScore(score)`) preservando a Clemens Kuntze en el 180.
+  - Implementación de `AdminMatchModal.tsx` con permisos de edición para administradores (`ADMIN_EMAILS = ['marianodeux@gmail.com']`): edición manual de marcadores de legs, avance por Walkover (W.O.) ante jugador ausente y reseteo de partida a 0-0.
+  - Reestructuración de `TournamentManager.tsx`:
+    * Pestaña "Torneos Activos": tabla oficial de torneos creados sin mocks no deseados (eliminado el torneo previo no creado por el usuario) con acciones para ver llave, inscribirse o administrar/eliminar.
+    * Pestaña "Historial de Torneos": visor completo del cuadro eliminatorio y panel de estadísticas consolidadas (Campeón, Subcampeón, Highest AVG, Highest Checkout, 180s y Mejor Pierna).
+  - Integración de nacionalidad y banderas oficiales (`COUNTRIES`):
+    * Ficha de jugador (`RegisterAndProfile.tsx`): selector interactivo de países con banderas y persistencia en `localStorage`.
+    * Perfil y estadísticas: bandera destacada sobre el avatar, junto al nickname y en la tarjeta de residencia.
+    * Menú lateral (`AppSidebar.tsx`): jugador activo con su bandera y badge de `ADMIN`.
+    * Directorio (`PlayerDirectory.tsx`) y Cuadros eliminatorios (`TournamentBracket.tsx`): banderas oficiales al pie de cada nombre.
+  - Verificación de compilación TypeScript (`npx tsc --noEmit`) con 0 errores y validación en navegador con subagente (`http://localhost:3000/perfil` y `http://localhost:3000/torneos`).
+- **Estado del Proyecto:** Motor de audio profesional en vivo, gobernanza completa de torneos con herramientas de administrador, visualización de historial con estadísticas y banderas internacionales integradas.
+
+---
+
 ## [Sesión 7] - 2026-10-10
 - **Objetivo:** Optimización de espacio vertical en pantalla (eliminación de TopBar y encabezados redundantes), encabezados dinámicos de partida (nombre del torneo vs "Partida individual"), y rediseño del menú lateral con texto puro en cabecera, logo de Darderos al final y controles de modificar perfil y cerrar sesión.
 - **Realizado:**

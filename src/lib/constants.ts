@@ -120,162 +120,59 @@ export const CHECKOUT_GUIDE: Record<number, string[]> = {
   2: ['D1']
 };
 
-export const MOCK_TOURNAMENTS: Tournament[] = [
-  {
-    id: 'torneo-mdq-2026',
-    slug: 'open-mar-del-plata-2026',
-    title: 'Gran Open Mar del Plata 2026 • Copa Costa Atlántica',
-    description: 'El torneo presencial más esperado del año organizado por Darderos Mar del Plata. Fase de grupos + llaves eliminatorias 501 Doble Out con transmisión en vivo y premios en efectivo.',
-    type: 'PRESENCIAL',
-    format: 'HYBRID',
-    startingScore: 501,
-    outMode: 'DOUBLE_OUT',
-    bestOfLegs: 7,
-    maxParticipants: 64,
-    registeredCount: 48,
-    venueName: 'Sede Oficial Darderos MDQ • Bar Deportivo Central',
-    city: 'Mar del Plata',
-    province: 'Buenos Aires',
-    startDate: '2026-11-14T14:00:00Z',
-    endDate: '2026-11-15T22:00:00Z',
-    status: 'REGISTRATION_OPEN',
-    bannerImageUrl: '/logos/logo-mdq.png',
-    entryFeeArs: 15000,
-    prizePoolArs: 450000,
-    organizer: 'Darderos Mar del Plata & Locos por los Dardos',
-    matches: [
-      {
-        id: 'm1',
-        round: 1,
-        matchIndex: 0,
-        player1: { id: 'p1', name: 'Facundo "El Halcón" López', avatarUrl: '/logos/logo-mdq.png', seed: 1 },
-        player2: { id: 'p2', name: 'Martín "Sniper" Rossi', avatarUrl: '/logos/dardos-argentina.png', seed: 16 },
-        scoreP1: 4,
-        scoreP2: 2,
-        winnerId: 'p1',
-        status: 'FINISHED',
-        scheduledTime: '15:00'
-      },
-      {
-        id: 'm2',
-        round: 1,
-        matchIndex: 1,
-        player1: { id: 'p3', name: 'Diego "Tungsteno" Gómez', avatarUrl: '/logos/logo-mdq.png', seed: 8 },
-        player2: { id: 'p4', name: 'Lucas "Bullseye" Pereyra', avatarUrl: '/logos/dardos-argentina.png', seed: 9 },
-        scoreP1: 3,
-        scoreP2: 4,
-        winnerId: 'p4',
-        status: 'FINISHED',
-        scheduledTime: '15:30'
-      },
-      {
-        id: 'm3',
-        round: 1,
-        matchIndex: 2,
-        player1: { id: 'p5', name: 'Carlos "180" Méndez', avatarUrl: '/logos/logo-mdq.png', seed: 4 },
-        player2: { id: 'p6', name: 'Emiliano "Doble 20" Castro', avatarUrl: '/logos/dardos-argentina.png', seed: 13 },
-        scoreP1: 2,
-        scoreP2: 1,
-        status: 'LIVE',
-        scheduledTime: '16:00'
-      },
-      {
-        id: 'm4',
-        round: 1,
-        matchIndex: 3,
-        player1: { id: 'p7', name: 'Joaquín "DartMaster" Álvarez', avatarUrl: '/logos/dardos-argentina.png', seed: 5 },
-        player2: { id: 'p8', name: 'Rodrigo "El Rayo" Morales', avatarUrl: '/logos/logo-mdq.png', seed: 12 },
-        scoreP1: 0,
-        scoreP2: 0,
-        status: 'SCHEDULED',
-        scheduledTime: '16:30'
-      },
-      // Semifinales
-      {
-        id: 'sem1',
-        round: 2,
-        matchIndex: 0,
-        player1: { id: 'p1', name: 'Facundo "El Halcón" López', avatarUrl: '/logos/logo-mdq.png', seed: 1 },
-        player2: { id: 'p4', name: 'Lucas "Bullseye" Pereyra', avatarUrl: '/logos/dardos-argentina.png', seed: 9 },
-        scoreP1: 0,
-        scoreP2: 0,
-        status: 'SCHEDULED',
-        scheduledTime: '18:00'
-      },
-      {
-        id: 'sem2',
-        round: 2,
-        matchIndex: 1,
-        player1: undefined,
-        player2: undefined,
-        scoreP1: 0,
-        scoreP2: 0,
-        status: 'SCHEDULED',
-        scheduledTime: '18:45'
-      },
-      // Gran Final
-      {
-        id: 'final',
-        round: 3,
-        matchIndex: 0,
-        player1: undefined,
-        player2: undefined,
-        scoreP1: 0,
-        scoreP2: 0,
-        status: 'SCHEDULED',
-        scheduledTime: '20:30'
-      }
-    ]
-  },
-  {
-    id: 'torneo-nacional-online-501',
-    slug: 'liga-nacional-online-501',
-    title: 'Liga Federal Argentina 501 Online • Fecha 4',
-    description: 'Torneo 100% online con cámaras y anotador sincronizado para darderos de todo el país. Formato oficial de doble eliminación.',
-    type: 'ONLINE',
-    format: 'DOUBLE_ELIMINATION',
-    startingScore: 501,
-    outMode: 'DOUBLE_OUT',
-    bestOfLegs: 5,
-    maxParticipants: 32,
-    registeredCount: 28,
-    venueName: 'Sala Virtual Locos por los Dardos (Discord + Webcam)',
-    city: 'Nacional',
-    province: 'Argentina',
-    startDate: '2026-10-25T19:00:00Z',
-    endDate: '2026-10-25T23:30:00Z',
-    status: 'REGISTRATION_OPEN',
-    bannerImageUrl: '/logos/dardos-argentina.png',
-    entryFeeArs: 5000,
-    prizePoolArs: 140000,
-    organizer: 'Comunidad Locos por los Dardos',
-    matches: []
-  },
-  {
-    id: 'torneo-cricket-clausura',
-    slug: 'copa-costera-cricket',
-    title: 'Copa Costera Cricket MDQ • Edición Primavera',
-    description: 'Especialistas en Cricket se baten a duelo en Mar del Plata. Marcador táctil en vivo y tablero tradicional.',
-    type: 'PRESENCIAL',
-    format: 'SINGLE_ELIMINATION',
-    startingScore: 0,
-    outMode: 'SINGLE_OUT',
-    bestOfLegs: 5,
-    maxParticipants: 16,
-    registeredCount: 16,
-    venueName: 'Club Darderos MDQ • Sede Brown',
-    city: 'Mar del Plata',
-    province: 'Buenos Aires',
-    startDate: '2026-12-05T16:00:00Z',
-    endDate: '2026-12-05T21:00:00Z',
-    status: 'UPCOMING',
-    bannerImageUrl: '/logos/logo-mdq.png',
-    entryFeeArs: 10000,
-    prizePoolArs: 120000,
-    organizer: 'Darderos Mar del Plata',
-    matches: []
-  }
+// Lista de Países y Banderas Oficiales
+export interface CountryOption {
+  code: string;
+  name: string;
+  flag: string;
+}
+
+export const COUNTRIES: CountryOption[] = [
+  { code: 'AR', name: 'Argentina', flag: '🇦🇷' },
+  { code: 'UY', name: 'Uruguay', flag: '🇺🇾' },
+  { code: 'CL', name: 'Chile', flag: '🇨🇱' },
+  { code: 'BR', name: 'Brasil', flag: '🇧🇷' },
+  { code: 'PY', name: 'Paraguay', flag: '🇵🇾' },
+  { code: 'BO', name: 'Bolivia', flag: '🇧🇴' },
+  { code: 'PE', name: 'Perú', flag: '🇵🇪' },
+  { code: 'CO', name: 'Colombia', flag: '🇨🇴' },
+  { code: 'VE', name: 'Venezuela', flag: '🇻🇪' },
+  { code: 'EC', name: 'Ecuador', flag: '🇪🇨' },
+  { code: 'MX', name: 'México', flag: '🇲🇽' },
+  { code: 'ES', name: 'España', flag: '🇪🇸' },
+  { code: 'GB', name: 'Reino Unido', flag: '🇬🇧' },
+  { code: 'US', name: 'Estados Unidos', flag: '🇺🇸' },
+  { code: 'NL', name: 'Países Bajos', flag: '🇳🇱' },
+  { code: 'DE', name: 'Alemania', flag: '🇩🇪' },
+  { code: 'IT', name: 'Italia', flag: '🇮🇹' },
+  { code: 'FR', name: 'Francia', flag: '🇫🇷' },
+  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
+  { code: 'NZ', name: 'Nueva Zelanda', flag: '🇳🇿' }
 ];
+
+export function getCountryFlag(countryOrCode?: string): string {
+  if (!countryOrCode) return '🇦🇷';
+  const clean = countryOrCode.trim().toLowerCase();
+  const found = COUNTRIES.find(
+    (c) => c.name.toLowerCase() === clean || c.code.toLowerCase() === clean
+  );
+  return found ? found.flag : '🇦🇷';
+}
+
+// Lista oficial de Administradores Full de la Plataforma
+export const ADMIN_EMAILS: string[] = [
+  'marianodeux@gmail.com'
+];
+
+export function isUserAdmin(emailOrUser?: string | PlayerProfile | null): boolean {
+  if (!emailOrUser) return false;
+  const email = typeof emailOrUser === 'string' ? emailOrUser : emailOrUser.email;
+  if (!email) return false;
+  return ADMIN_EMAILS.some((adm) => adm.toLowerCase() === email.toLowerCase());
+}
+
+// Lista de torneos: Inicialmente limpia sin torneos mock no deseados
+export const MOCK_TOURNAMENTS: Tournament[] = [];
 
 export const MOCK_PRODUCTS: Product[] = [
   {
@@ -368,38 +265,43 @@ export const MOCK_PRODUCTS: Product[] = [
   }
 ];
 
-export const MOCK_CURRENT_USER: PlayerProfile = {
-  id: 'user-mdq-001',
-  email: 'facundo.mdq@dardosargentina.com',
-  nickname: 'El Halcón MDQ',
-  fullName: 'Facundo López',
-  phone: '+54 9 223 555-8941',
+export const USER_ICEMAN: PlayerProfile = {
+  id: 'user-iceman-admin',
+  email: 'marianodeux@gmail.com',
+  nickname: 'ICEMAN',
+  fullName: 'Mariano Deux (ICEMAN)',
+  phone: '+54 9 223 000-0000',
+  nationality: 'Argentina',
+  countryCode: 'AR',
   province: 'Buenos Aires',
   city: 'Mar del Plata',
   avatarUrl: '/logos/logo-mdq.png',
-  estimatedAvg: 68.5,
-  category: 'AVANZADA',
+  estimatedAvg: 75.0,
+  category: 'ELITE',
   isVerified: true,
-  bio: 'Jugador activo de Darderos Mar del Plata. Especialista en 501 Doble Out. Entrenando para clasificar a los torneos sudamericanos.',
-  preferredDartWeight: 23.0,
+  role: 'ADMIN',
+  bio: 'Administrador Full de Torneos y Plataforma Oficial • Locos por los Dardos & Darderos Mar del Plata.',
+  preferredDartWeight: 24.0,
   stats: {
-    overallAvg: 64.8,
-    first9Avg: 73.2,
-    matchesPlayed: 84,
-    matchesWon: 59,
-    legsPlayed: 320,
-    legsWon: 204,
-    highestCheckout: 156,
-    checkoutAttempts: 210,
-    checkoutHits: 78,
-    checkoutPercentage: 37.1,
-    count180s: 31,
-    count140Plus: 142,
-    count100Plus: 420,
-    count60Plus: 890,
-    bestLegDarts: 14
+    overallAvg: 74.5,
+    first9Avg: 82.0,
+    matchesPlayed: 120,
+    matchesWon: 95,
+    legsPlayed: 480,
+    legsWon: 340,
+    highestCheckout: 170,
+    checkoutAttempts: 250,
+    checkoutHits: 110,
+    checkoutPercentage: 44.0,
+    count180s: 58,
+    count140Plus: 210,
+    count100Plus: 650,
+    count60Plus: 1200,
+    bestLegDarts: 11
   }
 };
+
+export const MOCK_CURRENT_USER: PlayerProfile = USER_ICEMAN;
 
 export const MOCK_RANKINGS: PlayerProfile[] = [
   {

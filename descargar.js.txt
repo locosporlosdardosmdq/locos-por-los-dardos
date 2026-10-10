@@ -1,0 +1,37 @@
+const fs = require('fs');
+const path = require('path');
+const http = require('https'); // Usamos https para el servidor seguro
+
+const carpetaDestino = path.join(__dirname, 'audios_russ_bray');
+
+// Crear la carpeta local si no existe
+if (!fs.existsSync(carpetaDestino)) {
+    fs.mkdirSync(carpetaDestino);
+}
+
+const baseUrl = "https://x10.mx";
+
+console.log("=== Iniciando descarga de audios de Russ Bray ===");
+
+// Bucle para descargar del 1 al 180
+for (let i = 1; i <= 180; i++) {
+    const nombreArchivo = `${i}.mp3`;
+    const urlCompleta = `${baseUrl}${nombreArchivo}`;
+    const rutaLocal = path.join(carpetaDestino, nombreArchivo);
+
+    http.get(urlCompleta, (res) => {
+        if (res.statusCode === 200) {
+            const streamEscritura = fs.createWriteStream(rutaLocal);
+            res.pipe(streamEscritura);
+            
+            streamEscritura.on('finish', () => {
+                streamEscritura.close();
+                if (i === 180) console.log("¡Descarga completada con éxito! Revisa la carpeta 'audios_russ_bray'.");
+            });
+        } else {
+            console.log(`Puntaje no disponible en el servidor: ${i}`);
+        }
+    }).on('error', (err) => {
+        console.error(`Error descargando el número ${i}:`, err.message);
+    });
+}

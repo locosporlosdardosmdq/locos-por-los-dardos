@@ -1,9 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { PlayerProfile, PlayerCategory } from '@/lib/types';
-import { PROVINCIAS_ARGENTINA, calculateCategory, CATEGORY_DETAILS, MOCK_CURRENT_USER } from '@/lib/constants';
+import { 
+  PROVINCIAS_ARGENTINA, 
+  calculateCategory, 
+  CATEGORY_DETAILS, 
+  MOCK_CURRENT_USER, 
+  USER_ICEMAN,
+  COUNTRIES, 
+  getCountryFlag, 
+  isUserAdmin 
+} from '@/lib/constants';
+import { getCurrentPlayerProfile, saveCurrentPlayerProfile } from '@/lib/storage';
 import { 
   User, 
   MapPin, 
@@ -15,18 +25,25 @@ import {
   Crosshair,
   Award,
   Zap,
-  Edit3
+  Edit3,
+  Globe,
+  ShieldAlert,
+  LogIn
 } from 'lucide-react';
 
 export const RegisterAndProfile: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'PROFILE' | 'REGISTER_EDIT'>('PROFILE');
-  const [profile, setProfile] = useState<PlayerProfile>(MOCK_CURRENT_USER);
+  const [profile, setProfile] = useState<PlayerProfile>(() => {
+    return getCurrentPlayerProfile(MOCK_CURRENT_USER);
+  });
 
   // Form State
   const [fullName, setFullName] = useState(profile.fullName);
   const [nickname, setNickname] = useState(profile.nickname);
   const [email, setEmail] = useState(profile.email);
   const [phone, setPhone] = useState(profile.phone || '');
+  const [nationality, setNationality] = useState(profile.nationality || 'Argentina');
+  const [countryCode, setCountryCode] = useState(profile.countryCode || 'AR');
   const [province, setProvince] = useState(profile.province);
   const [city, setCity] = useState(profile.city);
   const [estimatedAvg, setEstimatedAvg] = useState<number>(profile.estimatedAvg);
@@ -34,25 +51,49 @@ export const RegisterAndProfile: React.FC = () => {
   const [preferredWeight, setPreferredWeight] = useState<number>(profile.preferredDartWeight || 23);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Sincronizar estado cuando se actualiza el perfil en storage
+  useEffect(() => {
+    const handleProfileUpdate = (e: any) => {
+      if (e.detail) {
+        setProfile(e.detail);
+        setFullName(e.detail.fullName);
+        setNickname(e.detail.nickname);
+        setEmail(e.detail.email);
+        setNationality(e.detail.nationality || 'Argentina');
+        setCountryCode(e.detail.countryCode || 'AR');
+        setProvince(e.detail.province);
+        setCity(e.detail.city);
+        setEstimatedAvg(e.detail.estimatedAvg);
+      }
+    };
+    window.addEventListener('lpld_profile_updated', handleProfileUpdate);
+    return () => window.removeEventListener('lpld_profile_updated', handleProfileUpdate);
+  }, []);
+
   const calculatedCategory = calculateCategory(estimatedAvg);
   const categoryInfo = CATEGORY_DETAILS[calculatedCategory];
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    const isAdmin = isUserAdmin(email);
     const updated: PlayerProfile = {
       ...profile,
       fullName,
       nickname,
       email,
       phone,
+      nationality,
+      countryCode,
       province,
       city,
       estimatedAvg,
       category: calculatedCategory,
       bio,
-      preferredDartWeight: preferredWeight
+      preferredDartWeight: preferredWeight,
+      role: isAdmin ? 'ADMIN' : (profile.role || 'PLAYER')
     };
     setProfile(updated);
+    saveCurrentPlayerProfile(updated);
     setSaveSuccess(true);
     setTimeout(() => {
       setSaveSuccess(false);
@@ -60,12 +101,30 @@ export const RegisterAndProfile: React.FC = () => {
     }, 1200);
   };
 
+  const handleSwitchToIceman = () => {
+    setProfile(USER_ICEMAN);
+    setFullName(USER_ICEMAN.fullName);
+    setNickname(USER_ICEMAN.nickname);
+    setEmail(USER_ICEMAN.email);
+    setPhone(USER_ICEMAN.phone || '');
+    setNationality(USER_ICEMAN.nationality || 'Argentina');
+    setCountryCode(USER_ICEMAN.countryCode || 'AR');
+    setProvince(USER_ICEMAN.province);
+    setCity(USER_ICEMAN.city);
+    setEstimatedAvg(USER_ICEMAN.estimatedAvg);
+    setBio(USER_ICEMAN.bio || '');
+    saveCurrentPlayerProfile(USER_ICEMAN);
+    alert('¡Sesión iniciada con éxito como ICEMAN (Superadministrador Full)!');
+  };
+
   const currentCategoryInfo = CATEGORY_DETAILS[profile.category];
+  const flag = getCountryFlag(profile.countryCode || profile.nationality);
+  const isProfileAdmin = isUserAdmin(profile);
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6">
       {/* Selector de Pestañas en Gris Oscuro */}
-      <div className="flex items-center justify-between bg-[#1c1f2b] border border-[#313647] p-2 rounded-2xl">
+      <div className="flex flex-wrap items-center justify-between bg-[#1c1f2b] border border-[#313647] p-2 rounded-2xl gap-2">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab('PROFILE')}
@@ -91,9 +150,29 @@ export const RegisterAndProfile: React.FC = () => {
           </button>
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 text-xs text-[#00b853] px-3 font-bold">
-          <ShieldCheck className="w-4 h-4" />
-          <span>Jugador Federado Argentino</span>
+        <div className="flex items-center gap-2">
+          {/* Botón de acceso rápido para ICEMAN */}
+          {!isProfileAdmin && (
+            <button
+              type="button"
+              onClick={handleSwitchToIceman}
+              className="px-3 py-1.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444] text-[#ef4444] hover:text-white border border-[#ef4444]/40 text-xs font-black flex items-center gap-1.5 transition-all"
+              title="Iniciar sesión como ICEMAN (Superadministrador)"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Login ICEMAN (Admin)</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-2 text-xs text-[#00b853] px-3 font-bold bg-[#14161f] border border-[#313647] rounded-xl py-1.5">
+            <span className="text-base select-none">{flag}</span>
+            <ShieldCheck className="w-4 h-4" />
+            <span>
+              {profile.countryCode === 'AR' || !profile.countryCode
+                ? 'Jugador Federado Argentino'
+                : `Jugador Internacional (${profile.nationality})`}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -108,22 +187,33 @@ export const RegisterAndProfile: React.FC = () => {
               <div className="flex items-center gap-5">
                 <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-[#00b853] shadow-xl bg-[#14161f] p-1 flex-shrink-0">
                   <Image
-                    src={profile.avatarUrl}
+                    src={profile.avatarUrl || '/logos/logo-mdq.png'}
                     alt={profile.nickname}
                     fill
                     className="object-contain p-2"
                   />
-                  <span className="absolute bottom-1 right-1 w-4 h-4 bg-[#00b853] border-2 border-[#14161f] rounded-full"></span>
+                  <span className="absolute bottom-1 right-1 text-xl select-none" title={profile.nationality || 'Argentina'}>
+                    {flag}
+                  </span>
                 </div>
 
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-3xl select-none" title={profile.nationality || 'Argentina'}>
+                      {flag}
+                    </span>
                     <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                       {profile.nickname}
                     </h2>
                     <span className="text-xs font-black px-2.5 py-0.5 rounded-lg border bg-[#00b853]/20 text-[#00b853] border-[#00b853]/40">
                       {currentCategoryInfo.label}
                     </span>
+                    {isProfileAdmin && (
+                      <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-[#ef4444] text-white flex items-center gap-1 shadow-md shadow-[#ef4444]/30">
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                        ADMINISTRADOR FULL
+                      </span>
+                    )}
                     {profile.isVerified && (
                       <span className="text-[#00b853] flex items-center gap-1 text-xs font-black bg-[#00b853]/15 px-2 py-0.5 rounded-md border border-[#00b853]/30">
                         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -132,12 +222,17 @@ export const RegisterAndProfile: React.FC = () => {
                     )}
                   </div>
 
-                  <p className="text-[#efe7d8] font-medium text-sm flex items-center gap-2">
+                  <p className="text-[#efe7d8] font-medium text-sm flex flex-wrap items-center gap-2">
                     <span>{profile.fullName}</span>
+                    <span className="text-[#313647]">•</span>
+                    <span className="flex items-center gap-1.5 text-white font-bold text-xs bg-[#14161f] px-2.5 py-0.5 rounded-lg border border-[#313647]">
+                      <span className="text-sm select-none">{flag}</span>
+                      <span>{profile.nationality || 'Argentina'}</span>
+                    </span>
                     <span className="text-[#313647]">•</span>
                     <span className="flex items-center gap-1 text-[#b8ad98] text-xs">
                       <MapPin className="w-3.5 h-3.5 text-[#00b853]" />
-                      {profile.city}, {profile.province}
+                      {profile.city}{profile.province ? `, ${profile.province}` : ''}
                     </span>
                   </p>
 
@@ -391,21 +486,61 @@ export const RegisterAndProfile: React.FC = () => {
                 />
               </div>
 
+              {/* Nacionalidad y Bandera Oficial */}
+              <div className="sm:col-span-2">
+                <label className="text-xs font-bold text-[#efe7d8] block mb-1 uppercase flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-[#00b853]" />
+                  <span>Nacionalidad Oficial & Bandera</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-11 rounded-xl bg-[#14161f] border border-[#00b853]/40 flex items-center justify-center text-2xl select-none flex-shrink-0 shadow-sm">
+                    {getCountryFlag(countryCode || nationality)}
+                  </div>
+                  <select
+                    value={countryCode}
+                    onChange={(e) => {
+                      const sel = COUNTRIES.find((c) => c.code === e.target.value);
+                      if (sel) {
+                        setCountryCode(sel.code);
+                        setNationality(sel.name);
+                      }
+                    }}
+                    className="flex-1 bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00b853]"
+                  >
+                    {COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs font-bold text-[#efe7d8] block mb-1 uppercase">
-                  Provincia (Argentina)
+                  Provincia {countryCode === 'AR' ? '(Argentina)' : '/ Región'}
                 </label>
-                <select
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
-                  className="w-full bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00b853]"
-                >
-                  {PROVINCIAS_ARGENTINA.map((prov) => (
-                    <option key={prov} value={prov}>
-                      {prov}
-                    </option>
-                  ))}
-                </select>
+                {countryCode === 'AR' ? (
+                  <select
+                    value={province}
+                    onChange={(e) => setProvince(e.target.value)}
+                    className="w-full bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00b853]"
+                  >
+                    {PROVINCIAS_ARGENTINA.map((prov) => (
+                      <option key={prov} value={prov}>
+                        {prov}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={province}
+                    onChange={(e) => setProvince(e.target.value)}
+                    className="w-full bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00b853]"
+                    placeholder="Región o Estado"
+                  />
+                )}
               </div>
 
               <div>

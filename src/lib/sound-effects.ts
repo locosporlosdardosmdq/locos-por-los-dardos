@@ -187,54 +187,53 @@ export const VoiceCaller = {
    * - 120 a 169: Con mucho énfasis (pitch 1.35, rate 1.25)
    * - 170 a 180: Audio original de Clemens Kuntze (ONE HUNDRED AND EIGHTY!)
    */
+  /**
+   * Canto de puntuación con audios reales de estudio de Russ Bray y Clemens Kuntze:
+   * - 180: Audio original de Clemens Kuntze ("ONE HUNDRED AND EIGHTY!")
+   * - 1 al 179: Archivos MP3 oficiales de alta fidelidad de Russ Bray (/sounds/russ_bray/{score}.mp3)
+   */
   announceScore: (score: number, remaining = 0) => {
-    if (score >= 170) {
-      // 170 al 180: Audio original de Clemens Kuntze
+    if (score === 180) {
       SoundEngine.playClemens180();
-      if (score === 180) {
-        SoundEngine.playBullseye();
-      } else {
-        // Para 170-179 cantar con clímax antes del sonido original
-        VoiceCaller.speak(`¡${score}!`, { pitch: 1.4, rate: 1.25 });
-      }
+      SoundEngine.playBullseye();
+      return;
+    }
+
+    if (score >= 170 && score < 180) {
+      // Intentar reproducir el MP3 del número y rematar
+      const audio = new Audio(`/sounds/russ_bray/${score}.mp3`);
+      audio.volume = 1.0;
+      audio.play().catch(() => {
+        SoundEngine.playClemens180();
+      });
       return;
     }
 
     if (remaining === 0 && score > 0) {
-      VoiceCaller.speak('¡Game Shot! ¡Cierre de pierna!', { pitch: 1.3, rate: 1.2 });
-      SoundEngine.playGameShot();
+      const audioGameShot = new Audio('/sounds/russ_bray/gameshot.mp3');
+      audioGameShot.volume = 1.0;
+      audioGameShot.play().catch(() => {
+        SoundEngine.playGameShot();
+        VoiceCaller.speak('Game shot and the match', { lang: 'en-GB' });
+      });
       return;
     }
 
-    // Banda 1: Menores a 20 (Muy pesimista)
-    if (score < 20) {
-      const pesimisticText = score === 0 ? 'Sin puntuación...' : `${score}...`;
-      VoiceCaller.speak(pesimisticText, { pitch: 0.65, rate: 0.82 });
+    if (score <= 0) {
+      VoiceCaller.speak('No score', { pitch: 0.8, rate: 0.9, lang: 'en-GB' });
       return;
     }
 
-    // Banda 2: 20 al 59 (Normal)
-    if (score >= 20 && score <= 59) {
-      VoiceCaller.speak(`${score}`, { pitch: 1.0, rate: 1.0 });
-      return;
-    }
-
-    // Banda 3: 60 al 89 (Con énfasis)
-    if (score >= 60 && score <= 89) {
-      VoiceCaller.speak(`¡${score}!`, { pitch: 1.15, rate: 1.1 });
-      return;
-    }
-
-    // Banda 4: 90 al 119 (Con más énfasis)
-    if (score >= 90 && score <= 119) {
-      VoiceCaller.speak(`¡${score}!`, { pitch: 1.25, rate: 1.18 });
-      return;
-    }
-
-    // Banda 5: 120 al 169 (Con mucho énfasis)
-    if (score >= 120 && score <= 169) {
-      VoiceCaller.speak(`¡${score}!`, { pitch: 1.35, rate: 1.25 });
-      return;
+    // Reproducir audio real de Russ Bray desde /sounds/russ_bray/{score}.mp3
+    try {
+      const audio = new Audio(`/sounds/russ_bray/${score}.mp3`);
+      audio.volume = 1.0;
+      audio.play().catch((err) => {
+        console.warn(`[VoiceCaller] Error reproduciendo MP3 para score ${score}, usando fallback:`, err);
+        VoiceCaller.speak(`${score}`, { lang: 'en-GB', rate: 1.05 });
+      });
+    } catch {
+      VoiceCaller.speak(`${score}`, { lang: 'en-GB', rate: 1.05 });
     }
   },
 

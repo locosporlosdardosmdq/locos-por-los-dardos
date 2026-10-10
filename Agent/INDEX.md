@@ -44,8 +44,9 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `MatchPdcStatsModal.tsx`: Modal oficial de estadísticas estándar PDC con comparativa lado a lado (Legs, 3 Darts AVG, First 9, 100+, 140+, 180s, High Finish, Best Leg, MPR).
   * `CheckoutGuide.tsx`: Guía interactiva de combinaciones para cierre en dobles y alerta de números bogey.
 * **`torneos/`:**
-  * `TournamentManager.tsx`: Orquestador principal de torneos con pestañas de Brackets, Grupos (Round Robin), Inscriptos y Pantalla TV de Club.
-  * `TournamentBracket.tsx`: Visor visual interactivo del cuadro eliminatorio con partidas clickeables.
+  * `TournamentManager.tsx`: Orquestador principal de torneos con selector de pestañas (Torneos Activos con tabla oficial vs Historial de Torneos con desarrollo completo de la llave eliminatoria y panel de estadísticas consolidadas).
+  * `TournamentBracket.tsx`: Visor visual interactivo del cuadro eliminatorio con banderas oficiales de nacionalidad, estados de partida, partidas clickeables y accesos de administración.
+  * `AdminMatchModal.tsx`: Modal exclusivo para Administradores Oficiales (ICEMAN) con edición manual de legs, avance por Walkover (W.O.) ante jugador ausente y reseteo de partida a 0-0.
   * `TournamentGroupStage.tsx`: Fase de grupos (Round Robin) con tabla de posiciones oficial (PJ, G, P, LF, LC, +/-, Pts) y cruces a playoffs.
   * `MatchDispatcherModal.tsx`: Menú contextual de lanzamiento de partido (Partida Online, Anotador en Vivo de Club, o Registrar Resultados).
   * `PlayerEnrollModal.tsx`: Modal de inscripción y acreditación de competidores con contraseña de participante y toggle de webcam.
@@ -54,7 +55,7 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `TournamentHeroBanner.tsx`: Head banner promocional de torneos con modal de inscripción.
   * `NationalRankings.tsx`: Tabla de posiciones y podio con filtros provinciales.
 * **`perfil/`:**
-  * `RegisterAndProfile.tsx`: Formulario de registro, slider interactivo de AVG y dashboard de stats.
+  * `RegisterAndProfile.tsx`: Ficha deportiva del jugador con selector de nacionalidad y banderas internacionales (`COUNTRIES`), provincias argentinas, slider interactivo de AVG, categorización automática y dashboard de estadísticas.
 * **`tienda/`:**
   * `ProductCatalog.tsx`: Grilla de productos con buscador y selector de marcas/categorías.
   * `CartDrawer.tsx`: Drawer lateral deslizable de compras con checkout de Mercado Pago.

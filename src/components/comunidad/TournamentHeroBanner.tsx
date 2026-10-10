@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export const TournamentHeroBanner: React.FC = () => {
-  const featuredTournament: Tournament = MOCK_TOURNAMENTS[0]; // Open Mar del Plata 2026
+  const featuredTournament: Tournament | undefined = MOCK_TOURNAMENTS[0];
   const [registered, setRegistered] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
@@ -83,7 +83,7 @@ export const TournamentHeroBanner: React.FC = () => {
                 <Users className="w-3 h-3 text-[#1d68ed]" /> Inscriptos
               </span>
               <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5">
-                {featuredTournament.registeredCount} / {featuredTournament.maxParticipants}
+                {featuredTournament?.registeredCount || 0} / {featuredTournament?.maxParticipants || 64}
               </strong>
             </div>
           </div>

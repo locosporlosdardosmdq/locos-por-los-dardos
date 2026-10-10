@@ -37,6 +37,20 @@
   1. Conexión de autenticación de usuarios y perfiles persistentes en base de datos.
   2. Automatización del sorteo de emparejamientos y cabezas de serie en torneos.
 
+## [Sesión 3] - 2026-10-10
+- **Objetivo:** Rediseño integral y profesional del Anotador Oficial en Vivo (501 + Cricket) conforme a las especificaciones y capturas del usuario: estética de la diana (fondo negro `#07090e`, presencia protagónica de rojo diana `#ef4444` y verde diana `#00e676`), teclado táctil de 5 columnas, soporte por parejas (2 vs 2), pizarra de Cricket Whiteboard View y modal de estadísticas oficiales estándar PDC.
+- **Realizado:**
+  - Creación de `MatchGameSettings.tsx`: Pantalla de configuración previa para 501 y Cricket con selección de jugadores registrados en la app, soporte para modalidad de parejas (2 vs 2 con rotación de 4 turnos), distancia en legs/sets y reglas de cierre.
+  - Creación de `X01Board.tsx`: Tablero de juego interactivo de 501 idéntico a las capturas, con teclado táctil ergonómico de 5 columnas (`26, 41, 45, CLR` a la izquierda, `1..9, 0` al centro, y `60, 85, 100, no Score` a la derecha), marcadores gigantes de puntaje restante, AVG, First 9, barra central S/L y checkout guide interactiva.
+  - Creación de `CricketBoard.tsx`: Pizarra táctil de Cricket (Whiteboard View) de 5 columnas con los 7 sectores (`20, 19, 18, 17, 16, 15, Bull`), botones D y T, simbología oficial (`/`, `✕`, `⊗`), modos Default / Cut Throat / No Score y cálculo dinámico de MPR.
+  - Creación de `MatchPdcStatsModal.tsx`: Modal oficial de estadísticas comparativas PDC (Legs, 3-Darts AVG, First 9, 100+, 140+, 180s, High Finish, Best Leg, MPR).
+  - Refactorización de `DartScorer.tsx` como orquestador desacoplado preservando persistencia local y broadcast de pista.
+  - Validación de compilación TypeScript (`npx tsc --noEmit`) con 0 errores y prueba interactiva completa en navegador con subagente.
+- **Estado del Proyecto:** Anotador 100% operativo, probado y alineado con los estándares del circuito competitivo. Listo para continuar con la integración en caliente del módulo de Torneos y Partidas.
+- **Próximos pasos recomendados:**
+  1. Conexión del fixture de Torneos (Grupos y Brackets) con el Anotador mediante despacho de partidos (*Online*, *Live Presencial en el Club*, o *Carga Rápida*).
+  2. Implementación de hardware de pista (cámara web / segundo dispositivo celular para enfocar la diana).
+
 ---
 
 ## [Sesión 2] - 2026-10-10

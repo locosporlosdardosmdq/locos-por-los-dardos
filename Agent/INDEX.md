@@ -37,8 +37,11 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 * **`jugadores/`:**
   * `PlayerDirectory.tsx`: Directorio federal con buscador en vivo, filtros combinados y fichas deportivas.
 * **`anotador/`:**
-  * `DartScorer.tsx`: Tablero digital central, lógica de X01/Cricket/CPU, promedio global y First 9.
-  * `DartKeypad.tsx`: Teclado táctil dual (Puntuación Total vs Dardo x Dardo con multiplicadores).
+  * `DartScorer.tsx`: Orquestador principal de partidas, selector de vistas (Settings -> Game Board -> Stats) y canal de broadcast en vivo.
+  * `MatchGameSettings.tsx`: Pantalla de configuración previa para 501 y Cricket, con soporte individual y por parejas (2 vs 2), distancias (Legs/Sets) y reglas de cierre.
+  * `X01Board.tsx`: Tablero oficial de 501 con diseño de diana (fondo negro `#07090e`, presencia dominante de rojo diana `#ef4444`), teclado táctil de 5 columnas con atajos rápidos (`26, 41, 45, CLR | 1..9, 0 | 60, 85, 100, no Score`), marcadores gigantes y cálculo de AVG y First 9.
+  * `CricketBoard.tsx`: Pizarra táctil interactiva de Cricket (Whiteboard View) con 5 columnas, marcas oficiales (`/`, `✕`, `⊗`), multiplicadores D y T, modos Default / Cut Throat / No Score y cálculo de MPR.
+  * `MatchPdcStatsModal.tsx`: Modal oficial de estadísticas estándar PDC con comparativa lado a lado (Legs, 3 Darts AVG, First 9, 100+, 140+, 180s, High Finish, Best Leg, MPR).
   * `CheckoutGuide.tsx`: Guía interactiva de combinaciones para cierre en dobles y alerta de números bogey.
 * **`torneos/`:**
   * `TournamentManager.tsx`: Administrador de torneos, pestañas de llaves, grupos e inscriptos.

@@ -82,3 +82,24 @@
   * **Colapso/Expansión en PC (Hover Puro):** Se eliminaron por completo los controles y botones manuales de colapsar/expandir. La interacción está gobernada exclusivamente por el *mouse over* (`onMouseEnter` expande a 256px y `onMouseLeave` repliega a 80px). El margen del layout en desktop es fijo (`lg:pl-20`) para evitar saltos o parpadeos de pantalla (*layout shift*) mientras el menú flota con sombra envolvente.
   * **Navegación Móvil (Celulares/Tablets):** Se implementó `AppBottomNav.tsx` fija en el pie de pantalla con 5 accesos táctiles, destacando el botón central de Anotador en verde neón elevado (`w-13 h-13`) para tiro rápido, y un drawer lateral fluido para opciones adicionales sin robar espacio horizontal durante el juego.
 - **Motivo:** Máxima ergonomía en el mundo real (pantallas móviles en torneos presenciales) y control total del espacio de visualización en monitores de PC sin botones innecesarios que distraigan la atención.
+
+---
+
+## ADR-010: Arquitectura Modular del Anotador (501 + Cricket) y Métricas Estándar PDC
+
+- **Fecha:** 2026-10-10
+- **Estado:** ACEPTADA
+- **Contexto:**
+  El Anotador es el corazón deportivo de la plataforma. Tanto para partidos individuales como para torneos, el sistema requería:
+  1. Pantalla de configuración previa completa (individual y parejas 2 vs 2 emparentadas a los perfiles de la app).
+  2. Tablero de 501 con teclado táctil ergonómico de 5 columnas con atajos rápidos de tiro (`26, 41, 45, CLR` a la izquierda y `60, 85, 100, no Score` a la derecha) y paleta de la diana (fondo negro `#07090e`, presencia destacada de rojo diana `#ef4444` y verde diana `#00e676`).
+  3. Tablero de Cricket con pizarra interactiva (Whiteboard View) de 5 columnas con multiplicadores D y T, simbología oficial (`/`, `✕`, `⊗`) y los 3 modos: Default, Cut Throat y No Score.
+  4. Métricas oficiales estándar PDC (3-Darts AVG, First 9 AVG, 100+, 140+, 180s, High Finish, Best Leg, MPR) que impactan en vivo en los perfiles.
+- **Decisión:**
+  Se desacopló el monolito previo en 4 componentes especializados y tipados:
+  * `MatchGameSettings.tsx`: Configuración previa, selector de jugadores y reglas.
+  * `X01Board.tsx`: Tablero de 501 con teclado ergonómico de 5 columnas.
+  * `CricketBoard.tsx`: Pizarra táctil interactiva de Cricket con multiplicadores y marcas.
+  * `MatchPdcStatsModal.tsx`: Modal oficial de estadísticas comparativas PDC.
+  * `DartScorer.tsx`: Orquestador principal que preserva persistencia offline-first (`saveCompletedMatch`) y broadcast de pista (`matchBroadcast.publish`).
+- **Motivo:** Cero acoplamiento, alta velocidad de renderizado, fidelidad absoluta a las necesidades de los jugadores al pie del oche y base sólida para conectar el módulo de Torneos.

@@ -37,18 +37,41 @@ export interface PlayerProfile {
 }
 
 export type GameType = 'X01' | 'CRICKET' | 'ROUND_THE_CLOCK' | 'HALVE_IT';
+export type CricketMode = 'DEFAULT' | 'CUT_THROAT' | 'NO_SCORE';
 export type OutMode = 'SINGLE_OUT' | 'DOUBLE_OUT' | 'MASTER_OUT';
+export type InputFormat = 'SCORE' | 'DART_BY_DART';
+export type DistanceType = 'LEGS' | 'SETS';
 export type CpuDifficulty = 'BEGINNER' | 'MEDIUM' | 'ADVANCED' | 'PRO';
+
+export interface ParticipantPlayer {
+  id: string;
+  name: string;
+  nickname?: string;
+  avatarUrl?: string;
+  teammateId?: string;
+  teammateName?: string;
+  isBot?: boolean;
+}
 
 export interface MatchConfig {
   gameType: GameType;
+  cricketMode?: CricketMode;
   startingScore: 170 | 301 | 501 | 701;
   outMode: OutMode;
+  inputFormat: InputFormat;
+  distanceType: DistanceType;
+  bestOfSets: number;
   bestOfLegs: number;
+  doubleIn: boolean;
+  twoClearLegs: boolean;
+  isDoubles: boolean;
   isVsCpu: boolean;
   cpuDifficulty: CpuDifficulty;
-  player1Name: string;
-  player2Name: string;
+  player1: ParticipantPlayer;
+  player2: ParticipantPlayer;
+  // Campos retrocompatibles
+  player1Name?: string;
+  player2Name?: string;
 }
 
 export interface DartThrow {

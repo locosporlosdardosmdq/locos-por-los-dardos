@@ -125,6 +125,10 @@ export const SoundEngine = {
         audio.pause();
       }, 7000);
     } catch {}
+  },
+
+  play180: () => {
+    SoundEngine.playBullseye();
   }
 };
 
@@ -147,6 +151,18 @@ export const VoiceCaller = {
     } catch (e) {
       console.warn('Speech synthesis error', e);
     }
+  },
+
+  speakScore: (score: number) => {
+    VoiceCaller.announceScore(score, 0);
+  },
+
+  speakBust: () => {
+    VoiceCaller.announceBust();
+  },
+
+  speakGameShot: () => {
+    VoiceCaller.speak('¡Game Shot! ¡Juego y pierna!', 'es-ES');
   },
 
   announceScore: (score: number, remaining: number) => {

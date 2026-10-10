@@ -18,15 +18,21 @@
 - [x] Módulo Directorio Federal de Jugadores (`/jugadores` y `PlayerDirectory.tsx`) con filtros por provincia, categoría de AVG y reto directo.
 - [x] Verificación de compilación limpia de producción (`npm run build`) con 0 errores de tipos y lint.
 - [x] Erradicación completa de referencias externas (Nakka01): identidad de producto soberana y 100% propia.
+- [x] **Anotador Oficial Profesional Rediseñado (501 + Cricket + Modalidad Parejas 2 vs 2):**
+  * Pantalla previa de configuración (`MatchGameSettings.tsx`) para 501 y Cricket con selección de jugadores registrados o parejas de la app.
+  * Tablero interactivo de 501 (`X01Board.tsx`) con paleta oficial de la diana (fondo negro `#07090e`, presencia fuerte de rojo diana `#ef4444`), teclado táctil de 5 columnas con atajos rápidos (`26, 41, 45, CLR | 1..9, 0 | 60, 85, 100, no Score`), marcadores gigantes y cálculo de AVG y First 9.
+  * Pizarra táctil de Cricket (`CricketBoard.tsx`) con 5 columnas, marcas (`/`, `✕`, `⊗`), modos Default, Cut Throat y No Score, y cálculo de MPR.
+  * Modal oficial de estadísticas estándar PDC (`MatchPdcStatsModal.tsx`) con comparativa lado a lado (Legs, 3 Darts AVG, First 9, 100+, 140+, 180s, High Finish, Best Leg).
+  * Rotación estricta de tiros para modalidad por parejas (4 turnos) emparentada a los perfiles de la comunidad.
 
 ---
 
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos
-- [ ] **Módulo de Torneos Avanzado (Motor de Competición Propio):**
-  * Sorteo automático de llaves y grupos oficial (Single Elimination, Double Elimination, Round Robin).
-  * Panel de control de árbitro de mesa y asignación de pistas de juego (Oche 1, Oche 2, Oche 3...).
-  * Integración en caliente del marcador en vivo de pista con la planilla del torneo.
-  * Generación y exportación de cuadros a PDF / PNG.
+- [ ] **Módulo de Torneos Avanzado y Partidas Conectadas (Integrado con el nuevo Anotador):**
+  * Despachador de partidos (*Online*, *Live Presencial en el Club*, o *Carga Rápida de Resultado*).
+  * Conexión directa del fixture con el nuevo Anotador (`DartScorer.tsx`) para jugar el match y reportar el resultado en caliente.
+  * Fase de Grupos (Round Robin) con desempate por diferencia de legs ($+/-$) y fase eliminatoria (Brackets).
+  * Acreditación de jugador y configuración de hardware (Webcam, micrófono y segundo dispositivo / celular).
 
 ---
 

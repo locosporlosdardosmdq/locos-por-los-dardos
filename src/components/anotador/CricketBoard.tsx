@@ -286,6 +286,12 @@ export const CricketBoard: React.FC<CricketBoardProps> = ({
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444] animate-ping" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">
+                {config.tournamentTitle ? `${config.tournamentTitle} • Oche Asignado` : 'Partida individual'}
+              </span>
+            </div>
             <h2 className="text-lg font-black text-white leading-tight">Cricket</h2>
             <p className="text-[10px] text-slate-400">
               Modo: <span className="text-[#00e676] font-bold">{cricketMode}</span> • Legs: {config.bestOfLegs}

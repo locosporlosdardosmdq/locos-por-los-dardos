@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { BrandLogo } from '../BrandLogo';
 import { 
   ShoppingBag, 
   Trophy, 
@@ -11,6 +11,8 @@ import {
   BarChart3, 
   Users, 
   Settings, 
+  UserCog,
+  LogOut,
   X
 } from 'lucide-react';
 
@@ -25,6 +27,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const [isHovered, setIsHovered] = useState(false);
+
+  const handleLogout = () => {
+    if (confirm('¿Deseas cerrar la sesión de Facundo López?')) {
+      alert('Sesión cerrada. Hasta la próxima partida.');
+    }
+  };
 
   // Módulos oficiales en el orden exacto solicitado:
   // 1. La tienda online
@@ -89,22 +97,40 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   // Render del contenido del sidebar según el estado expandido (isHovered en desktop o true en móvil)
   const renderSidebarContent = (isExpanded: boolean, isMobileView: boolean) => (
     <div className="flex flex-col h-full bg-[#0a0e17] select-none">
-      {/* Encabezado con Identidad Oficial (SIN CONTROLES MANUALES) */}
+      {/* Encabezado: SOLO TEXTO (sin logos ni imágenes) */}
       <div className={`p-4 border-b border-[#1a2333] flex items-center justify-between transition-all ${
         !isExpanded ? 'justify-center p-3' : 'px-4'
       }`}>
         <Link 
           href="/" 
           onClick={onCloseMobile}
-          className="flex items-center gap-2 overflow-hidden"
-          title="Locos por los Dardos • Argentina & Darderos MDQ"
+          className="flex items-center overflow-hidden group"
+          title="Locos por los Dardos"
         >
           {!isExpanded ? (
-            <div className="w-10 h-10 rounded-xl bg-[#0f1524] border border-[#1e2a40] flex items-center justify-center p-1 hover:border-[#00e676] transition-colors">
-              <BrandLogo size="sm" showText={false} />
+            <div className="py-1 flex flex-col items-center justify-center select-none text-center">
+              <span className="font-black text-sm text-white tracking-wider leading-none group-hover:text-[#00e676] transition-colors">
+                LPD
+              </span>
+              <span className="font-bold text-[9px] text-[#ef4444] tracking-tight leading-none mt-1">
+                MDQ
+              </span>
             </div>
           ) : (
-            <BrandLogo size="sm" showText={true} />
+            <div className="flex flex-col select-none">
+              <div className="flex items-center gap-1.5">
+                <span className="font-black text-sm tracking-tight text-white uppercase leading-snug group-hover:text-[#00e676] transition-colors">
+                  Locos por los <span className="text-[#00e676]">Dardos</span>
+                </span>
+                <span className="bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/40 text-[9px] font-black px-1.5 py-0.5 rounded tracking-wider uppercase">
+                  ARG
+                </span>
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5 mt-0.5 uppercase">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]"></span>
+                Circuito Federal
+              </span>
+            </div>
           )}
         </Link>
 
@@ -198,31 +224,97 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         })}
       </div>
 
-      {/* Perfil Rápido en Footer del Sidebar (SIN CONTROLES MANUALES) */}
-      <div className="p-3 border-t border-[#1a2333] bg-[#0c121e]/80">
-        <Link
-          href="/perfil"
-          onClick={onCloseMobile}
-          className={`flex items-center gap-2.5 p-2 rounded-xl hover:bg-[#141c2e] transition-colors ${
-            !isExpanded ? 'justify-center p-1' : ''
-          }`}
-          title="Ver mi perfil de jugador"
-        >
-          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[#00e676] flex items-center justify-center font-black text-xs flex-shrink-0">
-            FL
+      {/* Sede Oficial: Logo de Darderos Mar del Plata antes de la división del jugador */}
+      <div className="p-3 border-t border-[#1a2333]/80 bg-[#080d16]">
+        <div className={`flex items-center gap-2.5 ${!isExpanded ? 'justify-center' : ''}`}>
+          <div className="relative w-8 h-8 rounded-xl bg-black/60 border border-[#ef4444]/40 p-1 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_rgba(239,68,68,0.25)]">
+            <Image
+              src="/logos/logo-mdq.png"
+              alt="Darderos Mar del Plata"
+              width={28}
+              height={28}
+              className="w-full h-full object-contain"
+            />
           </div>
-
           {isExpanded && (
             <div className="min-w-0 flex-1">
               <span className="text-xs font-black text-white block truncate leading-tight">
-                Facundo López
+                Darderos Mar del Plata
               </span>
-              <span className="text-[10px] font-semibold text-[#00e676] block truncate">
-                62.4 AVG • Avanzada
+              <span className="text-[10px] font-bold text-[#ef4444] block truncate">
+                Sede Oficial del Circuito
               </span>
             </div>
           )}
-        </Link>
+        </div>
+      </div>
+
+      {/* División donde figura el jugador logueado con Acceso a Modificar Perfil y Cerrar Sesión */}
+      <div className="p-3 border-t border-[#1a2333] bg-[#0c121e]">
+        <div className={`flex items-center gap-2 ${!isExpanded ? 'flex-col gap-2' : 'justify-between'}`}>
+          <Link
+            href="/perfil"
+            onClick={onCloseMobile}
+            className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity"
+            title="Ir a mi perfil"
+          >
+            <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[#00e676] flex items-center justify-center font-black text-xs flex-shrink-0">
+              FL
+            </div>
+
+            {isExpanded && (
+              <div className="min-w-0 flex-1">
+                <span className="text-xs font-black text-white block truncate leading-tight">
+                  Facundo López
+                </span>
+                <span className="text-[10px] font-semibold text-[#00e676] block truncate">
+                  62.4 AVG • Avanzada
+                </span>
+              </div>
+            )}
+          </Link>
+
+          {/* Acciones de Cuenta: Modificar Perfil y Cerrar Sesión */}
+          {isExpanded ? (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Link
+                href="/perfil"
+                onClick={onCloseMobile}
+                title="Modificar Perfil"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#1a2333] border border-transparent hover:border-slate-700 transition-colors"
+              >
+                <UserCog className="w-4 h-4 text-slate-300 hover:text-[#00e676]" />
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Cerrar Sesión"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-[#ef4444] hover:bg-[#1a2333] border border-transparent hover:border-red-900/40 transition-colors"
+              >
+                <LogOut className="w-4 h-4 text-[#ef4444]" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1 items-center pt-1 border-t border-[#1a2333]/50 w-full">
+              <Link
+                href="/perfil"
+                onClick={onCloseMobile}
+                title="Modificar Perfil"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#1a2333] transition-colors"
+              >
+                <UserCog className="w-3.5 h-3.5 text-slate-300" />
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Cerrar Sesión"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-[#ef4444] hover:bg-[#1a2333] transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5 text-[#ef4444]" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

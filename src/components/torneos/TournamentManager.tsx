@@ -140,7 +140,8 @@ export const TournamentManager: React.FC = () => {
       player1: { id: match.player1Id, name: match.player1Name },
       player2: { id: match.player2Id, name: match.player2Name },
       player1Name: match.player1Name,
-      player2Name: match.player2Name
+      player2Name: match.player2Name,
+      tournamentTitle: currentTournament.title
     };
 
     setActiveLiveMatchConfig(config);
@@ -167,7 +168,8 @@ export const TournamentManager: React.FC = () => {
       player1: { id: match.player1.id, name: match.player1.name },
       player2: { id: match.player2.id, name: match.player2.name },
       player1Name: match.player1.name,
-      player2Name: match.player2.name
+      player2Name: match.player2.name,
+      tournamentTitle: currentTournament.title
     };
 
     setActiveLiveMatchConfig(config);
@@ -247,7 +249,7 @@ export const TournamentManager: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-[#ef4444] animate-ping" />
               <h2 className="text-base sm:text-lg font-black text-white">
-                Partida Oficial de Torneo en Vivo • Oche Asignado
+                {currentTournament?.title ? `${currentTournament.title} • Oche Asignado` : 'Partida individual'}
               </h2>
             </div>
             <button

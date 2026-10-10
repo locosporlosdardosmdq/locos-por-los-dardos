@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { AppSidebar } from './AppSidebar';
-import { AppTopBar } from './AppTopBar';
 import { AppBottomNav } from './AppBottomNav';
 import { CartDrawer } from '@/components/tienda/CartDrawer';
 import { useCart } from '@/app/providers';
@@ -25,12 +24,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
       {/* Contenedor principal: margen fijo en desktop (lg:pl-20) para evitar saltos de pantalla */}
       <div className="flex-1 flex flex-col lg:pl-20 transition-all duration-300 ease-in-out">
-        {/* Barra superior fija limpia sin botones de colapso */}
-        <AppTopBar
-          onOpenMobileSidebar={() => setMobileOpen(true)}
-        />
-
-        {/* Contenido de página con espacio inferior para BottomNav en móvil */}
+        {/* Contenido de página a pantalla completa (sin TopBar para maximizar espacio del juego) */}
         <main className="flex-1 w-full bg-[#07090e] pb-20 lg:pb-6">
           {children}
         </main>

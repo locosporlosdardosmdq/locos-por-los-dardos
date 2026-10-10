@@ -69,9 +69,10 @@ export interface MatchConfig {
   cpuDifficulty: CpuDifficulty;
   player1: ParticipantPlayer;
   player2: ParticipantPlayer;
-  // Campos retrocompatibles
+  // Campos retrocompatibles y contexto de competición
   player1Name?: string;
   player2Name?: string;
+  tournamentTitle?: string;
 }
 
 export interface DartThrow {

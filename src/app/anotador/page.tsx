@@ -14,8 +14,9 @@ export default function AnotadorPage() {
             <Target className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-black text-white">
-              Anotador Oficial en Vivo
+            <h1 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#00e676] inline-block animate-pulse" />
+              Partida individual
             </h1>
             <p className="text-xs text-slate-400">
               Locos por los Dardos & Darderos MDQ • 501 Doble Out, Cricket, Parejas y Árbitro Oficial

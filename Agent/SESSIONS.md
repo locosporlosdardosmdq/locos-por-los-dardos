@@ -1,5 +1,22 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 7] - 2026-10-10
+- **Objetivo:** Optimización de espacio vertical en pantalla (eliminación de TopBar y encabezados redundantes), encabezados dinámicos de partida (nombre del torneo vs "Partida individual"), y rediseño del menú lateral con texto puro en cabecera, logo de Darderos al final y controles de modificar perfil y cerrar sesión.
+- **Realizado:**
+  - Remoción de `AppTopBar` en `src/components/layout/AppShell.tsx`: se liberaron más de 64px verticales para visualización completa del Anotador y el Cuadro de Torneos.
+  - Limpieza de encabezado estático en `src/app/torneos/page.tsx`: eliminada la caja estática redundante para dar prioridad absoluta al fixture y a los tableros.
+  - Implementación de encabezados dinámicos de partida en `src/components/torneos/TournamentManager.tsx`, `src/app/anotador/page.tsx`, `src/components/anotador/X01Board.tsx` y `CricketBoard.tsx`:
+    * En torneos: muestra dinámicamente `${currentTournament.title} • Oche Asignado` (ej: *"Gran Open Mar del Plata 2026 • Copa Costa Atlántica • Oche Asignado"*).
+    * Fuera de torneos: muestra exclusivamente *"Partida individual"*.
+  - Rediseño de `src/components/layout/AppSidebar.tsx`:
+    * Top del menú: sólo texto e identidad tipográfica pura (colapsado: "LPD MDQ", expandido: "Locos por los Dardos ARG - Circuito Federal").
+    * Final del menú: Logo oficial de Darderos Mar del Plata con la insignia *"Sede Oficial del Circuito"* antes de la división del jugador.
+    * Sección del jugador logueado: Integrados botones rápidos de "Modificar Perfil" (`UserCog` con enlace a `/perfil`) y "Cerrar Sesión" (`LogOut` con confirmación interactiva).
+  - Verificación de compilación TypeScript (`npx tsc --noEmit`) con 0 errores y validación en navegador con subagente (`http://localhost:3000/anotador` y `/torneos`).
+- **Estado del Proyecto:** Interfaz ultra limpia, máxima altura vertical para la diana y fixtures, jerarquía de menú depurada y navegación funcional.
+
+---
+
 ## [Sesión 6] - 2026-10-10
 - **Objetivo:** Integración de la voz de Clemens Kuntze (`Recursos/Clemens Kuntze.mp3`) en el motor de audio del Anotador oficial de partidas de dardos para cantar los tantos del 1 al 180 con modulación emocional precisa.
 - **Realizado:**

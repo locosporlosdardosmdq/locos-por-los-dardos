@@ -414,6 +414,12 @@ export const X01Board: React.FC<X01BoardProps> = ({
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444] animate-ping" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">
+                {config.tournamentTitle ? `${config.tournamentTitle} • Oche Asignado` : 'Partida individual'}
+              </span>
+            </div>
             <h2 className="text-lg font-black text-white leading-tight">
               {config.startingScore}
             </h2>

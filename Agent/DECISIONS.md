@@ -140,3 +140,22 @@
      * **Banda 4 (90 a 119 - Con más énfasis):** Pitch 1.25, Rate 1.18 (locución acelerada con impacto).
      * **Banda 5 (120 a 169 - Con mucho énfasis):** Pitch 1.35, Rate 1.25 (grito eufórico de visita alta).
 - **Motivo:** Cero latencia, funcionamiento offline 100% garantizado en PWA, máximo realismo competitivo y preservación del sample original para las jugadas cumbre.
+
+---
+
+## ADR-013: Optimización del Espacio Vertical (Eliminación de TopBar) y Rediseño del Menú Lateral
+
+- **Fecha:** 2026-10-10
+- **Estado:** ACEPTADA
+- **Contexto:**
+  En el oche y durante torneos, la visibilidad de los números del anotador y las llaves eliminatorias (*brackets*) debe ser máxima. La barra superior fija (`AppTopBar`) y encabezados estáticos redundantes consumían más de 120px de espacio vertical crítico. Además, se requería que la barra lateral tuviera tipografía pura en la cabecera y el logo de la sede deportiva (Darderos Mar del Plata) antes del perfil del jugador, junto con acciones explícitas de gestión de cuenta.
+- **Decisión:**
+  1. **Remoción de `AppTopBar`:** En `AppShell.tsx`, se retiró el componente de la vista para ganar altura vertical completa en desktop y mobile.
+  2. **Encabezados Dinámicos de Partida:**
+     * En torneos: muestra dinámicamente `${currentTournament.title} • Oche Asignado`.
+     * Fuera de torneos (en `/anotador`): muestra exclusivamente `Partida individual`.
+  3. **Rediseño de `AppSidebar`:**
+     * **Top del Menú:** Sólo texto e identidad tipográfica pura (colapsado: "LPD MDQ", expandido: "Locos por los Dardos ARG - Circuito Federal").
+     * **Final del Menú:** Logo de Darderos Mar del Plata (`/logos/logo-mdq.png`) con la leyenda "Sede Oficial del Circuito" antes de la división del jugador.
+     * **División de Usuario:** Accesos directos con iconos para "Modificar Perfil" (`/perfil`) y "Cerrar Sesión" (`LogOut`).
+- **Motivo:** Máximo aprovechamiento de la pantalla para los tableros de juego y fixtures, mayor ergonomía visual y accesos directos de perfil y sesión.

@@ -1,0 +1,227 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PLAYER
+  ORGANIZER
+  ADMIN
+}
+
+enum PlayerCategory {
+  PRINCIPIANTE
+  INTERMEDIA
+  AVANZADA
+  ELITE
+}
+
+enum MatchGameType {
+  X01
+  CRICKET
+  ROUND_THE_CLOCK
+  HALVE_IT
+}
+
+enum OutMode {
+  SINGLE_OUT
+  DOUBLE_OUT
+  MASTER_OUT
+}
+
+enum TournamentType {
+  PRESENCIAL
+  ONLINE
+}
+
+enum TournamentFormat {
+  SINGLE_ELIMINATION
+  DOUBLE_ELIMINATION
+  ROUND_ROBIN
+  HYBRID
+}
+
+enum TournamentStatus {
+  UPCOMING
+  REGISTRATION_OPEN
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ProductCategory {
+  DARDOS
+  PLUMAS
+  CANAS
+  CARTUCHERAS
+  DIANAS
+  ACCESORIOS
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SHIPPED
+  DELIVERED
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  role         UserRole      @default(PLAYER)
+  profile      Profile?
+  stats        PlayerStats?
+  registrations TournamentRegistration[]
+  orders       Order[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Profile {
+  id                  String         @id @default(uuid())
+  userId              String         @unique
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nickname            String         @unique
+  fullName            String
+  phone               String?
+  province            String
+  city                String
+  avatarUrl           String         @default("/logos/logo-mdq.png")
+  initialEstimatedAvg Float          @default(40.0)
+  category            PlayerCategory @default(PRINCIPIANTE)
+  isVerified          Boolean        @default(false)
+  bio                 String?
+  preferredDartWeight Float?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+model PlayerStats {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  overallAvg         Float    @default(0.0)
+  first9Avg          Float    @default(0.0)
+  matchesPlayed      Int      @default(0)
+  matchesWon         Int      @default(0)
+  legsPlayed         Int      @default(0)
+  legsWon            Int      @default(0)
+  highestCheckout    Int      @default(0)
+  checkoutAttempts   Int      @default(0)
+  checkoutHits       Int      @default(0)
+  checkoutPercentage Float    @default(0.0)
+  count180s          Int      @default(0)
+  count140Plus       Int      @default(0)
+  count100Plus       Int      @default(0)
+  count60Plus        Int      @default(0)
+  bestLegDarts       Int      @default(0)
+  updatedAt          DateTime @updatedAt
+}
+
+model Tournament {
+  id              String            @id @default(uuid())
+  title           String
+  slug            String            @unique
+  description     String?
+  tournamentType  TournamentType    @default(PRESENCIAL)
+  format          TournamentFormat  @default(SINGLE_ELIMINATION)
+  startingScore   Int               @default(501)
+  outMode         OutMode           @default(DOUBLE_OUT)
+  bestOfLegs      Int               @default(5)
+  maxParticipants Int               @default(32)
+  venueName       String?
+  city            String            @default("Mar del Plata")
+  province        String            @default("Buenos Aires")
+  startDate       DateTime
+  endDate         DateTime?
+  status          TournamentStatus  @default(REGISTRATION_OPEN)
+  bannerImageUrl  String?
+  entryFeeArs     Float             @default(0.0)
+  prizePoolArs    Float             @default(0.0)
+  registrations   TournamentRegistration[]
+  bracketMatches  TournamentBracketMatch[]
+  createdAt       DateTime          @default(now())
+}
+
+model TournamentRegistration {
+  id           String     @id @default(uuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seedNumber   Int?
+  groupName    String?
+  isPaid       Boolean    @default(false)
+  registeredAt DateTime   @default(now())
+
+  @@unique([tournamentId, userId])
+}
+
+model TournamentBracketMatch {
+  id             String     @id @default(uuid())
+  tournamentId   String
+  tournament     Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  roundNumber    Int
+  matchPosition  Int
+  player1Id      String?
+  player2Id      String?
+  winnerId       String?
+  scoreP1        Int        @default(0)
+  scoreP2        Int        @default(0)
+  liveMatchId    String?
+  status         String     @default("SCHEDULED")
+  updatedAt      DateTime   @updatedAt
+}
+
+model Product {
+  id          String          @id @default(uuid())
+  name        String
+  slug        String          @unique
+  brand       String
+  category    ProductCategory
+  priceArs    Float
+  stock       Int             @default(0)
+  description String?
+  weightGrams Float?
+  material    String?
+  imageUrl    String
+  isFeatured  Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id                      String      @id @default(uuid())
+  orderNumber             String      @unique
+  userId                  String?
+  user                    User?       @relation(fields: [userId], references: [id])
+  customerName            String
+  customerEmail           String
+  customerPhone           String
+  shippingAddress         String
+  shippingCity            String
+  shippingProvince        String
+  shippingPostalCode      String?
+  totalAmountArs          Float
+  paymentStatus           OrderStatus @default(PENDING)
+  mercadopagoPreferenceId String?
+  mercadopagoPaymentId    String?
+  items                   OrderItem[]
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int      @default(1)
+  unitPriceArs Float
+}

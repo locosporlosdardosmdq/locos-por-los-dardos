@@ -1,0 +1,26 @@
+{
+  "name": "Locos por los Dardos Argentina",
+  "short_name": "Dardos Arg",
+  "description": "Plataforma integral de dardos en Argentina: Anotador en vivo, Torneos Nakka, Ranking nacional y Tienda oficial.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logos/logo-mdq.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logos/logo-mdq.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "games", "productivity"],
+  "screenshots": []
+}

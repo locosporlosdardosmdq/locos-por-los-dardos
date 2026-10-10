@@ -29,10 +29,10 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 ### 3. Componentes Principales (`src/components/`)
 * **`BrandLogo.tsx`:** Lockup de marca oficial con **+25% de preponderancia visual** para Darderos Mar del Plata (`/logos/logo-mdq.png`) respecto a Dardos Argentina (`/logos/dardos-argentina.png`).
 * **`layout/`:**
-  * `AppSidebar.tsx`: Menú lateral colapsable responsive con orden jerárquico oficial (Tienda, Torneos, Anotador, Ranking, Jugadores, Mi Perfil), toggle destacado superior/inferior, persistencia de colapso en localStorage y drawer móvil.
-  * `AppTopBar.tsx`: Barra superior con switch móvil, toggle de colapso para desktop, indicador de módulo, botón PWA e inicio rápido de anotación.
+  * `AppSidebar.tsx`: Menú lateral hover-driven (sin botones manuales: colapsado en reposo a 80px y expandido automáticamente a 256px por `onMouseEnter`), con orden jerárquico oficial (Tienda, Torneos, Anotador, Ranking, Jugadores, Mi Perfil).
+  * `AppTopBar.tsx`: Barra superior limpia sin botones de colapso, con switch móvil, indicador de módulo, botón PWA e inicio rápido de anotación.
   * `AppBottomNav.tsx`: Barra de navegación inferior ergonómica para celulares con botón de tiro central elevado.
-  * `AppShell.tsx`: Shell unificado con ajuste dinámico de márgenes (`pl-64` vs `pl-20`) y contenedor responsivo.
+  * `AppShell.tsx`: Shell unificado con margen desktop fijo (`lg:pl-20`) para evitar saltos de pantalla (0 layout-shift) mientras el menú flota en hover.
 * **`Navbar.tsx` & `Footer.tsx`:** Navegación responsive, contador dinámico de carrito, botón de instalación PWA e información de clubes.
 * **`jugadores/`:**
   * `PlayerDirectory.tsx`: Directorio federal con buscador en vivo, filtros combinados y fichas deportivas.

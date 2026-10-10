@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BrandLogo } from '../BrandLogo';
@@ -11,33 +11,22 @@ import {
   BarChart3, 
   Users, 
   Settings, 
-  ChevronLeft, 
-  ChevronRight, 
-  PlusCircle,
-  X,
-  Sparkles,
-  Shield,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelLeft
+  X
 } from 'lucide-react';
 
 interface AppSidebarProps {
-  collapsed: boolean;
-  onToggleCollapse: () => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
 }
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
-  collapsed,
-  onToggleCollapse,
   mobileOpen,
   onCloseMobile
 }) => {
   const pathname = usePathname();
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Módulos requeridos por el usuario en el orden exacto solicitado:
+  // Módulos oficiales en el orden exacto solicitado:
   // 1. La tienda online
   // 2. Torneos (Gestor propio de llaves, grupos y competición en vivo)
   // 3. Anotador
@@ -97,11 +86,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     }
   ];
 
-  const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#0a0e17] border-r border-[#1a2333] select-none">
-      {/* Encabezado con Identidad Oficial y Botón de Colapso destacado */}
-      <div className={`p-3.5 border-b border-[#1a2333] flex items-center justify-between transition-all ${
-        collapsed ? 'flex-col gap-2 p-2.5' : 'px-4'
+  // Render del contenido del sidebar según el estado expandido (isHovered en desktop o true en móvil)
+  const renderSidebarContent = (isExpanded: boolean, isMobileView: boolean) => (
+    <div className="flex flex-col h-full bg-[#0a0e17] select-none">
+      {/* Encabezado con Identidad Oficial (SIN CONTROLES MANUALES) */}
+      <div className={`p-4 border-b border-[#1a2333] flex items-center justify-between transition-all ${
+        !isExpanded ? 'justify-center p-3' : 'px-4'
       }`}>
         <Link 
           href="/" 
@@ -109,8 +99,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           className="flex items-center gap-2 overflow-hidden"
           title="Locos por los Dardos • Argentina & Darderos MDQ"
         >
-          {collapsed ? (
-            <div className="w-9 h-9 rounded-xl bg-[#0f1524] border border-[#1e2a40] flex items-center justify-center p-1 hover:border-[#00e676] transition-colors">
+          {!isExpanded ? (
+            <div className="w-10 h-10 rounded-xl bg-[#0f1524] border border-[#1e2a40] flex items-center justify-center p-1 hover:border-[#00e676] transition-colors">
               <BrandLogo size="sm" showText={false} />
             </div>
           ) : (
@@ -118,41 +108,17 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           )}
         </Link>
 
-        {/* Botón de Colapso en Desktop (visible cuando está expandido) */}
-        {!collapsed && (
+        {/* Únicamente botón cerrar en móvil */}
+        {isMobileView && (
           <button
             type="button"
-            onClick={onToggleCollapse}
-            className="hidden lg:flex items-center justify-center p-1.5 rounded-xl text-slate-400 hover:text-white bg-[#0f1524] hover:bg-[#141c2e] border border-[#1e2a40] hover:border-[#00e676] transition-all"
-            title="Colapsar menú lateral"
-            aria-label="Colapsar menú lateral"
+            onClick={onCloseMobile}
+            className="p-2 rounded-xl text-slate-400 hover:text-white bg-[#0f1524] hover:bg-[#141c2e] border border-[#1e2a40]"
+            aria-label="Cerrar menú"
           >
-            <PanelLeftClose className="w-4 h-4 text-slate-300 hover:text-[#00e676]" />
+            <X className="w-5 h-5" />
           </button>
         )}
-
-        {/* Botón de Expansión en Desktop (visible cuando está colapsado) */}
-        {collapsed && (
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            className="hidden lg:flex items-center justify-center w-9 h-8 rounded-xl text-[#00e676] hover:text-white bg-[#0f1524] hover:bg-[#141c2e] border border-[#1e2a40] hover:border-[#00e676] transition-all shadow-sm"
-            title="Expandir menú lateral"
-            aria-label="Expandir menú lateral"
-          >
-            <PanelLeftOpen className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* Botón Cerrar en móvil */}
-        <button
-          type="button"
-          onClick={onCloseMobile}
-          className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white bg-[#0f1524] hover:bg-[#141c2e] border border-[#1e2a40]"
-          aria-label="Cerrar menú"
-        >
-          <X className="w-5 h-5" />
-        </button>
       </div>
 
       {/* Botón Acción Rápida: ANOTAR PARTIDA */}
@@ -162,20 +128,20 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           prefetch={true}
           onClick={onCloseMobile}
           className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-200 shadow-md ${
-            collapsed 
+            !isExpanded 
               ? 'px-2 bg-[#00e676] text-[#07090e] hover:bg-[#00c853]' 
               : 'px-4 bg-[#00e676] text-[#07090e] hover:bg-[#00c853] hover:shadow-[0_0_15px_rgba(0,230,118,0.35)]'
           }`}
           title="Anotar Partida en Vivo"
         >
           <Target className="w-4 h-4 stroke-[2.5]" />
-          {!collapsed && <span>Anotar Partida</span>}
+          {isExpanded && <span>Anotar Partida</span>}
         </Link>
       </div>
 
       {/* Navegación Principal con los Módulos */}
       <div className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-        {!collapsed && (
+        {isExpanded && (
           <div className="px-3 pb-2 text-[10px] font-black uppercase tracking-wider text-slate-500">
             Módulos de la Plataforma
           </div>
@@ -195,8 +161,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 isActive
                   ? 'bg-[#0f172a] text-white border border-[#00e676]/50 shadow-[0_0_12px_rgba(0,230,118,0.15)]'
                   : 'text-slate-400 hover:text-white hover:bg-[#111728]'
-              } ${collapsed ? 'justify-center px-2' : ''}`}
-              title={collapsed ? `${item.title} ${item.subTitle ? `(${item.subTitle})` : ''}` : undefined}
+              } ${!isExpanded ? 'justify-center px-2' : ''}`}
+              title={!isExpanded ? `${item.title} ${item.subTitle ? `(${item.subTitle})` : ''}` : undefined}
             >
               {/* Barra activa lateral */}
               {isActive && (
@@ -207,7 +173,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 isActive ? 'text-[#00e676]' : 'text-slate-400 group-hover:text-white'
               }`} />
 
-              {!collapsed && (
+              {isExpanded && (
                 <div className="flex-1 flex items-center justify-between min-w-0">
                   <div className="truncate">
                     <span className="block truncate text-slate-100 group-hover:text-white">
@@ -232,13 +198,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         })}
       </div>
 
-      {/* Perfil Rápido en Footer del Sidebar */}
+      {/* Perfil Rápido en Footer del Sidebar (SIN CONTROLES MANUALES) */}
       <div className="p-3 border-t border-[#1a2333] bg-[#0c121e]/80">
         <Link
           href="/perfil"
           onClick={onCloseMobile}
           className={`flex items-center gap-2.5 p-2 rounded-xl hover:bg-[#141c2e] transition-colors ${
-            collapsed ? 'justify-center p-1' : ''
+            !isExpanded ? 'justify-center p-1' : ''
           }`}
           title="Ver mi perfil de jugador"
         >
@@ -246,7 +212,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             FL
           </div>
 
-          {!collapsed && (
+          {isExpanded && (
             <div className="min-w-0 flex-1">
               <span className="text-xs font-black text-white block truncate leading-tight">
                 Facundo López
@@ -257,42 +223,26 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             </div>
           )}
         </Link>
-
-        {/* Botón Colapsar / Expandir (Desktop) */}
-        <div className="hidden lg:flex items-center justify-between mt-2 pt-2 border-t border-[#1a2333]/60 text-slate-400">
-          {!collapsed && (
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              Menú Lateral
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            className={`p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141c2e] transition-colors ${
-              collapsed ? 'w-full flex justify-center' : ''
-            }`}
-            title={collapsed ? 'Expandir menú lateral' : 'Colapsar menú lateral'}
-            aria-label="Colapsar menú lateral"
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
-        </div>
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Sidebar fijo para Desktop (lg+) */}
+      {/* Sidebar Desktop (lg+): Colapso y Expansión gobernado 100% por el Hover del Mouse */}
       <aside
-        className={`hidden lg:block fixed top-0 bottom-0 left-0 z-40 transition-all duration-300 ease-in-out ${
-          collapsed ? 'w-20' : 'w-64'
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={`hidden lg:block fixed top-0 bottom-0 left-0 z-40 transition-all duration-300 ease-in-out border-r border-[#1a2333] ${
+          isHovered 
+            ? 'w-64 shadow-[20px_0_40px_rgba(0,0,0,0.85)] border-r-[#1e2a40]' 
+            : 'w-20'
         }`}
       >
-        {sidebarContent}
+        {renderSidebarContent(isHovered, false)}
       </aside>
 
-      {/* Drawer móvil con Backdrop */}
+      {/* Drawer móvil con Backdrop táctil */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           {/* Backdrop oscurecido */}
@@ -303,7 +253,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
           {/* Panel deslizante */}
           <div className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
-            {sidebarContent}
+            {renderSidebarContent(true, true)}
           </div>
         </div>
       )}

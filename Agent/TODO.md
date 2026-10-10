@@ -14,7 +14,7 @@
 - [x] Persistencia offline-first de partidas y cola de sincronización en `src/lib/storage.ts`.
 - [x] Transmisión broadcast en tiempo real entre el Oche y pantallas de torneos (`src/lib/broadcast.ts` y pestaña "Tablero en Vivo" en `/torneos`).
 - [x] Paleta deportiva de alto contraste con fondo negro profundo (`#07090e`), tarjetas `#0f1422` y acentos neón (#00e676, #ef4444, #0284c7) idénticos a la primera captura de referencia.
-- [x] Menú lateral colapsable responsive con toggle superior e inferior para PC y Bottom Navigation Bar para celulares (`AppSidebar.tsx` + `AppTopBar.tsx` + `AppBottomNav.tsx` + `AppShell.tsx`).
+- [x] Menú lateral hover-driven (sin botones manuales: colapsado en reposo a 80px y expandido automáticamente a 256px por over mouse) + Bottom Navigation Bar táctil para celulares (`AppSidebar.tsx` + `AppTopBar.tsx` + `AppBottomNav.tsx` + `AppShell.tsx`).
 - [x] Módulo Directorio Federal de Jugadores (`/jugadores` y `PlayerDirectory.tsx`) con filtros por provincia, categoría de AVG y reto directo.
 - [x] Verificación de compilación limpia de producción (`npm run build`) con 0 errores de tipos y lint.
 - [x] Erradicación completa de referencias externas (Nakka01): identidad de producto soberana y 100% propia.

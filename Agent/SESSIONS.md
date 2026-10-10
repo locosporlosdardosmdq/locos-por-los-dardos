@@ -14,9 +14,9 @@
   - Soberanía de Marca e Identidad Propia:
     * Erradicación completa de cualquier mención a "Nakka", "Nakka01" y "n01" en la UI, layout, páginas, esquemas y textos (ahora: "Gestor de Torneos Oficial" y "Cuadros en Vivo").
   - Adaptabilidad Responsiva Total (PC y Celulares):
-    * En PC: Botón de colapso y expansión prominente en la cabecera superior del Sidebar (`PanelLeftClose` / `PanelLeftOpen`) y botón toggle duplicado en la barra superior (`AppTopBar`) para alternar con 1 clic entre 256px y 72px.
+    * En PC: Eliminación total de botones manuales de colapso. La expansión y repliegue del menú está gobernada 100% por el *hover* del mouse (`onMouseEnter` expande a 256px y `onMouseLeave` colapsa a 80px), manteniendo el layout principal fijo y estable (0 layout shift).
     * En Celulares: Implementación de `AppBottomNav.tsx` con 5 accesos táctiles y botón de Anotador central elevado (`#00e676`), dejando la pantalla limpia y operable con una sola mano sin invadir el área de juego.
-- **Estado del Proyecto:** Identidad 100% propia y soberana, navegación de élite adaptada a celulares y PC, CSS plenamente operativo (HTTP 200) y servidor dev activo en `http://localhost:3000`.
+- **Estado del Proyecto:** Identidad 100% propia y soberana, menú lateral hover-driven en PC sin botones manuales, navegación táctil inferior en celulares, CSS plenamente operativo (HTTP 200) y servidor dev activo en `http://localhost:3000`.
 - **Próximos pasos:**
   1. Desarrollo a fondo del motor de competición y llaves del Módulo Torneos Oficial.
 

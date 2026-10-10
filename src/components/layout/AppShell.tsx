@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AppSidebar } from './AppSidebar';
 import { AppTopBar } from './AppTopBar';
 import { AppBottomNav } from './AppBottomNav';
@@ -12,46 +12,22 @@ interface AppShellProps {
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const { isCartOpen, closeCart, items, updateQuantity, removeFromCart, clearCart } = useCart();
-
-  useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem('lpld_sidebar_collapsed');
-    if (saved !== null) {
-      setCollapsed(saved === 'true');
-    }
-  }, []);
-
-  const handleToggleCollapse = () => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem('lpld_sidebar_collapsed', String(next));
-      return next;
-    });
-  };
 
   return (
     <div className="min-h-screen bg-[#07090e] text-white flex flex-col font-sans antialiased">
-      {/* Menú lateral colapsable (Sidebar) */}
+      {/* Menú lateral con colapso/expansión gobernado 100% por Hover del Mouse en PC */}
       <AppSidebar
-        collapsed={collapsed}
-        onToggleCollapse={handleToggleCollapse}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
       />
 
-      {/* Contenedor principal con margen izquierdo adaptativo en desktop */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${
-        collapsed ? 'lg:pl-20' : 'lg:pl-64'
-      }`}>
-        {/* Barra superior fija con soporte de toggle de sidebar */}
+      {/* Contenedor principal: margen fijo en desktop (lg:pl-20) para evitar saltos de pantalla */}
+      <div className="flex-1 flex flex-col lg:pl-20 transition-all duration-300 ease-in-out">
+        {/* Barra superior fija limpia sin botones de colapso */}
         <AppTopBar
           onOpenMobileSidebar={() => setMobileOpen(true)}
-          sidebarCollapsed={collapsed}
-          onToggleCollapse={handleToggleCollapse}
         />
 
         {/* Contenido de página con espacio inferior para BottomNav en móvil */}

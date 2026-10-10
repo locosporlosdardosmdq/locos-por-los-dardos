@@ -79,6 +79,6 @@
   2. El menú lateral requería un control de colapso obvio e inmediato en PC, y una adaptación táctil perfecta para jugadores que usan el celular con una sola mano al pie de la diana.
 - **Decisión:**
   * **Erradicación de marcas externas:** Se renombraron todos los cuadros y gestores a "Gestor de Torneos Oficial" y "Cuadro Eliminatorio Oficial en Tiempo Real", asegurando identidad 100% soberana.
-  * **Colapso en PC (Desktop):** Se integraron botones de colapso/expansión claros (`PanelLeftClose` y `PanelLeftOpen`) tanto en la cabecera superior del Sidebar como en la barra superior (`AppTopBar`), permitiendo alternar entre 256px y 72px con un solo clic.
+  * **Colapso/Expansión en PC (Hover Puro):** Se eliminaron por completo los controles y botones manuales de colapsar/expandir. La interacción está gobernada exclusivamente por el *mouse over* (`onMouseEnter` expande a 256px y `onMouseLeave` repliega a 80px). El margen del layout en desktop es fijo (`lg:pl-20`) para evitar saltos o parpadeos de pantalla (*layout shift*) mientras el menú flota con sombra envolvente.
   * **Navegación Móvil (Celulares/Tablets):** Se implementó `AppBottomNav.tsx` fija en el pie de pantalla con 5 accesos táctiles, destacando el botón central de Anotador en verde neón elevado (`w-13 h-13`) para tiro rápido, y un drawer lateral fluido para opciones adicionales sin robar espacio horizontal durante el juego.
-- **Motivo:** Máxima ergonomía en el mundo real (pantallas móviles en torneos presenciales) y control total del espacio de visualización en monitores de PC.
+- **Motivo:** Máxima ergonomía en el mundo real (pantallas móviles en torneos presenciales) y control total del espacio de visualización en monitores de PC sin botones innecesarios que distraigan la atención.

@@ -14,21 +14,15 @@ import {
   BarChart3, 
   Users, 
   Settings, 
-  Zap,
-  PanelLeftClose,
-  PanelLeftOpen
+  Zap
 } from 'lucide-react';
 
 interface AppTopBarProps {
   onOpenMobileSidebar: () => void;
-  sidebarCollapsed: boolean;
-  onToggleCollapse: () => void;
 }
 
 export const AppTopBar: React.FC<AppTopBarProps> = ({
-  onOpenMobileSidebar,
-  sidebarCollapsed,
-  onToggleCollapse
+  onOpenMobileSidebar
 }) => {
   const pathname = usePathname();
   const { totalItems, openCart } = useCart();
@@ -95,21 +89,6 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
             <BrandLogo size="sm" showText={false} />
           </Link>
         </div>
-
-        {/* Toggle Menú Lateral en Desktop */}
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="hidden lg:flex items-center justify-center p-2 rounded-xl text-slate-300 hover:text-white bg-[#0f1524] hover:bg-[#141c2e] border border-[#1e2a40] hover:border-[#00e676] transition-all"
-          title={sidebarCollapsed ? "Expandir menú lateral" : "Colapsar menú lateral"}
-          aria-label="Alternar menú lateral"
-        >
-          {sidebarCollapsed ? (
-            <PanelLeftOpen className="w-4 h-4 text-[#00e676]" />
-          ) : (
-            <PanelLeftClose className="w-4 h-4 text-slate-400" />
-          )}
-        </button>
 
         {/* Título de la Sección Activa en Desktop */}
         <div className="hidden sm:flex items-center gap-2">

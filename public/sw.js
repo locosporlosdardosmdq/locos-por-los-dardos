@@ -37,7 +37,18 @@ self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
-  // Stale-while-revalidate for local assets, network-first for pages
+  const url = new URL(event.request.url);
+  // Bypass cache para Next.js internals, hot reload y endpoints API
+  if (
+    url.pathname.startsWith('/_next/') || 
+    url.pathname.startsWith('/api/') || 
+    url.pathname.includes('webpack') ||
+    url.pathname.includes('hot-update')
+  ) {
+    return;
+  }
+
+  // Stale-while-revalidate for local static assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)

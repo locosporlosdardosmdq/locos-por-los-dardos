@@ -136,6 +136,7 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
         {/* Botón: ANOTAR PARTIDA (Verde Neón Brillante como en Captura 1) */}
         <Link
           href="/anotador"
+          prefetch={true}
           className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black rounded-xl text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-emerald-500/30 hover:scale-105"
         >
           <Target className="w-4 h-4 stroke-[3]" />

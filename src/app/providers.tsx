@@ -30,17 +30,33 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // Registro del Service Worker para PWA Offline
+  // Registro del Service Worker para PWA Offline (solo en producción para no romper dev)
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((reg) => {
-          console.log('[PWA] Service Worker registrado con éxito:', reg.scope);
-        })
-        .catch((err) => {
-          console.warn('[PWA] Fallo al registrar Service Worker:', err);
+      if (process.env.NODE_ENV === 'production') {
+        navigator.serviceWorker
+          .register('/sw.js')
+          .then((reg) => {
+            console.log('[PWA] Service Worker registrado con éxito:', reg.scope);
+          })
+          .catch((err) => {
+            console.warn('[PWA] Fallo al registrar Service Worker:', err);
+          });
+      } else {
+        // En entorno de desarrollo: desregistrar Service Worker y vaciar caches para garantizar hot-reload instantáneo
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister();
+          }
         });
+        if ('caches' in window) {
+          caches.keys().then((names) => {
+            for (const name of names) {
+              caches.delete(name);
+            }
+          });
+        }
+      }
     }
   }, []);
 

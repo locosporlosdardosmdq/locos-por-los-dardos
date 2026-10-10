@@ -8,7 +8,10 @@
   - Creación del Módulo Jugadores: Implementados `src/components/jugadores/PlayerDirectory.tsx` y la ruta `src/app/jugadores/page.tsx` con buscador en tiempo real, selector federal de provincias, filtros por categoría de AVG y botón de reto directo al Anotador.
   - Alineación de diseño en `DartScorer.tsx`, `DartKeypad.tsx`, `NationalRankings.tsx` y `TournamentManager.tsx` para coincidir pixel-perfect con la primera captura de referencia.
   - Verificación de compilación de producción con Next.js 15 (`npm run build`).
-- **Estado del Proyecto:** Interfaz con contraste de élite y fondo negro, navegación lateral colapsable fluida, 6 módulos estructurados y listos para avanzar al siguiente hito. Servidor dev operativo en `http://localhost:3000`.
+  - Diagnóstico y resolución de colisión de Webpack & Service Worker:
+    * Causa raíz de pantalla sin estilos y lentitud: ejecución concurrente de `npm run build` mientras `next dev` estaba activo, lo que corrompió el bundle de CSS (`layout.css` 404). Además, el Service Worker en `localhost` interceptaba peticiones de desarrollo y las congelaba.
+    * Solución: purga completa de `.next`, reinicio limpio del dev server daemon, bypass de caché para `/_next/` en `public/sw.js`, desregistración del Service Worker en `providers.tsx` durante desarrollo y activación de `prefetch={true}` en los enlaces del Sidebar para transiciones instantáneas (<300ms).
+- **Estado del Proyecto:** CSS plenamente operativo (HTTP 200, 60 KB de Tailwind activo), fondo negro deportivo profundo, tiempos de respuesta entre 250ms y 450ms por módulo, navegación lateral fluida. Servidor dev operativo en `http://localhost:3000`.
 - **Próximos pasos:**
   1. Desarrollo a fondo del módulo Torneos con comportamiento idéntico a Nakka n01 (sorteo automático, llaves N01, asignación de pistas y control de partidos).
 

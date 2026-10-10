@@ -129,6 +129,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       <div className="p-3 border-b border-[#1a2333]">
         <Link
           href="/anotador"
+          prefetch={true}
           onClick={onCloseMobile}
           className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-200 shadow-md ${
             collapsed 
@@ -158,6 +159,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
               onClick={onCloseMobile}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 group relative ${
                 isActive

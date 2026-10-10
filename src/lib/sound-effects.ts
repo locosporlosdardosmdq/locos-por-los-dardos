@@ -127,24 +127,37 @@ export const SoundEngine = {
     } catch {}
   },
 
+  // Reproducir el grito original de Clemens Kuntze ("ONE HUNDRED AND EIGHTY!")
+  playClemens180: () => {
+    try {
+      const audio = new Audio('/sounds/clemens-kuntze.mp3');
+      audio.volume = 1.0;
+      audio.play().catch((err) => {
+        console.warn('[Audio] Error al reproducir audio original de Clemens Kuntze:', err);
+      });
+    } catch {}
+  },
+
   play180: () => {
-    SoundEngine.playBullseye();
+    SoundEngine.playClemens180();
   }
 };
 
 export const VoiceCaller = {
-  speak: (text: string, lang = 'es-ES') => {
+  speak: (text: string, options: { pitch?: number; rate?: number; lang?: string } = {}) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      utterance.rate = 1.05; // ritmo enérgico de árbitro de dardos
-      utterance.pitch = 1.0;
+      utterance.lang = options.lang || 'es-ES';
+      utterance.pitch = options.pitch ?? 1.0;
+      utterance.rate = options.rate ?? 1.05;
 
-      // Buscar voz en español si está disponible
+      // Buscar voz en español
       const voices = window.speechSynthesis.getVoices();
-      const esVoice = voices.find(v => v.lang.startsWith('es') || v.lang.includes('AR') || v.lang.includes('ES'));
+      const esVoice = voices.find(
+        (v) => v.lang.startsWith('es') || v.lang.includes('AR') || v.lang.includes('ES')
+      );
       if (esVoice) utterance.voice = esVoice;
 
       window.speechSynthesis.speak(utterance);
@@ -162,32 +175,77 @@ export const VoiceCaller = {
   },
 
   speakGameShot: () => {
-    VoiceCaller.speak('¡Game Shot! ¡Juego y pierna!', 'es-ES');
+    VoiceCaller.speak('¡Game Shot! ¡Juego y pierna!', { pitch: 1.25, rate: 1.15, lang: 'es-ES' });
   },
 
-  announceScore: (score: number, remaining: number) => {
-    if (score === 180) {
-      // El icónico llamado de 180
-      VoiceCaller.speak('¡ONE HUNDRED AND EIGHTY! ¡Ciento ochenta!', 'en-US');
-      SoundEngine.playBullseye();
-    } else if (remaining === 0) {
-      VoiceCaller.speak('¡Game Shot! ¡Cierre de pierna!', 'es-ES');
+  /**
+   * Canto de puntuación con las 5 bandas emocionales:
+   * - < 20: Muy pesimista (pitch bajo 0.65, rate 0.82)
+   * - 21 a 59: Normal (pitch 1.0, rate 1.0)
+   * - 60 a 89: Con énfasis (pitch 1.15, rate 1.1)
+   * - 90 a 119: Con más énfasis (pitch 1.25, rate 1.18)
+   * - 120 a 169: Con mucho énfasis (pitch 1.35, rate 1.25)
+   * - 170 a 180: Audio original de Clemens Kuntze (ONE HUNDRED AND EIGHTY!)
+   */
+  announceScore: (score: number, remaining = 0) => {
+    if (score >= 170) {
+      // 170 al 180: Audio original de Clemens Kuntze
+      SoundEngine.playClemens180();
+      if (score === 180) {
+        SoundEngine.playBullseye();
+      } else {
+        // Para 170-179 cantar con clímax antes del sonido original
+        VoiceCaller.speak(`¡${score}!`, { pitch: 1.4, rate: 1.25 });
+      }
+      return;
+    }
+
+    if (remaining === 0 && score > 0) {
+      VoiceCaller.speak('¡Game Shot! ¡Cierre de pierna!', { pitch: 1.3, rate: 1.2 });
       SoundEngine.playGameShot();
-    } else if (score === 0) {
-      VoiceCaller.speak('Sin puntuación', 'es-ES');
-    } else {
-      VoiceCaller.speak(`${score}`, 'es-ES');
+      return;
+    }
+
+    // Banda 1: Menores a 20 (Muy pesimista)
+    if (score < 20) {
+      const pesimisticText = score === 0 ? 'Sin puntuación...' : `${score}...`;
+      VoiceCaller.speak(pesimisticText, { pitch: 0.65, rate: 0.82 });
+      return;
+    }
+
+    // Banda 2: 20 al 59 (Normal)
+    if (score >= 20 && score <= 59) {
+      VoiceCaller.speak(`${score}`, { pitch: 1.0, rate: 1.0 });
+      return;
+    }
+
+    // Banda 3: 60 al 89 (Con énfasis)
+    if (score >= 60 && score <= 89) {
+      VoiceCaller.speak(`¡${score}!`, { pitch: 1.15, rate: 1.1 });
+      return;
+    }
+
+    // Banda 4: 90 al 119 (Con más énfasis)
+    if (score >= 90 && score <= 119) {
+      VoiceCaller.speak(`¡${score}!`, { pitch: 1.25, rate: 1.18 });
+      return;
+    }
+
+    // Banda 5: 120 al 169 (Con mucho énfasis)
+    if (score >= 120 && score <= 169) {
+      VoiceCaller.speak(`¡${score}!`, { pitch: 1.35, rate: 1.25 });
+      return;
     }
   },
 
   announceBust: () => {
     SoundEngine.playBust();
-    VoiceCaller.speak('¡Bust! Te has pasado', 'es-ES');
+    VoiceCaller.speak('¡Bust! Te has pasado', { pitch: 0.7, rate: 0.85 });
   },
 
   announceCheckoutOpportunity: (remaining: number) => {
     if (remaining <= 170 && remaining > 1) {
-      VoiceCaller.speak(`Requiere ${remaining}`, 'es-ES');
+      VoiceCaller.speak(`Requiere ${remaining}`, { pitch: 1.1, rate: 1.05 });
     }
   }
 };

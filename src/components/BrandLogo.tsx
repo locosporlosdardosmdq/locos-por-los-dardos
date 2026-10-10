@@ -26,15 +26,16 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       <div className="flex items-center gap-2 relative">
         {/* Logo Darderos Mar del Plata: +25% Preponderancia visual */}
         <div
-          style={{ width: `${dimensions.mdq}px`, height: `${dimensions.mdq}px` }}
-          className="relative transition-transform duration-300 hover:scale-105 filter drop-shadow-[0_0_12px_rgba(0,184,83,0.4)]"
+          style={{ width: `${dimensions.mdq}px`, height: `${dimensions.mdq}px`, position: 'relative' }}
+          className="relative transition-transform duration-300 hover:scale-105 filter drop-shadow-[0_0_12px_rgba(0,184,83,0.4)] flex-shrink-0"
           title="Darderos Mar del Plata - Sede Principal (+25% Preponderancia)"
         >
           <Image
             src="/logos/logo-mdq.png"
             alt="Darderos Mar del Plata"
-            fill
-            className="object-contain"
+            width={dimensions.mdq}
+            height={dimensions.mdq}
+            className="w-full h-full object-contain"
             priority
           />
         </div>
@@ -44,15 +45,16 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 
         {/* Logo Locos por los Dardos Argentina */}
         <div
-          style={{ width: `${dimensions.arg}px`, height: `${dimensions.arg}px` }}
-          className="relative transition-transform duration-300 hover:scale-105 filter drop-shadow-[0_0_8px_rgba(29,104,237,0.35)] opacity-95"
+          style={{ width: `${dimensions.arg}px`, height: `${dimensions.arg}px`, position: 'relative' }}
+          className="relative transition-transform duration-300 hover:scale-105 filter drop-shadow-[0_0_8px_rgba(29,104,237,0.35)] opacity-95 flex-shrink-0"
           title="Locos por los Dardos Argentina - Comunidad Nacional"
         >
           <Image
             src="/logos/dardos-argentina.png"
             alt="Comunidad Dardos Argentina"
-            fill
-            className="object-contain"
+            width={dimensions.arg}
+            height={dimensions.arg}
+            className="w-full h-full object-contain"
             priority
           />
         </div>

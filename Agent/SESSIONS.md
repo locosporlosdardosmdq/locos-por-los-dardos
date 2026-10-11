@@ -1,5 +1,37 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 12] - 2026-10-11
+- **Objetivo:** Implementación del formato de Doble Eliminación (Double Elimination) y configuración de legs por instancia estilo Nakka en Torneos, desglose del historial y estadísticas de jugadores en 4 pestañas especializadas (Individuales, Torneos de un Día, Ligas Locales y Liga Nacional con doble puntaje ⚡ x2), creación de la sección oficial de Reglamento, Código de Conducta & Fair Play (`/reglamento`), y análisis exhaustivo de arquitectura de cámaras para setups de 1 pantalla (móvil) y 2 pantallas (PC / Pop-out Window).
+- **Realizado:**
+  - **Módulo de Torneos (Doble Eliminación & Configuración Nakka Style):**
+    * Soporte para `DOUBLE_ELIMINATION` en tipos y motor de torneos.
+    * Implementación de `generateDoubleEliminationBracket()` generando el árbol completo de Ganadores (Winners R1, R2, R3), Perdedores (Losers R1, R2, R3) y Gran Final.
+    * Selector interactivo de pestañas en `TournamentBracket.tsx`: `[👁️ Ver Todo]`, `[🏆 Ganadores (Por Arriba)]`, `[🔄 Perdedores (Por Abajo)]` y `[👑 Gran Final]`, con acentos cromáticos diferenciados (#00e676 esmeralda para Winners, #ef4444 carmesí para Losers, #f59e0b ámbar para Gran Final).
+    * Acordeón en el formulario de creación de torneos para configurar la distancia en legs independientemente para cada ronda (Cuartos, Semifinales, Final de Ganadores, Rondas de Perdedores, Final de Perdedores y Gran Final).
+    * Configuración de Zonas de Liga: número de grupos, competidores por grupo, clasificados a playoffs, ida y vuelta y desempate por diferencia de legs.
+  - **Ficha de Jugador (`PlayerDetailModal.tsx`):**
+    * Implementación del selector interactivo de 4 pestañas de participación y estadísticas:
+      1. `🎯 Partidas Individuales`: Retos casuales, entrenamientos y duelos en el anotador (promedios personales sin alterar fixtures de torneos/ligas).
+      2. `🏆 Torneos de un Día`: Copas abiertas, torneos relámpago, trofeos de campeonato (#1 a #6 Puesto) y efectividad en cuadros.
+      3. `🛡️ Ligas Locales`: Ligas de clubes (ej: Liga Marplatense • Darderos MDQ) con soporte para fechas presenciales en sede y fechas online.
+      4. `🇦🇷 Liga Nacional`: Única Liga Nacional Oficial clasificatoria internacional con distinción de fechas online (1x) vs fechas presenciales oficiales con doble puntaje (⚡ x2 Pts).
+    * Panel superior de métricas adaptativas por pestaña (ranking, puntos, AVG en la modalidad, podios y fechas disputadas).
+    * Historial de encuentros filtrado con etiquetas temáticas (`[🌐 Online]`, `[🏢 Presencial Sede]`, `[⚡ Presencial Oficial x2 Pts]`).
+  - **Página Oficial de Reglamento (`src/app/reglamento/page.tsx`):**
+    * Diseño deportivo de alto contraste (`bg-black` y paleta de la diana) estructurado en 5 capítulos:
+      1. Especificaciones de montaje (1.73m al Bullseye, 2.37m a la diana) y reglas de 501 Doble Out y Cricket.
+      2. Modalidades de competición y sistema federado de puntuación (x2 en presenciales nacionales).
+      3. Código de etiqueta en la diana (silencio en lanzamiento, distancia detrás del oche, retiro de dardos tras verificar).
+      4. Requerimientos técnicos para partidas online (cámara perpendicular sin sombras, micrófono abierto para validación acústica de impacto, prohibición de tocar dardos antes de cantar).
+      5. Protocolo de Walkover (10 min de tolerancia) y caídas de conexión (5 min de pausa técnica).
+    * Enlaces de acceso directo integrados en `Footer.tsx`, `AppSidebar.tsx` y `PlayerDetailModal.tsx`.
+  - **Control de Versiones y Validación:**
+    * Validación con `npx tsc --noEmit` completada con código 0 (0 errores).
+    * Commit registrado en rama `dev` (`c93689d`).
+- **Estado del Proyecto:** Módulo de torneos con Doble Eliminación y configuración Nakka operativo, fichas de jugador con historial en 4 pestañas, y normativa federada oficial publicada en `/reglamento`.
+
+---
+
 ## [Sesión 11] - 2026-10-11
 - **Objetivo:** Autoajuste y limitación a primer nombre y apellido en Cartas Coleccionables (`UltimateDartsCard.tsx`), explicación y reemplazo de "CAREER 180s" por "TOTAL 180s", sustitución de "oche" por "Diana" en toda la plataforma, erradicación total de la voz sintética femenina en audios dejando únicamente el banco de Russ Bray y Clemens Kuntze, reemplazo del cuadro central "TIRADA" por Cierre Sugerido oficial in-place sin alteración de dimensiones ni layout-shift del teclado, botón de mute en cabecera del anotador, preservación de instancia final con "Deshacer" y panel secundario de visitas y puntuaciones en juego.
 - **Realizado:**

@@ -248,4 +248,28 @@
 - **Decisión:** Implementada la función `formatCardPlayerName` con filtrado de apodos y nombres compuestos, autoajuste tipográfico en SVG, actualización de `sound-effects.ts`, integración de `getSuggestedCheckout` en el cuadro central de `X01Board.tsx` y adición de panel secundario de visitas.
 - **Motivo:** Preservación milimétrica de las dimensiones del anotador en celulares, cero layout-shift al entrar en zona de cierre, fidelidad sonora profesional y diseño de tarjetas limpio sin desbordes.
 
+---
+
+## ADR-019: Doble Eliminación (Double Elimination Nakka Style), Historial en 4 Pestañas y Reglamento Federado de Fair Play
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Los torneos de dardos de alta competencia requieren la modalidad de Doble Eliminación (Double Elimination), donde un jugador derrotado en la llave principal (Winners) no queda fuera, sino que cae al cuadro de Perdedores (Losers) para disputar el camino de repesca hacia la Gran Final.
+  2. Al estilo Nakka (n01), los organizadores necesitaban poder configurar legs específicos e independientes para cada instancia (Cuartos, Semifinales, Final de Ganadores, Rondas de Perdedores, Final de Perdedores y Gran Final), y para ligas configurar el número de zonas, jugadores por grupo, clasificados a playoffs, ida y vuelta y desempate por diferencia de legs.
+  3. En las fichas deportivas de los jugadores, era necesario separar y categorizar su historial de participación en 4 dimensiones claramente delimitadas: Partidas Individuales (retos/práctica), Torneos de un Día (copas/relámpagos sin liga), Ligas Locales (fechas presenciales en sede y fechas online) y Liga Nacional Oficial (fechas online 1x vs fechas presenciales oficiales con doble puntaje ⚡ x2).
+  4. Se requería consolidar una sección pública oficial de "Reglamento Oficial, Código de Conducta & Fair Play" que detalle las medidas físicas de la diana (1.73m al Bullseye, 2.37m a la línea de tiro), el cómputo de puntos por modalidad, las pautas de etiqueta en el oche, los requisitos técnicos de cámara e iluminación para partidas online, y el protocolo de Walkover (10 min) y desconexión (5 min).
+- **Decisión:**
+  1. **Motor de Doble Eliminación (`types.ts`, `TournamentManager.tsx`, `TournamentBracket.tsx`):**
+     * Se incorporó `bracketType: 'WINNERS' | 'LOSERS' | 'FINALS'` y `RoundLegsConfig`.
+     * Se implementó `generateDoubleEliminationBracket()` generando la estructura completa de Winners (R1, R2, R3), Losers (R1, R2, R3) y Gran Final.
+     * `TournamentBracket.tsx` añade pestañas interactivas de visualización: [Ver Todo], [Ganadores (Por Arriba)], [Perdedores (Por Abajo)] y [Gran Final].
+  2. **Configuración de Legs por Instancia & Zonas:**
+     * En el modal de creación de torneos se añadió un acordeón estilo Nakka con campos numéricos para cada fase eliminatoria y selector para definir parámetros de zonas de liga.
+  3. **Historial en 4 Pestañas (`PlayerDetailModal.tsx`):**
+     * Selector interactivo de 4 pestañas con badges especializados, métricas calculadas in-situ (ranking, puntos, eficacia, AVG específico) y listado de encuentros con etiquetas de modalidad (Online, Presencial Sede, ⚡ x2 Presencial Oficial).
+  4. **Página Oficial de Reglamento (`/reglamento`):**
+     * Creada la vista pública `/reglamento` en 5 capítulos navegables con jump links, vinculada en el footer, barra lateral y modales de jugador.
+- **Motivo:** Alineación completa con las normativas internacionales de dardos, total transparencia en la asignación de puntos federados y una experiencia de gestión de torneos idéntica al estándar de oro de la disciplina.
+
 

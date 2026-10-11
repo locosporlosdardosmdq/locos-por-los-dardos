@@ -86,8 +86,30 @@
 
 ---
 
+- [x] **Doble Eliminación (Double Elimination) y Configuración Detallada por Instancia (Nakka Style):**
+  * Árbol de llaves de Doble Eliminación con cruces automáticos de Ganadores (Winners por arriba), Perdedores (Losers por abajo) y Gran Final.
+  * Selector interactivo de visualización en `TournamentBracket.tsx` (Ver Todo, Ganadores, Perdedores, Gran Final).
+  * Formulario de creación de torneos con acordeón de configuración de legs por ronda emulando Nakka: Cuartos, Semifinales, Final de Ganadores, Rondas de Perdedores, Final de Perdedores y Gran Final.
+  * Configuración para Ligas por grupos: número de zonas, competidores por zona, clasificados a playoffs, ida y vuelta y desempate por diferencia de legs.
+
+---
+
+- [x] **Historial de Participación y Estadísticas en 4 Pestañas (`PlayerDetailModal.tsx`):**
+  * Desglose deportivo en 4 pestañas independientes: 1. Partidas Individuales (retos y práctica), 2. Torneos de un Día (copas de campeonato), 3. Ligas Locales (MDQ & clubes; online y presencial), 4. Liga Nacional Oficial (fechas online 1x vs presenciales oficiales con doble puntaje ⚡ x2).
+  * Panel de métricas dedicado por pestaña con cómputo de AVG específico, puntos, podios y fechas disputadas.
+  * Badges detallados de modalidad (`[🌐 Online]`, `[🏢 Presencial Sede]`, `[⚡ Presencial Oficial x2 Pts]`).
+
+---
+
+- [x] **Página Oficial de Reglamento, Código de Conducta & Fair Play (`/reglamento`):**
+  * Manual federado en 5 capítulos: 1. Medidas de diana (1.73m altura, 2.37m tiro) y reglas 501/Cricket; 2. Modalidades y sistema de puntuación (x2 en presenciales nacionales); 3. Código de etiqueta en la diana (silencio, distancia, retiro de dardos); 4. Requerimientos técnicos para partidas online (cámara perpendicular sin sombras, micrófono abierto para validación acústica de impacto, prohibición de tocar dardos antes de cantar); 5. Protocolo de W.O. (10 min tolerancia) y caídas de conexión (5 min pausa).
+  * Enlazado en pie de página (`Footer.tsx`), menú lateral (`AppSidebar.tsx`) y modales de jugador.
+
+---
+
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos
-- [ ] **Exportación y Cartelera de Club:**
+- [ ] **Módulo de Cámara para Partidas Online (Celular + PC con 2 Pantallas / Ventana Emergente Pop-out):**
+  * Implementación del plan técnico validado: alternancia automática en móviles (feed del rival al tirar vs anotador al puntuar) y ventana flotante desacoplada (`window.open` o Document Picture-in-Picture API) para setups de 2 monitores/TV en PC.
   * Generación de PDF / PNG imprimible del cuadro final del torneo para la cartelera física del club.
   * Sorteo automatizado de cabezas de serie (*seeding*) según el AVG oficial del ranking nacional.
 

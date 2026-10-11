@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MatchConfig } from '@/lib/types';
 import { SoundEngine, VoiceCaller } from '@/lib/sound-effects';
+import { saveActiveMatchSession, clearActiveMatchSession } from '@/lib/storage';
+import { formatCardPlayerName } from '@/components/jugadores/UltimateDartsCard';
+import { ExitMatchModal } from './ExitMatchModal';
 import confetti from 'canvas-confetti';
 import { 
   ArrowLeft, 
-  X, 
   RotateCcw, 
   HelpCircle, 
   BarChart3, 
@@ -76,6 +78,74 @@ export const CricketBoard: React.FC<CricketBoardProps> = ({
 
   // Modal de ayuda
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+
+  const handleBackClick = () => {
+    if (history.length === 0 && currentVisitHits.length === 0) {
+      clearActiveMatchSession();
+      onExit();
+      return;
+    }
+    setShowExitModal(true);
+  };
+
+  const handleStandBy = () => {
+    saveActiveMatchSession({
+      config,
+      gameType: 'CRICKET',
+      status: 'STAND_BY',
+      scores: [points[0], points[1]],
+      currentTurn,
+      starterTurn: 0,
+      setsWon,
+      legsWon,
+      dartsThrownLeg: [0, 0],
+      totalPointsMatch: [points[0], points[1]],
+      totalDartsMatch: [0, 0],
+      first9Points: [0, 0],
+      first9Darts: [0, 0],
+      count100s: [0, 0],
+      count140s: [0, 0],
+      count180s: [0, 0],
+      highestCheckout: [0, 0],
+      bestLegDarts: [99, 99],
+      history,
+      turnHistory: [],
+      cricketMarks: marks,
+      cricketPoints: points,
+      tournamentTitle: config.tournamentTitle,
+      savedAt: new Date().toISOString()
+    });
+    setShowExitModal(false);
+    onExit();
+  };
+
+  const handleAbandon = () => {
+    setShowExitModal(false);
+    clearActiveMatchSession();
+
+    if (config.tournamentTitle) {
+      const opponentIdx: 0 | 1 = currentTurn === 0 ? 1 : 0;
+      const targetLegs = Math.ceil(config.bestOfLegs / 2);
+      const abandonmentLegs: [number, number] = opponentIdx === 0 ? [targetLegs, legsWon[1]] : [legsWon[0], targetLegs];
+      onMatchComplete({
+        winnerIndex: opponentIdx,
+        winnerName: opponentIdx === 0 ? p1Display : p2Display,
+        gameType: 'CRICKET',
+        cricketMode,
+        points,
+        legsWon: abandonmentLegs,
+        setsWon,
+        mprP1: getMPR(0),
+        mprP2: getMPR(1),
+        roundsP1: rounds[0],
+        roundsP2: rounds[1],
+        note: 'W.O. (Abandono)'
+      });
+    } else {
+      onExit();
+    }
+  };
 
   // Nombres
   const p1Display = config.player1.name;
@@ -275,13 +345,14 @@ export const CricketBoard: React.FC<CricketBoardProps> = ({
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto bg-[#07090e] border border-[#ef4444]/30 rounded-3xl p-3 sm:p-5 shadow-2xl shadow-black/90 space-y-3 select-none">
-      {/* Cabecera idéntica a la captura */}
+    <div className="w-full max-w-lg mx-auto bg-black border border-[#ef4444]/40 rounded-3xl p-3 sm:p-5 shadow-2xl shadow-black space-y-3 select-none">
+      {/* Cabecera idéntica a la captura con botón Volver/Pausar */}
       <div className="flex items-center justify-between pb-2 border-b border-[#ef4444]/20">
         <div className="flex items-center gap-2">
           <button
-            onClick={onExit}
-            className="p-1.5 rounded-xl bg-[#111622] hover:bg-[#1a2234] text-slate-400 hover:text-white transition-colors"
+            onClick={handleBackClick}
+            title="Volver o pausar partida"
+            className="p-1.5 rounded-xl bg-black hover:bg-[#151515] text-slate-300 hover:text-white border border-slate-800 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -303,7 +374,7 @@ export const CricketBoard: React.FC<CricketBoardProps> = ({
           <button
             onClick={onOpenStats}
             title="Estadísticas"
-            className="p-1.5 rounded-xl bg-[#111622] text-[#00e676] hover:bg-[#182030] border border-[#00e676]/30"
+            className="p-1.5 rounded-xl bg-black text-[#00e676] hover:bg-[#151515] border border-[#00e676]/30"
           >
             <BarChart3 className="w-4 h-4" />
           </button>
@@ -311,39 +382,32 @@ export const CricketBoard: React.FC<CricketBoardProps> = ({
             onClick={handleUndo}
             disabled={history.length === 0}
             title="Deshacer"
-            className="p-1.5 rounded-xl bg-[#111622] text-slate-300 hover:text-white disabled:opacity-30 border border-slate-800"
+            className="p-1.5 rounded-xl bg-black text-slate-300 hover:text-white disabled:opacity-30 border border-slate-800"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
           <button
             onClick={() => setShowHelpModal(true)}
             title="Reglas"
-            className="p-1.5 rounded-xl bg-[#111622] text-slate-300 hover:text-white border border-slate-800"
+            className="p-1.5 rounded-xl bg-black text-slate-300 hover:text-white border border-slate-800"
           >
             <HelpCircle className="w-4 h-4 text-[#00e676]" />
-          </button>
-          <button
-            onClick={onExit}
-            title="Cerrar"
-            className="p-1.5 rounded-xl bg-[#111622] text-[#ef4444] hover:bg-[#182030] border border-[#ef4444]/30"
-          >
-            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Cards de Jugadores (Puntos, MPR, Round, Open) */}
+      {/* Cards de Jugadores (Puntos, MPR, Round, Open - Fondo Negro Puro) */}
       <div className="grid grid-cols-2 gap-2.5">
         {/* Jugador 1 */}
         <div
           className={`rounded-2xl p-3 text-center transition-all ${
             currentTurn === 0
-              ? 'bg-[#0f1422] border-2 border-[#00e676] shadow-lg shadow-[#00e676]/15'
-              : 'bg-[#0f1422]/60 border border-slate-800 opacity-70'
+              ? 'bg-black border-2 border-[#00e676] shadow-xl shadow-[#00e676]/20'
+              : 'bg-black border border-slate-800 opacity-70'
           }`}
         >
           <div className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate mb-1">
-            {p1Display}
+            {formatCardPlayerName(p1Display)}
           </div>
           <div className="text-4xl font-black text-white tracking-tight my-1">
             {points[0]}
@@ -368,12 +432,12 @@ export const CricketBoard: React.FC<CricketBoardProps> = ({
         <div
           className={`rounded-2xl p-3 text-center transition-all ${
             currentTurn === 1
-              ? 'bg-[#0f1422] border-2 border-[#00e676] shadow-lg shadow-[#00e676]/15'
-              : 'bg-[#0f1422]/60 border border-slate-800 opacity-70'
+              ? 'bg-black border-2 border-[#00e676] shadow-xl shadow-[#00e676]/20'
+              : 'bg-black border border-slate-800 opacity-70'
           }`}
         >
           <div className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate mb-1">
-            {p2Display}
+            {formatCardPlayerName(p2Display)}
           </div>
           <div className="text-4xl font-black text-white tracking-tight my-1">
             {points[1]}
@@ -520,6 +584,19 @@ export const CricketBoard: React.FC<CricketBoardProps> = ({
           </div>
         </div>
       )}
+
+      {/* MODAL OFICIAL DE SALIDA / STAND BY / ABANDONO */}
+      <ExitMatchModal
+        isOpen={showExitModal}
+        onClose={() => setShowExitModal(false)}
+        onStandBy={handleStandBy}
+        onAbandon={handleAbandon}
+        matchTitle={config.tournamentTitle || 'Partida de Cricket'}
+        isTournamentMatch={!!config.tournamentTitle}
+        player1Name={p1Display}
+        player2Name={p2Display}
+        currentScoreOrLegs={`P1: ${points[0]} pts (${legsWon[0]} legs) • P2: ${points[1]} pts (${legsWon[1]} legs)`}
+      />
     </div>
   );
 };

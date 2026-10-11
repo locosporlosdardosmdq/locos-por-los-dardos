@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MatchConfig, DartThrow } from '@/lib/types';
 import { SoundEngine, VoiceCaller, isAppAudioMuted, setAppAudioMuted } from '@/lib/sound-effects';
 import { getSuggestedCheckout } from '@/lib/constants';
+import { saveActiveMatchSession, clearActiveMatchSession, ActiveMatchSession } from '@/lib/storage';
+import { formatCardPlayerName } from '@/components/jugadores/UltimateDartsCard';
+import { ExitMatchModal } from './ExitMatchModal';
 import confetti from 'canvas-confetti';
 import { 
   ArrowLeft, 
-  X, 
   Save, 
   Wrench, 
   RotateCcw, 
@@ -43,6 +45,8 @@ interface X01BoardProps {
   voiceCallerEnabled: boolean;
   soundFxEnabled: boolean;
   onOpenStats: () => void;
+  initialSession?: ActiveMatchSession | null;
+  onStandBy?: () => void;
 }
 
 export const X01Board: React.FC<X01BoardProps> = ({
@@ -51,53 +55,54 @@ export const X01Board: React.FC<X01BoardProps> = ({
   onMatchComplete,
   voiceCallerEnabled,
   soundFxEnabled,
-  onOpenStats
+  onOpenStats,
+  initialSession,
+  onStandBy
 }) => {
   // Puntuaciones restantes
-  const [scores, setScores] = useState<[number, number]>([
-    config.startingScore,
-    config.startingScore
-  ]);
+  const [scores, setScores] = useState<[number, number]>(() => 
+    initialSession?.scores || [config.startingScore, config.startingScore]
+  );
 
   // Turno actual: 0 (P1) o 1 (P2)
-  const [currentTurn, setCurrentTurn] = useState<0 | 1>(0);
+  const [currentTurn, setCurrentTurn] = useState<0 | 1>(() => initialSession?.currentTurn ?? 0);
 
   // Saque inicial del leg actual
-  const [starterTurn, setStarterTurn] = useState<0 | 1>(0);
+  const [starterTurn, setStarterTurn] = useState<0 | 1>(() => initialSession?.starterTurn ?? 0);
 
   // Sub-turnos para parejas (0 o 1 de cada pareja)
-  const [p1TeammateTurn, setP1TeammateTurn] = useState<0 | 1>(0);
-  const [p2TeammateTurn, setP2TeammateTurn] = useState<0 | 1>(0);
+  const [p1TeammateTurn, setP1TeammateTurn] = useState<0 | 1>(() => initialSession?.p1TeammateTurn ?? 0);
+  const [p2TeammateTurn, setP2TeammateTurn] = useState<0 | 1>(() => initialSession?.p2TeammateTurn ?? 0);
 
   // Sets y Legs ganados
-  const [setsWon, setSetsWon] = useState<[number, number]>([0, 0]);
-  const [legsWon, setLegsWon] = useState<[number, number]>([0, 0]);
+  const [setsWon, setSetsWon] = useState<[number, number]>(() => initialSession?.setsWon || [0, 0]);
+  const [legsWon, setLegsWon] = useState<[number, number]>(() => initialSession?.legsWon || [0, 0]);
 
   // Entrada numérica tecleada
   const [typedInput, setTypedInput] = useState<string>('');
   const [isRemainingInputMode, setIsRemainingInputMode] = useState<boolean>(false);
 
   // Métricas acumuladas del partido
-  const [dartsThrownLeg, setDartsThrownLeg] = useState<[number, number]>([0, 0]);
-  const [totalPointsMatch, setTotalPointsMatch] = useState<[number, number]>([0, 0]);
-  const [totalDartsMatch, setTotalDartsMatch] = useState<[number, number]>([0, 0]);
+  const [dartsThrownLeg, setDartsThrownLeg] = useState<[number, number]>(() => initialSession?.dartsThrownLeg || [0, 0]);
+  const [totalPointsMatch, setTotalPointsMatch] = useState<[number, number]>(() => initialSession?.totalPointsMatch || [0, 0]);
+  const [totalDartsMatch, setTotalDartsMatch] = useState<[number, number]>(() => initialSession?.totalDartsMatch || [0, 0]);
 
   // First 9 tracking
-  const [first9Points, setFirst9Points] = useState<[number, number]>([0, 0]);
-  const [first9Darts, setFirst9Darts] = useState<[number, number]>([0, 0]);
+  const [first9Points, setFirst9Points] = useState<[number, number]>(() => initialSession?.first9Points || [0, 0]);
+  const [first9Darts, setFirst9Darts] = useState<[number, number]>(() => initialSession?.first9Darts || [0, 0]);
 
   // Hitos
-  const [count100s, setCount100s] = useState<[number, number]>([0, 0]);
-  const [count140s, setCount140s] = useState<[number, number]>([0, 0]);
-  const [count180s, setCount180s] = useState<[number, number]>([0, 0]);
-  const [highestCheckout, setHighestCheckout] = useState<[number, number]>([0, 0]);
-  const [bestLegDarts, setBestLegDarts] = useState<[number, number]>([99, 99]);
+  const [count100s, setCount100s] = useState<[number, number]>(() => initialSession?.count100s || [0, 0]);
+  const [count140s, setCount140s] = useState<[number, number]>(() => initialSession?.count140s || [0, 0]);
+  const [count180s, setCount180s] = useState<[number, number]>(() => initialSession?.count180s || [0, 0]);
+  const [highestCheckout, setHighestCheckout] = useState<[number, number]>(() => initialSession?.highestCheckout || [0, 0]);
+  const [bestLegDarts, setBestLegDarts] = useState<[number, number]>(() => initialSession?.bestLegDarts || [99, 99]);
 
   // Historial de la partida para deshacer
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>(() => initialSession?.history || []);
 
   // Registro detallado de visitas/puntuaciones de la partida en juego
-  const [turnHistory, setTurnHistory] = useState<TurnRecord[]>([]);
+  const [turnHistory, setTurnHistory] = useState<TurnRecord[]>(() => initialSession?.turnHistory || []);
 
   // Estado de silenciar audios de Russ Bray
   const [isMuted, setIsMuted] = useState<boolean>(() => isAppAudioMuted());
@@ -105,6 +110,9 @@ export const X01Board: React.FC<X01BoardProps> = ({
   // Instancia final de partida ganada (en espera de confirmación de salida)
   const [isMatchFinished, setIsMatchFinished] = useState<boolean>(false);
   const [matchWinnerIndex, setMatchWinnerIndex] = useState<0 | 1 | null>(null);
+
+  // Modal de opciones para Volver / Stand By / Abandonar
+  const [showExitModal, setShowExitModal] = useState<boolean>(false);
 
   // Referencias para transición de scroll entre diana y puntuaciones
   const boardRef = useRef<HTMLDivElement>(null);
@@ -116,6 +124,117 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
   const scrollToBoard = () => {
     boardRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Auto-guardado de sesión activa en localStorage ante cada visita para blindar contra navegación accidental
+  useEffect(() => {
+    if (!isMatchFinished && (turnHistory.length > 0 || history.length > 0)) {
+      saveActiveMatchSession({
+        config,
+        gameType: 'X01',
+        status: 'IN_PROGRESS',
+        scores,
+        currentTurn,
+        starterTurn,
+        p1TeammateTurn,
+        p2TeammateTurn,
+        setsWon,
+        legsWon,
+        dartsThrownLeg,
+        totalPointsMatch,
+        totalDartsMatch,
+        first9Points,
+        first9Darts,
+        count100s,
+        count140s,
+        count180s,
+        highestCheckout,
+        bestLegDarts,
+        history,
+        turnHistory,
+        tournamentTitle: config.tournamentTitle,
+        savedAt: new Date().toISOString()
+      });
+    }
+  }, [scores, currentTurn, legsWon, setsWon, turnHistory, isMatchFinished]);
+
+  const handleBackClick = () => {
+    // Si no se registró ningún tiro, vuelve directo a configurar partida
+    if (history.length === 0 && turnHistory.length === 0) {
+      clearActiveMatchSession();
+      onExit();
+      return;
+    }
+    // Si la partida ya está iniciada, abre modal de opciones (Stand By / Abandonar / Continuar)
+    setShowExitModal(true);
+  };
+
+  const handleStandBy = () => {
+    saveActiveMatchSession({
+      config,
+      gameType: 'X01',
+      status: 'STAND_BY',
+      scores,
+      currentTurn,
+      starterTurn,
+      p1TeammateTurn,
+      p2TeammateTurn,
+      setsWon,
+      legsWon,
+      dartsThrownLeg,
+      totalPointsMatch,
+      totalDartsMatch,
+      first9Points,
+      first9Darts,
+      count100s,
+      count140s,
+      count180s,
+      highestCheckout,
+      bestLegDarts,
+      history,
+      turnHistory,
+      tournamentTitle: config.tournamentTitle,
+      savedAt: new Date().toISOString()
+    });
+    setShowExitModal(false);
+    if (onStandBy) {
+      onStandBy();
+    } else {
+      onExit();
+    }
+  };
+
+  const handleAbandon = () => {
+    setShowExitModal(false);
+    clearActiveMatchSession();
+
+    if (config.tournamentTitle) {
+      // Si es partida de torneo o liga: Walkover al adversario
+      const opponentIdx: 0 | 1 = currentTurn === 0 ? 1 : 0;
+      const targetLegs = Math.ceil(config.bestOfLegs / 2);
+      const abandonmentLegs: [number, number] = opponentIdx === 0 ? [targetLegs, legsWon[1]] : [legsWon[0], targetLegs];
+      onMatchComplete({
+        winnerIndex: opponentIdx,
+        winnerName: opponentIdx === 0 ? p1Display : p2Display,
+        scores,
+        legsWon: abandonmentLegs,
+        setsWon,
+        avgP1: getAvg(0),
+        avgP2: getAvg(1),
+        first9P1: getFirst9Avg(0),
+        first9P2: getFirst9Avg(1),
+        count100s,
+        count140s,
+        count180s,
+        highestCheckout,
+        bestLegDarts,
+        turnHistory,
+        note: 'W.O. (Abandono)'
+      });
+    } else {
+      // Partida individual casual: simplemente cancelar y volver
+      onExit();
+    }
   };
 
   const handleToggleMute = () => {
@@ -492,17 +611,18 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
   return (
     <div className="w-full max-w-lg mx-auto space-y-4">
-      {/* PANEL 1: TABLERO DE TIRO PRINCIPAL (Dimensiones y altura preservadas al 100%) */}
+      {/* PANEL 1: TABLERO DE TIRO PRINCIPAL (Fondo negro puro, dimensiones preservadas) */}
       <div 
         ref={boardRef}
-        className="w-full bg-[#07090e] border border-[#ef4444]/30 rounded-3xl p-3 sm:p-5 shadow-2xl shadow-black/90 space-y-3.5 select-none"
+        className="w-full bg-black border border-[#ef4444]/40 rounded-3xl p-3 sm:p-5 shadow-2xl shadow-black space-y-3.5 select-none"
       >
-        {/* Cabecera superior idéntica a la captura */}
+        {/* Cabecera superior oficial con botón Volver integrado */}
         <div className="flex items-center justify-between pb-2 border-b border-[#ef4444]/20">
           <div className="flex items-center gap-2">
             <button
-              onClick={onExit}
-              className="p-1.5 rounded-xl bg-[#111622] hover:bg-[#1a2234] text-slate-400 hover:text-white transition-colors"
+              onClick={handleBackClick}
+              title="Volver o pausar partida"
+              className="p-1.5 rounded-xl bg-black hover:bg-[#151515] text-slate-300 hover:text-white border border-slate-800 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -532,7 +652,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
               className={`p-1.5 rounded-xl border transition-colors ${
                 isMuted 
                   ? 'bg-[#ef4444]/20 text-[#ef4444] border-[#ef4444]/40 hover:bg-[#ef4444]/30' 
-                  : 'bg-[#111622] text-[#00e676] border-[#00e676]/30 hover:bg-[#182030]'
+                  : 'bg-black text-[#00e676] border-[#00e676]/30 hover:bg-[#151515]'
               }`}
             >
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -540,7 +660,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
             <button
               onClick={onOpenStats}
               title="Estadísticas Oficiales"
-              className="p-1.5 rounded-xl bg-[#111622] text-[#00e676] hover:bg-[#182030] border border-[#00e676]/30"
+              className="p-1.5 rounded-xl bg-black text-[#00e676] hover:bg-[#151515] border border-[#00e676]/30"
             >
               <BarChart3 className="w-4 h-4" />
             </button>
@@ -548,16 +668,9 @@ export const X01Board: React.FC<X01BoardProps> = ({
               onClick={handleUndo}
               disabled={history.length === 0}
               title="Deshacer"
-              className="p-1.5 rounded-xl bg-[#111622] text-slate-300 hover:text-white disabled:opacity-30 border border-slate-800"
+              className="p-1.5 rounded-xl bg-black text-slate-300 hover:text-white disabled:opacity-30 border border-slate-800"
             >
               <RotateCcw className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onExit}
-              title="Cerrar"
-              className="p-1.5 rounded-xl bg-[#111622] text-[#ef4444] hover:bg-[#182030] border border-[#ef4444]/30"
-            >
-              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -601,20 +714,20 @@ export const X01Board: React.FC<X01BoardProps> = ({
           </div>
         )}
 
-      {/* Marcador Superior de Jugadores (Cards Enfrentadas) */}
+      {/* Marcador Superior de Jugadores (Cards Enfrentadas - Fondo Negro Puro) */}
       <div className="grid grid-cols-2 gap-2.5">
         {/* Jugador 1 */}
         <div
           className={`rounded-2xl p-3 text-center transition-all ${
             currentTurn === 0
-              ? 'bg-[#0f1422] border-2 border-[#00e676] shadow-lg shadow-[#00e676]/15'
-              : 'bg-[#0f1422]/60 border border-slate-800/80 opacity-70'
+              ? 'bg-black border-2 border-[#00e676] shadow-xl shadow-[#00e676]/20'
+              : 'bg-black border border-slate-800/90 opacity-70'
           }`}
         >
           <div className="flex items-center justify-center gap-1.5 mb-0.5">
             {currentTurn === 0 && <span className="text-[#00e676] text-xs font-black">▶</span>}
             <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate max-w-[130px]">
-              {p1Display}
+              {formatCardPlayerName(p1Display)}
             </span>
           </div>
           {config.isDoubles && (
@@ -637,14 +750,14 @@ export const X01Board: React.FC<X01BoardProps> = ({
         <div
           className={`rounded-2xl p-3 text-center transition-all ${
             currentTurn === 1
-              ? 'bg-[#0f1422] border-2 border-[#00e676] shadow-lg shadow-[#00e676]/15'
-              : 'bg-[#0f1422]/60 border border-slate-800/80 opacity-70'
+              ? 'bg-black border-2 border-[#00e676] shadow-xl shadow-[#00e676]/20'
+              : 'bg-black border border-slate-800/90 opacity-70'
           }`}
         >
           <div className="flex items-center justify-center gap-1.5 mb-0.5">
             {currentTurn === 1 && <span className="text-[#00e676] text-xs font-black">▶</span>}
             <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate max-w-[130px]">
-              {p2Display}
+              {formatCardPlayerName(p2Display)}
             </span>
           </div>
           {config.isDoubles && (
@@ -675,7 +788,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
       <div className="grid grid-cols-[1fr_1.4fr_1fr] gap-2 items-center">
         <button
           onClick={handleSwitchStarter}
-          className="py-2.5 px-2 rounded-xl bg-[#111622] hover:bg-[#1a2234] border border-[#ef4444]/40 text-slate-300 text-[11px] font-bold flex items-center justify-center gap-1 transition-colors"
+          className="py-2.5 px-2 rounded-xl bg-black hover:bg-[#151515] border border-[#ef4444]/40 text-slate-300 text-[11px] font-bold flex items-center justify-center gap-1 transition-colors"
         >
           <RotateCcw className="w-3.5 h-3.5 text-[#ef4444]" />
           <span>switch Starter</span>
@@ -684,7 +797,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
         {/* Display central con borde diana y cierre sugerido oficial en reposo */}
         <div
           onClick={handleConfirmTyped}
-          className={`h-11 rounded-xl bg-[#07090e] border-2 flex items-center justify-center font-black transition-all cursor-pointer ${
+          className={`h-11 rounded-xl bg-black border-2 flex items-center justify-center font-black transition-all cursor-pointer ${
             typedInput
               ? 'border-[#00e676] text-[#00e676] bg-[#00e676]/10 shadow-md shadow-[#00e676]/20 text-xl'
               : 'border-[#ef4444]/40 text-[#00e676]'
@@ -715,7 +828,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
           className={`py-2.5 px-2 rounded-xl border text-[11px] font-black tracking-wider transition-colors ${
             isRemainingInputMode
               ? 'bg-[#ef4444] text-white border-[#ef4444]'
-              : 'bg-[#111622] text-slate-300 border-slate-700 hover:border-slate-500'
+              : 'bg-black text-slate-300 border-slate-700 hover:border-slate-500'
           }`}
         >
           REMAINING
@@ -968,6 +1081,19 @@ export const X01Board: React.FC<X01BoardProps> = ({
         <span>Subir al Tablero de Tiro</span>
       </button>
     </div>
+
+    {/* MODAL OFICIAL DE SALIDA / STAND BY / ABANDONO */}
+    <ExitMatchModal
+      isOpen={showExitModal}
+      onClose={() => setShowExitModal(false)}
+      onStandBy={handleStandBy}
+      onAbandon={handleAbandon}
+      matchTitle={config.tournamentTitle || 'Partida Individual'}
+      isTournamentMatch={!!config.tournamentTitle}
+      player1Name={p1Display}
+      player2Name={p2Display}
+      currentScoreOrLegs={`P1: ${scores[0]} pts (${legsWon[0]} legs) • P2: ${scores[1]} pts (${legsWon[1]} legs)`}
+    />
   </div>
 );
 };

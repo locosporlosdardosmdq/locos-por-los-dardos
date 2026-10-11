@@ -3,6 +3,8 @@
  * Diseñado para operar 100% offline en clubes, pubs y canchas de tiro con mala señal.
  */
 
+import { MatchConfig } from './types';
+
 export interface SavedMatch {
   id: string;
   gameType: 'X01' | 'CRICKET' | 'ROUND_THE_CLOCK';
@@ -23,6 +25,7 @@ export interface SavedMatch {
 
 const STORAGE_KEYS = {
   MATCHES: 'lpld_matches_history_v1',
+  ACTIVE_SESSION: 'lpld_active_match_session_v1',
   CURRENT_PLAYER: 'lpld_player_profile_v1',
   OFFLINE_QUEUE: 'lpld_sync_queue_v1',
   TOURNAMENTS: 'lpld_tournaments_local_v1',
@@ -209,4 +212,70 @@ export function saveStoredLeagues(leagues: any[]): void {
     console.warn('[Storage] Error guardando ligas:', err);
   }
 }
+
+// --- Persistencia de Sesión de Partida Activa (Stand By & Recuperación Ininterrumpida) ---
+export interface ActiveMatchSession {
+  config: MatchConfig;
+  gameType: 'X01' | 'CRICKET';
+  status: 'IN_PROGRESS' | 'STAND_BY';
+  scores: [number, number];
+  currentTurn: 0 | 1;
+  starterTurn: 0 | 1;
+  p1TeammateTurn?: 0 | 1;
+  p2TeammateTurn?: 0 | 1;
+  setsWon: [number, number];
+  legsWon: [number, number];
+  dartsThrownLeg: [number, number];
+  totalPointsMatch: [number, number];
+  totalDartsMatch: [number, number];
+  first9Points: [number, number];
+  first9Darts: [number, number];
+  count100s: [number, number];
+  count140s: [number, number];
+  count180s: [number, number];
+  highestCheckout: [number, number];
+  bestLegDarts: [number, number];
+  history: any[];
+  turnHistory: any[];
+  // Campos específicos de Cricket
+  cricketMarks?: [Record<string, number>, Record<string, number>];
+  cricketPoints?: [number, number];
+  // Datos de torneo o liga asociada
+  tournamentId?: string;
+  tournamentTitle?: string;
+  matchId?: string;
+  isLeague?: boolean;
+  savedAt: string;
+}
+
+export function getActiveMatchSession(): ActiveMatchSession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveActiveMatchSession(session: ActiveMatchSession): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(session));
+    window.dispatchEvent(new CustomEvent('lpld_active_match_changed', { detail: session }));
+  } catch (err) {
+    console.warn('[Storage] Error al guardar sesión activa:', err);
+  }
+}
+
+export function clearActiveMatchSession(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+    window.dispatchEvent(new CustomEvent('lpld_active_match_changed', { detail: null }));
+  } catch (err) {
+    console.warn('[Storage] Error al limpiar sesión activa:', err);
+  }
+}
+
 

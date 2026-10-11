@@ -16,9 +16,25 @@ function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
+let isAudioMuted: boolean = false;
+
+export function setAppAudioMuted(muted: boolean) {
+  isAudioMuted = muted;
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
+  }
+}
+
+export function isAppAudioMuted(): boolean {
+  return isAudioMuted;
+}
+
 export const SoundEngine = {
   // Simula el golpe del dardo penetrando el sisal de la diana
   playDartHit: () => {
+    if (isAudioMuted) return;
     try {
       const ctx = getAudioContext();
       if (!ctx) return;
@@ -44,6 +60,7 @@ export const SoundEngine = {
 
   // Sonido especial para Diana / Bullseye
   playBullseye: () => {
+    if (isAudioMuted) return;
     try {
       const ctx = getAudioContext();
       if (!ctx) return;
@@ -67,6 +84,7 @@ export const SoundEngine = {
 
   // Sonido de Bust (se pasó de puntos o quedó en 1)
   playBust: () => {
+    if (isAudioMuted) return;
     try {
       const ctx = getAudioContext();
       if (!ctx) return;
@@ -90,6 +108,7 @@ export const SoundEngine = {
 
   // Fanfarria / Acorde de Victoria
   playGameShot: () => {
+    if (isAudioMuted) return;
     try {
       const ctx = getAudioContext();
       if (!ctx) return;
@@ -116,6 +135,7 @@ export const SoundEngine = {
 
   // Reproducir clip temático de victoria Sabotage
   playSabotageCelebration: () => {
+    if (isAudioMuted) return;
     try {
       const audio = new Audio('/logos/sabotage.mp3');
       audio.volume = 0.6;
@@ -129,6 +149,7 @@ export const SoundEngine = {
 
   // Reproducir el grito original de Clemens Kuntze ("ONE HUNDRED AND EIGHTY!")
   playClemens180: () => {
+    if (isAudioMuted) return;
     try {
       const audio = new Audio('/sounds/clemens-kuntze.mp3');
       audio.volume = 1.0;
@@ -144,26 +165,9 @@ export const SoundEngine = {
 };
 
 export const VoiceCaller = {
-  speak: (text: string, options: { pitch?: number; rate?: number; lang?: string } = {}) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = options.lang || 'es-ES';
-      utterance.pitch = options.pitch ?? 1.0;
-      utterance.rate = options.rate ?? 1.05;
-
-      // Buscar voz en español
-      const voices = window.speechSynthesis.getVoices();
-      const esVoice = voices.find(
-        (v) => v.lang.startsWith('es') || v.lang.includes('AR') || v.lang.includes('ES')
-      );
-      if (esVoice) utterance.voice = esVoice;
-
-      window.speechSynthesis.speak(utterance);
-    } catch (e) {
-      console.warn('Speech synthesis error', e);
-    }
+  // Desactivada completamente cualquier síntesis de voz femenina (speechSynthesis)
+  speak: (_text: string, _options: { pitch?: number; rate?: number; lang?: string } = {}) => {
+    // Sin voz femenina sintética
   },
 
   speakScore: (score: number) => {
@@ -174,25 +178,25 @@ export const VoiceCaller = {
     VoiceCaller.announceBust();
   },
 
+  // Reproduce el audio oficial de Russ Bray: "Game shot and the leg/match"
   speakGameShot: () => {
-    VoiceCaller.speak('Game shot and the leg!', { pitch: 1.15, rate: 1.1, lang: 'en-GB' });
+    if (isAudioMuted) return;
+    try {
+      const audio = new Audio('/sounds/russ_bray/gameshot.mp3');
+      audio.volume = 1.0;
+      audio.play().catch(() => {});
+    } catch {}
   },
 
   /**
-   * Canto de puntuación con las 5 bandas emocionales:
-   * - < 20: Muy pesimista (pitch bajo 0.65, rate 0.82)
-   * - 21 a 59: Normal (pitch 1.0, rate 1.0)
-   * - 60 a 89: Con énfasis (pitch 1.15, rate 1.1)
-   * - 90 a 119: Con más énfasis (pitch 1.25, rate 1.18)
-   * - 120 a 169: Con mucho énfasis (pitch 1.35, rate 1.25)
-   * - 170 a 180: Audio original de Clemens Kuntze (ONE HUNDRED AND EIGHTY!)
-   */
-  /**
-   * Canto de puntuación con audios reales de estudio de Russ Bray y Clemens Kuntze:
+   * Canto de puntuación oficial:
    * - 180: Audio original de Clemens Kuntze ("ONE HUNDRED AND EIGHTY!")
-   * - 1 al 179: Archivos MP3 oficiales de alta fidelidad de Russ Bray (/sounds/russ_bray/{score}.mp3)
+   * - 1 al 179: Archivos MP3 oficiales de estudio de Russ Bray (/sounds/russ_bray/{score}.mp3)
+   * - Eliminada toda voz femenina sintética del sistema
    */
-  announceScore: (score: number, remaining?: number) => {
+  announceScore: (score: number, _remaining?: number) => {
+    if (isAudioMuted) return;
+
     if (score === 180) {
       SoundEngine.playClemens180();
       SoundEngine.playBullseye();
@@ -200,34 +204,29 @@ export const VoiceCaller = {
     }
 
     if (score <= 0) {
-      VoiceCaller.speak('No score', { pitch: 0.8, rate: 0.9, lang: 'en-GB' });
       return;
     }
 
-    // Reproducir audio real de Russ Bray desde /sounds/russ_bray/{score}.mp3
+    // Reproducir audio auténtico de Russ Bray desde /sounds/russ_bray/{score}.mp3
     try {
       const audio = new Audio(`/sounds/russ_bray/${score}.mp3`);
       audio.volume = 1.0;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
-          console.warn(`[VoiceCaller] Error reproduciendo MP3 para score ${score}, usando fallback:`, err);
-          VoiceCaller.speak(`${score}`, { lang: 'en-GB', rate: 1.05 });
+          console.warn(`[VoiceCaller] No se pudo reproducir audio Russ Bray para score ${score}:`, err);
         });
       }
-    } catch {
-      VoiceCaller.speak(`${score}`, { lang: 'en-GB', rate: 1.05 });
-    }
+    } catch {}
   },
 
   announceBust: () => {
+    if (isAudioMuted) return;
     SoundEngine.playBust();
-    VoiceCaller.speak('¡Bust! Te has pasado', { pitch: 0.7, rate: 0.85 });
   },
 
-  announceCheckoutOpportunity: (remaining: number) => {
-    if (remaining <= 170 && remaining > 1) {
-      VoiceCaller.speak(`Requiere ${remaining}`, { pitch: 1.1, rate: 1.05 });
-    }
+  announceCheckoutOpportunity: (_remaining: number) => {
+    // Sin voz sintética
   }
 };
+

@@ -231,7 +231,7 @@ export const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
                 <span>Duplicar puntos en fechas presenciales (x2)</span>
               </span>
               <p className="text-[10px] text-slate-400">
-                Los torneos oficiales presenciales otorgarán el doble de puntos en la tabla para premiar la asistencia al oche.
+                Los torneos oficiales presenciales otorgarán el doble de puntos en la tabla para premiar la asistencia a la diana.
               </p>
             </div>
             <input

@@ -231,3 +231,21 @@
   4. **Logos Federados Oficiales:** Se integró el logo de Dardos Argentina en `LeagueManager.tsx` y selector dinámico en `CreateLeagueModal.tsx` según el ámbito de la competición.
 - **Motivo:** Máxima autenticidad y representatividad deportiva, legibilidad sin textos cortados y respeto riguroso por el léxico utilizado por los competidores en el circuito.
 
+---
+
+## ADR-018: Autoajuste de Cartas Coleccionables, Terminología "Diana", Banco Exclusivo de Russ Bray y Cierre Sugerido en el Anotador
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. En las Cartas Coleccionables (`UltimateDartsCard.tsx`), los nombres largos de jugadores desbordaban o tocaban los bordes de la tarjeta física. Se requirió que si el jugador carga dos nombres y apellido, la tarjeta muestre exclusivamente su primer nombre y apellido, autoajustando dinámicamente la escala tipográfica y el ancho SVG (`textLength="225"`, `lengthAdjust="spacingAndGlyphs"`). Asimismo, se aclaró la estadística "Career" (reemplazando el término en inglés por "TOTAL 180s").
+  2. En toda la plataforma se reemplazó el vocablo "oche" por "Diana" conforme al uso de los clubes argentinos.
+  3. En el motor de audio (`sound-effects.ts`), se erradicó al 100% la síntesis de voz femenina (`window.speechSynthesis`), dejando como árbitro exclusivo los audios MP3 originales de Russ Bray y Clemens Kuntze en el 180.
+  4. En el tablero oficial 501 (`X01Board.tsx`), el cuadro central de 44px (`h-11`) reemplaza la etiqueta estática "Tirada" por la ruta de cierre sugerido oficial en tiempo real extraída de la tabla de comprardardos.com, removiendo la caja condicional externa inferior para evitar el desplazamiento vertical del teclado táctil.
+  5. Se incorporó un botón de silenciar audios en la cabecera del marcador con persistencia.
+  6. Al concluir la partida, el juego permanece en pantalla esperando la confirmación de salida ("FINALIZAR PARTIDA (EXIT)") sin bloquear el botón de deshacer para corregir cualquier tiro erróneo.
+  7. Se estructuró un segundo panel de dimensiones idénticas para consultar las visitas y puntuaciones turno a turno de la partida en juego.
+- **Decisión:** Implementada la función `formatCardPlayerName` con filtrado de apodos y nombres compuestos, autoajuste tipográfico en SVG, actualización de `sound-effects.ts`, integración de `getSuggestedCheckout` en el cuadro central de `X01Board.tsx` y adición de panel secundario de visitas.
+- **Motivo:** Preservación milimétrica de las dimensiones del anotador en celulares, cero layout-shift al entrar en zona de cierre, fidelidad sonora profesional y diseño de tarjetas limpio sin desbordes.
+
+

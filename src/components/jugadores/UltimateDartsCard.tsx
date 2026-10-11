@@ -283,6 +283,54 @@ function getPlayerPerformance(player: UltimateDartsCardData) {
   };
 }
 
+/**
+ * Formatea el nombre para la carta oficial:
+ * 1. Remueve apodos entre paréntesis (...), corchetes [...] o comillas "...", '...', «...»
+ * 2. Si el jugador carga dos nombres y el apellido (o dos apellidos), usa sólo el primer nombre y apellido.
+ *    Ejemplos:
+ *    - "Mariano Alberto Deux" -> "Mariano Deux"
+ *    - "Juan Carlos Pérez" -> "Juan Pérez"
+ *    - "Mariano Deux (ICEMAN)" -> "Mariano Deux"
+ *    - "Juan Carlos Gómez López" -> "Juan Gómez"
+ *    - "Juan de la Rosa" -> "Juan de la Rosa"
+ */
+export function formatCardPlayerName(rawName: string): string {
+  if (!rawName) return '';
+  let clean = rawName
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\s*\[[^\]]*\]/g, '')
+    .replace(/\s*["'«][^"'»]*["'»]/g, '')
+    .trim();
+
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) {
+    return clean;
+  }
+
+  const particles = ['de', 'del', 'la', 'las', 'los', 'san', 'santa', 'van', 'von', 'da', 'di'];
+
+  // Caso 3 partes (ej: "Juan Carlos Pérez" o "Juan de la Rosa")
+  if (parts.length === 3) {
+    if (particles.includes(parts[1].toLowerCase())) {
+      return clean;
+    }
+    return `${parts[0]} ${parts[2]}`;
+  }
+
+  // Caso 4 o más partes
+  if (particles.includes(parts[1].toLowerCase())) {
+    return parts.slice(0, 4).join(' ');
+  }
+
+  if (particles.includes(parts[2].toLowerCase())) {
+    return `${parts[0]} ${parts.slice(2).join(' ')}`;
+  }
+
+  // 2 nombres y 2 apellidos (ej: "Juan Carlos Pérez Gómez") -> primer nombre y primer apellido
+  return `${parts[0]} ${parts[2]}`;
+}
+
+
 export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
   player,
   showActions = true,
@@ -300,6 +348,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
   const innerPath = "M 39,49 C 72,21 123,25 151,37 C 160,41 180,41 189,37 C 217,25 268,21 301,49 C 317,60 321,74 321,97 L 321,254 L 306,270 L 321,286 L 321,431 C 321,451 309,467 292,478 L 170,523 L 48,478 C 31,467 19,451 19,431 L 19,286 L 34,270 L 19,254 L 19,97 C 19,74 23,60 39,49 Z";
 
   const bestPerformance = getPlayerPerformance(player);
+  const formattedName = formatCardPlayerName(player.name).toUpperCase();
 
   // Parseo del título o badge según el criterio de ranking seleccionado o última mejor actuación
   let titleNumber = bestPerformance.number;
@@ -480,7 +529,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                   fontWeight="800" 
                   fontFamily="system-ui, -apple-system, sans-serif"
                 >
-                  CAREER
+                  TOTAL
                 </text>
                 <text 
                   x="28" 
@@ -495,20 +544,27 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
               </g>
             </g>
 
-            {/* FRANJA CENTRAL: NOMBRE DEL JUGADOR (Dorado / Impact) */}
+            {/* FRANJA CENTRAL: NOMBRE DEL JUGADOR (Dorado / Impact con autoajuste de ancho) */}
             <g transform="translate(170, 252)">
               <text 
                 x="0" 
                 y="0" 
                 textAnchor="middle" 
                 fill={theme.accentColor} 
-                fontSize="25" 
+                fontSize={
+                  formattedName.length > 20 ? 15 :
+                  formattedName.length > 17 ? 17 :
+                  formattedName.length > 14 ? 19 :
+                  formattedName.length > 11 ? 21 : 23
+                } 
                 fontWeight="900" 
                 fontFamily="'Impact', 'Arial Black', sans-serif"
-                letterSpacing="1.2"
+                letterSpacing={formattedName.length > 16 ? "0.3" : formattedName.length > 12 ? "0.8" : "1.2"}
+                textLength={formattedName.length > 15 ? "225" : undefined}
+                lengthAdjust={formattedName.length > 15 ? "spacingAndGlyphs" : undefined}
                 filter={`url(#text-shadow-${cardId})`}
               >
-                {player.name.toUpperCase()}
+                {formattedName}
               </text>
               
               {/* CÁPSULA ESPACIOSA DE ÚLTIMA COMPETENCIA DISPUTADA (Prioridad Liga o Torneo, Top 6 destacado) */}

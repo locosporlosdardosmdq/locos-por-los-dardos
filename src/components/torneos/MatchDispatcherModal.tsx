@@ -104,7 +104,7 @@ export const MatchDispatcherModal: React.FC<MatchDispatcherModalProps> = ({
               </div>
             </button>
 
-            {/* Opción 2: Live Presencial (En el Club / Oche) */}
+            {/* Opción 2: Live Presencial (En el Club / Diana) */}
             <button
               onClick={() => {
                 onLaunchLiveMatch();

@@ -54,7 +54,7 @@ export const AppBottomNav: React.FC<AppBottomNavProps> = ({ onOpenMobileMenu }) 
           <span className="text-[10px] font-black uppercase tracking-wider mt-0.5">Torneos</span>
         </Link>
 
-        {/* 3. ANOTADOR CENTRAL DESTACADO (Ideal para uso táctil en el oche) */}
+        {/* 3. ANOTADOR CENTRAL DESTACADO (Ideal para uso táctil en la diana) */}
         <Link
           href="/anotador"
           prefetch={true}

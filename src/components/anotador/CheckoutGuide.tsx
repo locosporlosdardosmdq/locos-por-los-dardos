@@ -33,22 +33,19 @@ export const CheckoutGuide: React.FC<CheckoutGuideProps> = ({
     );
   }
 
-  const route = CHECKOUT_GUIDE[remaining];
+  const rawRoute = CHECKOUT_GUIDE[remaining];
 
   // Si no está explícito en la tabla fija pero es menor a 100, calcular ruta típica
-  let displayRoute = route;
-  if (!displayRoute) {
+  let displayRoute: string[] = [];
+  if (rawRoute) {
+    displayRoute = rawRoute.split(/\s+/).filter(Boolean);
+  } else {
     if (remaining <= 40 && remaining % 2 === 0) {
       displayRoute = [`D${remaining / 2}`];
     } else if (remaining <= 40) {
       displayRoute = [`S1`, `D${(remaining - 1) / 2}`];
     } else if (remaining <= 60) {
-      const odd = remaining % 2 !== 0;
-      if (odd) {
-        displayRoute = [`S${remaining - 40}`, 'D20'];
-      } else {
-        displayRoute = [`S${remaining - 40}`, 'D20'];
-      }
+      displayRoute = [`S${remaining - 40}`, 'D20'];
     } else if (remaining <= 100) {
       displayRoute = ['T20', `D${(remaining - 60) / 2}`];
     }

@@ -71,6 +71,18 @@
   * Reemplazo integral en toda la plataforma del término "Pierna" por "Leg" (práctica argentina del juego: Set, Leg, AVG).
   * Incorporación del logo oficial de Dardos Argentina en cabecera de Ligas Nacionales y logo de Darderos MDQ en ligas y torneos locales.
   * Módulo de subida de foto de perfil con recorte automático a 400x520 px sobre canvas preservando transparencia PNG.
+  * Formateo inteligente de nombres en cartas coleccionables (`formatCardPlayerName`): limita a primer nombre y apellido ante 2 nombres o apellidos compuestos, y autoajusta escala tipográfica y compresión vectorial SVG (`textLength="225"`) sin desbordes.
+  * Reemplazo del término "CAREER 180s" por "TOTAL 180s" bajo la bandera.
+
+---
+
+- [x] **Anotador X01, Terminología "Diana" y Sonido Exclusivo de Russ Bray:**
+  * Reemplazo sistemático del vocablo "oche" por "Diana" en toda la plataforma.
+  * Erradicación total de la voz sintética femenina en audios, consolidando como árbitro exclusivo a Russ Bray (MP3) y Clemens Kuntze en el 180.
+  * Cuadro central "TIRADA" (`h-11`) transformado en display de Cierre Sugerido oficial in-place de 2 a 170, eliminando la caja externa inferior y preservando milimétricamente las dimensiones del tablero en celulares sin layout-shift.
+  * Botón de silenciar/activar audios integrado en la cabecera del marcador.
+  * Instancia final de partida esperando confirmación "FINALIZAR PARTIDA (EXIT)" con botón "Deshacer / Corregir" plenamente habilitado ante cualquier error.
+  * Panel 2 de puntuaciones y visitas en juego de dimensiones idénticas con transición suave entre tablero y tabla histórica.
 
 ---
 

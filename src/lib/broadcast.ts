@@ -1,6 +1,6 @@
 /**
  * Real-Time Match Broadcast para Locos por los Dardos
- * Permite que un anotador en el Oche (línea de tiro) transmita el estado del partido
+ * Permite que un anotador en la Diana (línea de tiro) transmita el estado del partido
  * dardo por dardo a pantallas de televisión, proyectores o jueces de torneo en tiempo real.
  */
 

@@ -179,7 +179,7 @@ export const WebcamSetupModal: React.FC<WebcamSetupModalProps> = ({
                 className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#00e676]"
               >
                 <option value="Predeterminado">Predeterminado (Micrófono del sistema)</option>
-                <option value="Micrófono Externo">Micrófono USB de Oche / Pista</option>
+                <option value="Micrófono Externo">Micrófono USB de Diana / Pista</option>
               </select>
             </div>
 
@@ -203,7 +203,7 @@ export const WebcamSetupModal: React.FC<WebcamSetupModalProps> = ({
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-300 flex items-center gap-2">
                 <Camera className="w-4 h-4 text-[#00e676]" />
-                <span>Vista Previa del Oche / Diana</span>
+                <span>Vista Previa de la Diana</span>
               </span>
               <span className="text-[10px] text-[#00e676] bg-[#00e676]/10 px-2 py-0.5 rounded-md">
                 {cameraActive ? 'SEÑAL ACTIVA' : 'MODO EMULADO'}

@@ -204,7 +204,7 @@ export const AdminMatchModal: React.FC<AdminMatchModalProps> = ({
             <span>2. Declarar Jugador Ausente (Walkover / W.O.)</span>
           </div>
           <p className="text-[11px] text-slate-400">
-            Si un jugador no se presentó al oche, avanzá al rival automáticamente con victoria por W.O.
+            Si un jugador no se presentó a la diana, avanzá al rival automáticamente con victoria por W.O.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">

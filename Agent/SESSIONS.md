@@ -1,5 +1,28 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 11] - 2026-10-11
+- **Objetivo:** Autoajuste y limitación a primer nombre y apellido en Cartas Coleccionables (`UltimateDartsCard.tsx`), explicación y reemplazo de "CAREER 180s" por "TOTAL 180s", sustitución de "oche" por "Diana" en toda la plataforma, erradicación total de la voz sintética femenina en audios dejando únicamente el banco de Russ Bray y Clemens Kuntze, reemplazo del cuadro central "TIRADA" por Cierre Sugerido oficial in-place sin alteración de dimensiones ni layout-shift del teclado, botón de mute en cabecera del anotador, preservación de instancia final con "Deshacer" y panel secundario de visitas y puntuaciones en juego.
+- **Realizado:**
+  - `UltimateDartsCard.tsx`:
+    * Implementación de la función `formatCardPlayerName` que limpia apodos entre paréntesis o comillas y, ante jugadores con dos nombres y apellido o apellidos compuestos, extrae limpiamente el primer nombre y apellido (ej: `Mariano Deux (ICEMAN)` -> `MARIANO DEUX`).
+    * Autoajuste tipográfico dinámico en SVG con escala de `fontSize` (15px a 23px) y compresión vectorial con `textLength="225"` y `lengthAdjust="spacingAndGlyphs"` para garantizar que ningún nombre desborde o roce los marcos dorados.
+    * Métrica histórica aclarada: reemplazado el término en inglés "CAREER 180s" por "TOTAL 180s" bajo la bandera.
+  - Reemplazo Universal "oche" -> "Diana":
+    * Actualizado en `X01Board.tsx`, `CricketBoard.tsx`, `TournamentManager.tsx`, `WebcamSetupModal.tsx`, `AdminMatchModal.tsx`, `CreateLeagueModal.tsx`, `MatchDispatcherModal.tsx`, `broadcast.ts` y `AppBottomNav.tsx`.
+  - Motor de Audio Profesional (`sound-effects.ts`):
+    * Erradicación total de `window.speechSynthesis` (voz femenina).
+    * Árbitro de voz 100% exclusivo con los audios MP3 originales de Russ Bray (`/sounds/russ_bray/${score}.mp3` y `gameshot.mp3`) y Clemens Kuntze para el 180.
+    * Métodos globales `isAppAudioMuted` y `setAppAudioMuted` para control de silencio.
+  - Anotador Oficial X01 (`X01Board.tsx`):
+    * Cuadro central de 44px (`h-11`): muestra el cierre sugerido oficial en reposo (`getSuggestedCheckout`) extraído de la tabla oficial de 2 a 170 y el número tecleado al tipear. Se eliminó la caja externa condicional inferior, blindando el teclado contra desplazamientos de pantalla (*layout shift*).
+    * Botón de silenciar/activar audios integrado en la cabecera junto a estadísticas y salir.
+    * Instancia final de partida: al concretar el checkout final, el marcador queda a la espera de la confirmación de salida ("FINALIZAR PARTIDA (EXIT)") sin bloquear el botón "Deshacer / Corregir" por si hubo un error de tiro.
+    * Panel 2 de Puntuaciones: panel inferior de dimensiones idénticas con tabla scrollable de visitas en juego (`turnHistory`) y métricas en vivo (AVG, 180s, mayor cierre) con navegación suave entre diana y puntuaciones.
+  - Verificación de tipos con `npx tsc --noEmit` completada con código de salida 0 (0 errores).
+- **Estado del Proyecto:** Anotador optimizado con dimensiones de celular intactas, árbitro auténtico de Russ Bray, tarjetas coleccionables autoajustables sin desbordes y terminología oficial deportiva "Diana".
+
+---
+
 ## [Sesión 10] - 2026-10-10
 - **Objetivo:** Refinamiento estético y funcional de la Tarjeta Coleccionable (`UltimateDartsCard.tsx`), jerarquía de desempeño deportivo priorizando Liga sobre Torneo con mención explícita a puestos Top 6 (#1 al #6), remoción total de menciones a canciones de entrada (*walkOnSong*), ampliación del espacio visual para la última competencia disputada, reemplazo universal del término "Pierna" por "Leg", e integración del logo oficial de Dardos Argentina en la cabecera federada de Ligas.
 - **Realizado:**

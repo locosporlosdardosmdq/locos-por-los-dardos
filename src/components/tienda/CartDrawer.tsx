@@ -33,7 +33,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onRemoveItem,
   onClearCart
 }) => {
-  const [customerName, setCustomerName] = useState('Facundo López');
+  const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('facundo.mdq@dardosargentina.com');
   const [customerPhone, setCustomerPhone] = useState('+54 9 223 555-8941');
   const [address, setAddress] = useState('Av. Colón 2450, Piso 4');

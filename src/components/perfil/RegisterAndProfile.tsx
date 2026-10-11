@@ -187,30 +187,28 @@ export const RegisterAndProfile: React.FC = () => {
     id: profile.id,
     name: profile.fullName || profile.nickname,
     nickname: profile.nickname,
-    avatarUrl: profile.avatarUrl,
-    photoUrl: customPhoto || profile.photoUrl || (profile.id === 'user-iceman' ? '/images/players/iceman.jpg' : (profile.id === 'user-facundo' ? '/images/players/halcon.jpg' : '/images/players/iceman.jpg')),
+    avatarUrl: profile.avatarUrl || '/images/iceman-perfil.png',
+    photoUrl: customPhoto || profile.photoUrl || profile.avatarUrl || '/images/iceman-perfil.png',
+    logoUrl: profile.logoUrl || (profile.id === 'user-iceman-admin' || profile.nickname === 'ICEMAN' ? '/logos/logo-iceman-card.png' : undefined),
     nationality: profile.nationality || 'Argentina',
     countryCode: profile.countryCode || 'AR',
     province: profile.province,
     city: profile.city,
     club: (profile as any).club || 'Darderos Mar del Plata',
-    avg: profile.stats.overallAvg || profile.estimatedAvg,
+    avg: profile.stats.overallAvg || profile.estimatedAvg || 48.0,
     category: profile.category,
-    matchesWon: profile.stats.matchesWon,
-    matchesTotal: profile.stats.matchesPlayed,
-    count180s: profile.stats.count180s,
-    highestCheckout: profile.stats.highestCheckout,
+    matchesWon: profile.stats.matchesWon || 0,
+    matchesTotal: profile.stats.matchesPlayed || 0,
+    count180s: profile.stats.count180s || 0,
+    highestCheckout: profile.stats.highestCheckout || 0,
     isVerified: profile.isVerified,
     nationalRank: 1,
-    nationalPoints: 1850,
+    nationalPoints: 0,
     mdqLeagueRank: 1,
-    mdqLeaguePoints: 980,
-    lastTournamentRank: 1,
-    lastTournamentName: 'Torneo Apertura Verano 2026 • Copa Mar del Plata',
-    lastTournamentDate: '15/02/2026',
+    mdqLeaguePoints: 0,
     dartBrand: 'TARGET 90%',
     dartWeight: profile.preferredDartWeight || 24,
-    bestLeg: profile.stats.bestLegDarts || 12
+    bestLeg: profile.stats.bestLegDarts || 0
   };
 
   return (
@@ -436,13 +434,13 @@ export const RegisterAndProfile: React.FC = () => {
                   {profile.stats.matchesWon}
                 </span>
                 <span className="text-xs text-[#b8ad98]">
-                  / {profile.stats.matchesPlayed} PJ ({((profile.stats.matchesWon / profile.stats.matchesPlayed) * 100).toFixed(0)}% Win)
+                  / {profile.stats.matchesPlayed} PJ ({profile.stats.matchesPlayed > 0 ? ((profile.stats.matchesWon / profile.stats.matchesPlayed) * 100).toFixed(0) : 0}% Win)
                 </span>
               </div>
               <div className="w-full bg-[#14161f] h-2 rounded-full mt-2 overflow-hidden border border-[#313647]">
                 <div
                   className="bg-[#00b853] h-full rounded-full"
-                  style={{ width: `${(profile.stats.matchesWon / profile.stats.matchesPlayed) * 100}%` }}
+                  style={{ width: `${profile.stats.matchesPlayed > 0 ? (profile.stats.matchesWon / profile.stats.matchesPlayed) * 100 : 0}%` }}
                 />
               </div>
             </div>
@@ -506,29 +504,12 @@ export const RegisterAndProfile: React.FC = () => {
                 <TrendingUp className="w-4 h-4 text-[#00b853]" />
                 Evolución Histórica de AVG (Últimas fechas)
               </h3>
-              <div className="space-y-2.5">
-                {[
-                  { fecha: 'Fecha 5 - Torneo MDQ 2026', avg: 68.2, legs: '4-2', rival: 'Martín Rossi' },
-                  { fecha: 'Fecha 4 - Liga Federal Online', avg: 65.4, legs: '3-1', rival: 'Diego Gómez' },
-                  { fecha: 'Fecha 3 - Amistoso Darderos MDQ', avg: 63.8, legs: '5-4', rival: 'Lucas Pereyra' },
-                  { fecha: 'Fecha 2 - Copa Costa Atlántica', avg: 61.5, legs: '2-4', rival: 'Carlos Méndez' },
-                  { fecha: 'Fecha 1 - Apertura Primavera', avg: 59.8, legs: '4-0', rival: 'Rodrigo Morales' },
-                ].map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-[#14161f] border border-[#313647] text-xs"
-                  >
-                    <div>
-                      <strong className="text-white block">{item.fecha}</strong>
-                      <span className="text-[#b8ad98]">vs {item.rival} ({item.legs})</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[#00b853] font-mono font-black text-sm">
-                        {item.avg.toFixed(1)} AVG
-                      </span>
-                    </div>
-                  </div>
-                ))}
+              <div className="p-6 rounded-2xl bg-[#14161f] border border-[#313647] text-center space-y-2">
+                <Target className="w-8 h-8 text-[#00b853] mx-auto opacity-70" />
+                <span className="text-xs font-bold text-[#efe7d8] block">Sin partidas disputadas aún</span>
+                <p className="text-[11px] text-[#b8ad98] max-w-xs mx-auto leading-relaxed">
+                  Tus estadísticas están en 0. Al disputar partidas en el anotador oficial o en torneos, tu evolución histórica se registrará automáticamente aquí.
+                </p>
               </div>
             </div>
 
@@ -573,6 +554,18 @@ export const RegisterAndProfile: React.FC = () => {
         /* FORMULARIO DE REGISTRO & ESTIMACIÓN DE AVG */
         <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-6 sm:p-8 shadow-2xl max-w-3xl mx-auto">
           <div className="mb-6">
+            <div className="mb-4 p-3.5 rounded-2xl bg-[#14161f] border border-amber-500/40 flex items-start gap-3">
+              <Camera className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="text-xs space-y-1">
+                <strong className="text-white block font-black uppercase tracking-wider">
+                  Configuración de Foto de Perfil & Tarjeta Coleccionable
+                </strong>
+                <p className="text-slate-300 leading-relaxed">
+                  Recordá que para la tarjeta de jugador, <span className="text-amber-400 font-bold">el fondo de la foto debe ser transparente</span> (PNG sin fondo recortado). Podés cambiar tu foto oficial desde la pestaña <em>Perfil & Estadísticas</em>.
+                </p>
+              </div>
+            </div>
+
             <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
               <User className="w-6 h-6 text-[#00b853]" />
               Ficha del Jugador & Categorización Automática
@@ -601,7 +594,7 @@ export const RegisterAndProfile: React.FC = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00b853]"
-                  placeholder="Ej: Facundo López"
+                  placeholder="Ej: Mariano Deux"
                 />
               </div>
 

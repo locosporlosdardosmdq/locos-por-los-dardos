@@ -79,14 +79,14 @@ import {
 // Generador de llave eliminatoria oficial de 8 jugadores
 function generateDefaultBracket(tournamentId: string, roundLegs?: RoundLegsConfig, defaultLegs: number = 3): TournamentBracketMatch[] {
   const pList = [
-    { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'user-mdq-001', name: 'Facundo López (El Halcón)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'rank-1', name: 'Martín Rossi (Sniper CABA)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'rank-3', name: 'Diego Gómez (Tungsteno)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'p-4', name: 'Lucas Pereyra (Bullseye)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'p-5', name: 'Carlos Méndez (Charly 180)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'p-6', name: 'Rodrigo Morales (El Rayo)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' }
+    { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/images/iceman-perfil.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-2', name: 'Por Acreditar #2', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-3', name: 'Por Acreditar #3', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-4', name: 'Por Acreditar #4', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-5', name: 'Por Acreditar #5', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-6', name: 'Por Acreditar #6', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-7', name: 'Por Acreditar #7', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-8', name: 'Por Acreditar #8', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' }
   ];
 
   const distMode = roundLegs?.distanceMode || 'LEGS';
@@ -112,14 +112,14 @@ function generateDefaultBracket(tournamentId: string, roundLegs?: RoundLegsConfi
 // Generador oficial de Doble Eliminación (Winners Bracket, Losers Bracket y Gran Final)
 function generateDoubleEliminationBracket(tournamentId: string, roundLegs?: RoundLegsConfig, defaultLegs: number = 3): TournamentBracketMatch[] {
   const pList = [
-    { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'user-mdq-001', name: 'Facundo López (El Halcón)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'rank-1', name: 'Martín Rossi (Sniper CABA)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'rank-3', name: 'Diego Gómez (Tungsteno)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'p-4', name: 'Lucas Pereyra (Bullseye)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'p-5', name: 'Carlos Méndez (Charly 180)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'p-6', name: 'Rodrigo Morales (El Rayo)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' }
+    { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/images/iceman-perfil.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-2', name: 'Por Acreditar #2', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-3', name: 'Por Acreditar #3', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-4', name: 'Por Acreditar #4', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-5', name: 'Por Acreditar #5', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-6', name: 'Por Acreditar #6', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-7', name: 'Por Acreditar #7', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'slot-8', name: 'Por Acreditar #8', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' }
   ];
 
   const distMode = roundLegs?.distanceMode || 'LEGS';
@@ -159,188 +159,8 @@ function generateDoubleEliminationBracket(tournamentId: string, roundLegs?: Roun
   ];
 }
 
-// Torneo de muestra histórico precargado para visualizar estadísticas si el usuario lo desea
-const SAMPLE_HISTORY_TOURNAMENT: Tournament = {
-  id: 'hist-torneo-apertura-2026',
-  slug: 'torneo-apertura-verano-2026',
-  title: 'Torneo Apertura Verano 2026 • Copa Mar del Plata',
-  description: 'Primer torneo oficial del circuito federal de dardos con presencia de los mejores jugadores del país.',
-  type: 'PRESENCIAL',
-  format: 'SINGLE_ELIMINATION',
-  startingScore: 501,
-  outMode: 'DOUBLE_OUT',
-  bestOfLegs: 5,
-  maxParticipants: 16,
-  registeredCount: 16,
-  venueName: 'Sede Darderos Mar del Plata',
-  city: 'Mar del Plata',
-  province: 'Buenos Aires',
-  startDate: '2026-02-15T15:00:00.000Z',
-  endDate: '2026-02-15T21:00:00.000Z',
-  status: 'COMPLETED',
-  bannerImageUrl: '/logos/logo-mdq.png',
-  entryFeeArs: 8000,
-  prizePoolArs: 200000,
-  organizer: 'Darderos Mar del Plata & Locos por los Dardos',
-  stats: {
-    championId: 'user-iceman-admin',
-    championName: 'Mariano Deux (ICEMAN)',
-    championAvatar: '/logos/logo-mdq.png',
-    runnerUpId: 'rank-1',
-    runnerUpName: 'Martín Rossi (Sniper CABA)',
-    highestAvgPlayer: 'Mariano Deux (ICEMAN)',
-    highestAvgScore: 79.8,
-    total180s: 18,
-    highestCheckout: 170,
-    highestCheckoutPlayer: 'Mariano Deux (ICEMAN)',
-    bestLegDarts: 11,
-    bestLegPlayer: 'Martín Rossi',
-    totalMatchesPlayed: 7,
-    totalLegsPlayed: 29
-  },
-  matches: [
-    {
-      id: 'hist-m1', round: 1, matchIndex: 0,
-      player1: { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-      player2: { id: 'user-mdq-001', name: 'Facundo López (El Halcón)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-      scoreP1: 3, scoreP2: 1, winnerId: 'user-iceman-admin', status: 'FINISHED'
-    },
-    {
-      id: 'hist-m2', round: 1, matchIndex: 1,
-      player1: { id: 'p-4', name: 'Lucas Pereyra (Bullseye)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-      player2: { id: 'p-5', name: 'Carlos Méndez (Charly)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-      scoreP1: 3, scoreP2: 0, winnerId: 'p-4', status: 'FINISHED', note: 'W.O. (Carlos Méndez ausente)'
-    },
-    {
-      id: 'hist-m3', round: 1, matchIndex: 2,
-      player1: { id: 'rank-1', name: 'Martín Rossi (Sniper)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-      player2: { id: 'rank-3', name: 'Diego Gómez (Tungsteno)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-      scoreP1: 3, scoreP2: 2, winnerId: 'rank-1', status: 'FINISHED'
-    },
-    {
-      id: 'hist-m4', round: 1, matchIndex: 3,
-      player1: { id: 'p-6', name: 'Rodrigo Morales (El Rayo)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-      player2: { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-      scoreP1: 1, scoreP2: 3, winnerId: 'p-7', status: 'FINISHED'
-    },
-    // Semifinales
-    {
-      id: 'hist-m5', round: 2, matchIndex: 0,
-      player1: { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-      player2: { id: 'p-4', name: 'Lucas Pereyra (Bullseye)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-      scoreP1: 3, scoreP2: 0, winnerId: 'user-iceman-admin', status: 'FINISHED'
-    },
-    {
-      id: 'hist-m6', round: 2, matchIndex: 1,
-      player1: { id: 'rank-1', name: 'Martín Rossi (Sniper)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-      player2: { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-      scoreP1: 3, scoreP2: 1, winnerId: 'rank-1', status: 'FINISHED'
-    },
-    // Gran Final
-    {
-      id: 'hist-m7', round: 3, matchIndex: 0,
-      player1: { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-      player2: { id: 'rank-1', name: 'Martín Rossi (Sniper)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
-      scoreP1: 3, scoreP2: 2, winnerId: 'user-iceman-admin', status: 'FINISHED'
-    }
-  ]
-};
-
-// Torneo Nacional 2026 para el Historial Oficial
-const SAMPLE_NATIONAL_TOURNAMENT_2026: Tournament = {
-  id: 'hist-open-nacional-2026',
-  slug: 'gran-open-nacional-argentina-2026',
-  title: 'Gran Open Nacional de Argentina 2026 • Clasificatorio PDC',
-  description: 'Fecha oficial del circuito federado nacional clasificatorio a competiciones internacionales de la PDC y WDF.',
-  type: 'ONLINE',
-  format: 'SINGLE_ELIMINATION',
-  competitionMode: 'NATIONAL_LEAGUE',
-  leagueId: 'league-national-argentina',
-  leagueName: 'Liga Nacional Oficial de Argentina',
-  startingScore: 501,
-  outMode: 'DOUBLE_OUT',
-  bestOfLegs: 7,
-  maxParticipants: 16,
-  registeredCount: 16,
-  venueName: 'Sede Virtual Federal • Arena Dardos Argentina',
-  city: 'Buenos Aires',
-  province: 'CABA',
-  startDate: '2026-03-20T17:00:00.000Z',
-  endDate: '2026-03-20T22:30:00.000Z',
-  status: 'COMPLETED',
-  bannerImageUrl: '/logos/dardos-argentina.png',
-  entryFeeArs: 12000,
-  prizePoolArs: 350000,
-  organizer: 'Federación Argentina de Dardos & Locos por los Dardos',
-  stats: {
-    championId: 'user-iceman-admin',
-    championName: 'Mariano Deux (ICEMAN)',
-    championAvatar: '/logos/logo-mdq.png',
-    runnerUpId: 'rank-1',
-    runnerUpName: 'Martín Rossi (Sniper CABA)',
-    highestAvgPlayer: 'Mariano Deux (ICEMAN)',
-    highestAvgScore: 82.4,
-    total180s: 22,
-    highestCheckout: 170,
-    highestCheckoutPlayer: 'Mariano Deux (ICEMAN)',
-    bestLegDarts: 10,
-    bestLegPlayer: 'Mariano Deux (ICEMAN)',
-    totalMatchesPlayed: 7,
-    totalLegsPlayed: 33
-  },
-  matches: generateDefaultBracket('hist-open-nacional-2026').map(m => ({ ...m, status: 'FINISHED', scoreP1: 4, scoreP2: 2, winnerId: m.player1?.id }))
-};
-
-// Torneo Local 2025 para validar filtrado histórico por año
-const SAMPLE_HISTORY_TOURNAMENT_2025: Tournament = {
-  id: 'hist-copa-mdq-2025',
-  slug: 'copa-ciudad-mar-del-plata-2025',
-  title: 'Copa Ciudad de Mar del Plata 2025 • Sede Oficial MDQ',
-  description: 'Certamen clausura oficial de la temporada 2025 disputado en la sede de Darderos Mar del Plata.',
-  type: 'PRESENCIAL',
-  format: 'SINGLE_ELIMINATION',
-  competitionMode: 'LOCAL_LEAGUE',
-  leagueId: 'league-mdq-2025',
-  leagueName: 'Liga Marplatense 2025 • Darderos MDQ',
-  startingScore: 501,
-  outMode: 'DOUBLE_OUT',
-  bestOfLegs: 5,
-  maxParticipants: 16,
-  registeredCount: 16,
-  venueName: 'Sede Darderos Mar del Plata',
-  city: 'Mar del Plata',
-  province: 'Buenos Aires',
-  startDate: '2025-11-20T16:00:00.000Z',
-  endDate: '2025-11-20T21:00:00.000Z',
-  status: 'COMPLETED',
-  bannerImageUrl: '/logos/logo-mdq.png',
-  entryFeeArs: 6000,
-  prizePoolArs: 150000,
-  organizer: 'Darderos Mar del Plata',
-  stats: {
-    championId: 'user-iceman-admin',
-    championName: 'Mariano Deux (ICEMAN)',
-    championAvatar: '/logos/logo-mdq.png',
-    runnerUpId: 'user-mdq-001',
-    runnerUpName: 'Facundo López (El Halcón)',
-    highestAvgPlayer: 'Facundo López',
-    highestAvgScore: 76.5,
-    total180s: 15,
-    highestCheckout: 156,
-    highestCheckoutPlayer: 'Mariano Deux (ICEMAN)',
-    bestLegDarts: 12,
-    bestLegPlayer: 'Facundo López',
-    totalMatchesPlayed: 7,
-    totalLegsPlayed: 28
-  },
-  matches: generateDefaultBracket('hist-copa-mdq-2025').map(m => ({ ...m, status: 'FINISHED', scoreP1: 3, scoreP2: 1, winnerId: m.player1?.id }))
-};
-
-const SAMPLE_HISTORY_TOURNAMENTS: Tournament[] = [
-  SAMPLE_HISTORY_TOURNAMENT,
-  SAMPLE_NATIONAL_TOURNAMENT_2026,
-  SAMPLE_HISTORY_TOURNAMENT_2025
-];
+// Torneos históricos en limpio para producción
+const SAMPLE_HISTORY_TOURNAMENTS: Tournament[] = [];
 
 export const TournamentManager: React.FC = () => {
   // Pestaña principal: Torneos Activos vs Ligas & Posiciones vs Historial
@@ -366,13 +186,10 @@ export const TournamentManager: React.FC = () => {
 
   // Historial de torneos con soporte de temporadas 2026 y 2025
   const [historyTournaments, setHistoryTournaments] = useState<Tournament[]>(() => {
-    const stored = getStoredTournamentHistory([]);
-    return stored.length > 0 ? stored : SAMPLE_HISTORY_TOURNAMENTS;
+    return getStoredTournamentHistory([]);
   });
   const [selectedHistoryYear, setSelectedHistoryYear] = useState<string>('ALL');
-  const [selectedHistoryTournamentId, setSelectedHistoryTournamentId] = useState<string | null>(
-    SAMPLE_HISTORY_TOURNAMENT.id
-  );
+  const [selectedHistoryTournamentId, setSelectedHistoryTournamentId] = useState<string | null>(null);
 
   // Modal de Detalle de Jugador (Ficha completa con trofeos, AVG e historial)
   const [selectedPlayerForDetail, setSelectedPlayerForDetail] = useState<UltimateDartsCardData | null>(null);
@@ -644,7 +461,7 @@ export const TournamentManager: React.FC = () => {
           championAvatar: champion?.avatarUrl || '/logos/logo-mdq.png',
           runnerUpId: runnerUp?.id,
           runnerUpName: runnerUp?.name,
-          highestAvgPlayer: champion?.name || 'Facundo López',
+          highestAvgPlayer: champion?.name || 'Mariano Deux (ICEMAN)',
           highestAvgScore: 74.5,
           total180s: 14,
           highestCheckout: 156,
@@ -675,10 +492,7 @@ export const TournamentManager: React.FC = () => {
 
   // Cargar torneo de muestra en historial para demostración
   const handleLoadSampleHistory = () => {
-    const updated = [SAMPLE_HISTORY_TOURNAMENT, ...historyTournaments];
-    setHistoryTournaments(updated);
-    saveStoredTournamentHistory(updated);
-    setSelectedHistoryTournamentId(SAMPLE_HISTORY_TOURNAMENT.id);
+    // Vacío en producción
   };
 
   // Lanzar partido de Grupo en el Anotador
@@ -1670,7 +1484,7 @@ export const TournamentManager: React.FC = () => {
 
                         {/* Subcampeón */}
                         <div 
-                          onClick={() => handleOpenPlayerDetail(currentHistoryTournament.stats?.runnerUpName || 'Martín Rossi')}
+                          onClick={() => handleOpenPlayerDetail(currentHistoryTournament.stats?.runnerUpName || 'Subcampeón')}
                           className="p-4 rounded-2xl bg-[#141a29] border border-slate-700 flex items-center gap-4 cursor-pointer hover:border-slate-400 transition-all group"
                           title="Click para ver ficha y estadísticas del Subcampeón"
                         >
@@ -1682,7 +1496,7 @@ export const TournamentManager: React.FC = () => {
                               Subcampeón (Tocar para ver ficha)
                             </span>
                             <div className="text-base font-black text-white group-hover:text-slate-200">
-                              {currentHistoryTournament.stats?.runnerUpName || 'Martín Rossi'}
+                              {currentHistoryTournament.stats?.runnerUpName || 'Subcampeón'}
                             </div>
                             <span className="text-[11px] text-slate-400">Medalla de Plata</span>
                           </div>
@@ -1741,7 +1555,7 @@ export const TournamentManager: React.FC = () => {
                             {currentHistoryTournament.stats.bestLegDarts || 11} d.
                           </span>
                           <span className="text-[10px] text-slate-400 truncate block">
-                            {currentHistoryTournament.stats.bestLegPlayer || 'Martín Rossi'}
+                            {currentHistoryTournament.stats.bestLegPlayer || 'Subcampeón'}
                           </span>
                         </div>
                       </div>

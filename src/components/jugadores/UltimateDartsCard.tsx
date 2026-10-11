@@ -31,6 +31,7 @@ export interface UltimateDartsCardData {
   nickname: string;
   avatarUrl?: string;
   photoUrl?: string;
+  logoUrl?: string;
   nationality?: string;
   countryCode?: string;
   province: string;
@@ -274,7 +275,25 @@ function getPlayerPerformance(player: UltimateDartsCardData) {
     };
   }
 
-  // CASO 3: CIRCUITO FEDERADO GENERAL
+  // CASO 3: CIRCUITO FEDERADO GENERAL O JUGADOR EN LIMPIO
+  const isIceman = player.nickname === 'ICEMAN' || player.id === 'user-iceman-admin' || (player.name && player.name.includes('Mariano Deux'));
+  
+  if ((!player.matchesTotal || player.matchesTotal === 0) && !tourneyRank && !bestLeagueRank) {
+    return {
+      number: isIceman ? '48' : '#1',
+      rank: 1,
+      rankLabel: isIceman ? 'SUPERADMIN' : 'OFICIAL',
+      trophyIcon: isIceman ? '👑' : '🎯',
+      cornerLine1: isIceman ? '48.0 AVG' : 'JUGADOR',
+      cornerLine2: isIceman ? 'OFICIAL' : 'FEDERADO',
+      competitionName: 'CIRCUITO OFICIAL 2026',
+      badgeTitle: isIceman ? '👑 SUPERADMINISTRADOR' : '🎯 JUGADOR OFICIAL',
+      badgeSubtitle: 'ASOCIACIÓN DARDEROS MDQ',
+      isTop6: true,
+      source: 'CIRCUIT'
+    };
+  }
+
   return {
     number: '#1',
     rank: 1,
@@ -349,6 +368,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
   const clipId = `fut-clip-${player.id}`;
   const bgGradId = `bg-grad-${player.id}`;
   const fadeGradId = `fade-grad-${player.id}`;
+  const photoBackdropId = `photo-bg-${player.id}`;
 
   // Geometría del escudo de Luke Littler / Ultimate Darts (viewBox: 0 0 340 540)
   const outerPath = "M 34,44 C 70,14 125,18 152,32 C 160,36 180,36 188,32 C 215,18 270,14 306,44 C 324,56 328,70 328,95 L 328,255 L 310,270 L 328,285 L 328,435 C 328,458 314,476 295,488 L 170,536 L 45,488 C 26,476 12,458 12,435 L 12,285 L 30,270 L 12,255 L 12,95 C 12,70 16,56 34,44 Z";
@@ -401,6 +421,13 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
             </clipPath>
 
             {/* Gradiente de fondo líquido / mármol */}
+            <radialGradient id={photoBackdropId} cx="55%" cy="38%" r="62%">
+              <stop offset="0%" stopColor="#1e293b" stopOpacity="0.95" />
+              <stop offset="45%" stopColor="#0f172a" stopOpacity="0.90" />
+              <stop offset="85%" stopColor="#030712" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#000000" stopOpacity="0.80" />
+            </radialGradient>
+
             <radialGradient id={bgGradId} cx="65%" cy="30%" r="75%">
               <stop offset="0%" stopColor={theme.bgLight} />
               <stop offset="45%" stopColor={theme.bgMid} />
@@ -442,6 +469,14 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
             {/* RETRATO FOTOGRÁFICO DEL JUGADOR (Posicionado a la derecha, pose PDC) */}
             {player.photoUrl ? (
               <g>
+                {/* FONDO DE FOTO UNIFICADO PARA TODOS LOS JUGADORES (Estudio fotográfico oficial para PNG transparente) */}
+                <path 
+                  d="M 85,25 C 130,12 250,12 315,30 L 315,260 C 250,270 140,270 85,255 Z" 
+                  fill={`url(#${photoBackdropId})`} 
+                />
+                {/* Halo sutil de iluminación deportiva */}
+                <circle cx="205" cy="115" r="95" fill={theme.accentColor} opacity="0.10" filter="blur(20px)" />
+
                 <image 
                   href={player.photoUrl} 
                   x="85" 
@@ -467,6 +502,22 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                 >
                   {player.nickname.slice(0, 2).toUpperCase()}
                 </text>
+              </g>
+            )}
+
+            {/* LOGO PERSONAL DEL JUGADOR (Muy pequeño y distinguido en la esquina superior derecha) */}
+            {(player.logoUrl || player.nickname === 'ICEMAN' || player.id === 'user-iceman-admin') && (
+              <g transform="translate(270, 36)">
+                {/* Base circular con relieve y borde sutil */}
+                <circle cx="16" cy="16" r="16" fill="#07090e" stroke={theme.borderColor} strokeWidth="1.2" filter={`url(#text-shadow-${cardId})`} />
+                <image 
+                  href={player.logoUrl || '/logos/logo-iceman-card.png'} 
+                  x="3" 
+                  y="3" 
+                  width="26" 
+                  height="26" 
+                  preserveAspectRatio="xMidYMid meet" 
+                />
               </g>
             )}
 

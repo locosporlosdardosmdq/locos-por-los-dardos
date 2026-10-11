@@ -41,13 +41,13 @@ export const DartScorer: React.FC<DartScorerProps> = ({
       avatarUrl: MOCK_CURRENT_USER.avatarUrl
     },
     player2: {
-      id: MOCK_RANKINGS[0].id,
-      name: MOCK_RANKINGS[0].fullName,
-      nickname: MOCK_RANKINGS[0].nickname,
-      avatarUrl: MOCK_RANKINGS[0].avatarUrl
+      id: 'guest-rival',
+      name: 'Rival / Invitado',
+      nickname: 'Rival',
+      avatarUrl: '/logos/logo-mdq.png'
     },
     player1Name: MOCK_CURRENT_USER.fullName,
-    player2Name: MOCK_RANKINGS[0].fullName,
+    player2Name: 'Rival / Invitado',
     ...initialConfig
   };
 

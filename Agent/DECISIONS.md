@@ -329,3 +329,35 @@
 - **Motivo:** Transparencia económica y deportiva en la recaudación de torneos, automatización del cómputo de premios federados, agilidad en la confirmación de inscriptos vía WhatsApp y consolidación de la personería institucional de la Asociación de Mar del Plata y Dardos Argentina.
 
 
+
+
+---
+
+## ADR-022: Limpieza Integral de Datos de Prueba, Tarjeta Coleccionable con Backdrop Fotográfico Unificado y Configuración Exclusiva de ICEMAN
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. La plataforma acumulaba jugadores ficticios ('rank-1', 'user-mdq-001', 'Sniper', etc.), torneos mock de prueba y ligas simuladas que debían erradicarse por completo antes del lanzamiento oficial a producción.
+  2. Como único usuario configurado en la base de datos debe figurar exclusivamente Mariano Deux (ICEMAN), emparentado a su cuenta de administrador oficial (`marianodeux@gmail.com`), con su foto oficial y su logo personal cargados desde los recursos físicos.
+  3. Los atributos competitivos de ICEMAN deben fijarse en: AVG oficial de 48.0 (tanto en `estimatedAvg`, `overallAvg` y `first9Avg`) y todas las métricas de "TOTAL" (180s cantados, partidos disputados, piernas ganadas) en 0.
+  4. En la Tarjeta Coleccionable (`UltimateDartsCard.tsx`), se requería establecer el mismo fondo de foto uniforme e idéntico para todos los jugadores (un backdrop de estudio deportivo con iluminación focal sobre el que se recorta la silueta), exhibir el logo personal del jugador de forma muy pequeña y refinada en la esquina superior derecha, e indicar explícitamente en la configuración del perfil que la foto debe ser en formato PNG con fondo transparente.
+- **Decisión:**
+  1. **Recursos de Marca e Imagen:**
+     * Se copiaron los archivos de `D:\Locos por los dardos\Recursos`:
+       - `Iceman Perfil.png` -> `public/images/iceman-perfil.png` (477 KB).
+       - `Logo ICEMAN.png` -> `public/logos/logo-iceman.png` (6.69 MB) y versión optimizada de alta fidelidad `public/logos/logo-iceman-card.png` (90 KB).
+  2. **Erradicación de Mocks en Capa de Datos:**
+     * `src/lib/constants.ts`: `MOCK_RANKINGS` reducido únicamente a `[USER_ICEMAN]`. `DEFAULT_LEAGUES` vaciado a `[]`. `DEFAULT_ASSOCIATION_AUTHORITIES` conservando solo a Mariano Deux (Presidente MDQ y Presidente Nacional de Dardos Argentina) con su foto oficial `/images/iceman-perfil.png`.
+     * `src/lib/players-data.ts`: `CANONICAL_PLAYERS` reducido exclusivamente a Mariano Deux (ICEMAN) con AVG 48.0 y TOTAL 0.
+     * `src/components/jugadores/PlayerDirectory.tsx`: Eliminado el array estático de 10 jugadores; ahora consume directamente `CANONICAL_PLAYERS`.
+     * `src/components/torneos/TournamentManager.tsx` y `TournamentGroupStage.tsx`: Eliminados los torneos y partidos precargados ficticios; se inicializan en listas limpias (`[]`) con empty states explicativos para cuando se disputen certámenes reales.
+  3. **Tarjeta Coleccionable (`UltimateDartsCard.tsx`):**
+     * **Backdrop Unificado:** Implementado un gradiente radial de estudio deportivo (`photoBackdropId`) con iluminación focal y halo de estadio centrado detrás de la silueta fotográfica, garantizando que cualquier foto recortada con fondo transparente luzca homogénea y profesional al estilo PDC.
+     * **Logo Pequeño Oficial:** Renderizado de una cápsula circular con relieve (`34x34 px`) en la esquina superior derecha (`x="270" y="36"`) que exhibe el logo de ICEMAN (`logo-iceman-card.png`).
+     * **Desempeño en 0:** `getPlayerPerformance` adaptado para reconocer el estado inicial limpio, mostrando `👑 SUPERADMINISTRADOR • ASOCIACIÓN DARDEROS MDQ` sin inventar torneos inexistentes.
+  4. **Perfil del Jugador (`RegisterAndProfile.tsx`):**
+     * Incorporación de aviso destacado y obligatorio: *"Requisito Obligatorio: Para que tu silueta se integre sobre el fondo oficial de la tarjeta de jugador, la foto debe tener fondo transparente (formato PNG sin fondo)."*
+     * Blindaje contra división por cero en ratio de victorias ante 0 partidos jugados.
+     * Reemplazo de la tabla estática de evolución de AVG por un panel inicial limpio que invita a disputar los primeros partidos.
+- **Motivo:** Plataforma 100% limpia para producción, con identidad personal soberana para el administrador, estética coleccionable impecable y cero datos residuales de prueba.

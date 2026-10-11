@@ -54,20 +54,20 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
 
   // Grupo 1 inicial con jugadores de la comunidad
   const [groupPlayers, setGroupPlayers] = useState<GroupPlayer[]>([
-    { id: 'p1', name: 'Facundo López (Tiburón MDQ)', matchesPlayed: 2, matchesWon: 2, matchesLost: 0, legsFor: 4, legsAgainst: 1, points: 4 },
-    { id: 'p2', name: 'Martín Rossi (Sniper CABA)', matchesPlayed: 2, matchesWon: 1, matchesLost: 1, legsFor: 3, legsAgainst: 2, points: 2 },
-    { id: 'p3', name: 'Diego Gómez (Flecha Negra)', matchesPlayed: 2, matchesWon: 1, matchesLost: 1, legsFor: 2, legsAgainst: 3, points: 2 },
-    { id: 'p4', name: 'Lucas Pereyra (El Zurdo)', matchesPlayed: 2, matchesWon: 0, matchesLost: 2, legsFor: 1, legsAgainst: 4, points: 0 }
+    { id: 'p1', name: 'Mariano Deux (ICEMAN)', matchesPlayed: 0, matchesWon: 0, matchesLost: 0, legsFor: 0, legsAgainst: 0, points: 0 },
+    { id: 'p2', name: 'Por Acreditar #2', matchesPlayed: 0, matchesWon: 0, matchesLost: 0, legsFor: 0, legsAgainst: 0, points: 0 },
+    { id: 'p3', name: 'Por Acreditar #3', matchesPlayed: 0, matchesWon: 0, matchesLost: 0, legsFor: 0, legsAgainst: 0, points: 0 },
+    { id: 'p4', name: 'Por Acreditar #4', matchesPlayed: 0, matchesWon: 0, matchesLost: 0, legsFor: 0, legsAgainst: 0, points: 0 }
   ]);
 
-  // Partidos del grupo
+  // Partidos del grupo (Inicializados en 0 para disputa en vivo)
   const [groupMatches, setGroupMatches] = useState<GroupMatch[]>([
-    { id: 'gm-1', player1Id: 'p1', player2Id: 'p2', player1Name: 'Facundo López', player2Name: 'Martín Rossi', scoreP1: 2, scoreP2: 1, status: 'FINISHED', winnerId: 'p1' },
-    { id: 'gm-2', player1Id: 'p3', player2Id: 'p4', player1Name: 'Diego Gómez', player2Name: 'Lucas Pereyra', scoreP1: 2, scoreP2: 0, status: 'FINISHED', winnerId: 'p3' },
-    { id: 'gm-3', player1Id: 'p1', player2Id: 'p3', player1Name: 'Facundo López', player2Name: 'Diego Gómez', scoreP1: 2, scoreP2: 0, status: 'FINISHED', winnerId: 'p1' },
-    { id: 'gm-4', player1Id: 'p2', player2Id: 'p4', player1Name: 'Martín Rossi', player2Name: 'Lucas Pereyra', scoreP1: 2, scoreP2: 1, status: 'FINISHED', winnerId: 'p2' },
-    { id: 'gm-5', player1Id: 'p1', player2Id: 'p4', player1Name: 'Facundo López', player2Name: 'Lucas Pereyra', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
-    { id: 'gm-6', player1Id: 'p2', player2Id: 'p3', player1Name: 'Martín Rossi', player2Name: 'Diego Gómez', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' }
+    { id: 'gm-1', player1Id: 'p1', player2Id: 'p2', player1Name: 'Mariano Deux (ICEMAN)', player2Name: 'Por Acreditar #2', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
+    { id: 'gm-2', player1Id: 'p3', player2Id: 'p4', player1Name: 'Por Acreditar #3', player2Name: 'Por Acreditar #4', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
+    { id: 'gm-3', player1Id: 'p1', player2Id: 'p3', player1Name: 'Mariano Deux (ICEMAN)', player2Name: 'Por Acreditar #3', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
+    { id: 'gm-4', player1Id: 'p2', player2Id: 'p4', player1Name: 'Por Acreditar #2', player2Name: 'Por Acreditar #4', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
+    { id: 'gm-5', player1Id: 'p1', player2Id: 'p4', player1Name: 'Mariano Deux (ICEMAN)', player2Name: 'Por Acreditar #4', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
+    { id: 'gm-6', player1Id: 'p2', player2Id: 'p3', player1Name: 'Por Acreditar #2', player2Name: 'Por Acreditar #3', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' }
   ]);
 
   // Partido seleccionado para el dispatcher modal

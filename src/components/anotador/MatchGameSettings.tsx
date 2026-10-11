@@ -64,25 +64,25 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
   });
 
   const [player2, setPlayer2] = useState<ParticipantPlayer>({
-    id: MOCK_RANKINGS[0].id,
-    name: MOCK_RANKINGS[0].fullName,
-    nickname: MOCK_RANKINGS[0].nickname,
-    avatarUrl: MOCK_RANKINGS[0].avatarUrl
+    id: 'guest-rival',
+    name: 'Rival / Invitado',
+    nickname: 'Rival',
+    avatarUrl: '/logos/logo-mdq.png'
   });
 
   // Compañeros en caso de parejas
   const [p1Teammate, setP1Teammate] = useState<ParticipantPlayer>({
-    id: MOCK_RANKINGS[1].id,
-    name: MOCK_RANKINGS[1].fullName,
-    nickname: MOCK_RANKINGS[1].nickname,
-    avatarUrl: MOCK_RANKINGS[1].avatarUrl
+    id: 'guest-team-p1',
+    name: 'Pareja Jugador 1',
+    nickname: 'Pareja 1',
+    avatarUrl: '/logos/logo-mdq.png'
   });
 
   const [p2Teammate, setP2Teammate] = useState<ParticipantPlayer>({
-    id: MOCK_RANKINGS[2].id,
-    name: MOCK_RANKINGS[2].fullName,
-    nickname: MOCK_RANKINGS[2].nickname,
-    avatarUrl: MOCK_RANKINGS[2].avatarUrl
+    id: 'guest-team-p2',
+    name: 'Pareja Jugador 2',
+    nickname: 'Pareja 2',
+    avatarUrl: '/logos/logo-mdq.png'
   });
 
   // Modal de selección de jugador de la app
@@ -112,7 +112,7 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
   const [showAudioSettingsModal, setShowAudioSettingsModal] = useState(false);
 
   // Jugadores disponibles en la comunidad
-  const availablePlayers: PlayerProfile[] = [MOCK_CURRENT_USER, ...MOCK_RANKINGS];
+  const availablePlayers: PlayerProfile[] = [MOCK_CURRENT_USER];
 
   const handleSelectExistingPlayer = (profile: PlayerProfile) => {
     if (!pickingSlot) return;

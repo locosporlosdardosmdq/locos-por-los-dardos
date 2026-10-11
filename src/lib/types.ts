@@ -58,6 +58,7 @@ export interface PlayerProfile {
   countryCode?: string;
   avatarUrl: string;
   photoUrl?: string;
+  logoUrl?: string;
   estimatedAvg: number;
   category: PlayerCategory;
   isVerified?: boolean;

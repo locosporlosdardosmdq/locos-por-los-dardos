@@ -107,11 +107,23 @@
 
 ---
 
+- [x] **Configuración Detallada por Instancia de Llave & Soporte de Sets + Legs:**
+  * Erradicación completa de marcas externas: denominación soberana "Configuración detallada por instancia de llave".
+  * Selector interactivo entre `[🎯 Solo Legs]` y `[🏆 Sets + Legs]`.
+  * Configuración de Legs requeridos por Set y etiquetas dinámicas con indicador `1º a X`.
+  * Corrección integral del scroll en el modal de creación de torneos (`overflow-y-auto`, `overscroll-contain`, `touch-pan-y`).
+  * Visualización de badges de distancia y sets ganados (`1S`, `2S`) en `TournamentBracket.tsx`.
+
+- [x] **Módulo de Cámara para Partidas Online (Celular + PC con 2 Pantallas / Ventana Emergente Pop-out):**
+  * Ventana emergente desacoplada `/anotador/camara-popout` para 2ª pantalla, TV o proyector con streaming de webcam a pantalla completa, selector de hardware, controles de zoom/espejo y banner televisivo estilo PDC vía `matchBroadcast`.
+  * Botón `[🖥️ Pop-out 2ª Pantalla]` en la cabecera del anotador oficial.
+  * Modo móvil de alternancia de cámara con botón `[📹 Diana Rival]` y conmutación automática al teclado táctil de 5 columnas en el turno local, preservando milimétricamente las dimensiones del teclado ergonómico.
+
+---
+
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos
-- [ ] **Módulo de Cámara para Partidas Online (Celular + PC con 2 Pantallas / Ventana Emergente Pop-out):**
-  * Implementación del plan técnico validado: alternancia automática en móviles (feed del rival al tirar vs anotador al puntuar) y ventana flotante desacoplada (`window.open` o Document Picture-in-Picture API) para setups de 2 monitores/TV en PC.
-  * Generación de PDF / PNG imprimible del cuadro final del torneo para la cartelera física del club.
-  * Sorteo automatizado de cabezas de serie (*seeding*) según el AVG oficial del ranking nacional.
+- [ ] Generación de PDF / PNG imprimible del cuadro final del torneo para la cartelera física del club.
+- [ ] Sorteo automatizado de cabezas de serie (*seeding*) según el AVG oficial del ranking nacional.
 
 ---
 

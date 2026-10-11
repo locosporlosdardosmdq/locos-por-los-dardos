@@ -76,6 +76,15 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
         <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 border-b border-slate-800 pb-2 mb-2">
           <div className="flex items-center gap-1.5">
             <span>Partida #{m.matchIndex + 1}</span>
+            {m.distanceMode === 'SETS' ? (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-[#ffe600]/15 text-[#ffe600] border border-[#ffe600]/30">
+                1º a {m.setTarget || 3} Sets
+              </span>
+            ) : m.legTarget ? (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                1º a {m.legTarget} Legs
+              </span>
+            ) : null}
             {m.note && (
               <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/40">
                 {m.note}
@@ -153,13 +162,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
             </span>
           </div>
 
-          <span
-            className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
-              isP1Winner ? 'bg-[#00e676] text-[#07090e]' : 'bg-[#07090e] text-white border border-slate-800'
-            }`}
-          >
-            {m.scoreP1}
-          </span>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {m.distanceMode === 'SETS' && (
+              <span className="font-mono font-bold text-xs text-[#ffe600] px-1.5 py-0.5 rounded bg-[#ffe600]/10 border border-[#ffe600]/30" title="Sets ganados">
+                {m.scoreSetsP1 || 0}S
+              </span>
+            )}
+            <span
+              className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
+                isP1Winner ? 'bg-[#00e676] text-[#07090e]' : 'bg-[#07090e] text-white border border-slate-800'
+              }`}
+            >
+              {m.scoreP1}
+            </span>
+          </div>
         </div>
 
         {/* Jugador 2 */}
@@ -197,13 +213,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
             </span>
           </div>
 
-          <span
-            className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
-              isP2Winner ? 'bg-[#00e676] text-[#07090e]' : 'bg-[#07090e] text-white border border-slate-800'
-            }`}
-          >
-            {m.scoreP2}
-          </span>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {m.distanceMode === 'SETS' && (
+              <span className="font-mono font-bold text-xs text-[#ffe600] px-1.5 py-0.5 rounded bg-[#ffe600]/10 border border-[#ffe600]/30" title="Sets ganados">
+                {m.scoreSetsP2 || 0}S
+              </span>
+            )}
+            <span
+              className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
+                isP2Winner ? 'bg-[#00e676] text-[#07090e]' : 'bg-[#07090e] text-white border border-slate-800'
+              }`}
+            >
+              {m.scoreP2}
+            </span>
+          </div>
         </div>
 
         {/* Call to action si es jugable */}

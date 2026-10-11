@@ -89,21 +89,23 @@ function generateDefaultBracket(tournamentId: string, roundLegs?: RoundLegsConfi
     { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' }
   ];
 
-  const qfLegs = roundLegs?.quarterFinals || defaultLegs;
-  const sfLegs = roundLegs?.semiFinals || defaultLegs;
-  const finalsLegs = roundLegs?.finals || defaultLegs + 1;
+  const distMode = roundLegs?.distanceMode || 'LEGS';
+  const qfVal = roundLegs?.quarterFinals || defaultLegs;
+  const sfVal = roundLegs?.semiFinals || defaultLegs;
+  const finalsVal = roundLegs?.finals || defaultLegs + 1;
+  const legsPerSet = roundLegs?.legsPerSet || 5;
 
   return [
     // Cuartos de Final (Ronda 1)
-    { id: `${tournamentId}-m1`, round: 1, matchIndex: 0, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[0], player2: pList[1], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:00' },
-    { id: `${tournamentId}-m2`, round: 1, matchIndex: 1, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[2], player2: pList[3], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:30' },
-    { id: `${tournamentId}-m3`, round: 1, matchIndex: 2, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[4], player2: pList[5], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:00' },
-    { id: `${tournamentId}-m4`, round: 1, matchIndex: 3, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[6], player2: pList[7], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:30' },
+    { id: `${tournamentId}-m1`, round: 1, matchIndex: 0, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[0], player2: pList[1], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:00' },
+    { id: `${tournamentId}-m2`, round: 1, matchIndex: 1, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[2], player2: pList[3], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:30' },
+    { id: `${tournamentId}-m3`, round: 1, matchIndex: 2, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[4], player2: pList[5], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:00' },
+    { id: `${tournamentId}-m4`, round: 1, matchIndex: 3, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[6], player2: pList[7], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:30' },
     // Semifinales (Ronda 2)
-    { id: `${tournamentId}-m5`, round: 2, matchIndex: 0, bracketType: 'WINNERS', legTarget: sfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:15' },
-    { id: `${tournamentId}-m6`, round: 2, matchIndex: 1, bracketType: 'WINNERS', legTarget: sfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:45' },
+    { id: `${tournamentId}-m5`, round: 2, matchIndex: 0, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? sfVal : legsPerSet, setTarget: distMode === 'SETS' ? sfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:15' },
+    { id: `${tournamentId}-m6`, round: 2, matchIndex: 1, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? sfVal : legsPerSet, setTarget: distMode === 'SETS' ? sfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:45' },
     // Gran Final (Ronda 3)
-    { id: `${tournamentId}-m7`, round: 3, matchIndex: 0, bracketType: 'FINALS', legTarget: finalsLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:30' }
+    { id: `${tournamentId}-m7`, round: 3, matchIndex: 0, bracketType: 'FINALS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? finalsVal : legsPerSet, setTarget: distMode === 'SETS' ? finalsVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:30' }
   ];
 }
 
@@ -120,38 +122,40 @@ function generateDoubleEliminationBracket(tournamentId: string, roundLegs?: Roun
     { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' }
   ];
 
-  const qfLegs = roundLegs?.quarterFinals || defaultLegs;
-  const sfLegs = roundLegs?.semiFinals || defaultLegs;
-  const wfLegs = roundLegs?.finals || defaultLegs + 1;
-  const lrLegs = roundLegs?.losersRound || defaultLegs;
-  const lfLegs = roundLegs?.losersFinals || defaultLegs;
-  const gfLegs = roundLegs?.grandFinal || defaultLegs + 2;
+  const distMode = roundLegs?.distanceMode || 'LEGS';
+  const qfVal = roundLegs?.quarterFinals || defaultLegs;
+  const sfVal = roundLegs?.semiFinals || defaultLegs;
+  const wfVal = roundLegs?.finals || defaultLegs + 1;
+  const lrVal = roundLegs?.losersRound || defaultLegs;
+  const lfVal = roundLegs?.losersFinals || defaultLegs;
+  const gfVal = roundLegs?.grandFinal || defaultLegs + 2;
+  const legsPerSet = roundLegs?.legsPerSet || 5;
 
   return [
     // --- CUADRO DE GANADORES (Por Arriba) ---
     // R1 Ganadores (Cuartos)
-    { id: `${tournamentId}-w1`, round: 1, matchIndex: 0, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[0], player2: pList[1], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:00', note: 'Por Arriba' },
-    { id: `${tournamentId}-w2`, round: 1, matchIndex: 1, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[2], player2: pList[3], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:30', note: 'Por Arriba' },
-    { id: `${tournamentId}-w3`, round: 1, matchIndex: 2, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[4], player2: pList[5], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:00', note: 'Por Arriba' },
-    { id: `${tournamentId}-w4`, round: 1, matchIndex: 3, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[6], player2: pList[7], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:30', note: 'Por Arriba' },
+    { id: `${tournamentId}-w1`, round: 1, matchIndex: 0, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[0], player2: pList[1], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:00', note: 'Por Arriba' },
+    { id: `${tournamentId}-w2`, round: 1, matchIndex: 1, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[2], player2: pList[3], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:30', note: 'Por Arriba' },
+    { id: `${tournamentId}-w3`, round: 1, matchIndex: 2, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[4], player2: pList[5], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:00', note: 'Por Arriba' },
+    { id: `${tournamentId}-w4`, round: 1, matchIndex: 3, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[6], player2: pList[7], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:30', note: 'Por Arriba' },
     // R2 Ganadores (Semifinales Ganadores)
-    { id: `${tournamentId}-w5`, round: 2, matchIndex: 0, bracketType: 'WINNERS', legTarget: sfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:15', note: 'Semi Ganadores' },
-    { id: `${tournamentId}-w6`, round: 2, matchIndex: 1, bracketType: 'WINNERS', legTarget: sfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:45', note: 'Semi Ganadores' },
+    { id: `${tournamentId}-w5`, round: 2, matchIndex: 0, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? sfVal : legsPerSet, setTarget: distMode === 'SETS' ? sfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:15', note: 'Semi Ganadores' },
+    { id: `${tournamentId}-w6`, round: 2, matchIndex: 1, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? sfVal : legsPerSet, setTarget: distMode === 'SETS' ? sfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:45', note: 'Semi Ganadores' },
     // R3 Ganadores (Final de Ganadores)
-    { id: `${tournamentId}-w7`, round: 3, matchIndex: 0, bracketType: 'WINNERS', legTarget: wfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:30', note: 'Final Ganadores' },
+    { id: `${tournamentId}-w7`, round: 3, matchIndex: 0, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? wfVal : legsPerSet, setTarget: distMode === 'SETS' ? wfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:30', note: 'Final Ganadores' },
 
     // --- CUADRO DE PERDEDORES (Por Abajo) ---
     // R1 Perdedores (Cruces de quienes caen de Cuartos)
-    { id: `${tournamentId}-l1`, round: 1, matchIndex: 0, bracketType: 'LOSERS', legTarget: lrLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:45', note: 'Por Abajo' },
-    { id: `${tournamentId}-l2`, round: 1, matchIndex: 1, bracketType: 'LOSERS', legTarget: lrLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:00', note: 'Por Abajo' },
+    { id: `${tournamentId}-l1`, round: 1, matchIndex: 0, bracketType: 'LOSERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? lrVal : legsPerSet, setTarget: distMode === 'SETS' ? lrVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:45', note: 'Por Abajo' },
+    { id: `${tournamentId}-l2`, round: 1, matchIndex: 1, bracketType: 'LOSERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? lrVal : legsPerSet, setTarget: distMode === 'SETS' ? lrVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:00', note: 'Por Abajo' },
     // R2 Perdedores (Semifinal de Perdedores)
-    { id: `${tournamentId}-l3`, round: 2, matchIndex: 0, bracketType: 'LOSERS', legTarget: lrLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:50', note: 'Semi Perdedores' },
-    { id: `${tournamentId}-l4`, round: 2, matchIndex: 1, bracketType: 'LOSERS', legTarget: lrLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:15', note: 'Semi Perdedores' },
+    { id: `${tournamentId}-l3`, round: 2, matchIndex: 0, bracketType: 'LOSERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? lrVal : legsPerSet, setTarget: distMode === 'SETS' ? lrVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:50', note: 'Semi Perdedores' },
+    { id: `${tournamentId}-l4`, round: 2, matchIndex: 1, bracketType: 'LOSERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? lrVal : legsPerSet, setTarget: distMode === 'SETS' ? lrVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:15', note: 'Semi Perdedores' },
     // R3 Perdedores (Final de Perdedores)
-    { id: `${tournamentId}-l5`, round: 3, matchIndex: 0, bracketType: 'LOSERS', legTarget: lfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '19:00', note: 'Final Perdedores' },
+    { id: `${tournamentId}-l5`, round: 3, matchIndex: 0, bracketType: 'LOSERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? lfVal : legsPerSet, setTarget: distMode === 'SETS' ? lfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '19:00', note: 'Final Perdedores' },
 
     // --- GRAN FINAL DEL TORNEO (Campeón de Ganadores vs Campeón de Perdedores) ---
-    { id: `${tournamentId}-gf1`, round: 4, matchIndex: 0, bracketType: 'FINALS', legTarget: gfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '19:45', note: 'Gran Final' }
+    { id: `${tournamentId}-gf1`, round: 4, matchIndex: 0, bracketType: 'FINALS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? gfVal : legsPerSet, setTarget: distMode === 'SETS' ? gfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '19:45', note: 'Gran Final' }
   ];
 }
 
@@ -427,8 +431,10 @@ export const TournamentManager: React.FC = () => {
   const [newPrizePool, setNewPrizePool] = useState(250000);
   const [newMaxParticipants, setNewMaxParticipants] = useState(32);
 
-  // Configuración Detallada por Instancia (Nakka Style)
+  // Configuración Detallada por Instancia de Llave
   const [showDetailedConfig, setShowDetailedConfig] = useState(false);
+  const [newDistanceMode, setNewDistanceMode] = useState<'LEGS' | 'SETS'>('LEGS');
+  const [newLegsPerSet, setNewLegsPerSet] = useState<number>(5);
   const [newQuarterLegs, setNewQuarterLegs] = useState(3);
   const [newSemiLegs, setNewSemiLegs] = useState(4);
   const [newFinalsLegs, setNewFinalsLegs] = useState(5);
@@ -779,6 +785,8 @@ export const TournamentManager: React.FC = () => {
     const newId = `torneo-${Date.now()}`;
 
     const roundLegsConfig: RoundLegsConfig = {
+      distanceMode: newDistanceMode,
+      legsPerSet: newDistanceMode === 'SETS' ? newLegsPerSet : undefined,
       quarterFinals: newQuarterLegs,
       semiFinals: newSemiLegs,
       finals: newFinalsLegs,
@@ -1792,10 +1800,10 @@ export const TournamentManager: React.FC = () => {
 
       {/* MODAL: CREAR TORNEO */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md overflow-y-auto p-3 sm:p-5 flex justify-center items-start sm:items-center">
           <form
             onSubmit={handleCreateTournament}
-            className="w-full max-w-md bg-[#07090e] border-2 border-[#ef4444] rounded-3xl p-5 space-y-4 shadow-2xl"
+            className="w-full max-w-lg bg-[#07090e] border-2 border-[#ef4444] rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl my-auto max-h-[88vh] overflow-y-auto overscroll-contain touch-pan-y"
           >
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div className="flex items-center gap-2">
@@ -2027,7 +2035,7 @@ export const TournamentManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* SI ES FORMATO LIGA / GRUPOS: CONFIGURACIÓN DE ZONAS (ESTILO NAKKA) */}
+              {/* SI ES FORMATO LIGA / GRUPOS: CONFIGURACIÓN DE ZONAS (ESTILO OFICIAL) */}
               {newFormat === 'ROUND_ROBIN' && (
                 <div className="bg-[#111622] p-3 rounded-2xl border border-[#00e676]/40 space-y-2.5">
                   <div className="flex items-center gap-1.5 text-white font-black text-xs">
@@ -2094,8 +2102,8 @@ export const TournamentManager: React.FC = () => {
                 </div>
               )}
 
-              {/* TOGGLE Y PANEL DE CONFIGURACIÓN DETALLADA POR INSTANCIA (ESTILO NAKKA / PDC) */}
-              <div className="bg-[#111622] p-2.5 rounded-2xl border border-slate-800 space-y-2">
+              {/* TOGGLE Y PANEL DE CONFIGURACIÓN DETALLADA POR INSTANCIA DE LLAVE */}
+              <div className="bg-[#111622] p-3 rounded-2xl border border-slate-800 space-y-3">
                 <button
                   type="button"
                   onClick={() => setShowDetailedConfig(!showDetailedConfig)}
@@ -2103,99 +2111,201 @@ export const TournamentManager: React.FC = () => {
                 >
                   <div className="flex items-center gap-1.5">
                     <Trophy className="w-3.5 h-3.5 text-[#ffe600]" />
-                    <span>Configuración Detallada por Instancia (Nakka Style)</span>
+                    <span>Configuración detallada por instancia de llave</span>
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold">
-                    {showDetailedConfig ? '▲ Ocultar' : '▼ Configurar Legs x Ronda'}
+                    {showDetailedConfig ? '▲ Ocultar' : '▼ Configurar Distancia x Ronda'}
                   </span>
                 </button>
 
                 {showDetailedConfig && (
-                  <div className="space-y-2 pt-2 border-t border-slate-800 animate-in fade-in">
-                    {newFormat === 'DOUBLE_ELIMINATION' ? (
-                      <div className="space-y-2">
-                        <div className="text-[10px] font-black uppercase tracking-wider text-[#00e676]">
-                          Cuadro de Ganadores (Por Arriba)
+                  <div className="space-y-3 pt-2.5 border-t border-slate-800 animate-in fade-in">
+                    {/* Selector de Modo de Distancia: Solo Legs vs Sets */}
+                    <div className="bg-[#07090e] p-2.5 rounded-xl border border-slate-800 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-300">Medida de Distancia:</span>
+                        <div className="flex items-center gap-1 bg-[#111622] p-0.5 rounded-lg border border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => setNewDistanceMode('LEGS')}
+                            className={`px-2.5 py-1 rounded-md text-[10px] font-black transition-all ${
+                              newDistanceMode === 'LEGS'
+                                ? 'bg-[#00e676] text-black shadow-sm'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            🎯 Solo Legs
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNewDistanceMode('SETS')}
+                            className={`px-2.5 py-1 rounded-md text-[10px] font-black transition-all ${
+                              newDistanceMode === 'SETS'
+                                ? 'bg-[#ffe600] text-black shadow-sm'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            🏆 Sets + Legs
+                          </button>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                      </div>
+
+                      {newDistanceMode === 'SETS' ? (
+                        <div className="p-2.5 rounded-lg bg-[#ffe600]/10 border border-[#ffe600]/25 text-[11px] text-slate-300 flex items-center justify-between gap-2">
                           <div>
-                            <label className="text-[10px] text-slate-400 block mb-0.5">Cuartos Ganadores</label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="15"
-                              value={newQuarterLegs}
-                              onChange={(e) => setNewQuarterLegs(Number(e.target.value))}
-                              className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
-                            />
+                            <span className="text-white font-bold block">Legs requeridos por Set:</span>
+                            <span className="text-[10px] text-slate-400">
+                              (Ej: 5 legs = gana el set quien consiga {Math.ceil(newLegsPerSet / 2)} legs)
+                            </span>
                           </div>
-                          <div>
-                            <label className="text-[10px] text-slate-400 block mb-0.5">Semis Ganadores</label>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
                             <input
                               type="number"
                               min="1"
-                              max="15"
-                              value={newSemiLegs}
-                              onChange={(e) => setNewSemiLegs(Number(e.target.value))}
-                              className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                              max="11"
+                              step="2"
+                              value={newLegsPerSet}
+                              onChange={(e) => setNewLegsPerSet(Math.max(1, Number(e.target.value)))}
+                              className="w-14 bg-[#07090e] border border-[#ffe600]/50 rounded-lg px-2 py-1 text-center font-black text-xs text-[#ffe600]"
                             />
+                            <span className="text-[10px] text-slate-400 font-bold">Legs/Set</span>
                           </div>
-                          <div>
-                            <label className="text-[10px] text-slate-400 block mb-0.5">Final Ganadores</label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="15"
-                              value={newFinalsLegs}
-                              onChange={(e) => setNewFinalsLegs(Number(e.target.value))}
-                              className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
-                            />
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-400 leading-snug">
+                          Partidas a distancia directa por legs (ej: Al mejor de 5 legs = gana quien llegue primero a 3 legs).
+                        </div>
+                      )}
+                    </div>
+
+                    {newFormat === 'DOUBLE_ELIMINATION' ? (
+                      <div className="space-y-3">
+                        {/* CUADRO DE GANADORES */}
+                        <div className="space-y-1.5">
+                          <div className="text-[10px] font-black uppercase tracking-wider text-[#00e676] flex items-center justify-between">
+                            <span>Cuadro de Ganadores (Por Arriba)</span>
+                            <span className="text-slate-500 font-normal">
+                              {newDistanceMode === 'SETS' ? 'Sets para ganar' : 'Legs al mejor de'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">
+                                Cuartos ({newDistanceMode === 'SETS' ? 'Sets' : 'Legs'})
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="15"
+                                value={newQuarterLegs}
+                                onChange={(e) => setNewQuarterLegs(Number(e.target.value))}
+                                className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                              />
+                              <span className="text-[9px] text-slate-500 block text-center mt-0.5">
+                                1º a {Math.ceil(newQuarterLegs / 2)}
+                              </span>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">
+                                Semis ({newDistanceMode === 'SETS' ? 'Sets' : 'Legs'})
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="15"
+                                value={newSemiLegs}
+                                onChange={(e) => setNewSemiLegs(Number(e.target.value))}
+                                className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                              />
+                              <span className="text-[9px] text-slate-500 block text-center mt-0.5">
+                                1º a {Math.ceil(newSemiLegs / 2)}
+                              </span>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">
+                                Final Ganadores ({newDistanceMode === 'SETS' ? 'Sets' : 'Legs'})
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="15"
+                                value={newFinalsLegs}
+                                onChange={(e) => setNewFinalsLegs(Number(e.target.value))}
+                                className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                              />
+                              <span className="text-[9px] text-slate-500 block text-center mt-0.5">
+                                1º a {Math.ceil(newFinalsLegs / 2)}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="text-[10px] font-black uppercase tracking-wider text-[#ef4444] pt-1">
-                          Cuadro de Perdedores (Por Abajo) & Gran Final
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="text-[10px] text-slate-400 block mb-0.5">Rondas Perdedores</label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="15"
-                              value={newLosersRoundLegs}
-                              onChange={(e) => setNewLosersRoundLegs(Number(e.target.value))}
-                              className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
-                            />
+                        {/* CUADRO DE PERDEDORES Y GRAN FINAL */}
+                        <div className="space-y-1.5 pt-1 border-t border-slate-800">
+                          <div className="text-[10px] font-black uppercase tracking-wider text-[#ef4444] flex items-center justify-between">
+                            <span>Cuadro de Perdedores (Por Abajo) & Gran Final</span>
+                            <span className="text-slate-500 font-normal">
+                              {newDistanceMode === 'SETS' ? 'Sets para ganar' : 'Legs al mejor de'}
+                            </span>
                           </div>
-                          <div>
-                            <label className="text-[10px] text-slate-400 block mb-0.5">Final Perdedores</label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="15"
-                              value={newLosersFinalsLegs}
-                              onChange={(e) => setNewLosersFinalsLegs(Number(e.target.value))}
-                              className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-slate-400 block mb-0.5">Gran Final</label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="19"
-                              value={newGrandFinalLegs}
-                              onChange={(e) => setNewGrandFinalLegs(Number(e.target.value))}
-                              className="w-full bg-[#07090e] border border-amber-500 rounded-xl px-2 py-1 text-amber-300 text-xs text-center font-black"
-                            />
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">
+                                Rondas Repesca ({newDistanceMode === 'SETS' ? 'Sets' : 'Legs'})
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="15"
+                                value={newLosersRoundLegs}
+                                onChange={(e) => setNewLosersRoundLegs(Number(e.target.value))}
+                                className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                              />
+                              <span className="text-[9px] text-slate-500 block text-center mt-0.5">
+                                1º a {Math.ceil(newLosersRoundLegs / 2)}
+                              </span>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">
+                                Final Perdedores ({newDistanceMode === 'SETS' ? 'Sets' : 'Legs'})
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="15"
+                                value={newLosersFinalsLegs}
+                                onChange={(e) => setNewLosersFinalsLegs(Number(e.target.value))}
+                                className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                              />
+                              <span className="text-[9px] text-slate-500 block text-center mt-0.5">
+                                1º a {Math.ceil(newLosersFinalsLegs / 2)}
+                              </span>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-amber-400 block mb-0.5 font-black">
+                                Gran Final ({newDistanceMode === 'SETS' ? 'Sets' : 'Legs'})
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="19"
+                                value={newGrandFinalLegs}
+                                onChange={(e) => setNewGrandFinalLegs(Number(e.target.value))}
+                                className="w-full bg-[#07090e] border border-amber-500 rounded-xl px-2 py-1 text-amber-300 text-xs text-center font-black"
+                              />
+                              <span className="text-[9px] text-amber-400/90 font-bold block text-center mt-0.5">
+                                1º a {Math.ceil(newGrandFinalLegs / 2)}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     ) : (
                       <div className="grid grid-cols-3 gap-2">
                         <div>
-                          <label className="text-[10px] text-slate-400 block mb-0.5">Cuartos de Final</label>
+                          <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">
+                            Cuartos ({newDistanceMode === 'SETS' ? 'Sets' : 'Legs'})
+                          </label>
                           <input
                             type="number"
                             min="1"
@@ -2204,9 +2314,14 @@ export const TournamentManager: React.FC = () => {
                             onChange={(e) => setNewQuarterLegs(Number(e.target.value))}
                             className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
                           />
+                          <span className="text-[9px] text-slate-500 block text-center mt-0.5">
+                            1º a {Math.ceil(newQuarterLegs / 2)}
+                          </span>
                         </div>
                         <div>
-                          <label className="text-[10px] text-slate-400 block mb-0.5">Semifinales</label>
+                          <label className="text-[10px] text-slate-400 block mb-0.5 font-bold">
+                            Semifinales ({newDistanceMode === 'SETS' ? 'Sets' : 'Legs'})
+                          </label>
                           <input
                             type="number"
                             min="1"
@@ -2215,9 +2330,14 @@ export const TournamentManager: React.FC = () => {
                             onChange={(e) => setNewSemiLegs(Number(e.target.value))}
                             className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
                           />
+                          <span className="text-[9px] text-slate-500 block text-center mt-0.5">
+                            1º a {Math.ceil(newSemiLegs / 2)}
+                          </span>
                         </div>
                         <div>
-                          <label className="text-[10px] text-slate-400 block mb-0.5">Gran Final</label>
+                          <label className="text-[10px] text-amber-400 block mb-0.5 font-black">
+                            Gran Final ({newDistanceMode === 'SETS' ? 'Sets' : 'Legs'})
+                          </label>
                           <input
                             type="number"
                             min="1"
@@ -2226,6 +2346,9 @@ export const TournamentManager: React.FC = () => {
                             onChange={(e) => setNewFinalsLegs(Number(e.target.value))}
                             className="w-full bg-[#07090e] border border-amber-500 rounded-xl px-2 py-1 text-amber-300 text-xs text-center font-black"
                           />
+                          <span className="text-[9px] text-amber-400/90 font-bold block text-center mt-0.5">
+                            1º a {Math.ceil(newFinalsLegs / 2)}
+                          </span>
                         </div>
                       </div>
                     )}

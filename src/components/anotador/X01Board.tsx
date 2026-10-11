@@ -22,8 +22,11 @@ import {
   ChevronDown,
   ChevronUp,
   History,
-  CheckCircle2
+  CheckCircle2,
+  Tv,
+  Camera
 } from 'lucide-react';
+import { matchBroadcast } from '@/lib/broadcast';
 
 export interface TurnRecord {
   id: string;
@@ -113,6 +116,50 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
   // Modal de opciones para Volver / Stand By / Abandonar
   const [showExitModal, setShowExitModal] = useState<boolean>(false);
+
+  // Cámara en dispositivo móvil (Opción 1: Alternancia diana rival / teclado de tiro)
+  const [showMobileCamera, setShowMobileCamera] = useState<boolean>(false);
+  const mobileVideoRef = useRef<HTMLVideoElement>(null);
+  const mobileStreamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    if (showMobileCamera && typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices
+        .getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
+        .then((stream) => {
+          mobileStreamRef.current = stream;
+          if (mobileVideoRef.current) {
+            mobileVideoRef.current.srcObject = stream;
+          }
+        })
+        .catch((err) => {
+          console.warn('Cámara móvil no disponible:', err);
+        });
+    } else {
+      if (mobileStreamRef.current) {
+        mobileStreamRef.current.getTracks().forEach((t) => t.stop());
+        mobileStreamRef.current = null;
+      }
+    }
+  }, [showMobileCamera]);
+
+  // Si cambia el turno al usuario local (0), ocultar cámara y mostrar teclado de 5 columnas automáticamente
+  useEffect(() => {
+    if (currentTurn === 0 && showMobileCamera) {
+      setShowMobileCamera(false);
+    }
+  }, [currentTurn]);
+
+  // Manejador de Pop-out 2ª Pantalla / TV (Opción 1 para PC)
+  const handleOpenPopout = () => {
+    if (typeof window !== 'undefined') {
+      window.open(
+        '/anotador/camara-popout',
+        'DianaPopout',
+        'width=1100,height=750,menubar=no,toolbar=no,location=no,status=no'
+      );
+    }
+  };
 
   // Referencias para transición de scroll entre diana y puntuaciones
   const boardRef = useRef<HTMLDivElement>(null);
@@ -286,6 +333,43 @@ export const X01Board: React.FC<X01BoardProps> = ({
     setFeedbackBanner({ text, color });
     setTimeout(() => setFeedbackBanner(null), 2500);
   };
+
+  // Emitir estado en tiempo real para 2ª pantalla / Pop-out Window
+  const broadcastCurrentState = (lastScoreValue: number = 0, isFinishedState: boolean = isMatchFinished) => {
+    const p1Darts = totalDartsMatch[0] || dartsThrownLeg[0] || 0;
+    const p2Darts = totalDartsMatch[1] || dartsThrownLeg[1] || 0;
+    const p1CalculatedAvg = p1Darts > 0 ? ((totalPointsMatch[0] / p1Darts) * 3) : 0;
+    const p2CalculatedAvg = p2Darts > 0 ? ((totalPointsMatch[1] / p2Darts) * 3) : 0;
+
+    matchBroadcast.publish({
+      matchId: `match-${config.tournamentTitle || 'live'}`,
+      gameType: 'X01',
+      tournamentTitle: config.tournamentTitle,
+      distanceMode: config.distanceType,
+      bestOfLegs: config.bestOfLegs,
+      bestOfSets: config.bestOfSets,
+      player1Name: p1Display,
+      player1Score: scores[0],
+      player1Avg: p1CalculatedAvg,
+      player1Legs: legsWon[0],
+      player1Sets: setsWon[0],
+      player2Name: p2Display,
+      player2Score: scores[1],
+      player2Avg: p2CalculatedAvg,
+      player2Legs: legsWon[1],
+      player2Sets: setsWon[1],
+      currentTurnIndex: currentTurn,
+      lastScore: lastScoreValue,
+      lastDarts: [],
+      status: isFinishedState ? 'FINISHED' : 'IN_PROGRESS',
+      checkoutSuggestion: getSuggestedCheckout(scores[currentTurn]) || undefined,
+      winner: isFinishedState ? (matchWinnerIndex === 0 ? p1Display : p2Display) : undefined
+    });
+  };
+
+  useEffect(() => {
+    broadcastCurrentState(0, isMatchFinished);
+  }, [scores, currentTurn, legsWon, setsWon, isMatchFinished]);
 
   // Procesar entrada de puntuación
   const submitScore = (score: number) => {
@@ -645,6 +729,28 @@ export const X01Board: React.FC<X01BoardProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Botón Ver Diana Rival vs Teclado (Para móviles en partidas con cámara) */}
+            <button
+              onClick={() => setShowMobileCamera(!showMobileCamera)}
+              title={showMobileCamera ? 'Ver Teclado de Tiro' : 'Ver Diana de Rival en Vivo'}
+              className={`p-1.5 rounded-xl border transition-colors ${
+                showMobileCamera 
+                  ? 'bg-[#ffe600]/20 text-[#ffe600] border-[#ffe600]/60' 
+                  : 'bg-black text-slate-400 hover:text-white border-slate-800'
+              }`}
+            >
+              <Camera className="w-4 h-4" />
+            </button>
+
+            {/* Botón Pop-out 2ª Pantalla / TV (Opción 1) */}
+            <button
+              onClick={handleOpenPopout}
+              title="Abrir Cámara y Marcador en 2ª Pantalla o TV (Pop-out)"
+              className="p-1.5 rounded-xl bg-black text-[#38bdf8] hover:bg-[#151515] border border-[#38bdf8]/40 hover:border-[#38bdf8] transition-colors"
+            >
+              <Tv className="w-4 h-4" />
+            </button>
+
             {/* Botón Silenciar / Activar Audios de Russ Bray */}
             <button
               onClick={handleToggleMute}
@@ -835,142 +941,180 @@ export const X01Board: React.FC<X01BoardProps> = ({
         </button>
       </div>
 
-      {/* TECLADO ERGONÓMICO DE 5 COLUMNAS IDÉNTICO A LA CAPTURA */}
-      <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-        {/* FILA 1 */}
-        <button
-          onClick={() => submitScore(26)}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-        >
-          26
-        </button>
-        <button
-          onClick={() => handleKeypress('1')}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-        >
-          1
-        </button>
-        <button
-          onClick={() => handleKeypress('2')}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-        >
-          2
-        </button>
-        <button
-          onClick={() => handleKeypress('3')}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-        >
-          3
-        </button>
-        <button
-          onClick={() => submitScore(60)}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-        >
-          60
-        </button>
+      {/* CÁMARA MÓVIL EN VIVO (OPCIÓN 1) vs TECLADO TÁCTIL ERGONÓMICO */}
+      {showMobileCamera ? (
+        <div className="bg-[#0f1422] border-2 border-[#ffe600]/50 rounded-2xl p-3 space-y-2.5 animate-in fade-in">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5 font-black text-amber-400">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span>Diana de Rival en Vivo</span>
+            </div>
+            <button
+              onClick={() => setShowMobileCamera(false)}
+              className="px-2.5 py-1 rounded-lg bg-[#00e676] text-black text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm"
+            >
+              <span>⌨️ Ver Teclado</span>
+            </button>
+          </div>
 
-        {/* FILA 2 */}
-        <button
-          onClick={() => submitScore(41)}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-        >
-          41
-        </button>
-        <button
-          onClick={() => handleKeypress('4')}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-        >
-          4
-        </button>
-        <button
-          onClick={() => handleKeypress('5')}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-        >
-          5
-        </button>
-        <button
-          onClick={() => handleKeypress('6')}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-        >
-          6
-        </button>
-        <button
-          onClick={() => submitScore(85)}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-        >
-          85
-        </button>
+          <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-slate-800 flex items-center justify-center">
+            <video
+              ref={mobileVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-contain"
+            />
+            <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] font-bold text-slate-300">
+              Tirador: {getCurrentShooterName()}
+            </div>
+          </div>
 
-        {/* FILA 3 */}
-        <button
-          onClick={() => submitScore(45)}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-        >
-          45
-        </button>
-        <button
-          onClick={() => handleKeypress('7')}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-        >
-          7
-        </button>
-        <button
-          onClick={() => handleKeypress('8')}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-        >
-          8
-        </button>
-        <button
-          onClick={() => handleKeypress('9')}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-        >
-          9
-        </button>
-        <button
-          onClick={() => submitScore(100)}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-        >
-          100
-        </button>
+          <button
+            onClick={() => setShowMobileCamera(false)}
+            className="w-full py-2.5 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-transform active:scale-95 shadow-md shadow-[#00e676]/20"
+          >
+            <span>Ir al Teclado para Anotar Tiro</span>
+          </button>
+        </div>
+      ) : (
+        /* TECLADO ERGONÓMICO DE 5 COLUMNAS IDÉNTICO A LA CAPTURA */
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+          {/* FILA 1 */}
+          <button
+            onClick={() => submitScore(26)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            26
+          </button>
+          <button
+            onClick={() => handleKeypress('1')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            1
+          </button>
+          <button
+            onClick={() => handleKeypress('2')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            2
+          </button>
+          <button
+            onClick={() => handleKeypress('3')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            3
+          </button>
+          <button
+            onClick={() => submitScore(60)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            60
+          </button>
 
-        {/* FILA 4 (CLR en Rojo Diana, 0, no Score en Carmesí) */}
-        <button
-          onClick={handleClear}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-[#ef4444] font-black text-sm border border-[#ef4444]/50 flex items-center justify-center gap-1"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>CLR</span>
-        </button>
-        <button
-          onClick={handleConfirmTyped}
-          disabled={!typedInput}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black text-sm border border-[#00e676] disabled:opacity-30 disabled:bg-[#111622] disabled:text-slate-600 disabled:border-slate-800"
-        >
-          OK
-        </button>
-        <button
-          onClick={() => handleKeypress('0')}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-        >
-          0
-        </button>
-        <button
-          onClick={() => {
-            if (typedInput.length > 0) {
-              setTypedInput(typedInput.slice(0, -1));
-            }
-          }}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-slate-400 font-black text-base border border-slate-800"
-        >
-          ←
-        </button>
-        <button
-          onClick={() => submitScore(0)}
-          className="py-3 sm:py-3.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-[#ef4444] font-black text-xs border border-[#ef4444]/40 leading-tight"
-        >
-          no Score
-        </button>
-      </div>
+          {/* FILA 2 */}
+          <button
+            onClick={() => submitScore(41)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            41
+          </button>
+          <button
+            onClick={() => handleKeypress('4')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            4
+          </button>
+          <button
+            onClick={() => handleKeypress('5')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            5
+          </button>
+          <button
+            onClick={() => handleKeypress('6')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            6
+          </button>
+          <button
+            onClick={() => submitScore(85)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            85
+          </button>
+
+          {/* FILA 3 */}
+          <button
+            onClick={() => submitScore(45)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            45
+          </button>
+          <button
+            onClick={() => handleKeypress('7')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            7
+          </button>
+          <button
+            onClick={() => handleKeypress('8')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            8
+          </button>
+          <button
+            onClick={() => handleKeypress('9')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            9
+          </button>
+          <button
+            onClick={() => submitScore(100)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            100
+          </button>
+
+          {/* FILA 4 (CLR en Rojo Diana, 0, no Score en Carmesí) */}
+          <button
+            onClick={handleClear}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-[#ef4444] font-black text-sm border border-[#ef4444]/50 flex items-center justify-center gap-1"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>CLR</span>
+          </button>
+          <button
+            onClick={handleConfirmTyped}
+            disabled={!typedInput}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black text-sm border border-[#00e676] disabled:opacity-30 disabled:bg-[#111622] disabled:text-slate-600 disabled:border-slate-800"
+          >
+            OK
+          </button>
+          <button
+            onClick={() => handleKeypress('0')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            0
+          </button>
+          <button
+            onClick={() => {
+              if (typedInput.length > 0) {
+                setTypedInput(typedInput.slice(0, -1));
+              }
+            }}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-slate-400 font-black text-base border border-slate-800"
+          >
+            ←
+          </button>
+          <button
+            onClick={() => submitScore(0)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-[#ef4444] font-black text-xs border border-[#ef4444]/40 leading-tight"
+          >
+            no Score
+          </button>
+        </div>
+      )}
 
       {/* Indicador de tirador activo al pie y enlace a visitas */}
       <div className="flex items-center justify-between pt-1 text-xs text-slate-400 border-t border-slate-800/60">

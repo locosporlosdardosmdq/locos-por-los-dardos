@@ -1,5 +1,29 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 13] - 2026-10-11
+- **Objetivo:** Erradicación completa de marcas externas renombrando a "Configuración detallada por instancia de llave", aclaración y soporte oficial de Sets + Legs por ronda, resolución del scroll en el modal de torneos para desktop y móviles, e implementación de la Opción 1 de Cámara (Pop-out Window para setups de 2 pantallas / TV en PC + alternancia automática en celulares respetando las dimensiones del teclado de 5 columnas).
+- **Realizado:**
+  - **Configuración Detallada por Instancia de Llave (Solo Legs vs Sets + Legs):**
+    * Renombrado soberano de la sección a "Configuración detallada por instancia de llave".
+    * Incorporado selector interactivo de medida de distancia: `[🎯 Solo Legs]` vs `[🏆 Sets + Legs]`.
+    * En modo Sets + Legs: campo configurable de *Legs requeridos por Set* (ej: 5 legs/set = 1º a 3 legs gana el set).
+    * Etiquetas dinámicas en Cuartos, Semis, Final Ganadores, Rondas Repesca, Final Perdedores y Gran Final indicando si configuran `(Sets)` o `(Legs)` con la leyenda explícita `1º a X`.
+    * Propagación de `distanceMode`, `legTarget`, `setTarget`, `scoreSetsP1` y `scoreSetsP2` en `generateDefaultBracket` y `generateDoubleEliminationBracket`.
+    * `TournamentBracket.tsx` visualiza badges de distancia (`1º a X Sets`) y cómputo de sets ganados (`1S`, `2S`).
+  - **Corrección Integral del Scroll en Modal:**
+    * Eliminado el bloqueo de scroll configurando el contenedor exterior con `overflow-y-auto` y el formulario con `my-auto max-h-[88vh] overflow-y-auto overscroll-contain touch-pan-y`. Validado con rueda de ratón y gestos táctiles fluidos.
+  - **Cámara en 2 Pantallas y Celular (Opción 1):**
+    * Creada la ruta `src/app/anotador/camara-popout/page.tsx`: ventana emergente independiente para segundo monitor o TV de club, con streaming WebRTC de webcam a pantalla completa, selector de dispositivo, controles de zoom/espejo y banner televisivo estilo PDC vía `matchBroadcast`.
+    * Añadido botón `[🖥️ Pop-out 2ª Pantalla]` en `X01Board.tsx` que ejecuta `window.open('/anotador/camara-popout', ...)`.
+    * Añadido botón `[📹 Diana Rival]` para móviles: muestra la cámara del rival con banner de puntuaciones y conmuta automáticamente al teclado táctil de 5 columnas en cuanto le toca el turno al usuario, sin alterar las dimensiones ni la disposición del anotador.
+    * Sincronización continua de estado de partida dardo a dardo hacia el canal broadcast.
+  - **Validación y Pruebas:**
+    * Compilación con `npx tsc --noEmit` completada con código 0 (0 errores).
+    * Navegación y prueba con `browser_subagent` validando apertura, scroll fluido, toggles de Solo Legs / Sets + Legs y cierre del modal.
+- **Estado del Proyecto:** Configuración detallada de torneos soberana y con soporte de Sets, scroll de modales fluido y sistema de cámara multi-pantalla y móvil (Opción 1) operativo.
+
+---
+
 ## [Sesión 12] - 2026-10-11
 - **Objetivo:** Implementación del formato de Doble Eliminación (Double Elimination) y configuración de legs por instancia estilo Nakka en Torneos, desglose del historial y estadísticas de jugadores en 4 pestañas especializadas (Individuales, Torneos de un Día, Ligas Locales y Liga Nacional con doble puntaje ⚡ x2), creación de la sección oficial de Reglamento, Código de Conducta & Fair Play (`/reglamento`), y análisis exhaustivo de arquitectura de cámaras para setups de 1 pantalla (móvil) y 2 pantallas (PC / Pop-out Window).
 - **Realizado:**

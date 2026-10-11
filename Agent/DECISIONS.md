@@ -272,4 +272,28 @@
      * Creada la vista pública `/reglamento` en 5 capítulos navegables con jump links, vinculada en el footer, barra lateral y modales de jugador.
 - **Motivo:** Alineación completa con las normativas internacionales de dardos, total transparencia en la asignación de puntos federados y una experiencia de gestión de torneos idéntica al estándar de oro de la disciplina.
 
+---
+
+## ADR-020: Configuración Detallada por Instancia de Llave (Solo Legs vs Sets + Legs), Scroll Universal y Cámara Pop-out para 2ª Pantalla
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Se eliminó cualquier referencia a nombres externos en la interfaz, estableciendo la denominación soberana "Configuración detallada por instancia de llave".
+  2. En torneos profesionales coexisten partidas disputadas a distancia directa en Legs (ej: al mejor de 5 legs, primero a 3) y partidas por Sets (estándar PDC, ej: al mejor de 3 o 5 sets, requiriendo ganar X legs por set). Se requería que las etiquetas especificaran claramente qué representan los números cargados y permitieran conmutar y configurar la cantidad de sets y legs por set.
+  3. El modal de creación de torneos sufría de un bloqueo de desplazamiento vertical en pantallas compactas y dispositivos móviles.
+  4. Para partidas con cámara, se seleccionó la Opción 1: Pop-out Window desacoplada para computadoras con 2 pantallas / TV del club, complementada con alternancia automática y switch manual en celulares según el turno de tiro, preservando milimétricamente las dimensiones del teclado ergonómico de 5 columnas.
+- **Decisión:**
+  1. **Tipado y Motor de Torneos (`types.ts`, `TournamentManager.tsx`, `TournamentBracket.tsx`):**
+     * Se amplió `RoundLegsConfig` con `distanceMode?: 'LEGS' | 'SETS'` y `legsPerSet?: number`.
+     * `TournamentBracketMatch` incorpora `distanceMode`, `setTarget`, `scoreSetsP1` y `scoreSetsP2`.
+     * El selector interactivo conmuta entre `[🎯 Solo Legs]` y `[🏆 Sets + Legs]`. Las etiquetas de cada ronda indican dinámicamente si se configuran Sets o Legs con la leyenda explícita `1º a X`.
+     * En el cuadro eliminatorio se visualizan badges dorados con la distancia del match y marcadores de sets ganados (`scoreSetsP1` S / `scoreSetsP2` S).
+  2. **Corrección de Scroll del Modal:**
+     * Se desacopló el contenedor exterior con `overflow-y-auto` y el formulario con `my-auto max-h-[88vh] overflow-y-auto overscroll-contain touch-pan-y`, garantizando scroll fluido con rueda de ratón y gesto táctil.
+  3. **Cámara Opción 1 (Pop-out 2ª Pantalla + Celular):**
+     * Creación de la ruta `src/app/anotador/camara-popout/page.tsx`: ventana emergente con streaming WebRTC de la webcam a pantalla completa, controles de zoom, espejo y selector de dispositivo, enlazada vía `matchBroadcast` con un banner televisivo inferior estilo PDC (puntuaciones gigantes, sets, legs, promedios, último dardo tirado e indicador de tirador activo).
+     * En `X01Board.tsx`: botón `[🖥️ Pop-out 2ª Pantalla]` (`window.open`), botón `[📹 Diana Rival]` para móviles, alternancia automática al cambiar de turno y sincronización continua dardo a dardo sin alterar el teclado de 5 columnas.
+- **Motivo:** Cumplimiento estricto de las directivas de soberanía de marca, soporte reglamentario para los dos formatos de competición de dardos (Legs y Sets), usabilidad móvil intacta y arquitectura multi-pantalla profesional sin dependencias externas pesadas.
+
 

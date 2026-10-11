@@ -7,19 +7,32 @@
 export interface BroadcastMatchPayload {
   matchId: string;
   gameType: string;
+  tournamentTitle?: string;
+  distanceMode?: 'LEGS' | 'SETS';
+  bestOfLegs?: number;
+  bestOfSets?: number;
   player1Name: string;
   player1Score: number;
   player1Avg: number;
   player1Legs: number;
+  player1Sets?: number;
+  player1Avatar?: string;
+  player1Nationality?: string;
+  player1CountryCode?: string;
   player2Name: string;
   player2Score: number;
   player2Avg: number;
   player2Legs: number;
+  player2Sets?: number;
+  player2Avatar?: string;
+  player2Nationality?: string;
+  player2CountryCode?: string;
   currentTurnIndex: number;
   lastScore: number;
   lastDarts: string[];
   status: 'IN_PROGRESS' | 'FINISHED';
   winner?: string;
+  checkoutSuggestion?: string;
   timestamp: number;
 }
 

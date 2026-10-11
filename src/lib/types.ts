@@ -141,6 +141,8 @@ export type TournamentFormat = 'SINGLE_ELIMINATION' | 'ROUND_ROBIN' | 'DOUBLE_EL
 export type TournamentStatus = 'UPCOMING' | 'REGISTRATION_OPEN' | 'IN_PROGRESS' | 'COMPLETED';
 
 export interface RoundLegsConfig {
+  distanceMode?: 'LEGS' | 'SETS';
+  legsPerSet?: number;
   quarterFinals?: number;
   semiFinals?: number;
   finals?: number;
@@ -154,7 +156,11 @@ export interface TournamentBracketMatch {
   round: number; // 1, 2, 3...
   matchIndex: number;
   bracketType?: 'WINNERS' | 'LOSERS' | 'FINALS';
+  distanceMode?: 'LEGS' | 'SETS';
   legTarget?: number;
+  setTarget?: number;
+  scoreSetsP1?: number;
+  scoreSetsP2?: number;
   player1?: { id: string; name: string; avatarUrl: string; seed?: number; nationality?: string; countryCode?: string };
   player2?: { id: string; name: string; avatarUrl: string; seed?: number; nationality?: string; countryCode?: string };
   scoreP1: number;

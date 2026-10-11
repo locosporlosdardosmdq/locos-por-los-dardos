@@ -114,6 +114,9 @@ export interface MatchConfig {
   player1Name?: string;
   player2Name?: string;
   tournamentTitle?: string;
+  isOnlineRoom?: boolean;
+  onlineRoomCode?: string;
+  localPlayerIndex?: 0 | 1;
 }
 
 export interface DartThrow {

@@ -26,7 +26,8 @@ import {
   Tv,
   Camera,
   Mic,
-  MicOff
+  MicOff,
+  Target
 } from 'lucide-react';
 import { matchBroadcast } from '@/lib/broadcast';
 
@@ -433,8 +434,38 @@ export const X01Board: React.FC<X01BoardProps> = ({
     broadcastCurrentState(0, isMatchFinished);
   }, [scores, currentTurn, legsWon, setsWon, isMatchFinished]);
 
+  // Variables y Sincronización para Sala Online (1 vs 1 Remoto)
+  const isOnline = !!config.isOnlineRoom;
+  const localPlayerIdx: 0 | 1 = (config.localPlayerIndex !== undefined ? config.localPlayerIndex : 0) as 0 | 1;
+  const isMyTurn = !isOnline || currentTurn === localPlayerIdx;
+  const lastSyncedThrowTimeRef = useRef<number>(Date.now());
+
+  // Polling continuo en sala online cuando es el turno del rival
+  useEffect(() => {
+    if (!config.isOnlineRoom || isMyTurn || isMatchFinished || !config.onlineRoomCode) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/salas?codigo=${config.onlineRoomCode}`);
+        const data = await res.json();
+        if (data.success && data.room) {
+          const room = data.room;
+          if (room.lastThrow && room.lastThrow.timestamp > lastSyncedThrowTimeRef.current) {
+            lastSyncedThrowTimeRef.current = room.lastThrow.timestamp;
+            // El rival registró su tiro en su diana
+            submitScore(room.lastThrow.score, true);
+          }
+        }
+      } catch (err) {
+        // Ignorar fallo puntual
+      }
+    }, 1200);
+
+    return () => clearInterval(interval);
+  }, [config.isOnlineRoom, isMyTurn, isMatchFinished, config.onlineRoomCode]);
+
   // Procesar entrada de puntuación
-  const submitScore = (score: number) => {
+  const submitScore = (score: number, fromRemoteSync: boolean = false) => {
     if (isNaN(score) || score < 0 || score > 180) {
       showFeedback('Puntuación inválida (máx 180)', '#ef4444');
       return;
@@ -442,6 +473,22 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
     const currentScore = scores[currentTurn];
     const newRemaining = currentScore - score;
+
+    // Si es una partida online y el tiro es del usuario local, sincronizar con el servidor
+    if (!fromRemoteSync && config.isOnlineRoom && config.onlineRoomCode) {
+      lastSyncedThrowTimeRef.current = Date.now();
+      fetch('/api/salas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'THROW',
+          code: config.onlineRoomCode,
+          playerIndex: localPlayerIdx,
+          score,
+          isCheckout: newRemaining === 0
+        })
+      }).catch((err) => console.warn('[Online Room] Error sincronizando tiro:', err));
+    }
 
     // Snapshot para deshacer
     const snapshot = {
@@ -776,7 +823,11 @@ export const X01Board: React.FC<X01BoardProps> = ({
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444] animate-ping" />
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">
-                  {config.tournamentTitle ? `${config.tournamentTitle} • Diana Asignada` : 'Partida individual'}
+                  {config.isOnlineRoom
+                    ? `🌐 SALA ONLINE • ${config.onlineRoomCode}`
+                    : config.tournamentTitle
+                      ? `${config.tournamentTitle} • Diana Asignada`
+                      : 'Partida individual'}
                 </span>
               </div>
               <h2 className="text-lg font-black text-white leading-tight">
@@ -786,6 +837,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
                 {config.distanceType === 'SETS'
                   ? `Al mejor de ${config.bestOfSets} Sets (Legs: ${config.bestOfLegs})`
                   : `Al mejor de ${config.bestOfLegs} Legs`}
+                {config.isOnlineRoom ? ` • ${isMyTurn ? '🎯 Tu Turno' : '⏳ Esperando Rival'}` : ''}
               </p>
             </div>
           </div>
@@ -1022,8 +1074,26 @@ export const X01Board: React.FC<X01BoardProps> = ({
         </button>
       </div>
 
-      {/* CÁMARA MÓVIL EN VIVO (OPCIÓN 1) vs TECLADO TÁCTIL ERGONÓMICO */}
-      {showMobileCamera ? (
+      {/* CÁMARA MÓVIL EN VIVO (OPCIÓN 1) vs ESPERA DE RIVAL ONLINE vs TECLADO TÁCTIL */}
+      {isOnline && !isMyTurn ? (
+        <div className="bg-[#0f1422] border-2 border-[#0284c7]/50 rounded-2xl p-6 text-center space-y-3.5 shadow-xl animate-in fade-in">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-[#0284c7]/20 border border-[#0284c7]/40 flex items-center justify-center text-[#38bdf8]">
+            <Target className="w-7 h-7 animate-pulse" />
+          </div>
+          <div>
+            <h4 className="text-base font-black text-white">
+              Turno de {currentTurn === 0 ? p1Display : p2Display} en su Diana
+            </h4>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              Esperando que tu contrincante lance sus 3 dardos y anote el puntaje... El marcador se actualizará automáticamente.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#07090e] rounded-full border border-slate-800 text-[11px] text-[#38bdf8] font-mono font-bold">
+            <span className="w-2 h-2 rounded-full bg-[#38bdf8] animate-ping" />
+            <span>Sincronizando sala {config.onlineRoomCode}</span>
+          </div>
+        </div>
+      ) : showMobileCamera ? (
         <div className="bg-[#0f1422] border-2 border-[#ffe600]/50 rounded-2xl p-3 space-y-2.5 animate-in fade-in">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5 font-black text-amber-400">

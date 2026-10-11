@@ -148,6 +148,21 @@
   * Controles táctiles de micrófono (Mute / Unmute) y retorno en el anotador oficial (`X01Board.tsx`) y en la 2ª pantalla TV (`camara-popout/page.tsx`).
   * Detección de voz en vivo mediante Web Audio API (`AnalyserNode`) con indicación luminosa cuando el competidor está hablando con su rival.
 
+- [x] **Blindaje de Seguridad del Superadministrador ICEMAN (`OnboardingProfileModal.tsx` & `constants.ts`):**
+  * Erradicación total del botón público libre que permitía asumir la sesión de Superadministrador a cualquier visitante anónimo.
+  * Implementación de modal de autenticación administrativa con contraseña maestra (`ADMIN_MASTER_PASSWORD`), validando estrictamente el correo oficial `marianodeux@gmail.com` mediante `validateAdminCredentials`.
+  * Preservación del Onboarding obligatorio deportivo para nuevos jugadores sin brechas de seguridad.
+
+- [x] **Anotador Oficial: Jugador 1 Logueado por Defecto & Jugador 2 de la Comunidad (`MatchGameSettings.tsx`):**
+  * Asignación obligatoria e inmutable del Jugador 1 (P1) como el perfil del usuario autenticado en la sesión (`[Tú (Logueado)]`).
+  * Enriquecimiento del Jugador 2 (P2) con selector interactivo entre los miembros registrados de la Comunidad Oficial (`CANONICAL_PLAYERS` e `ICEMAN`), 4 dificultades de Bot IA (Fácil 40, Medio 55, Avanzado 70, Pro 85 AVG) e invitado ocasional.
+
+- [x] **Salas Online 1 vs 1 con Sincronización Remota en Tiempo Real (`/api/salas`, `OnlineRoomModal.tsx`, `X01Board.tsx`):**
+  * Endpoint REST `/api/salas` con gestión de ciclo de vida (`CREATE`, `JOIN`, `THROW`, sondeo continuo y purga de salas inactivas).
+  * Modal interactivo `OnlineRoomModal.tsx` con generación de código aleatorio (`DART-XXXX`), enlace directo de conexión para compartir por WhatsApp con un solo click y panel de espera animado esperando al rival.
+  * Soporte de URL directa `/anotador?sala=CODE` para unirse de forma automática al abrir la invitación.
+  * Sincronización dardo a dardo en `X01Board.tsx`: panel animado mientras lanza el oponente, bloqueo de teclado táctil fuera de turno, y reproducción automática de los audios de Russ Bray al cantar la puntuación del rival.
+
 ---
 
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos

@@ -1,5 +1,31 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 16] - 2026-10-11
+- **Objetivo:** Blindaje crítico de seguridad contra suplantación del Administrador ICEMAN en el modal de Onboarding, asignación obligatoria e inmutable del Jugador 1 como el perfil del usuario actualmente logueado en el anotador de partidas, habilitación de selección de rivales entre los miembros registrados de la comunidad oficial para el Jugador 2, e implementación integral de Salas Online (1 vs 1) con sincronización remota dardo a dardo en tiempo real, links directos y compartir por WhatsApp.
+- **Realizado:**
+  - **Blindaje de Seguridad del Superadministrador ICEMAN (`OnboardingProfileModal.tsx` & `constants.ts`):**
+    * Erradicado el botón público abierto que permitía a cualquier visitante anónimo iniciar sesión como Superadministrador (`USER_ICEMAN`).
+    * Implementado modal de acceso administrativo protegido por contraseña maestra (`ADMIN_MASTER_PASSWORD`), validando estrictamente que el email pertenezca a Mariano Deux (`marianodeux@gmail.com`) mediante la función segura `validateAdminCredentials`.
+  - **Anotador de Partidas (Jugador 1 y Jugador 2 en `MatchGameSettings.tsx`):**
+    * Jugador 1 (P1): Bloqueado e inicializado por defecto como el perfil del usuario actualmente logueado en la aplicación (`getCurrentPlayerProfile()`), inmutable y etiquetado con el badge `[Tú (Logueado)]`.
+    * Jugador 2 (P2): Selector interactivo que permite escoger rival entre la Comunidad Oficial de registrados (`CANONICAL_PLAYERS` e `ICEMAN`), 4 dificultades de Bot IA (Fácil 40, Medio 55, Avanzado 70, Pro 85 AVG) o un Invitado Casual editable.
+  - **Motor y API de Salas Online 1 vs 1 (`src/lib/online-rooms.ts` & `/api/salas`):**
+    * Creado el gestor en memoria global de servidores de Next.js (`online-rooms.ts`) para administrar salas remotas sin dependencias externas pesadas. Soporta `CREATE`, `JOIN`, `THROW` y purga de salas inactivas (4 horas).
+    * Desarrollado el endpoint de App Router `src/app/api/salas/route.ts` con manejo de respuestas en JSON y códigos de sala aleatorios de 4 caracteres (`DART-XXXX`).
+  - **Modal de Conexión de Salas Online (`OnlineRoomModal.tsx`):**
+    * Pestaña "Crear Sala": Genera la sala, muestra el código en tipografía monoespaciada gigante, enlace directo copiable (`/anotador?sala=CODE`) y botón directo de WhatsApp con mensaje pre-redactado para enviar al contrincante. Realiza sondeo automático cada 1.5s hasta que el rival se conecta.
+    * Pestaña "Unirse a Sala": Permite a un segundo usuario logueado ingresar el código de sala o acceder automáticamente vía URL `/anotador?sala=CODE`.
+  - **Sincronización en Tiempo Real en Tablero (`X01Board.tsx`):**
+    * Detección de partida de sala online (`isOnlineRoom`).
+    * Envío inmediato de tiradas vía POST (`action: 'THROW'`) al completar los 3 dardos locales.
+    * Sondeo adaptativo cada 1.2s durante el turno del oponente, con bloqueo del teclado local y despliegue de panel visual animado de diana conectada esperando el tiro rival.
+    * Reproducción de audios oficiales de Russ Bray tan pronto como la diana rival impacta y reporta su puntuación.
+  - **Validación de Compilación:**
+    * `npm run build` ejecutado exitosamente con código 0 y 16/16 páginas generadas (`ƒ /api/salas` dinámica).
+- **Estado del Proyecto:** Seguridad administrativa completamente blindada, identidad de jugadores en el anotador normalizada y salas online 1 vs 1 con sincronización remota y audio de Russ Bray plenamente operativas.
+
+---
+
 ## [Sesión 15] - 2026-10-11
 - **Objetivo:** Diagnóstico y resolución de colisión de CSS/Service Worker en Vercel ("algo se rompió"), ocultamiento temporal de la sección Tienda en todos los menús y navegación, habilitación de micrófono y voz en vivo para hablar con el rival en partidas online, e implementación del Onboarding obligatorio de primer ingreso para que todo nuevo usuario complete su ficha deportiva.
 - **Realizado:**

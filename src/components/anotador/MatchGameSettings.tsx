@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   GameType, 
   CricketMode, 
@@ -8,7 +8,11 @@ import {
   ParticipantPlayer,
   PlayerProfile 
 } from '@/lib/types';
-import { MOCK_RANKINGS, MOCK_CURRENT_USER } from '@/lib/constants';
+import { MOCK_RANKINGS, MOCK_CURRENT_USER, DEFAULT_NEW_PLAYER, USER_ICEMAN } from '@/lib/constants';
+import { getCurrentPlayerProfile } from '@/lib/storage';
+import { CANONICAL_PLAYERS } from '@/lib/players-data';
+import { OnlineRoomModal } from './OnlineRoomModal';
+import { OnlineRoom } from '@/lib/online-rooms';
 import { 
   ArrowLeft, 
   Play, 
@@ -24,7 +28,10 @@ import {
   Flame,
   Shield,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Globe,
+  Bot,
+  UserCheck
 } from 'lucide-react';
 
 interface MatchGameSettingsProps {
@@ -34,6 +41,7 @@ interface MatchGameSettingsProps {
   onToggleVoiceCaller: () => void;
   soundFxEnabled: boolean;
   onToggleSoundFx: () => void;
+  initialOnlineRoomCode?: string;
 }
 
 export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
@@ -42,7 +50,8 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
   voiceCallerEnabled,
   onToggleVoiceCaller,
   soundFxEnabled,
-  onToggleSoundFx
+  onToggleSoundFx,
+  initialOnlineRoomCode
 }) => {
   // Modo de juego principal
   const [gameType, setGameType] = useState<GameType>('X01');
@@ -55,12 +64,19 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
   // Modalidad Parejas (2 vs 2)
   const [isDoubles, setIsDoubles] = useState(false);
 
+  // Modal de Sala Online
+  const [showOnlineRoomModal, setShowOnlineRoomModal] = useState(!!initialOnlineRoomCode);
+
   // Jugadores seleccionados
-  const [player1, setPlayer1] = useState<ParticipantPlayer>({
-    id: MOCK_CURRENT_USER.id,
-    name: MOCK_CURRENT_USER.fullName,
-    nickname: MOCK_CURRENT_USER.nickname,
-    avatarUrl: MOCK_CURRENT_USER.avatarUrl
+  // Jugador 1: Por defecto SIEMPRE el usuario actualmente logueado en la aplicación
+  const [player1, setPlayer1] = useState<ParticipantPlayer>(() => {
+    const active = getCurrentPlayerProfile(DEFAULT_NEW_PLAYER);
+    return {
+      id: active.id || 'player-local',
+      name: active.fullName || 'Jugador Local',
+      nickname: active.nickname || 'Tú',
+      avatarUrl: active.avatarUrl || active.photoUrl || '/images/iceman-perfil.png'
+    };
   });
 
   const [player2, setPlayer2] = useState<ParticipantPlayer>({
@@ -85,8 +101,34 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
     avatarUrl: '/logos/logo-mdq.png'
   });
 
+  // Sincronizar Jugador 1 con perfil logueado al montar o actualizar
+  useEffect(() => {
+    const active = getCurrentPlayerProfile(DEFAULT_NEW_PLAYER);
+    if (active && active.fullName) {
+      setPlayer1({
+        id: active.id,
+        name: active.fullName,
+        nickname: active.nickname,
+        avatarUrl: active.avatarUrl || active.photoUrl || '/images/iceman-perfil.png'
+      });
+    }
+
+    const handleProfileUpdate = (e: any) => {
+      if (e.detail && e.detail.fullName) {
+        setPlayer1({
+          id: e.detail.id,
+          name: e.detail.fullName,
+          nickname: e.detail.nickname,
+          avatarUrl: e.detail.avatarUrl || e.detail.photoUrl || '/images/iceman-perfil.png'
+        });
+      }
+    };
+    window.addEventListener('lpld_profile_updated', handleProfileUpdate);
+    return () => window.removeEventListener('lpld_profile_updated', handleProfileUpdate);
+  }, []);
+
   // Modal de selección de jugador de la app
-  const [pickingSlot, setPickingSlot] = useState<'p1' | 'p2' | 'p1Team' | 'p2Team' | null>(null);
+  const [pickingSlot, setPickingSlot] = useState<'p2' | 'p1Team' | 'p2Team' | null>(null);
   const [customPlayerName, setCustomPlayerName] = useState('');
   const [showCreatePlayerModal, setShowCreatePlayerModal] = useState(false);
 
@@ -111,8 +153,23 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
   // Modal de Ajustes de Audio/Árbitro
   const [showAudioSettingsModal, setShowAudioSettingsModal] = useState(false);
 
-  // Jugadores disponibles en la comunidad
-  const availablePlayers: PlayerProfile[] = [MOCK_CURRENT_USER];
+  // Jugadores registrados en la aplicación (Comunidad oficial)
+  const registeredCommunityPlayers: PlayerProfile[] = [
+    USER_ICEMAN,
+    ...CANONICAL_PLAYERS.filter(p => p.id !== USER_ICEMAN.id).map(cp => ({
+      id: cp.id,
+      fullName: cp.name,
+      nickname: cp.nickname,
+      email: `${cp.nickname.toLowerCase()}@dardos.com.ar`,
+      province: cp.province,
+      city: cp.city,
+      avatarUrl: cp.avatarUrl || cp.photoUrl || '/images/iceman-perfil.png',
+      photoUrl: cp.photoUrl,
+      estimatedAvg: cp.avg,
+      category: cp.category,
+      stats: { overallAvg: cp.avg, first9Avg: cp.avg, matchesPlayed: 0, matchesWon: 0, legsPlayed: 0, legsWon: 0, highestCheckout: 0, checkoutAttempts: 0, checkoutHits: 0, checkoutPercentage: 0, count180s: 0, count140Plus: 0, count100Plus: 0, count60Plus: 0, bestLegDarts: 0 }
+    }))
+  ].filter(p => p.id !== player1.id && p.fullName !== player1.name);
 
   const handleSelectExistingPlayer = (profile: PlayerProfile) => {
     if (!pickingSlot) return;
@@ -120,14 +177,27 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
       id: profile.id,
       name: profile.fullName,
       nickname: profile.nickname,
-      avatarUrl: profile.avatarUrl
+      avatarUrl: profile.avatarUrl || profile.photoUrl || '/images/iceman-perfil.png'
     };
 
-    if (pickingSlot === 'p1') setPlayer1(mapped);
     if (pickingSlot === 'p2') setPlayer2(mapped);
     if (pickingSlot === 'p1Team') setP1Teammate(mapped);
     if (pickingSlot === 'p2Team') setP2Teammate(mapped);
 
+    setPickingSlot(null);
+  };
+
+  const handleSelectBot = (difficultyName: string, avgScore: number) => {
+    const botPlayer: ParticipantPlayer = {
+      id: `bot-${difficultyName.toLowerCase()}`,
+      name: `CPU DartBot (${difficultyName})`,
+      nickname: `Bot ${difficultyName}`,
+      avatarUrl: '/logos/logo-mdq.png',
+      isBot: true
+    };
+    if (pickingSlot === 'p2') setPlayer2(botPlayer);
+    if (pickingSlot === 'p1Team') setP1Teammate(botPlayer);
+    if (pickingSlot === 'p2Team') setP2Teammate(botPlayer);
     setPickingSlot(null);
   };
 
@@ -139,7 +209,6 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
       nickname: customPlayerName.trim()
     };
 
-    if (pickingSlot === 'p1') setPlayer1(newP);
     if (pickingSlot === 'p2') setPlayer2(newP);
     if (pickingSlot === 'p1Team') setP1Teammate(newP);
     if (pickingSlot === 'p2Team') setP2Teammate(newP);
@@ -231,13 +300,22 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
         </div>
       </div>
 
+      {/* Botón Destacado de Sala Online (1 vs 1 Remoto) */}
+      <button
+        onClick={() => setShowOnlineRoomModal(true)}
+        className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#0284c7] via-[#0369a1] to-[#0284c7] hover:brightness-110 text-white font-black text-xs sm:text-sm tracking-wider flex items-center justify-center gap-2.5 shadow-lg shadow-[#0284c7]/25 transition-all transform active:scale-[0.99] border border-[#38bdf8]/40"
+      >
+        <Globe className="w-5 h-5 text-[#38bdf8] animate-pulse" />
+        <span>🌐 GENERAR O UNIRSE A SALA ONLINE (1 VS 1)</span>
+      </button>
+
       {/* Botón Principal START (Verde Diana dominante) */}
       <button
         onClick={handleStart}
         className="w-full py-4 rounded-2xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black text-lg tracking-wider flex items-center justify-center gap-3 shadow-lg shadow-[#00e676]/25 transition-all transform active:scale-[0.99] border border-[#00e676]"
       >
         <Play className="w-6 h-6 fill-current" />
-        <span>COMENZAR PARTIDA</span>
+        <span>COMENZAR PARTIDA LOCAL</span>
       </button>
 
       {/* Selector de Modalidad: Individual vs Parejas (2 vs 2) */}
@@ -277,18 +355,16 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
           </span>
         </div>
 
-        {/* Pareja / Jugador 1 */}
+        {/* Pareja / Jugador 1 (SIEMPRE el usuario logueado inamovible) */}
         <div className="bg-[#111622] border border-[#ef4444]/40 rounded-2xl p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-[#ef4444] uppercase">
-              {isDoubles ? 'Pareja 1 (A)' : 'Jugador 1'}
+            <span className="text-xs font-black text-[#ef4444] uppercase flex items-center gap-2">
+              <span>{isDoubles ? 'Pareja 1 (A)' : 'Jugador 1'}</span>
+              <span className="text-[10px] font-bold text-[#00e676] bg-[#00e676]/10 px-2 py-0.5 rounded-full border border-[#00e676]/30 flex items-center gap-1">
+                <UserCheck className="w-3 h-3" />
+                <span>Tú (Logueado)</span>
+              </span>
             </span>
-            <button
-              onClick={() => setPickingSlot('p1')}
-              className="text-xs font-bold text-[#00e676] hover:underline"
-            >
-              Cambiar
-            </button>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#07090e] border border-[#ef4444]/40 flex items-center justify-center font-black text-[#ef4444]">
@@ -296,7 +372,7 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
             </div>
             <div>
               <div className="text-sm font-black text-white">{player1.name}</div>
-              <div className="text-xs text-slate-400">@{player1.nickname || 'jugador1'}</div>
+              <div className="text-xs text-slate-400">@{player1.nickname || 'jugador1'} • Titular Local</div>
             </div>
           </div>
 
@@ -322,17 +398,17 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
           )}
         </div>
 
-        {/* Pareja / Jugador 2 */}
+        {/* Pareja / Jugador 2 (Selector de la comunidad / Bot / Invitado) */}
         <div className="bg-[#111622] border border-slate-800 rounded-2xl p-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black text-slate-300 uppercase">
-              {isDoubles ? 'Pareja 2 (B)' : 'Jugador 2'}
+              {isDoubles ? 'Pareja 2 (B)' : 'Jugador 2 (Rival)'}
             </span>
             <button
               onClick={() => setPickingSlot('p2')}
               className="text-xs font-bold text-[#00e676] hover:underline"
             >
-              Cambiar
+              Seleccionar Rival de la App
             </button>
           </div>
           <div className="flex items-center gap-3">
@@ -563,49 +639,108 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
         <span>AJUSTES DE ÁRBITRO Y SONIDO EN PARTIDA</span>
       </button>
 
-      {/* MODAL: Selección de Jugador Registrado en la App */}
+      {/* MODAL: Selección de Jugador Registrado en la App (Jugador 2 / Pareja) */}
       {pickingSlot && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#07090e] border border-[#ef4444]/40 rounded-3xl p-5 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#07090e] border border-[#ef4444]/40 rounded-3xl p-5 space-y-4 shadow-2xl text-left">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="text-base font-black text-white">Seleccionar Jugador de la Comunidad</h3>
-              <button onClick={() => setPickingSlot(null)} className="text-slate-400 hover:text-white">
+              <div>
+                <h3 className="text-base font-black text-white">
+                  {pickingSlot === 'p2' ? 'Seleccionar Jugador 2 (Rival)' : 'Seleccionar Compañero de Pareja'}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Elegí entre los jugadores registrados en la app, bots o un invitado
+                </p>
+              </div>
+              <button onClick={() => setPickingSlot(null)} className="text-slate-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
-              {availablePlayers.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => handleSelectExistingPlayer(p)}
-                  className="flex items-center justify-between p-3 rounded-xl bg-[#111622] hover:bg-[#1a2234] border border-slate-800 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#07090e] border border-slate-700 flex items-center justify-center font-black text-[#ef4444] text-xs">
-                      {p.fullName.slice(0, 2).toUpperCase()}
+            {/* SECCIÓN 1: Jugadores Registrados en la App */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-black text-[#00e676] uppercase tracking-wider block">
+                Comunidad Oficial Registrada
+              </span>
+              <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
+                {registeredCommunityPlayers.length > 0 ? (
+                  registeredCommunityPlayers.map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => handleSelectExistingPlayer(p)}
+                      className="flex items-center justify-between p-3 rounded-xl bg-[#111622] hover:bg-[#1a2234] border border-slate-800 hover:border-[#00e676]/40 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#07090e] border border-slate-700 flex items-center justify-center font-black text-[#00e676] text-xs overflow-hidden">
+                          {p.avatarUrl ? (
+                            <img src={p.avatarUrl} alt={p.fullName} className="w-full h-full object-cover" />
+                          ) : (
+                            p.fullName.slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                            <span>{p.fullName}</span>
+                            {p.id === USER_ICEMAN.id && (
+                              <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.2 rounded font-black border border-amber-500/30">ADMIN</span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-400">
+                            @{p.nickname} • AVG {p.estimatedAvg.toFixed(1)} ({p.category})
+                          </div>
+                        </div>
+                      </div>
+                      <Check className="w-4 h-4 text-[#00e676]" />
                     </div>
-                    <div>
-                      <div className="text-sm font-bold text-white">{p.fullName}</div>
-                      <div className="text-[11px] text-slate-400">@{p.nickname} • AVG {p.estimatedAvg}</div>
-                    </div>
+                  ))
+                ) : (
+                  <div className="p-3 bg-slate-900/50 rounded-xl text-center text-xs text-slate-500">
+                    No hay otros jugadores registrados activos.
                   </div>
-                  <Check className="w-4 h-4 text-[#00e676]" />
-                </div>
-              ))}
+                )}
+              </div>
             </div>
 
+            {/* SECCIÓN 2: Práctica vs Bot CPU */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
+              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                <Bot className="w-3.5 h-3.5" />
+                <span>Entrenamiento Individual vs Bot CPU</span>
+              </span>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { diff: 'Fácil', avg: 40 },
+                  { diff: 'Medio', avg: 55 },
+                  { diff: 'Avanzado', avg: 70 },
+                  { diff: 'Pro', avg: 85 }
+                ].map((b) => (
+                  <button
+                    key={b.diff}
+                    type="button"
+                    onClick={() => handleSelectBot(b.diff, b.avg)}
+                    className="p-2 rounded-xl bg-[#111622] hover:bg-[#1a2234] border border-slate-800 hover:border-amber-400/50 text-center transition-all"
+                  >
+                    <div className="text-xs font-black text-white">{b.diff}</div>
+                    <div className="text-[10px] text-slate-400">{b.avg} AVG</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* SECCIÓN 3: Rival Ocasional / Invitado */}
             <div className="pt-2 border-t border-slate-800 flex gap-2">
               <button
+                type="button"
                 onClick={() => setShowCreatePlayerModal(true)}
                 className="flex-1 py-2.5 rounded-xl bg-[#111622] hover:bg-[#1a2234] border border-slate-700 text-xs font-bold text-white flex items-center justify-center gap-2"
               >
                 <UserPlus className="w-4 h-4 text-[#00e676]" />
-                <span>+ Jugador Rápido / Invitado</span>
+                <span>+ Rival Ocasional (Invitado)</span>
               </button>
               <button
+                type="button"
                 onClick={() => setPickingSlot(null)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 text-xs font-bold text-slate-300"
+                className="px-4 py-2.5 rounded-xl bg-slate-800 text-xs font-bold text-slate-300 hover:bg-slate-700"
               >
                 Cancelar
               </button>
@@ -771,6 +906,46 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal Oficial de Gestión de Salas Online (1 vs 1) */}
+      <OnlineRoomModal
+        isOpen={showOnlineRoomModal}
+        onClose={() => setShowOnlineRoomModal(false)}
+        currentMatchConfig={{
+          gameType,
+          cricketMode: gameType === 'CRICKET' ? cricketMode : undefined,
+          startingScore: startScore,
+          outMode: doubleOut ? 'DOUBLE_OUT' : 'SINGLE_OUT',
+          inputFormat,
+          distanceType,
+          bestOfSets: setsCount,
+          bestOfLegs: legsCount,
+          doubleIn,
+          twoClearLegs,
+          isDoubles,
+          isVsCpu: false,
+          cpuDifficulty: 'MEDIUM',
+          player1,
+          player2,
+          player1Name: player1.name,
+          player2Name: player2.name
+        }}
+        onRoomReady={(room, localPlayerIndex) => {
+          setShowOnlineRoomModal(false);
+          const roomConfig: MatchConfig = {
+            ...room.config,
+            isOnlineRoom: true,
+            onlineRoomCode: room.code,
+            localPlayerIndex,
+            player1: room.player1,
+            player2: room.player2 || player2,
+            player1Name: room.player1.name,
+            player2Name: room.player2?.name || player2.name
+          };
+          onStartMatch(roomConfig);
+        }}
+        initialCode={initialOnlineRoomCode}
+      />
     </div>
   );
 };

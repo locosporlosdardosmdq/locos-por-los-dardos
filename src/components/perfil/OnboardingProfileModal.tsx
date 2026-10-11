@@ -10,7 +10,8 @@ import {
   USER_ICEMAN,
   DEFAULT_NEW_PLAYER,
   COUNTRIES, 
-  getCountryFlag 
+  getCountryFlag,
+  validateAdminCredentials
 } from '@/lib/constants';
 import { getCurrentPlayerProfile, saveCurrentPlayerProfile } from '@/lib/storage';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -25,7 +26,9 @@ import {
   Globe, 
   Sparkles,
   Camera,
-  Crown
+  Crown,
+  Lock,
+  X
 } from 'lucide-react';
 
 export const OnboardingProfileModal: React.FC = () => {
@@ -45,6 +48,12 @@ export const OnboardingProfileModal: React.FC = () => {
   const [preferredWeight, setPreferredWeight] = useState<number>(24);
   const [dartBrand, setDartBrand] = useState<string>('TARGET 90%');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Modal de autenticación administrativa protegida (Mariano Deux)
+  const [showAdminAuthModal, setShowAdminAuthModal] = useState(false);
+  const [adminEmailInput, setAdminEmailInput] = useState('marianodeux@gmail.com');
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [adminAuthError, setAdminAuthError] = useState<string | null>(null);
 
   // Inicializar perfil desde storage
   useEffect(() => {
@@ -135,9 +144,20 @@ export const OnboardingProfileModal: React.FC = () => {
     setProfile(completedProfile);
   };
 
-  const handleAdminLogin = () => {
+  const handleAdminAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminAuthError(null);
+
+    const isValid = validateAdminCredentials(adminEmailInput, adminPasswordInput);
+    if (!isValid) {
+      setAdminAuthError('Credenciales incorrectas. Acceso exclusivo para el administrador.');
+      return;
+    }
+
+    // Credenciales válidas de Mariano Deux (ICEMAN)
     saveCurrentPlayerProfile(USER_ICEMAN);
     setProfile(USER_ICEMAN);
+    setShowAdminAuthModal(false);
   };
 
   return (
@@ -358,18 +378,99 @@ export const OnboardingProfileModal: React.FC = () => {
           </button>
         </form>
 
-        {/* Acceso para Administrador Mariano Deux */}
+        {/* Acceso para Administrador Mariano Deux - Protegido por Contraseña Maestra */}
         <div className="pt-4 border-t border-[#1e2638] flex items-center justify-between text-xs">
-          <span className="text-slate-500">¿Eres el administrador de la plataforma?</span>
+          <span className="text-slate-500">¿Administrador de la plataforma?</span>
           <button
             type="button"
-            onClick={handleAdminLogin}
-            className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 transition-colors underline underline-offset-4"
+            onClick={() => {
+              setAdminAuthError(null);
+              setAdminPasswordInput('');
+              setShowAdminAuthModal(true);
+            }}
+            className="text-slate-400 hover:text-amber-400 font-semibold flex items-center gap-1.5 transition-colors"
           >
-            <Crown className="w-3.5 h-3.5" />
-            <span>Iniciar sesión como ICEMAN</span>
+            <Lock className="w-3.5 h-3.5 text-amber-500/70" />
+            <span>Acceso Administrativo</span>
           </button>
         </div>
+
+        {/* Modal de Validación de Administrador (ICEMAN) */}
+        {showAdminAuthModal && (
+          <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="w-full max-w-sm bg-[#07090e] border-2 border-amber-500/50 rounded-3xl p-6 space-y-4 shadow-2xl relative text-left">
+              <button
+                type="button"
+                onClick={() => setShowAdminAuthModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800/60"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-amber-500/15 rounded-xl border border-amber-500/30 text-amber-400">
+                  <Crown className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Acceso Superadministrador</h3>
+                  <p className="text-[11px] text-slate-400">Exclusivo para Mariano Deux (ICEMAN)</p>
+                </div>
+              </div>
+
+              {adminAuthError && (
+                <div className="p-2.5 bg-red-500/15 border border-red-500/40 rounded-xl text-red-400 text-xs font-bold">
+                  ⚠️ {adminAuthError}
+                </div>
+              )}
+
+              <form onSubmit={handleAdminAuthSubmit} className="space-y-3 pt-1">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-300 uppercase">
+                    Correo Electrónico de Administrador
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={adminEmailInput}
+                    onChange={(e) => setAdminEmailInput(e.target.value)}
+                    placeholder="marianodeux@gmail.com"
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-300 uppercase">
+                    Clave de Seguridad Administrativa
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={adminPasswordInput}
+                    onChange={(e) => setAdminPasswordInput(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#07090e] font-black text-xs uppercase tracking-wider transition-colors"
+                  >
+                    Verificar y Entrar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminAuthModal(false)}
+                    className="px-3 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

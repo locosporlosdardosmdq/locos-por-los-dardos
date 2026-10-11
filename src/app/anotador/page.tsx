@@ -1,10 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { DartScorer } from '@/components/anotador/DartScorer';
 import { Target, Zap } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
-export default function AnotadorPage() {
+function AnotadorContent() {
+  const searchParams = useSearchParams();
+  const salaCode = searchParams.get('sala') || searchParams.get('room') || undefined;
+
   return (
     <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-6 space-y-4">
       {/* Encabezado Rápido Oficial */}
@@ -16,10 +20,10 @@ export default function AnotadorPage() {
           <div>
             <h1 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#00e676] inline-block animate-pulse" />
-              Partida individual
+              {salaCode ? `Sala Online: ${salaCode}` : 'Anotador Oficial en Vivo'}
             </h1>
             <p className="text-xs text-slate-400">
-              Locos por los Dardos & Darderos MDQ • 501 Doble Out, Cricket, Parejas y Árbitro Oficial
+              Locos por los Dardos & Darderos MDQ • 501 Doble Out, Cricket, Parejas, Salas Online y Árbitro Oficial
             </p>
           </div>
         </div>
@@ -31,7 +35,15 @@ export default function AnotadorPage() {
       </div>
 
       {/* Componente Núcleo del Anotador */}
-      <DartScorer />
+      <DartScorer initialOnlineRoomCode={salaCode} />
     </div>
+  );
+}
+
+export default function AnotadorPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-400 text-sm">Cargando anotador en vivo...</div>}>
+      <AnotadorContent />
+    </Suspense>
   );
 }

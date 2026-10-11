@@ -419,3 +419,26 @@
      - Analizador de espectro acústico en tiempo real (`AudioContext` + `AnalyserNode`) que activa un badge luminoso y pulsante (`[🎙️ Hablando]`) cuando el usuario está hablando.
 - **Motivo:** Conversación fluida y nítida entre rivales, cero acople con los efectos del marcador y feedback visual instantáneo del estado de la voz.
 
+---
+
+## ADR-026: Blindaje de Seguridad para Administrador ICEMAN, P1 Inmutable y Arquitectura de Salas Online 1 vs 1
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. **Seguridad Crítica:** El modal de Onboarding obligatorio contenía un botón libre y público ("Iniciar sesión como ICEMAN") que permitía a cualquier usuario o visitante anónimo asumir los privilegios y la identidad del Superadministrador Mariano Deux.
+  2. **Identidad en el Anotador:** El Jugador 1 debe corresponder obligatoriamente y por defecto al competidor actualmente logueado en la aplicación, mientras que el Jugador 2 debe permitir escoger entre los jugadores oficiales registrados en la comunidad, bots de entrenamiento o invitados casuales.
+  3. **Partidas Online Conectadas:** Para disputar partidas a distancia de forma ordenada, la aplicación requería un sistema de salas online donde dos jugadores logueados puedan vincularse, intercambiar tiradas en tiempo real dardo a dardo y mantener el audio bidireccional activo.
+- **Decisión:**
+  1. **Blindaje de Acceso Administrativo:**
+     - Se erradicó el botón público en `OnboardingProfileModal.tsx`.
+     - Se implementó un modal protegido por contraseña maestra administrativa (`ADMIN_MASTER_PASSWORD`), validando estrictamente en `src/lib/constants.ts` que el email corresponda a `marianodeux@gmail.com` mediante `validateAdminCredentials`.
+  2. **Asignación de P1 y P2 en el Anotador (`MatchGameSettings.tsx`):**
+     - P1 inicializado estrictamente como `getCurrentPlayerProfile()` (marcado con el badge `[Tú (Logueado)]` e inmutable).
+     - P2 configurable con un selector intuitivo que expone a los jugadores de la Comunidad Oficial (`CANONICAL_PLAYERS` e `ICEMAN`), bots con 4 dificultades de AVG (40, 55, 70 y 85) e invitado.
+  3. **Motor y API de Salas Online 1 vs 1:**
+     - Se implementó el módulo de gestión en memoria de servidor `src/lib/online-rooms.ts` y la ruta de API `src/app/api/salas/route.ts` con acciones `CREATE`, `JOIN`, `THROW` y sondeo automático con purga de salas inactivas (4 horas).
+     - Se creó el modal interactivo `OnlineRoomModal.tsx` con generación de código aleatorio (`DART-XXXX`), enlace directo compartible y botón de invitación a WhatsApp con texto pre-armado.
+     - En `X01Board.tsx`, se implementó polling adaptativo (cada 1.2s cuando es el turno del oponente) y envío inmediato de tiradas locales vía POST a la API, bloqueando el teclado al esperar al rival y reproduciendo el canto oficial de Russ Bray tan pronto como la diana rival impacta.
+- **Motivo:** Eliminación total de la vulnerabilidad de suplantación de identidad administrativa, máxima coherencia en la autoría de partidas personales y experiencia multijugador online fluida sin dependencias externas complejas.
+

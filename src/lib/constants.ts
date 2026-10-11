@@ -294,6 +294,15 @@ export const ADMIN_EMAILS: string[] = [
   'marianodeux@gmail.com'
 ];
 
+// Clave de seguridad administrativa para proteger el acceso a ICEMAN
+export const ADMIN_MASTER_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PIN || 'ICEMAN2026!';
+
+export function validateAdminCredentials(email: string, pass: string): boolean {
+  const isEmailValid = ADMIN_EMAILS.some((adm) => adm.toLowerCase() === email.trim().toLowerCase());
+  const isPassValid = pass.trim() === ADMIN_MASTER_PASSWORD;
+  return isEmailValid && isPassValid;
+}
+
 export function isUserAdmin(emailOrUser?: string | PlayerProfile | null): boolean {
   if (!emailOrUser) return false;
   const email = typeof emailOrUser === 'string' ? emailOrUser : emailOrUser.email;

@@ -7,20 +7,23 @@ import { CricketBoard } from './CricketBoard';
 import { MatchPdcStatsModal } from './MatchPdcStatsModal';
 import { MatchConfig } from '@/lib/types';
 import { MOCK_CURRENT_USER, MOCK_RANKINGS } from '@/lib/constants';
-import { saveCompletedMatch, getActiveMatchSession, clearActiveMatchSession, ActiveMatchSession } from '@/lib/storage';
+import { saveCompletedMatch, getActiveMatchSession, clearActiveMatchSession, ActiveMatchSession, getCurrentPlayerProfile } from '@/lib/storage';
 import { matchBroadcast } from '@/lib/broadcast';
 import { Play, Trash2, Clock } from 'lucide-react';
 
 interface DartScorerProps {
   initialConfig?: Partial<MatchConfig>;
   onTournamentMatchFinished?: (result: any) => void;
+  initialOnlineRoomCode?: string;
 }
 
 export const DartScorer: React.FC<DartScorerProps> = ({
   initialConfig,
-  onTournamentMatchFinished
+  onTournamentMatchFinished,
+  initialOnlineRoomCode
 }) => {
   // Configuración por defecto
+  const localUser = getCurrentPlayerProfile(MOCK_CURRENT_USER);
   const defaultMatchConfig: MatchConfig = {
     gameType: 'X01',
     startingScore: 501,
@@ -35,10 +38,10 @@ export const DartScorer: React.FC<DartScorerProps> = ({
     isVsCpu: false,
     cpuDifficulty: 'MEDIUM',
     player1: {
-      id: MOCK_CURRENT_USER.id,
-      name: MOCK_CURRENT_USER.fullName,
-      nickname: MOCK_CURRENT_USER.nickname,
-      avatarUrl: MOCK_CURRENT_USER.avatarUrl
+      id: localUser.id || 'player-local',
+      name: localUser.fullName || 'Jugador Local',
+      nickname: localUser.nickname || 'Tú',
+      avatarUrl: localUser.avatarUrl || localUser.photoUrl || '/images/iceman-perfil.png'
     },
     player2: {
       id: 'guest-rival',
@@ -46,7 +49,7 @@ export const DartScorer: React.FC<DartScorerProps> = ({
       nickname: 'Rival',
       avatarUrl: '/logos/logo-mdq.png'
     },
-    player1Name: MOCK_CURRENT_USER.fullName,
+    player1Name: localUser.fullName || 'Jugador Local',
     player2Name: 'Rival / Invitado',
     ...initialConfig
   };
@@ -239,6 +242,7 @@ export const DartScorer: React.FC<DartScorerProps> = ({
             onToggleVoiceCaller={() => setVoiceCallerEnabled(!voiceCallerEnabled)}
             soundFxEnabled={soundFxEnabled}
             onToggleSoundFx={() => setSoundFxEnabled(!soundFxEnabled)}
+            initialOnlineRoomCode={initialOnlineRoomCode}
           />
         </div>
       ) : activeConfig.gameType === 'X01' ? (

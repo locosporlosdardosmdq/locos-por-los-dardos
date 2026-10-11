@@ -26,6 +26,7 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 * **`/tienda` (E-Commerce Oficial):** Catálogo de productos (dardos 90% tungsteno, dianas sisal, plumas, cañas, cartucheras) preservado a nivel de código para lanzamiento posterior (oculto temporalmente de los menús).
 
 ### 2. Endpoints Backend (`src/app/api/`)
+* **`POST & GET /api/salas`:** Motor de gestión y sincronización en tiempo real de Salas Online 1 vs 1. Soporta acciones de creación (`CREATE`), unión (`JOIN`), envío de tiradas dardo a dardo (`THROW`) y sondeo periódico de estado con purga automática.
 * **`POST /api/checkout/mercadopago`:** Generación de preferencias de pago en ARS para Checkout Pro con soporte para entorno de producción o simulación segura.
 * **`POST /api/webhook/mercadopago`:** Handler de notificaciones IPN para actualización de estado de pagos de pedidos.
 
@@ -43,8 +44,9 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `PlayerDetailModal.tsx`: Modal interactivo de ficha deportiva completa con carta coleccionable, palmarés con copas de oro/plata/bronce, métricas avanzadas y selector de 4 pestañas de participación (Partidas Individuales, Torneos de un Día, Ligas Locales y Liga Nacional con badge ⚡x2 Pts) con badges de fechas Online y Presenciales en sede.
 * **`anotador/`:**
   * `DartScorer.tsx`: Orquestador principal de partidas, selector de vistas (Settings -> Game Board -> Stats) y canal de broadcast en vivo.
-  * `MatchGameSettings.tsx`: Pantalla de configuración previa para 501 y Cricket, con soporte individual y por parejas (2 vs 2), distancias (Legs/Sets) y reglas de cierre.
-  * `X01Board.tsx`: Tablero oficial de 501 con diseño de diana (fondo negro `#07090e`, presencia dominante de rojo diana `#ef4444`), teclado táctil de 5 columnas con atajos rápidos, cuadro central h-11 con Cierre Sugerido oficial in-place, botón de mute Russ Bray en cabecera, preservación de opción de deshacer en instancia final y panel secundario de visitas en juego.
+  * `MatchGameSettings.tsx`: Pantalla de configuración previa para 501 y Cricket con asignación obligatoria e inmutable del Jugador 1 como el usuario logueado en la app (`[Tú (Logueado)]`), selector interactivo para el Jugador 2 entre la Comunidad Oficial de registrados, 4 niveles de Bot IA o invitado casual, y botón de acceso a Salas Online.
+  * `OnlineRoomModal.tsx`: Modal para generación y conexión a Salas Online (1 vs 1) con generación de código aleatorio (`DART-XXXX`), enlace directo compartible, botón de invitación a WhatsApp con texto pre-armado y sondeo de conexión del rival en tiempo real.
+  * `X01Board.tsx`: Tablero oficial de 501 con diseño de diana (fondo negro `#07090e`, presencia dominante de rojo diana `#ef4444`), teclado táctil de 5 columnas con atajos rápidos, cuadro central h-11 con Cierre Sugerido oficial in-place, sincronización remota continua vía `/api/salas`, panel de diana animada cuando lanza el rival y reproducción automática de los cantos de Russ Bray al impactar el tiro del oponente.
   * `CricketBoard.tsx`: Pizarra táctil interactiva de Cricket (Whiteboard View) con 5 columnas, marcas oficiales (`/`, `✕`, `⊗`), multiplicadores D y T, modos Default / Cut Throat / No Score y cálculo de MPR.
   * `MatchPdcStatsModal.tsx`: Modal oficial de estadísticas estándar PDC con comparativa lado a lado (Legs, 3 Darts AVG, First 9, 100+, 140+, 180s, High Finish, Best Leg, MPR).
   * `CheckoutGuide.tsx`: Guía interactiva de combinaciones para cierre en dobles y alerta de números bogey.
@@ -63,13 +65,15 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `NationalRankings.tsx`: Tabla de posiciones y podio con filtros provinciales.
 * **`perfil/`:**
   * `RegisterAndProfile.tsx`: Ficha deportiva del jugador con selector de nacionalidad y banderas internacionales (`COUNTRIES`), provincias argentinas, slider interactivo de AVG, categorización automática y dashboard de estadísticas.
+  * `OnboardingProfileModal.tsx`: Modal obligatorio de primer ingreso blindado con acceso administrativo protegido por clave maestra (`validateAdminCredentials`) exclusivo para el email oficial de Mariano Deux (`marianodeux@gmail.com`).
 * **`tienda/`:**
   * `ProductCatalog.tsx`: Grilla de productos con buscador y selector de marcas/categorías.
   * `CartDrawer.tsx`: Drawer lateral deslizable de compras con checkout de Mercado Pago.
 
 ### 4. Capa de Datos y Modelos (`src/lib/` y `prisma/`)
-* **`src/lib/types.ts`:** Tipado TypeScript riguroso (PlayerProfile, MatchConfig, DartThrow, Tournament, Product, etc.).
-* **`src/lib/constants.ts`:** Provincias de Argentina, checkout guide, categorización por AVG y datasets mock.
+* **`src/lib/types.ts`:** Tipado TypeScript riguroso (PlayerProfile, MatchConfig con flags de sala online, DartThrow, Tournament, Product, etc.).
+* **`src/lib/online-rooms.ts`:** Gestor backend y memoria de servidores para ciclo de vida de salas remotas (`createOnlineRoom`, `joinOnlineRoom`, `submitRoomThrow`, `getOnlineRoom`).
+* **`src/lib/constants.ts`:** Provincias de Argentina, checkout guide, categorización por AVG, validación de credenciales maestras de administrador y datasets de la comunidad.
 * **`src/lib/storage.ts`:** Persistencia offline-first con localStorage/IndexedDB y cola de sincronización.
 * **`src/lib/broadcast.ts`:** Canal de transmisión broadcast en tiempo real (BroadcastChannel API + storage sync) para marcadores de pista.
 * **`src/lib/sound-effects.ts`:** Motor de audio Web Audio API + Web Speech API.

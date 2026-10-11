@@ -385,3 +385,37 @@
   3. **Aislamiento de Sesión:**
      * Se removió el botón provisional de login simulado (`Login ICEMAN`) para que la sesión de `/perfil` sea 100% fiel al usuario autenticado, blindando la cuenta de administrador.
 - **Motivo:** Coherencia total entre la tarjeta coleccionable y el panel de configuración del jugador, y estricta integridad en la edición de datos propios.
+
+---
+
+## ADR-024: Estrategia Network-First en Service Worker, Blindaje Anti-Layout Shift y Ocultamiento Preventivo de Tienda
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Tras sucesivos despliegues en Vercel, el Service Worker v1 que implementaba `Cache-First` para páginas HTML servía documentos en caché con enlaces a archivos CSS cuyos hashes ya habían cambiado en el servidor de producción, provocando que la página se renderizara sin estilos (fondo blanco, letra Times New Roman) y que las imágenes sin dimensiones inline fijas se mostraran a escala nativa (2500x2500px).
+  2. El usuario requirió ocultar momentáneamente la sección de la Tienda de toda la navegación hasta definir el modelo comercial y los productos definitivos.
+- **Decisión:**
+  1. **Service Worker v2:** Se migró `public/sw.js` a versión `locos-dardos-v2` estableciendo una política obligatoria `Network-First` para peticiones de navegación (`event.request.mode === 'navigate'`). En `activate`, se eliminan todos los cachés antiguos de forma inmediata, y en `providers.tsx` se fuerza la purga de `locos-dardos-v1`.
+  2. **Blindaje de Avatares:** Se aplicaron dimensiones inline estrictas (`width: 112px, height: 112px, overflow: hidden`) en el contenedor de avatar de `RegisterAndProfile.tsx` y fallback seguro a `/images/iceman-perfil.png`. En `storage.ts`, se incorporó auto-migración de perfiles viejos guardados en `localStorage`.
+  3. **Ocultamiento de Tienda:** Se removieron los accesos visibles en `AppSidebar.tsx`, `AppBottomNav.tsx` (reemplazado por `Jugadores`), `Navbar.tsx`, `Footer.tsx` y la Card 4 de la landing (`page.tsx`), manteniendo intacta la lógica e integración de Mercado Pago en la base de código.
+- **Motivo:** Garantía absoluta de carga de estilos CSS en cada despliegue, eliminación de desbordes visuales y respeto del roadmap comercial.
+
+---
+
+## ADR-025: Audio Bidireccional y Micrófono en Tiempo Real para Partidas Online
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  En las partidas de dardos a distancia, los contrincantes necesitan comunicarse por voz en tiempo real para cantar los tiros, acordar decisiones de diana y recrear la interacción presencial del club.
+- **Decisión:**
+  1. **Captura WebRTC:** En `X01Board.tsx` y `camara-popout/page.tsx`, se habilitó la captura de audio en `getUserMedia` configurada con:
+     - `echoCancellation: true` (evita acoples acústicos con los anuncios del árbitro Russ Bray).
+     - `noiseSuppression: true` (filtra el sonido ambiente y ventiladores).
+     - `autoGainControl: true` (nivela la potencia del micrófono).
+  2. **Controles Táctiles y Detección de Voz:**
+     - Botón de conmutación de micrófono (Mute / Unmute) en la cabecera del marcador oficial y en la barra de cámara.
+     - Analizador de espectro acústico en tiempo real (`AudioContext` + `AnalyserNode`) que activa un badge luminoso y pulsante (`[🎙️ Hablando]`) cuando el usuario está hablando.
+- **Motivo:** Conversación fluida y nítida entre rivales, cero acople con los efectos del marcador y feedback visual instantáneo del estado de la voz.
+

@@ -79,11 +79,11 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
       icon: BarChart3
     },
     {
-      href: '/tienda',
-      label: 'Tienda',
-      badge: 'MP',
+      href: '/jugadores',
+      label: 'Jugadores',
+      badge: 'ARG',
       badgeColor: 'bg-[#00b853]/20 text-[#00b853] border-[#00b853]/40', // Verde diana
-      icon: ShoppingBag
+      icon: User
     },
     {
       href: '/perfil',

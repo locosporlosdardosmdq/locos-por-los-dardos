@@ -33,11 +33,33 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // Registro del Service Worker para PWA Offline (solo en producción para no romper dev)
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      // Purgar cachés v1 obsoletos inmediatamente
+      if ('caches' in window) {
+        caches.keys().then((names) => {
+          names.forEach((name) => {
+            if (name === 'locos-dardos-v1') {
+              caches.delete(name);
+            }
+          });
+        });
+      }
+
       if (process.env.NODE_ENV === 'production') {
         navigator.serviceWorker
           .register('/sw.js')
           .then((reg) => {
             console.log('[PWA] Service Worker registrado con éxito:', reg.scope);
+            // Si hay actualización en segundo plano, forzar actualización
+            reg.onupdatefound = () => {
+              const installingWorker = reg.installing;
+              if (installingWorker) {
+                installingWorker.onstatechange = () => {
+                  if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    reg.update();
+                  }
+                };
+              }
+            };
           })
           .catch((err) => {
             console.warn('[PWA] Fallo al registrar Service Worker:', err);

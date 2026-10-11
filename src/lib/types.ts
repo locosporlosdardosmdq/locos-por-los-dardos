@@ -62,6 +62,7 @@ export interface PlayerProfile {
   estimatedAvg: number;
   category: PlayerCategory;
   isVerified?: boolean;
+  isProfileComplete?: boolean;
   bio?: string;
   preferredDartWeight?: number;
   dartBrand?: string;

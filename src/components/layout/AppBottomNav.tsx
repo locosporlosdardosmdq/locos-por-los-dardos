@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { 
   Target, 
   Trophy, 
-  ShoppingBag, 
+  Users, 
   BarChart3, 
   Menu 
 } from 'lucide-react';
@@ -18,7 +18,7 @@ interface AppBottomNavProps {
 export const AppBottomNav: React.FC<AppBottomNavProps> = ({ onOpenMobileMenu }) => {
   const pathname = usePathname();
 
-  const isTiendaActive = pathname.startsWith('/tienda');
+  const isJugadoresActive = pathname.startsWith('/jugadores');
   const isTorneosActive = pathname.startsWith('/torneos');
   const isAnotadorActive = pathname.startsWith('/anotador');
   const isRankingActive = pathname.startsWith('/ranking');
@@ -26,18 +26,18 @@ export const AppBottomNav: React.FC<AppBottomNavProps> = ({ onOpenMobileMenu }) 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#07090e]/95 backdrop-blur-lg border-t border-[#1a2333] px-2 py-1.5 safe-area-pb">
       <div className="flex items-center justify-around max-w-lg mx-auto">
-        {/* 1. Tienda */}
+        {/* 1. Jugadores (Reemplaza a Tienda temporalmente) */}
         <Link
-          href="/tienda"
+          href="/jugadores"
           prefetch={true}
           className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all ${
-            isTiendaActive 
+            isJugadoresActive 
               ? 'text-[#00e676]' 
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          <ShoppingBag className="w-5 h-5" />
-          <span className="text-[10px] font-black uppercase tracking-wider mt-0.5">Tienda</span>
+          <Users className="w-5 h-5" />
+          <span className="text-[10px] font-black uppercase tracking-wider mt-0.5">Jugadores</span>
         </Link>
 
         {/* 2. Torneos */}

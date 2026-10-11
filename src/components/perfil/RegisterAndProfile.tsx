@@ -155,6 +155,8 @@ export const RegisterAndProfile: React.FC = () => {
       category: calculatedCategory,
       bio,
       preferredDartWeight: preferredWeight,
+      dartBrand: dartBrand.trim(),
+      isProfileComplete: true,
       role: isAdmin ? 'ADMIN' : (profile.role || 'PLAYER')
     };
     setProfile(updated);
@@ -268,12 +270,17 @@ export const RegisterAndProfile: React.FC = () => {
 
             <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div className="flex items-center gap-5">
-                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-[#00b853] shadow-xl bg-[#14161f] p-1 flex-shrink-0">
+                <div 
+                  className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-[#00b853] shadow-xl bg-[#14161f] p-1 flex-shrink-0"
+                  style={{ width: 112, height: 112, maxWidth: 112, maxHeight: 112, position: 'relative', overflow: 'hidden' }}
+                >
                   <Image
-                    src={profile.avatarUrl || '/logos/logo-mdq.png'}
+                    src={profile.photoUrl || profile.avatarUrl || '/images/iceman-perfil.png'}
                     alt={profile.nickname}
-                    fill
-                    className="object-contain p-2"
+                    width={112}
+                    height={112}
+                    className="object-contain p-2 w-full h-full"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   />
                   <span className="absolute bottom-1 right-1 text-xl select-none" title={profile.nationality || 'Argentina'}>
                     {flag}

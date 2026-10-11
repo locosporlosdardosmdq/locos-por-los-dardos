@@ -24,7 +24,9 @@ import {
   History,
   CheckCircle2,
   Tv,
-  Camera
+  Camera,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { matchBroadcast } from '@/lib/broadcast';
 
@@ -117,31 +119,91 @@ export const X01Board: React.FC<X01BoardProps> = ({
   // Modal de opciones para Volver / Stand By / Abandonar
   const [showExitModal, setShowExitModal] = useState<boolean>(false);
 
-  // Cámara en dispositivo móvil (Opción 1: Alternancia diana rival / teclado de tiro)
+  // Cámara y Micrófono en dispositivo móvil (Opción 1: Alternancia diana rival y voz en vivo)
   const [showMobileCamera, setShowMobileCamera] = useState<boolean>(false);
+  const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const mobileVideoRef = useRef<HTMLVideoElement>(null);
   const mobileStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (showMobileCamera && typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
       navigator.mediaDevices
-        .getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
+        .getUserMedia({ 
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        })
         .then((stream) => {
           mobileStreamRef.current = stream;
           if (mobileVideoRef.current) {
             mobileVideoRef.current.srcObject = stream;
           }
+
+          // Inicializar análisis de voz para vúmetro / feedback en tiempo real
+          const audioTracks = stream.getAudioTracks();
+          if (audioTracks.length > 0 && typeof AudioContext !== 'undefined') {
+            try {
+              const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+              audioContextRef.current = audioCtx;
+              const source = audioCtx.createMediaStreamSource(stream);
+              const analyser = audioCtx.createAnalyser();
+              analyser.fftSize = 256;
+              source.connect(analyser);
+              analyserRef.current = analyser;
+
+              const dataArray = new Uint8Array(analyser.frequencyBinCount);
+              const detectSpeech = () => {
+                if (analyserRef.current) {
+                  analyserRef.current.getByteFrequencyData(dataArray);
+                  let sum = 0;
+                  for (let i = 0; i < dataArray.length; i++) {
+                    sum += dataArray[i];
+                  }
+                  const avg = sum / dataArray.length;
+                  setIsSpeaking(avg > 18 && !isMicMuted);
+                }
+                animationFrameRef.current = requestAnimationFrame(detectSpeech);
+              };
+              detectSpeech();
+            } catch (e) {
+              console.warn('[Audio] No se pudo iniciar analizador de voz:', e);
+            }
+          }
         })
         .catch((err) => {
-          console.warn('Cámara móvil no disponible:', err);
+          console.warn('Cámara o micrófono no disponible:', err);
         });
     } else {
       if (mobileStreamRef.current) {
         mobileStreamRef.current.getTracks().forEach((t) => t.stop());
         mobileStreamRef.current = null;
       }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+      setIsSpeaking(false);
     }
   }, [showMobileCamera]);
+
+  // Manejar silenciado de micrófono en caliente
+  useEffect(() => {
+    if (mobileStreamRef.current) {
+      mobileStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !isMicMuted;
+      });
+    }
+  }, [isMicMuted]);
 
   // Si cambia el turno al usuario local (0), ocultar cámara y mostrar teclado de 5 columnas automáticamente
   useEffect(() => {
@@ -751,6 +813,25 @@ export const X01Board: React.FC<X01BoardProps> = ({
               <Tv className="w-4 h-4" />
             </button>
 
+            {/* Botón Micrófono para Hablar con el Rival (Partida Online) */}
+            <button
+              onClick={() => {
+                const next = !isMicMuted;
+                setIsMicMuted(next);
+                showFeedback(next ? 'Micrófono silenciado' : 'Micrófono activo (hablando con rival)', next ? '#ef4444' : '#00e676');
+              }}
+              title={isMicMuted ? 'Activar Micrófono (Hablar con el Rival)' : 'Silenciar Micrófono'}
+              className={`p-1.5 rounded-xl border transition-all ${
+                isMicMuted 
+                  ? 'bg-[#ef4444]/20 text-[#ef4444] border-[#ef4444]/40 hover:bg-[#ef4444]/30' 
+                  : isSpeaking
+                    ? 'bg-[#00e676]/30 text-[#00e676] border-[#00e676] ring-2 ring-[#00e676]/60 animate-pulse'
+                    : 'bg-black text-[#00e676] border-[#00e676]/30 hover:bg-[#151515]'
+              }`}
+            >
+              {isMicMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+
             {/* Botón Silenciar / Activar Audios de Russ Bray */}
             <button
               onClick={handleToggleMute}
@@ -968,6 +1049,49 @@ export const X01Board: React.FC<X01BoardProps> = ({
             <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] font-bold text-slate-300">
               Tirador: {getCurrentShooterName()}
             </div>
+            {/* Indicador de voz activo sobre el video */}
+            <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-2 py-1 rounded-lg border border-slate-700 text-[10px]">
+              {isMicMuted ? (
+                <span className="text-red-400 font-bold flex items-center gap-1">
+                  <MicOff className="w-3 h-3" /> Silenciado
+                </span>
+              ) : isSpeaking ? (
+                <span className="text-[#00e676] font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-ping" />
+                  <Mic className="w-3 h-3 text-[#00e676]" /> Hablando
+                </span>
+              ) : (
+                <span className="text-slate-400 font-medium flex items-center gap-1">
+                  <Mic className="w-3 h-3" /> Micrófono ON
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Panel de Control de Audio & Voz con el Contrincante */}
+          <div className="flex items-center justify-between p-2 rounded-xl bg-black/70 border border-slate-800 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !isMicMuted;
+                setIsMicMuted(next);
+                showFeedback(next ? 'Micrófono silenciado' : 'Micrófono activo para hablar con el rival', next ? '#ef4444' : '#00e676');
+              }}
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm ${
+                isMicMuted 
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30' 
+                  : isSpeaking 
+                    ? 'bg-[#00e676]/30 text-[#00e676] border border-[#00e676] ring-2 ring-[#00e676]/50 animate-pulse' 
+                    : 'bg-[#111622] text-[#00e676] border border-[#00e676]/40 hover:bg-[#1a2234]'
+              }`}
+            >
+              {isMicMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              <span>{isMicMuted ? 'Activar Micrófono' : isSpeaking ? 'Hablando en Vivo' : 'Silenciar Micrófono'}</span>
+            </button>
+
+            <span className="text-[10px] text-slate-400 font-medium">
+              {isMicMuted ? 'Rival no te escucha' : 'Hablá con tu rival en vivo'}
+            </span>
           </div>
 
           <button

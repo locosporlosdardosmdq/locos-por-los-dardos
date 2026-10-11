@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { AppSidebar } from './AppSidebar';
 import { AppBottomNav } from './AppBottomNav';
 import { CartDrawer } from '@/components/tienda/CartDrawer';
+import { OnboardingProfileModal } from '@/components/perfil/OnboardingProfileModal';
 import { useCart } from '@/app/providers';
 
 interface AppShellProps {
@@ -16,6 +17,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-[#07090e] text-white flex flex-col font-sans antialiased">
+      {/* Modal obligatorio de primer ingreso si el usuario no ha completado su perfil */}
+      <OnboardingProfileModal />
+
       {/* Menú lateral con colapso/expansión gobernado 100% por Hover del Mouse en PC */}
       <AppSidebar
         mobileOpen={mobileOpen}

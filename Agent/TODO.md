@@ -133,6 +133,21 @@
   * Sección de datos bancarios institucionales para transferencias.
   * Panel administrativo exclusivo para ICEMAN (`marianodeux@gmail.com`) para gestionar autoridades (vinculando jugadores de la app) y modificar los datos de la cuenta bancaria.
 
+- [x] **Reparación de Service Worker v1 & Blindaje Anti-Layout Shift:**
+  * Actualización a Service Worker v2 (`sw.js`) con estrategia Network-First para navegación HTML, evitando que el cliente cargue HTML en caché que apunte a hashes 404 de CSS de Vercel.
+  * Purga automática de cachés `locos-dardos-v1` en `providers.tsx`.
+  * Blindaje con dimensiones inline estrictas en contenedores de avatares para evitar desbordes ante cualquier eventualidad.
+  * Migración automática de perfiles residuales desactualizados en `localStorage` (`storage.ts`).
+
+- [x] **Ocultamiento Temporal de la Sección Tienda:**
+  * Ocultada de `AppSidebar.tsx`, `AppBottomNav.tsx` (reemplazada ergonómicamente por `Jugadores`), `Navbar.tsx`, `Footer.tsx` y la Card 4 de la landing (`page.tsx`).
+  * Catálogo y modelos de e-commerce preservados intactos para activación futura.
+
+- [x] **Habilitación de Micrófono & Voz en Tiempo Real para Partidas Online:**
+  * Captura de audio WebRTC con cancelación de eco, supresión de ruido y control de ganancia automático.
+  * Controles táctiles de micrófono (Mute / Unmute) y retorno en el anotador oficial (`X01Board.tsx`) y en la 2ª pantalla TV (`camara-popout/page.tsx`).
+  * Detección de voz en vivo mediante Web Audio API (`AnalyserNode`) con indicación luminosa cuando el competidor está hablando con su rival.
+
 ---
 
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos

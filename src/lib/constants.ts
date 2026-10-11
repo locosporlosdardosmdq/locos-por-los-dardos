@@ -411,6 +411,7 @@ export const USER_ICEMAN: PlayerProfile = {
   estimatedAvg: 48.0,
   category: 'INTERMEDIA',
   isVerified: true,
+  isProfileComplete: true,
   role: 'ADMIN',
   bio: 'Presidente y Administrador Oficial • Asociación de Dardos Mar del Plata & Dardos Argentina.',
   preferredDartWeight: 24.0,
@@ -434,7 +435,47 @@ export const USER_ICEMAN: PlayerProfile = {
   }
 };
 
-export const MOCK_CURRENT_USER: PlayerProfile = USER_ICEMAN;
+export const DEFAULT_NEW_PLAYER: PlayerProfile = {
+  id: 'player-new-guest',
+  email: '',
+  nickname: '',
+  fullName: '',
+  phone: '',
+  nationality: 'Argentina',
+  countryCode: 'AR',
+  province: 'Buenos Aires',
+  city: 'Mar del Plata',
+  avatarUrl: '/images/iceman-perfil.png',
+  photoUrl: '',
+  estimatedAvg: 40.0,
+  category: 'PRINCIPIANTE',
+  isVerified: false,
+  isProfileComplete: false,
+  role: 'PLAYER',
+  bio: '',
+  preferredDartWeight: 24.0,
+  dartBrand: 'TARGET 90%',
+  stats: {
+    overallAvg: 0,
+    first9Avg: 0,
+    matchesPlayed: 0,
+    matchesWon: 0,
+    legsPlayed: 0,
+    legsWon: 0,
+    highestCheckout: 0,
+    checkoutAttempts: 0,
+    checkoutHits: 0,
+    checkoutPercentage: 0,
+    count180s: 0,
+    count140Plus: 0,
+    count100Plus: 0,
+    count60Plus: 0,
+    bestLegDarts: 0
+  }
+};
+
+// Por defecto para nuevos visitantes es un perfil pendiente de completar
+export const MOCK_CURRENT_USER: PlayerProfile = DEFAULT_NEW_PLAYER;
 
 export const MOCK_RANKINGS: PlayerProfile[] = [
   USER_ICEMAN

@@ -1,5 +1,31 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 15] - 2026-10-11
+- **Objetivo:** Diagnóstico y resolución de colisión de CSS/Service Worker en Vercel ("algo se rompió"), ocultamiento temporal de la sección Tienda en todos los menús y navegación, habilitación de micrófono y voz en vivo para hablar con el rival en partidas online, e implementación del Onboarding obligatorio de primer ingreso para que todo nuevo usuario complete su ficha deportiva.
+- **Realizado:**
+  - **Resolución de Colisión de Service Worker & Desborde Visual en Vercel:**
+    * Causa raíz: Service Worker v1 servía HTML en caché con referencias a archivos CSS cuyos hashes ya no existían en Vercel (404), provocando desconfiguración de estilos (fondo blanco, letra Times New Roman) y desborde nativo de imágenes sin ancho fijo (2500x2500 px).
+    * Actualizado `public/sw.js` a versión `locos-dardos-v2` con estrategia obligatoria `Network-First` para peticiones de navegación (`event.request.mode === 'navigate'`), asegurando que tras cada despliegue el navegador obtenga el HTML fresco con los hashes de estilos activos.
+    * En `providers.tsx`: Purga forzada y automática de la versión `locos-dardos-v1` del cliente.
+    * En `storage.ts`: Auto-migración en `getCurrentPlayerProfile` de perfiles en `localStorage` con atributos desactualizados de pruebas.
+    * En `RegisterAndProfile.tsx`: Blindaje con dimensiones inline estrictas (`112x112 px`) en el contenedor del avatar y fallback seguro a `/images/iceman-perfil.png`.
+  - **Ocultamiento Preventivo de la Sección Tienda:**
+    * Ocultada de `AppSidebar.tsx`, `AppBottomNav.tsx` (reemplazada en el menú táctil inferior por `Jugadores`), `Navbar.tsx`, `Footer.tsx` y la Card 4 de la landing page (`src/app/page.tsx`).
+    * Modelos y endpoints de Mercado Pago preservados para cuando se definan los productos comerciales.
+  - **Audio Bidireccional & Micrófono para Partidas Online:**
+    * Activada la captura de audio en WebRTC `getUserMedia` con cancelación de eco, supresión de ruido y control de ganancia automático (`echoCancellation: true, noiseSuppression: true, autoGainControl: true`) en `X01Board.tsx` y en la ventana emergente `camara-popout/page.tsx`.
+    * Botón de micrófono interactivo (Mute / Unmute) en la cabecera del marcador oficial y en la barra de cámara móvil.
+    * Analizador de voz Web Audio API (`AnalyserNode`) con indicación luminosa pulsante en tiempo real (`[🎙️ Hablando]`) cuando el usuario le habla a su contrincante.
+  - **Onboarding Obligatorio de Primer Ingreso (`OnboardingProfileModal.tsx`):**
+    * Modelado `isProfileComplete?: boolean` en `PlayerProfile`.
+    * Creado `OnboardingProfileModal.tsx`: modal bloqueante de primer ingreso montado en `AppShell.tsx` que exige al nuevo usuario registrar Nombre y Apellido, Apodo deportivo, Email, Nacionalidad/Provincia, AVG inicial con slider interactivo y marca/peso de sus dardos antes de habilitar el acceso a los módulos de la plataforma.
+    * Acceso directo para que el administrador Mariano Deux pueda activar con 1 click la sesión de ICEMAN (`USER_ICEMAN`).
+  - **Compilación de Producción:**
+    * `npm run build` completado exitosamente con 0 errores y 15/15 páginas generadas.
+- **Estado del Proyecto:** Plataforma blindada contra colisiones de caché en Vercel, navegación depurada sin la Tienda, micrófono activo para hablar con contrincantes en partidas online y registro obligatorio de primer ingreso plenamente operativo.
+
+---
+
 ## [Sesión 14] - 2026-10-11
 - **Objetivo:** Implementación de seteo de torneos con/sin dinero (arancelados vs gratuitos), cálculo automático del pozo y desglose de premios (60% al 1º, 30% al 2º y 10% al 3º) con opción a edición manual, modal de inscripción con datos bancarios oficiales y botón directo de WhatsApp para compartir comprobante, creación del módulo institucional "Asociación" (`/asociacion`) para Comisión Directiva de Mar del Plata y Dardos Argentina con fotos de perfil sincronizadas y panel de gestión para ICEMAN, y guía técnica completa para Connection String en Supabase y Vercel.
 - **Realizado:**

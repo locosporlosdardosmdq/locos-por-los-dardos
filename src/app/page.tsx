@@ -172,24 +172,24 @@ export default function HomePage() {
             </div>
           </Link>
 
-          {/* Card 4: Tienda Oficial Mercado Pago */}
+          {/* Card 4: Directorio Federal de Jugadores */}
           <Link
-            href="/tienda"
-            className="group bg-[#0f1422] hover:bg-[#151d30] border border-[#1e2638] hover:border-red-500/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
+            href="/jugadores"
+            className="group bg-[#0f1422] hover:bg-[#151d30] border border-[#1e2638] hover:border-cyan-500/60 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between"
           >
             <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/40 flex items-center justify-center text-[#ef4444] group-hover:scale-110 transition-transform">
-                <ShoppingBag className="w-6 h-6 stroke-[2.5]" />
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
+                <Target className="w-6 h-6 stroke-[2.5]" />
               </div>
-              <h3 className="text-lg font-black text-white group-hover:text-[#ef4444] transition-colors">
-                Tienda Oficial
+              <h3 className="text-lg font-black text-white group-hover:text-cyan-400 transition-colors">
+                Directorio Federal
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Dardos 90% Tungsteno (Target, Red Dragon, Winmau), dianas profesionales sisal, plumas K-Flex y envíos en ARS por Mercado Pago.
+                Cartas oficiales coleccionables de jugadores, estadísticas históricas, categorías por promedio y retadores federales.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-[#1e2638] flex items-center justify-between text-xs font-black text-[#ef4444]">
-              <span>Comprar Equipamiento</span>
+            <div className="mt-4 pt-3 border-t border-[#1e2638] flex items-center justify-between text-xs font-black text-cyan-400">
+              <span>Explorar Jugadores</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>

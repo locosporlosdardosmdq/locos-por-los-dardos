@@ -116,7 +116,32 @@ export function getCurrentPlayerProfile(defaultProfile?: any): any {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.CURRENT_PLAYER);
     if (!data) return defaultProfile;
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+
+    // Auto-migración si el perfil en localStorage tiene datos de prueba antiguos
+    if (parsed && (parsed.avatarUrl === '/logos/logo-mdq.png' || parsed.stats?.overallAvg === 50.0 || parsed.photoUrl?.includes('logo-mdq'))) {
+      if (defaultProfile) {
+        const updated = {
+          ...defaultProfile,
+          ...parsed,
+          avatarUrl: defaultProfile.avatarUrl,
+          photoUrl: parsed.photoUrl && !parsed.photoUrl.includes('logo-mdq') ? parsed.photoUrl : defaultProfile.photoUrl,
+          logoUrl: defaultProfile.logoUrl,
+          estimatedAvg: defaultProfile.estimatedAvg,
+          stats: {
+            ...defaultProfile.stats,
+            overallAvg: defaultProfile.stats.overallAvg,
+            first9Avg: defaultProfile.stats.first9Avg
+          }
+        };
+        try {
+          localStorage.setItem(STORAGE_KEYS.CURRENT_PLAYER, JSON.stringify(updated));
+        } catch {}
+        return updated;
+      }
+    }
+
+    return parsed;
   } catch {
     return defaultProfile;
   }

@@ -18,7 +18,9 @@ import {
   ZoomOut,
   Tv,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -33,8 +35,15 @@ export default function CamaraPopoutPage() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const [layoutMode, setLayoutMode] = useState<'TV_BANNER' | 'SPLIT'>('TV_BANNER');
 
+  // Micrófono para hablar con el contrincante en vivo
+  const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   // 1. Escuchar transmisiones en vivo del anotador vía BroadcastChannel y localStorage
   useEffect(() => {
@@ -73,7 +82,7 @@ export default function CamaraPopoutPage() {
     }
   }, [selectedDeviceId]);
 
-  // 3. Iniciar o reiniciar la cámara
+  // 3. Iniciar o reiniciar la cámara con captura de micrófono de voz
   const startCamera = async (deviceId?: string) => {
     setCameraError(null);
     if (streamRef.current) {
@@ -88,7 +97,11 @@ export default function CamaraPopoutPage() {
             width: { ideal: 1920 },
             height: { ideal: 1080 }
           },
-          audio: false
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
         };
 
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -97,8 +110,39 @@ export default function CamaraPopoutPage() {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
+
+        // Analizador de nivel de voz para feedback de habla
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length > 0 && typeof AudioContext !== 'undefined') {
+          try {
+            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            audioContextRef.current = audioCtx;
+            const source = audioCtx.createMediaStreamSource(stream);
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+            analyserRef.current = analyser;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            const detectSpeech = () => {
+              if (analyserRef.current) {
+                analyserRef.current.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                  sum += dataArray[i];
+                }
+                const avg = sum / dataArray.length;
+                setIsSpeaking(avg > 18 && !isMicMuted);
+              }
+              animationFrameRef.current = requestAnimationFrame(detectSpeech);
+            };
+            detectSpeech();
+          } catch (e) {
+            console.warn('[Popout Audio] No se pudo iniciar analizador:', e);
+          }
+        }
       } catch (err: any) {
-        console.warn('No se pudo acceder a la webcam:', err);
+        console.warn('No se pudo acceder a la webcam o micrófono:', err);
         setCameraError(err.message || 'Cámara no accesible o permisos denegados');
         setCameraActive(false);
       }
@@ -107,11 +151,26 @@ export default function CamaraPopoutPage() {
     }
   };
 
+  // Mute en caliente
+  useEffect(() => {
+    if (streamRef.current) {
+      streamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !isMicMuted;
+      });
+    }
+  }, [isMicMuted]);
+
   useEffect(() => {
     startCamera(selectedDeviceId);
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
       }
     };
   }, [selectedDeviceId]);
@@ -201,6 +260,24 @@ export default function CamaraPopoutPage() {
             className="p-1.5 rounded-xl bg-[#111622] border border-slate-700 text-slate-300 hover:text-white transition-colors"
           >
             <Tv className="w-4 h-4" />
+          </button>
+
+          {/* Botón de Micrófono para Hablar con el Rival */}
+          <button
+            onClick={() => setIsMicMuted(!isMicMuted)}
+            title={isMicMuted ? 'Activar Micrófono (Hablar con el Rival)' : 'Silenciar Micrófono'}
+            className={`p-1.5 px-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+              isMicMuted 
+                ? 'bg-red-500/20 border-red-500/50 text-red-400 hover:bg-red-500/30' 
+                : isSpeaking 
+                  ? 'bg-[#00e676]/30 border-[#00e676] text-[#00e676] ring-2 ring-[#00e676]/60 animate-pulse' 
+                  : 'bg-[#111622] border-[#00e676]/40 text-[#00e676] hover:bg-[#1a2234]'
+            }`}
+          >
+            {isMicMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            <span className="hidden sm:inline">
+              {isMicMuted ? 'Silenciado' : isSpeaking ? 'Hablando' : 'Micrófono ON'}
+            </span>
           </button>
 
           <button

@@ -54,32 +54,32 @@ export const Footer: React.FC = () => {
           </ul>
         </div>
 
-        {/* Tienda & Equipamiento */}
+        {/* Institución & Reglamento */}
         <div>
           <h4 className="text-sm font-bold text-[#efe7d8] uppercase tracking-wider mb-4 flex items-center gap-2">
-            <ShoppingBag className="w-4 h-4 text-[#e52521]" />
-            Tienda & Equipamiento
+            <ShieldCheck className="w-4 h-4 text-[#e52521]" />
+            Institución & Normas
           </h4>
           <ul className="space-y-2 text-xs">
             <li>
-              <Link href="/tienda" className="hover:text-[#00b853] transition-colors">
-                Dardos 90% Tungsteno
+              <Link href="/asociacion" className="hover:text-[#00b853] transition-colors">
+                Asociación Darderos MDQ
               </Link>
             </li>
             <li>
-              <Link href="/tienda" className="hover:text-[#00b853] transition-colors">
-                Dianas Profesionales Sisal (Samurai / Blade 6)
+              <Link href="/asociacion" className="hover:text-[#00b853] transition-colors">
+                Dardos Argentina Nacional
               </Link>
             </li>
             <li>
-              <Link href="/tienda" className="hover:text-[#00b853] transition-colors">
-                Plumas & Cañas K-Flex
+              <Link href="/reglamento" className="hover:text-[#00b853] transition-colors">
+                Reglamento Oficial & Fair Play
               </Link>
             </li>
             <li>
-              <span className="text-slate-400">
-                Pagos en ARS vía Mercado Pago
-              </span>
+              <Link href="/jugadores" className="hover:text-[#00b853] transition-colors">
+                Directorio Federal de Jugadores
+              </Link>
             </li>
           </ul>
         </div>

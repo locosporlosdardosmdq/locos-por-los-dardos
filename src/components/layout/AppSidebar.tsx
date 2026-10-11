@@ -52,20 +52,21 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   // Módulos oficiales en el orden exacto solicitado:
   // 1. La tienda online
-  // 2. Torneos (Gestor propio de llaves, grupos y competición en vivo)
-  // 3. Anotador
-  // 4. Ranking
-  // 5. Jugadores
-  // 6. Configuración / Mi Perfil
+  // 1. Torneos (Gestor propio de llaves, grupos y competición en vivo)
+  // 2. Anotador
+  // 3. Ranking
+  // 4. Jugadores
+  // 5. Configuración / Mi Perfil
+  // Nota: Tienda Online desactivada temporalmente hasta definir productos comerciales
   const menuItems = [
-    {
+    /* {
       title: 'La Tienda Online',
       href: '/tienda',
       icon: ShoppingBag,
       badge: 'MP',
       badgeColor: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
       description: 'Equipamiento profesional y repuestos'
-    },
+    }, */
     {
       title: 'Torneos',
       subTitle: 'Llaves y Grupos',

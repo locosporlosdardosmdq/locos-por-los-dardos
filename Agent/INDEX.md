@@ -7,23 +7,23 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 - **Audio & Voz:** Web Speech API (síntesis de árbitro) + Web Audio API (efectos sintetizados) + HTML5 Audio.
 - **Persistencia & Backend:** Node.js, Prisma ORM, esquema relacional PostgreSQL / Supabase, API Routes.
 - **Pagos:** Mercado Pago API (Checkout Pro en Pesos Argentinos - ARS) y Webhooks IPN.
-- **PWA:** Service Worker (`sw.js`) con estrategia stale-while-revalidate y Web App Manifest (`manifest.json`).
+- **PWA:** Service Worker (`sw.js` v2) con estrategia Network-First para navegación HTML (garantizando sincronización de estilos en Vercel) y Web App Manifest (`manifest.json`).
 
 ---
 
 ## 🗺️ Mapa de Rutas y Módulos
 
 ### 1. Páginas Públicas y de Juego (`src/app/`)
-* **`/` (Landing Page):** Banner promocional superior (Hero Torneos con countdown e inscripción rápida), presentación de la comunidad, accesos a los 4 módulos, ranking previo y sedes destacadas.
-* **`/anotador` (Anotador en Vivo estilo My Dart Training):** Marcador táctil para X01 (170, 301, 501, 701 con Single/Double/Master Out), Cricket (Classic y Scoring con marcas), Práctica vs Bot/CPU con 4 dificultades, tabla de cierre interactiva y árbitro de voz ("180", "Game shot").
-* **`/anotador/camara-popout` (Segunda Pantalla / TV Pop-out Broadcast):** Ventana emergente desacoplada para setups de 2 monitores, proyectores o TV de club, con streaming de webcam a pantalla completa y banner televisivo estilo PDC (puntuaciones gigantes, sets/legs, AVG, turno activo y último dardo tirado vía `matchBroadcast`).
+* **`/` (Landing Page):** Banner promocional superior (Hero Torneos con countdown e inscripción rápida), presentación de la comunidad, accesos a los 4 módulos (Torneos, Anotador, Ranking, Jugadores), ranking previo y sedes destacadas.
+* **`/anotador` (Anotador en Vivo estilo My Dart Training):** Marcador táctil para X01 (170, 301, 501, 701 con Single/Double/Master Out), Cricket (Classic y Scoring con marcas), soporte de micrófono y voz en vivo para hablar con el rival, Práctica vs Bot/CPU con 4 dificultades, tabla de cierre interactiva y árbitro de voz ("180", "Game shot").
+* **`/anotador/camara-popout` (Segunda Pantalla / TV Pop-out Broadcast):** Ventana emergente desacoplada para setups de 2 monitores, proyectores o TV de club, con streaming de webcam a pantalla completa, captura de micrófono con cancelación de eco y banner televisivo estilo PDC (puntuaciones gigantes, sets/legs, AVG, turno activo y último dardo tirado vía `matchBroadcast`).
 * **`/torneos` (Gestor de Torneos Oficial):** Visualización y actualización en vivo de llaves eliminatorias (Cuartos, Semis, Final), fase de grupos (Round Robin) y formulario de creación de torneos presenciales y online con configuración detallada por instancia de llave (Doble Eliminación, Solo Legs vs Sets + Legs).
 * **`/ranking` (Ranking Nacional):** Leaderboard público con podio (Oro, Plata, Bronce) y filtros simultáneos por categoría y provincia de Argentina.
 * **`/jugadores` (Directorio Federal de Jugadores):** Directorio de la comunidad con buscador por nombre/apodo/club, selector federal de provincias, categorización por AVG y desafío directo al anotador.
 * **`/perfil` (Perfil & Registro):** Ficha deportiva del jugador con selector de provincias argentinas, slider de AVG con categorización automática en tiempo real y dashboard con métricas de rendimiento.
 * **`/reglamento` (Reglamento Oficial, Código de Conducta & Fair Play):** Manual de 5 capítulos con especificaciones de montaje de diana (1.73m altura, 2.37m tiro), reglas 501/Cricket, sistema de puntos por modalidad (Individuales, Torneos de 1 Día, Ligas Locales, Liga Nacional x2), código de etiqueta, requerimientos técnicos de cámara online y protocolo arbitral de W.O. y desconexiones.
 * **`/asociacion` (Órgano Institucional Oficial):** Sección oficial de las autoridades de La Asociación de Dardos Mar del Plata y Dardos Argentina, con fotos de perfil de jugador sincronizadas en vivo, cargos de Comisión Directiva, datos bancarios para transferencias de torneos y panel de gestión para ICEMAN.
-* **`/tienda` (E-Commerce Oficial):** Catálogo de productos (dardos 90% tungsteno, dianas sisal, plumas, cañas, cartucheras) con filtros por categoría y marca, y carrito de compras desplegable.
+* **`/tienda` (E-Commerce Oficial):** Catálogo de productos (dardos 90% tungsteno, dianas sisal, plumas, cañas, cartucheras) preservado a nivel de código para lanzamiento posterior (oculto temporalmente de los menús).
 
 ### 2. Endpoints Backend (`src/app/api/`)
 * **`POST /api/checkout/mercadopago`:** Generación de preferencias de pago en ARS para Checkout Pro con soporte para entorno de producción o simulación segura.
@@ -32,11 +32,11 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 ### 3. Componentes Principales (`src/components/`)
 * **`BrandLogo.tsx`:** Lockup de marca oficial con **+25% de preponderancia visual** para Darderos Mar del Plata (`/logos/logo-mdq.png`) respecto a Dardos Argentina (`/logos/dardos-argentina.png`).
 * **`layout/`:**
-  * `AppSidebar.tsx`: Menú lateral hover-driven (sin botones manuales: colapsado en reposo a 80px y expandido automáticamente a 256px por `onMouseEnter`), con orden jerárquico oficial (Tienda, Torneos, Anotador, Ranking, Jugadores, Mi Perfil).
+  * `AppSidebar.tsx`: Menú lateral hover-driven (sin botones manuales: colapsado en reposo a 80px y expandido automáticamente a 256px por `onMouseEnter`), con orden jerárquico activo (Torneos, Anotador, Ranking, Jugadores, Mi Perfil, Asociación).
   * `AppTopBar.tsx`: Barra superior limpia sin botones de colapso, con switch móvil, indicador de módulo, botón PWA e inicio rápido de anotación.
-  * `AppBottomNav.tsx`: Barra de navegación inferior ergonómica para celulares con botón de tiro central elevado.
+  * `AppBottomNav.tsx`: Barra de navegación inferior ergonómica para celulares con botón de tiro central elevado y acceso directo a Jugadores.
   * `AppShell.tsx`: Shell unificado con margen desktop fijo (`lg:pl-20`) para evitar saltos de pantalla (0 layout-shift) mientras el menú flota en hover.
-* **`Navbar.tsx` & `Footer.tsx`:** Navegación responsive, contador dinámico de carrito, botón de instalación PWA e información de clubes.
+* **`Navbar.tsx` & `Footer.tsx`:** Navegación responsive depurada, enlaces institucionales y federados, e información de clubes.
 * **`jugadores/`:**
   * `PlayerDirectory.tsx`: Directorio federal con buscador en vivo, filtros combinados (Mayor AVG, Liga Argentina, Liga Marplatense y Presenciales MDQ) y fichas deportivas.
   * `UltimateDartsCard.tsx`: Cartas coleccionables estilo FIFA Ultimate Team con silueta de escudo Luke Littler, jerarquía de desempeño que prioriza Liga o Torneo, cápsula espaciosa Top 6 (#1 Campeón a #6 Puesto), bandera nacional, marcas de dardos, autoajuste tipográfico sin desbordes con formateo a primer nombre y apellido, y métrica "TOTAL 180s".

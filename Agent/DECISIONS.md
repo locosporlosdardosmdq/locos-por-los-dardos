@@ -361,3 +361,27 @@
      * Blindaje contra división por cero en ratio de victorias ante 0 partidos jugados.
      * Reemplazo de la tabla estática de evolución de AVG por un panel inicial limpio que invita a disputar los primeros partidos.
 - **Motivo:** Plataforma 100% limpia para producción, con identidad personal soberana para el administrador, estética coleccionable impecable y cero datos residuales de prueba.
+
+
+---
+
+## ADR-023: Configuración de Equipamiento de Dardos (Marca y Peso) en Perfil y Aislamiento Estricto de Sesión
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. En la tarjeta coleccionable oficial (`UltimateDartsCard.tsx`) se visualizan de forma prominente la marca/modelo de los dardos (`DARTS`, ej: TARGET 90%) y el gramaje (`WEIGHT`, ej: 24 grams), pero en el formulario de configuración del perfil (`RegisterAndProfile.tsx`) no existían campos para que el jugador personalize sus dardos.
+  2. Se requería cerciorar y transparentar el modelo de seguridad del perfil: la ruta `/perfil` debe operar exclusivamente sobre la sesión local y la cuenta autenticada del usuario, impidiendo que modifique las fichas de los demás jugadores (las cuales son de solo lectura en `/jugadores` y cuadros de torneos).
+- **Decisión:**
+  1. **Tipado y Estado:**
+     * Se añadió la propiedad `dartBrand?: string;` al modelo `PlayerProfile` en `src/lib/types.ts`.
+     * Se incorporó el estado `dartBrand` y `preferredWeight` sincronizado en `RegisterAndProfile.tsx`.
+  2. **Interfaz de Equipamiento de Dardos:**
+     * Se diseñó la sección *"Equipamiento Oficial de Dardos"* en el formulario de edición con:
+       - Input de texto para marca/modelo (`dartBrand`) con botones de acceso rápido para marcas líderes (`TARGET 90%`, `WINMAU 90%`, `HARROWS 90%`, `RED DRAGON`, `UNICORN`).
+       - Slider interactivo y visor numérico de gramaje (`preferredWeight`, de 16g a 32g con paso de 0.5g).
+       - Textarea para biografía y presentación deportiva (`bio`).
+     * Ambos datos se propagan en tiempo real a la carta coleccionable oficial (`currentUserCardData`).
+  3. **Aislamiento de Sesión:**
+     * Se removió el botón provisional de login simulado (`Login ICEMAN`) para que la sesión de `/perfil` sea 100% fiel al usuario autenticado, blindando la cuenta de administrador.
+- **Motivo:** Coherencia total entre la tarjeta coleccionable y el panel de configuración del jugador, y estricta integridad en la edición de datos propios.

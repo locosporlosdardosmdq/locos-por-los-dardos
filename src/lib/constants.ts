@@ -414,6 +414,7 @@ export const USER_ICEMAN: PlayerProfile = {
   role: 'ADMIN',
   bio: 'Presidente y Administrador Oficial • Asociación de Dardos Mar del Plata & Dardos Argentina.',
   preferredDartWeight: 24.0,
+  dartBrand: 'TARGET 90%',
   stats: {
     overallAvg: 48.0,
     first9Avg: 48.0,

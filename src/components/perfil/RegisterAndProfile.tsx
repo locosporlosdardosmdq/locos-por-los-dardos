@@ -52,7 +52,8 @@ export const RegisterAndProfile: React.FC = () => {
   const [city, setCity] = useState(profile.city);
   const [estimatedAvg, setEstimatedAvg] = useState<number>(profile.estimatedAvg);
   const [bio, setBio] = useState(profile.bio || '');
-  const [preferredWeight, setPreferredWeight] = useState<number>(profile.preferredDartWeight || 23);
+  const [preferredWeight, setPreferredWeight] = useState<number>(profile.preferredDartWeight || 24);
+  const [dartBrand, setDartBrand] = useState<string>(profile.dartBrand || 'TARGET 90%');
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Sincronizar estado cuando se actualiza el perfil en storage
@@ -68,6 +69,8 @@ export const RegisterAndProfile: React.FC = () => {
         setProvince(e.detail.province);
         setCity(e.detail.city);
         setEstimatedAvg(e.detail.estimatedAvg);
+        if (e.detail.dartBrand) setDartBrand(e.detail.dartBrand);
+        if (e.detail.preferredDartWeight) setPreferredWeight(e.detail.preferredDartWeight);
       }
     };
     window.addEventListener('lpld_profile_updated', handleProfileUpdate);
@@ -242,17 +245,7 @@ export const RegisterAndProfile: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {/* Botón de acceso rápido para ICEMAN */}
-          {!isProfileAdmin && (
-            <button
-              type="button"
-              onClick={handleSwitchToIceman}
-              className="px-3 py-1.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444] text-[#ef4444] hover:text-white border border-[#ef4444]/40 text-xs font-black flex items-center gap-1.5 transition-all"
-              title="Iniciar sesión como ICEMAN (Superadministrador)"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Login ICEMAN (Admin)</span>
-            </button>
-          )}
+          
 
           <div className="flex items-center gap-2 text-xs text-[#00b853] px-3 font-bold bg-[#14161f] border border-[#313647] rounded-xl py-1.5">
             <span className="text-base select-none">{flag}</span>
@@ -707,6 +700,97 @@ export const RegisterAndProfile: React.FC = () => {
                   onChange={(e) => setCity(e.target.value)}
                   className="w-full bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00b853]"
                   placeholder="Ej: Mar del Plata"
+                />
+              </div>
+            </div>
+
+            {/* SECCIÓN: EQUIPAMIENTO OFICIAL DE DARDOS (Aparece en tu Tarjeta Coleccionable) */}
+            <div className="bg-[#14161f] border-2 border-[#00e676]/30 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-[#313647] pb-3">
+                <div className="w-8 h-8 rounded-xl bg-[#00e676]/15 border border-[#00e676]/40 flex items-center justify-center text-[#00e676]">
+                  <Target className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                    Equipamiento Oficial de Dardos (Aparece en tu Tarjeta)
+                  </h4>
+                  <p className="text-[11px] text-[#b8ad98]">
+                    Personaliza la marca de tus dardos y su peso en gramos para que figuren en los atributos de tu ficha y carta FUT.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Marca / Modelo de Dardos */}
+                <div>
+                  <label className="text-xs font-bold text-[#efe7d8] block mb-1 uppercase">
+                    Marca / Modelo de Dardos (DARTS)
+                  </label>
+                  <input
+                    type="text"
+                    value={dartBrand}
+                    onChange={(e) => setDartBrand(e.target.value)}
+                    className="w-full bg-[#1c1f2b] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00e676]"
+                    placeholder="Ej: TARGET 90%, WINMAU BLADE, HARROWS WOLFRAM..."
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {['TARGET 90%', 'WINMAU 90%', 'HARROWS 90%', 'RED DRAGON', 'UNICORN'].map((brandOption) => (
+                      <button
+                        key={brandOption}
+                        type="button"
+                        onClick={() => setDartBrand(brandOption)}
+                        className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-all ${
+                          dartBrand.toUpperCase() === brandOption
+                            ? 'bg-[#00e676] text-black shadow-sm'
+                            : 'bg-[#242836] text-slate-300 hover:text-white hover:bg-slate-700'
+                        }`}
+                      >
+                        {brandOption}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Peso de los Dardos */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-[#efe7d8] uppercase">
+                      Peso de los Dardos (WEIGHT)
+                    </label>
+                    <span className="text-base font-black text-[#00e676] font-mono px-2 py-0.5 rounded-md bg-[#00e676]/15 border border-[#00e676]/30">
+                      {preferredWeight} gramos
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="16"
+                    max="32"
+                    step="0.5"
+                    value={preferredWeight}
+                    onChange={(e) => setPreferredWeight(parseFloat(e.target.value))}
+                    className="w-full accent-[#00e676] h-2 bg-[#242836] rounded-lg cursor-pointer my-3"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                    <span>16g</span>
+                    <span>20g</span>
+                    <span className="text-[#00e676] font-bold">24g (Estándar)</span>
+                    <span>28g</span>
+                    <span>32g</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Biografía / Reseña deportiva */}
+              <div className="pt-2 border-t border-[#313647]">
+                <label className="text-xs font-bold text-[#efe7d8] block mb-1 uppercase">
+                  Biografía / Presentación Deportiva
+                </label>
+                <textarea
+                  rows={2}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  className="w-full bg-[#1c1f2b] border border-[#313647] rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#00e676] resize-none"
+                  placeholder="Cuéntale a la comunidad sobre tu trayectoria, club y objetivos..."
                 />
               </div>
             </div>

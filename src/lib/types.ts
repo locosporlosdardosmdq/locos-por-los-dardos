@@ -64,6 +64,7 @@ export interface PlayerProfile {
   isVerified?: boolean;
   bio?: string;
   preferredDartWeight?: number;
+  dartBrand?: string;
   role?: 'ADMIN' | 'PLAYER';
   stats: PlayerStats;
   tournamentsWonList?: PlayerTournamentWin[];

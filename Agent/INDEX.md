@@ -75,3 +75,12 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 * **`src/lib/sound-effects.ts`:** Motor de audio Web Audio API + Web Speech API.
 * **`src/lib/db-schema.sql`:** DDL en PostgreSQL / Supabase con enums, índices y funciones PL/pgSQL.
 * **`prisma/schema.prisma`:** Esquema declarativo de Prisma ORM.
+
+---
+
+## ☁️ Infraestructura & Configuración Supabase (Dashboard 2025/2026)
+- **ID de Proyecto (Ref):** `pufyeabrvrlikbgkjplz`
+- **Ubicación de Database Settings:** En la interfaz moderna, la base de datos se administra desde el 4º ícono (cilindro) en la barra lateral izquierda o directamente vía `/database/settings#database-password`.
+- **Botón `Connect`:** Ubicado en la barra superior del Dashboard para obtener directamente las cadenas de conexión:
+  - `DATABASE_URL` (puerto 6543, transaction pooler con `?pgbouncer=true` para Vercel Serverless).
+  - `DIRECT_URL` (puerto 5432, session pooler para migraciones directas de Prisma).

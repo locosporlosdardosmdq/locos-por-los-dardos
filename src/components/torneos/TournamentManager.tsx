@@ -12,7 +12,8 @@ import {
   PlayerProfile,
   League,
   CompetitionMode,
-  NationalStageType
+  NationalStageType,
+  RoundLegsConfig
 } from '@/lib/types';
 import { 
   MOCK_TOURNAMENTS, 
@@ -76,7 +77,7 @@ import {
 } from 'lucide-react';
 
 // Generador de llave eliminatoria oficial de 8 jugadores
-function generateDefaultBracket(tournamentId: string): TournamentBracketMatch[] {
+function generateDefaultBracket(tournamentId: string, roundLegs?: RoundLegsConfig, defaultLegs: number = 3): TournamentBracketMatch[] {
   const pList = [
     { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
     { id: 'user-mdq-001', name: 'Facundo López (El Halcón)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
@@ -88,17 +89,69 @@ function generateDefaultBracket(tournamentId: string): TournamentBracketMatch[] 
     { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' }
   ];
 
+  const qfLegs = roundLegs?.quarterFinals || defaultLegs;
+  const sfLegs = roundLegs?.semiFinals || defaultLegs;
+  const finalsLegs = roundLegs?.finals || defaultLegs + 1;
+
   return [
     // Cuartos de Final (Ronda 1)
-    { id: `${tournamentId}-m1`, round: 1, matchIndex: 0, player1: pList[0], player2: pList[1], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:00' },
-    { id: `${tournamentId}-m2`, round: 1, matchIndex: 1, player1: pList[2], player2: pList[3], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:30' },
-    { id: `${tournamentId}-m3`, round: 1, matchIndex: 2, player1: pList[4], player2: pList[5], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:00' },
-    { id: `${tournamentId}-m4`, round: 1, matchIndex: 3, player1: pList[6], player2: pList[7], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:30' },
+    { id: `${tournamentId}-m1`, round: 1, matchIndex: 0, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[0], player2: pList[1], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:00' },
+    { id: `${tournamentId}-m2`, round: 1, matchIndex: 1, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[2], player2: pList[3], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:30' },
+    { id: `${tournamentId}-m3`, round: 1, matchIndex: 2, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[4], player2: pList[5], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:00' },
+    { id: `${tournamentId}-m4`, round: 1, matchIndex: 3, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[6], player2: pList[7], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:30' },
     // Semifinales (Ronda 2)
-    { id: `${tournamentId}-m5`, round: 2, matchIndex: 0, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:15' },
-    { id: `${tournamentId}-m6`, round: 2, matchIndex: 1, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:45' },
+    { id: `${tournamentId}-m5`, round: 2, matchIndex: 0, bracketType: 'WINNERS', legTarget: sfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:15' },
+    { id: `${tournamentId}-m6`, round: 2, matchIndex: 1, bracketType: 'WINNERS', legTarget: sfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:45' },
     // Gran Final (Ronda 3)
-    { id: `${tournamentId}-m7`, round: 3, matchIndex: 0, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:30' }
+    { id: `${tournamentId}-m7`, round: 3, matchIndex: 0, bracketType: 'FINALS', legTarget: finalsLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:30' }
+  ];
+}
+
+// Generador oficial de Doble Eliminación (Winners Bracket, Losers Bracket y Gran Final)
+function generateDoubleEliminationBracket(tournamentId: string, roundLegs?: RoundLegsConfig, defaultLegs: number = 3): TournamentBracketMatch[] {
+  const pList = [
+    { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'user-mdq-001', name: 'Facundo López (El Halcón)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'rank-1', name: 'Martín Rossi (Sniper CABA)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'rank-3', name: 'Diego Gómez (Tungsteno)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'p-4', name: 'Lucas Pereyra (Bullseye)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'p-5', name: 'Carlos Méndez (Charly 180)', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'p-6', name: 'Rodrigo Morales (El Rayo)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' },
+    { id: 'p-7', name: 'Joaquín Benítez (Certero)', avatarUrl: '/logos/dardos-argentina.png', nationality: 'Argentina', countryCode: 'AR' }
+  ];
+
+  const qfLegs = roundLegs?.quarterFinals || defaultLegs;
+  const sfLegs = roundLegs?.semiFinals || defaultLegs;
+  const wfLegs = roundLegs?.finals || defaultLegs + 1;
+  const lrLegs = roundLegs?.losersRound || defaultLegs;
+  const lfLegs = roundLegs?.losersFinals || defaultLegs;
+  const gfLegs = roundLegs?.grandFinal || defaultLegs + 2;
+
+  return [
+    // --- CUADRO DE GANADORES (Por Arriba) ---
+    // R1 Ganadores (Cuartos)
+    { id: `${tournamentId}-w1`, round: 1, matchIndex: 0, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[0], player2: pList[1], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:00', note: 'Por Arriba' },
+    { id: `${tournamentId}-w2`, round: 1, matchIndex: 1, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[2], player2: pList[3], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:30', note: 'Por Arriba' },
+    { id: `${tournamentId}-w3`, round: 1, matchIndex: 2, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[4], player2: pList[5], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:00', note: 'Por Arriba' },
+    { id: `${tournamentId}-w4`, round: 1, matchIndex: 3, bracketType: 'WINNERS', legTarget: qfLegs, player1: pList[6], player2: pList[7], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:30', note: 'Por Arriba' },
+    // R2 Ganadores (Semifinales Ganadores)
+    { id: `${tournamentId}-w5`, round: 2, matchIndex: 0, bracketType: 'WINNERS', legTarget: sfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:15', note: 'Semi Ganadores' },
+    { id: `${tournamentId}-w6`, round: 2, matchIndex: 1, bracketType: 'WINNERS', legTarget: sfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:45', note: 'Semi Ganadores' },
+    // R3 Ganadores (Final de Ganadores)
+    { id: `${tournamentId}-w7`, round: 3, matchIndex: 0, bracketType: 'WINNERS', legTarget: wfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:30', note: 'Final Ganadores' },
+
+    // --- CUADRO DE PERDEDORES (Por Abajo) ---
+    // R1 Perdedores (Cruces de quienes caen de Cuartos)
+    { id: `${tournamentId}-l1`, round: 1, matchIndex: 0, bracketType: 'LOSERS', legTarget: lrLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:45', note: 'Por Abajo' },
+    { id: `${tournamentId}-l2`, round: 1, matchIndex: 1, bracketType: 'LOSERS', legTarget: lrLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:00', note: 'Por Abajo' },
+    // R2 Perdedores (Semifinal de Perdedores)
+    { id: `${tournamentId}-l3`, round: 2, matchIndex: 0, bracketType: 'LOSERS', legTarget: lrLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:50', note: 'Semi Perdedores' },
+    { id: `${tournamentId}-l4`, round: 2, matchIndex: 1, bracketType: 'LOSERS', legTarget: lrLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:15', note: 'Semi Perdedores' },
+    // R3 Perdedores (Final de Perdedores)
+    { id: `${tournamentId}-l5`, round: 3, matchIndex: 0, bracketType: 'LOSERS', legTarget: lfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '19:00', note: 'Final Perdedores' },
+
+    // --- GRAN FINAL DEL TORNEO (Campeón de Ganadores vs Campeón de Perdedores) ---
+    { id: `${tournamentId}-gf1`, round: 4, matchIndex: 0, bracketType: 'FINALS', legTarget: gfLegs, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '19:45', note: 'Gran Final' }
   ];
 }
 
@@ -373,6 +426,22 @@ export const TournamentManager: React.FC = () => {
   const [newEntryFee, setNewEntryFee] = useState(10000);
   const [newPrizePool, setNewPrizePool] = useState(250000);
   const [newMaxParticipants, setNewMaxParticipants] = useState(32);
+
+  // Configuración Detallada por Instancia (Nakka Style)
+  const [showDetailedConfig, setShowDetailedConfig] = useState(false);
+  const [newQuarterLegs, setNewQuarterLegs] = useState(3);
+  const [newSemiLegs, setNewSemiLegs] = useState(4);
+  const [newFinalsLegs, setNewFinalsLegs] = useState(5);
+  const [newLosersRoundLegs, setNewLosersRoundLegs] = useState(3);
+  const [newLosersFinalsLegs, setNewLosersFinalsLegs] = useState(4);
+  const [newGrandFinalLegs, setNewGrandFinalLegs] = useState(5);
+
+  // Configuración de Zonas / Liga
+  const [newGroupsCount, setNewGroupsCount] = useState(2);
+  const [newPlayersPerGroup, setNewPlayersPerGroup] = useState(4);
+  const [newQualifiersPerGroup, setNewQualifiersPerGroup] = useState(2);
+  const [newDoubleRoundRobin, setNewDoubleRoundRobin] = useState(false);
+  const [newTiebreakerDifference, setNewTiebreakerDifference] = useState(true);
 
   // Suscripción a broadcast y eventos de perfil
   useEffect(() => {
@@ -708,7 +777,22 @@ export const TournamentManager: React.FC = () => {
   const handleCreateTournament = (e: React.FormEvent) => {
     e.preventDefault();
     const newId = `torneo-${Date.now()}`;
-    const newMatches = newFormat === 'SINGLE_ELIMINATION' ? generateDefaultBracket(newId) : [];
+
+    const roundLegsConfig: RoundLegsConfig = {
+      quarterFinals: newQuarterLegs,
+      semiFinals: newSemiLegs,
+      finals: newFinalsLegs,
+      losersRound: newLosersRoundLegs,
+      losersFinals: newLosersFinalsLegs,
+      grandFinal: newGrandFinalLegs
+    };
+
+    let newMatches: TournamentBracketMatch[] = [];
+    if (newFormat === 'SINGLE_ELIMINATION') {
+      newMatches = generateDefaultBracket(newId, roundLegsConfig, newBestOfLegs);
+    } else if (newFormat === 'DOUBLE_ELIMINATION') {
+      newMatches = generateDoubleEliminationBracket(newId, roundLegsConfig, newBestOfLegs);
+    }
 
     const selectedLeague = newCompetitionMode === 'LOCAL_LEAGUE'
       ? leagues.find((l) => l.id === newLeagueId)
@@ -720,7 +804,7 @@ export const TournamentManager: React.FC = () => {
       id: newId,
       slug: newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       title: newTitle,
-      description: `Torneo oficial de competición federada. Modalidad ${newType.toLowerCase()}, mejor de ${newBestOfLegs} legs.`,
+      description: `Torneo oficial de competición federada. Modalidad ${newType.toLowerCase()}, formato ${newFormat === 'DOUBLE_ELIMINATION' ? 'Doble Eliminación' : newFormat === 'ROUND_ROBIN' ? 'Liga / Grupos' : 'Eliminación Simple'}.`,
       type: newType,
       format: newFormat,
       competitionMode: newCompetitionMode,
@@ -731,6 +815,12 @@ export const TournamentManager: React.FC = () => {
       startingScore: 501,
       outMode: 'DOUBLE_OUT',
       bestOfLegs: newBestOfLegs,
+      roundLegsConfig,
+      groupsCount: newGroupsCount,
+      playersPerGroup: newPlayersPerGroup,
+      qualifiersPerGroup: newQualifiersPerGroup,
+      doubleRoundRobin: newDoubleRoundRobin,
+      tiebreakerDifference: newTiebreakerDifference,
       maxParticipants: newMaxParticipants,
       registeredCount: 8,
       venueName: newVenue,
@@ -1282,6 +1372,7 @@ export const TournamentManager: React.FC = () => {
                     <TournamentGroupStage
                       tournamentTitle={currentTournament.title}
                       bestOfLegs={currentTournament.bestOfLegs}
+                      groupsCount={currentTournament.groupsCount || 2}
                       onLaunchMatch={handleLaunchGroupMatch}
                       onAdvanceToBracket={() => setTournamentSubTab('BRACKET')}
                     />
@@ -1923,21 +2014,228 @@ export const TournamentManager: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-slate-300 font-bold block mb-1">Formato</label>
+                  <label className="text-slate-300 font-bold block mb-1">Formato de Competición *</label>
                   <select
                     value={newFormat}
                     onChange={(e) => setNewFormat(e.target.value as any)}
                     className="w-full bg-[#111622] border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-[#00e676]"
                   >
-                    <option value="SINGLE_ELIMINATION">Eliminación Directa</option>
-                    <option value="ROUND_ROBIN">Grupos (Round Robin)</option>
+                    <option value="SINGLE_ELIMINATION">Eliminación Simple (Cuadro)</option>
+                    <option value="DOUBLE_ELIMINATION">Doble Eliminación (Ganadores y Perdedores)</option>
+                    <option value="ROUND_ROBIN">Liga / Fase de Grupos</option>
                   </select>
                 </div>
               </div>
 
+              {/* SI ES FORMATO LIGA / GRUPOS: CONFIGURACIÓN DE ZONAS (ESTILO NAKKA) */}
+              {newFormat === 'ROUND_ROBIN' && (
+                <div className="bg-[#111622] p-3 rounded-2xl border border-[#00e676]/40 space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-white font-black text-xs">
+                    <Users className="w-4 h-4 text-[#00e676]" />
+                    <span>Configuración de Zonas / Grupos (Liga)</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-300 block mb-1">Nº de Grupos</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="8"
+                        value={newGroupsCount}
+                        onChange={(e) => setNewGroupsCount(Math.max(1, Number(e.target.value)))}
+                        className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1.5 text-white text-xs text-center font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-300 block mb-1">Jugadores x Grupo</label>
+                      <input
+                        type="number"
+                        min="2"
+                        max="16"
+                        value={newPlayersPerGroup}
+                        onChange={(e) => setNewPlayersPerGroup(Math.max(2, Number(e.target.value)))}
+                        className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1.5 text-white text-xs text-center font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-300 block mb-1">Pasan a Playoffs</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="4"
+                        value={newQualifiersPerGroup}
+                        onChange={(e) => setNewQualifiersPerGroup(Math.max(1, Number(e.target.value)))}
+                        className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1.5 text-white text-xs text-center font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1 border-t border-slate-800 text-[11px]">
+                    <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newDoubleRoundRobin}
+                        onChange={(e) => setNewDoubleRoundRobin(e.target.checked)}
+                        className="rounded border-slate-700 text-[#00e676] focus:ring-0"
+                      />
+                      <span>Ida y vuelta (partidos ida y revancha)</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newTiebreakerDifference}
+                        onChange={(e) => setNewTiebreakerDifference(e.target.checked)}
+                        className="rounded border-slate-700 text-[#00e676] focus:ring-0"
+                      />
+                      <span>Priorizar diferencia de legs (+/-) en la clasificación</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* TOGGLE Y PANEL DE CONFIGURACIÓN DETALLADA POR INSTANCIA (ESTILO NAKKA / PDC) */}
+              <div className="bg-[#111622] p-2.5 rounded-2xl border border-slate-800 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDetailedConfig(!showDetailedConfig)}
+                  className="w-full flex items-center justify-between text-xs font-black text-white hover:text-[#00e676] transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Trophy className="w-3.5 h-3.5 text-[#ffe600]" />
+                    <span>Configuración Detallada por Instancia (Nakka Style)</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-bold">
+                    {showDetailedConfig ? '▲ Ocultar' : '▼ Configurar Legs x Ronda'}
+                  </span>
+                </button>
+
+                {showDetailedConfig && (
+                  <div className="space-y-2 pt-2 border-t border-slate-800 animate-in fade-in">
+                    {newFormat === 'DOUBLE_ELIMINATION' ? (
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-black uppercase tracking-wider text-[#00e676]">
+                          Cuadro de Ganadores (Por Arriba)
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[10px] text-slate-400 block mb-0.5">Cuartos Ganadores</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="15"
+                              value={newQuarterLegs}
+                              onChange={(e) => setNewQuarterLegs(Number(e.target.value))}
+                              className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 block mb-0.5">Semis Ganadores</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="15"
+                              value={newSemiLegs}
+                              onChange={(e) => setNewSemiLegs(Number(e.target.value))}
+                              className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 block mb-0.5">Final Ganadores</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="15"
+                              value={newFinalsLegs}
+                              onChange={(e) => setNewFinalsLegs(Number(e.target.value))}
+                              className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="text-[10px] font-black uppercase tracking-wider text-[#ef4444] pt-1">
+                          Cuadro de Perdedores (Por Abajo) & Gran Final
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[10px] text-slate-400 block mb-0.5">Rondas Perdedores</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="15"
+                              value={newLosersRoundLegs}
+                              onChange={(e) => setNewLosersRoundLegs(Number(e.target.value))}
+                              className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 block mb-0.5">Final Perdedores</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="15"
+                              value={newLosersFinalsLegs}
+                              onChange={(e) => setNewLosersFinalsLegs(Number(e.target.value))}
+                              className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 block mb-0.5">Gran Final</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="19"
+                              value={newGrandFinalLegs}
+                              onChange={(e) => setNewGrandFinalLegs(Number(e.target.value))}
+                              className="w-full bg-[#07090e] border border-amber-500 rounded-xl px-2 py-1 text-amber-300 text-xs text-center font-black"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-0.5">Cuartos de Final</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="15"
+                            value={newQuarterLegs}
+                            onChange={(e) => setNewQuarterLegs(Number(e.target.value))}
+                            className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-0.5">Semifinales</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="15"
+                            value={newSemiLegs}
+                            onChange={(e) => setNewSemiLegs(Number(e.target.value))}
+                            className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-2 py-1 text-white text-xs text-center font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-0.5">Gran Final</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="19"
+                            value={newFinalsLegs}
+                            onChange={(e) => setNewFinalsLegs(Number(e.target.value))}
+                            className="w-full bg-[#07090e] border border-amber-500 rounded-xl px-2 py-1 text-amber-300 text-xs text-center font-black"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-slate-300 font-bold block mb-1">Legs (Mejor de)</label>
+                  <label className="text-slate-300 font-bold block mb-1">Legs Base (Mejor de)</label>
                   <input
                     type="number"
                     min="1"

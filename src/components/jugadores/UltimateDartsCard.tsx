@@ -4,9 +4,11 @@ import React from 'react';
 import Link from 'next/link';
 import { Target, ArrowUpRight } from 'lucide-react';
 
+export type HistoryCompetitionType = 'INDIVIDUAL' | 'STANDALONE_TOURNAMENT' | 'LOCAL_LEAGUE' | 'NATIONAL_LEAGUE' | 'TOURNAMENT' | 'LEAGUE';
+
 export interface RecentHistoryItem {
   id: string;
-  eventType: 'TOURNAMENT' | 'LEAGUE';
+  eventType: HistoryCompetitionType;
   eventName: string;
   targetId: string;
   targetTab: string;
@@ -16,6 +18,11 @@ export interface RecentHistoryItem {
   scoreLegs: string;
   avg: number;
   roundOrStage?: string;
+  modality?: 'ONLINE' | 'PRESENCIAL';
+  isDoublePoints?: boolean;
+  pointsEarned?: number;
+  highestCheckout?: number;
+  count180s?: number;
 }
 
 export interface UltimateDartsCardData {

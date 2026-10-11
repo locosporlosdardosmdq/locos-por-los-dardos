@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
+import { UltimateDartsCardData, RecentHistoryItem } from '@/components/jugadores/UltimateDartsCard';
 import { getCountryFlag } from '@/lib/constants';
 import { 
   Trophy, 
@@ -23,6 +23,8 @@ import {
   Flame
 } from 'lucide-react';
 
+type HistoryTabType = 'NATIONAL_LEAGUE' | 'LOCAL_LEAGUE' | 'STANDALONE_TOURNAMENT' | 'INDIVIDUAL';
+
 interface PlayerDetailModalProps {
   player: UltimateDartsCardData | null;
   isOpen: boolean;
@@ -37,6 +39,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   onNavigateToEvent
 }) => {
   const router = useRouter();
+  const [activeHistoryTab, setActiveHistoryTab] = useState<HistoryTabType>('NATIONAL_LEAGUE');
 
   if (!isOpen || !player) return null;
 
@@ -56,6 +59,29 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   const lastTourneyName = player.lastTournamentName || 'Torneo Apertura Verano 2026 • Copa Mar del Plata';
   const lastTourneyDate = player.lastTournamentDate || '15/02/2026';
   const lastTrophy = player.lastTournamentTrophy || (lastRank === 1 ? 'GOLD' : lastRank === 2 ? 'SILVER' : lastRank === 3 ? 'BRONZE' : 'NONE');
+
+  const allHistory = player.recentHistory || [];
+
+  const getCategoryForItem = (item: RecentHistoryItem): HistoryTabType => {
+    if (item.eventType === 'NATIONAL_LEAGUE') return 'NATIONAL_LEAGUE';
+    if (item.eventType === 'LOCAL_LEAGUE') return 'LOCAL_LEAGUE';
+    if (item.eventType === 'STANDALONE_TOURNAMENT') return 'STANDALONE_TOURNAMENT';
+    if (item.eventType === 'INDIVIDUAL') return 'INDIVIDUAL';
+    if (item.eventType === 'LEAGUE') {
+      if (item.eventName.toLowerCase().includes('nacional') || item.targetId.includes('national')) {
+        return 'NATIONAL_LEAGUE';
+      }
+      return 'LOCAL_LEAGUE';
+    }
+    if (item.eventType === 'TOURNAMENT') return 'STANDALONE_TOURNAMENT';
+    return 'INDIVIDUAL';
+  };
+
+  const filteredHistory = allHistory.filter((item) => getCategoryForItem(item) === activeHistoryTab);
+
+  const categoryAvg = filteredHistory.length > 0
+    ? filteredHistory.reduce((acc, cur) => acc + cur.avg, 0) / filteredHistory.length
+    : player.avg;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
@@ -255,73 +281,442 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
         </div>
 
         {/* ======================================================== */}
-        {/* SECCIÓN 4: HISTÓRICO DE ÚLTIMAS FECHAS CON LINKS NAVEGABLES */}
+        {/* SECCIÓN 4: ESTADÍSTICAS Y PARTICIPACIÓN EN 4 PESTAÑAS   */}
         {/* ======================================================== */}
-        <div className="bg-[#0f1422] border border-[#1e2a40] rounded-2xl p-4 sm:p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-[#00e676]" />
-              <span>Histórico de Últimas Fechas (Ligas & Torneos)</span>
-            </span>
-            <span className="text-[11px] text-slate-400">Click en cada fecha para ver su detalle oficial</span>
+        <div className="bg-[#0f1422] border border-[#1e2a40] rounded-2xl p-4 sm:p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-[#00e676]" />
+                <span>Historial de Participación & Estadísticas Oficiales</span>
+              </span>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Desglose oficial por modalidad de competición y circuito deportivo
+              </p>
+            </div>
+            <Link
+              href="/reglamento"
+              target="_blank"
+              className="text-[11px] text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 transition-colors self-end sm:self-auto"
+            >
+              <span>Ver Reglamento & Cómputo de Puntos</span>
+              <ExternalLink className="w-3 h-3" />
+            </Link>
           </div>
 
-          {(!player.recentHistory || player.recentHistory.length === 0) ? (
-            <div className="p-4 rounded-xl bg-[#07090e] border border-slate-800 text-center text-xs text-slate-500">
-              Sin registros de fechas anteriores en la base federada.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {player.recentHistory.map((item) => {
-                const isTournament = item.eventType === 'TOURNAMENT';
+          {/* SELECTOR DE 4 PESTAÑAS */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-[#07090e] rounded-xl border border-slate-800">
+            <button
+              type="button"
+              onClick={() => setActiveHistoryTab('NATIONAL_LEAGUE')}
+              className={`py-2 px-2.5 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
+                activeHistoryTab === 'NATIONAL_LEAGUE'
+                  ? 'bg-amber-400 text-black shadow-md shadow-amber-400/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <span>🇦🇷</span>
+              <span className="truncate">Liga Nacional</span>
+              <span className="text-[9px] px-1 py-0.2 rounded bg-black/30 font-mono">⚡x2</span>
+            </button>
 
-                return (
-                  <div
-                    key={item.id}
-                    className="p-3 rounded-xl bg-[#07090e] border border-slate-800 hover:border-slate-700 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-xl text-xs font-black flex items-center justify-center flex-shrink-0 ${
-                        isTournament 
-                          ? 'bg-amber-400/15 text-amber-300 border border-amber-400/30' 
-                          : 'bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/30'
-                      }`}>
-                        {isTournament ? <Trophy className="w-4 h-4" /> : <Award className="w-4 h-4" />}
-                      </div>
+            <button
+              type="button"
+              onClick={() => setActiveHistoryTab('LOCAL_LEAGUE')}
+              className={`py-2 px-2.5 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
+                activeHistoryTab === 'LOCAL_LEAGUE'
+                  ? 'bg-sky-400 text-black shadow-md shadow-sky-400/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <span>🛡️</span>
+              <span className="truncate">Ligas Locales</span>
+            </button>
 
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-white">{item.eventName}</span>
-                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
-                            item.isWin ? 'bg-[#00e676]/20 text-[#00e676]' : 'bg-[#ef4444]/20 text-[#ef4444]'
-                          }`}>
-                            {item.isWin ? 'Victoria' : 'Derrota'} ({item.scoreLegs})
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5 flex flex-wrap items-center gap-2">
-                          <span>{item.date}</span>
-                          <span>•</span>
-                          <span>vs {item.opponentName}</span>
-                          <span>•</span>
-                          <span className="text-[#00e676] font-mono font-bold">{item.avg.toFixed(1)} AVG</span>
-                        </div>
-                      </div>
-                    </div>
+            <button
+              type="button"
+              onClick={() => setActiveHistoryTab('STANDALONE_TOURNAMENT')}
+              className={`py-2 px-2.5 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
+                activeHistoryTab === 'STANDALONE_TOURNAMENT'
+                  ? 'bg-[#00e676] text-black shadow-md shadow-[#00e676]/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <span>🏆</span>
+              <span className="truncate">Torneos 1 Día</span>
+            </button>
 
-                    {/* BOTÓN CON LINK AL DETALLE DE LA FECHA / TORNEO / LIGA */}
-                    <button
-                      type="button"
-                      onClick={() => handleEventClick(item.eventType, item.targetId, item.targetTab)}
-                      className="px-3 py-1.5 rounded-xl bg-[#111622] hover:bg-[#1e2a40] text-slate-200 hover:text-white font-black text-xs border border-slate-700 hover:border-[#00e676] flex items-center gap-1.5 transition-all self-end sm:self-center"
-                    >
-                      <span>{isTournament ? 'Ver Torneo' : 'Ver Liga'}</span>
-                      <ExternalLink className="w-3.5 h-3.5 text-[#00e676]" />
-                    </button>
+            <button
+              type="button"
+              onClick={() => setActiveHistoryTab('INDIVIDUAL')}
+              className={`py-2 px-2.5 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
+                activeHistoryTab === 'INDIVIDUAL'
+                  ? 'bg-purple-400 text-black shadow-md shadow-purple-400/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <span>🎯</span>
+              <span className="truncate">Individuales</span>
+            </button>
+          </div>
+
+          {/* ======================================================== */}
+          {/* PANEL DE ESTADÍSTICAS SEGÚN LA PESTAÑA ACTIVA            */}
+          {/* ======================================================== */}
+          {activeHistoryTab === 'NATIONAL_LEAGUE' && (
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-amber-400/10 border border-amber-400/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center text-sm font-black flex-shrink-0">
+                    🇦🇷
                   </div>
-                );
-              })}
+                  <div>
+                    <h5 className="text-xs font-black text-amber-300">
+                      Única Liga Nacional Oficial de Argentina • Circuito Federal
+                    </h5>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      Clasificatoria oficial a torneos internacionales. Fechas online 1x pts y fechas presenciales oficiales con doble puntaje (<span className="text-amber-400 font-bold">⚡ x2 Pts</span>).
+                    </p>
+                  </div>
+                </div>
+                <div className="px-2.5 py-1 rounded-lg bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-black font-mono self-end sm:self-auto flex-shrink-0">
+                  Ranking #{player.nationalRank || 1} • {player.nationalPoints || 1850} Pts
+                </div>
+              </div>
+
+              {/* Métricas específicas de Liga Nacional */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Posición Nacional</span>
+                  <span className="text-lg font-black text-amber-400 font-mono block mt-0.5">#{player.nationalRank || 1}</span>
+                  <span className="text-[9px] text-slate-500">Puntaje Federal</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Puntos Acumulados</span>
+                  <span className="text-lg font-black text-white font-mono block mt-0.5">{player.nationalPoints || 1850}</span>
+                  <span className="text-[9px] text-amber-400/90 font-bold">Con Fechas Presenciales x2</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Fechas Disputadas</span>
+                  <span className="text-lg font-black text-sky-400 font-mono block mt-0.5">
+                    {filteredHistory.length || 2}
+                  </span>
+                  <span className="text-[9px] text-slate-500">Online & Presenciales</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">AVG Liga Nacional</span>
+                  <span className="text-lg font-black text-[#00e676] font-mono block mt-0.5">
+                    {categoryAvg.toFixed(1)}
+                  </span>
+                  <span className="text-[9px] text-slate-500">Promedio de Fechas</span>
+                </div>
+              </div>
             </div>
           )}
+
+          {activeHistoryTab === 'LOCAL_LEAGUE' && (
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-sky-400/10 border border-sky-400/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-sky-400/20 text-sky-300 flex items-center justify-center text-sm font-black flex-shrink-0">
+                    🛡️
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-black text-sky-300">
+                      Ligas Locales Oficiales (MDQ & Clubes Federados)
+                    </h5>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      Competencias zonales de regularidad acumulada. Admite participación presencial en sede y fechas conectadas online.
+                    </p>
+                  </div>
+                </div>
+                <div className="px-2.5 py-1 rounded-lg bg-sky-400/20 border border-sky-400/40 text-sky-300 text-xs font-black font-mono self-end sm:self-auto flex-shrink-0">
+                  Ranking Local #{player.mdqLeagueRank || 1} • {player.mdqLeaguePoints || 980} Pts
+                </div>
+              </div>
+
+              {/* Métricas específicas de Ligas Locales */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Posición Local</span>
+                  <span className="text-lg font-black text-sky-400 font-mono block mt-0.5">#{player.mdqLeagueRank || 1}</span>
+                  <span className="text-[9px] text-slate-500">{player.city}</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Puntos de Liga</span>
+                  <span className="text-lg font-black text-white font-mono block mt-0.5">{player.mdqLeaguePoints || 980}</span>
+                  <span className="text-[9px] text-sky-400/90 font-bold">Temporada 2026</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Fechas Jugadas</span>
+                  <span className="text-lg font-black text-amber-400 font-mono block mt-0.5">
+                    {filteredHistory.length || 2}
+                  </span>
+                  <span className="text-[9px] text-slate-500">Online + Presencial Sede</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">AVG Liga Local</span>
+                  <span className="text-lg font-black text-[#00e676] font-mono block mt-0.5">
+                    {categoryAvg.toFixed(1)}
+                  </span>
+                  <span className="text-[9px] text-slate-500">Promedio en Liga</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeHistoryTab === 'STANDALONE_TOURNAMENT' && (
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-[#00e676]/10 border border-[#00e676]/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-[#00e676]/20 text-[#00e676] flex items-center justify-center text-sm font-black flex-shrink-0">
+                    🏆
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-black text-[#00e676]">
+                      Torneos de un Día (Copas, Opens & Relámpago)
+                    </h5>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      Competencias de eliminación directa o doble eliminación independientes de ligas. Otorgan trofeos y medallas de campeonato.
+                    </p>
+                  </div>
+                </div>
+                <div className="px-2.5 py-1 rounded-lg bg-[#00e676]/20 border border-[#00e676]/40 text-[#00e676] text-xs font-black font-mono self-end sm:self-auto flex-shrink-0">
+                  {wonTournaments.length} Títulos Oficiales
+                </div>
+              </div>
+
+              {/* Métricas específicas de Torneos de un Día */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Títulos de Oro</span>
+                  <span className="text-lg font-black text-amber-400 font-mono block mt-0.5">{wonTournaments.length} 🏆</span>
+                  <span className="text-[9px] text-slate-500">Copas de Campeón</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Mejor Actuación</span>
+                  <span className="text-lg font-black text-white font-mono block mt-0.5">#{lastRank || 1}</span>
+                  <span className="text-[9px] text-[#00e676] font-bold">Top 6 Circuito</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Partidos en Cuadro</span>
+                  <span className="text-lg font-black text-sky-400 font-mono block mt-0.5">
+                    {filteredHistory.length || 2} PJ
+                  </span>
+                  <span className="text-[9px] text-slate-500">Llaves Disputadas</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">AVG en Torneos</span>
+                  <span className="text-lg font-black text-[#00e676] font-mono block mt-0.5">
+                    {categoryAvg.toFixed(1)}
+                  </span>
+                  <span className="text-[9px] text-slate-500">Presión Competitiva</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeHistoryTab === 'INDIVIDUAL' && (
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-purple-400/10 border border-purple-400/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-purple-400/20 text-purple-300 flex items-center justify-center text-sm font-black flex-shrink-0">
+                    🎯
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-black text-purple-300">
+                      Partidas Individuales (Retos, Práctica & Anotador en Vivo)
+                    </h5>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      Encuentros casuales, entrenamientos vs CPU y retos amistosos. Suman al promedio personal (AVG) pero no modifican fixtures oficiales.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/anotador"
+                  className="px-2.5 py-1 rounded-lg bg-purple-400/20 hover:bg-purple-400/30 border border-purple-400/40 text-purple-300 text-xs font-black self-end sm:self-auto flex items-center gap-1 transition-colors flex-shrink-0"
+                >
+                  <span>Iniciar Reto</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
+              {/* Métricas específicas de Partidas Individuales */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Partidas Casuales</span>
+                  <span className="text-lg font-black text-purple-300 font-mono block mt-0.5">
+                    {player.matchesTotal}
+                  </span>
+                  <span className="text-[9px] text-slate-500">Historial Anotador</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Victorias Personales</span>
+                  <span className="text-lg font-black text-[#00e676] font-mono block mt-0.5">
+                    {player.matchesWon}
+                  </span>
+                  <span className="text-[9px] text-slate-500">
+                    {player.matchesTotal > 0 ? `${Math.round((player.matchesWon / player.matchesTotal) * 100)}% Eficacia` : '0%'}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">Mejor Leg</span>
+                  <span className="text-lg font-black text-amber-400 font-mono block mt-0.5">
+                    {player.bestLeg ? `${player.bestLeg} Dardos` : '12 Dardos'}
+                  </span>
+                  <span className="text-[9px] text-slate-500">Récord en 501</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-center">
+                  <span className="text-[10px] uppercase font-black text-slate-400 block">AVG en Individual</span>
+                  <span className="text-lg font-black text-[#00e676] font-mono block mt-0.5">
+                    {categoryAvg.toFixed(1)}
+                  </span>
+                  <span className="text-[9px] text-slate-500">3 Darts Average</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* LISTADO DE PARTIDAS FILTRADAS POR LA PESTAÑA ACTIVA     */}
+          {/* ======================================================== */}
+          <div className="space-y-2 pt-1">
+            <span className="text-[11px] font-black uppercase text-slate-400 block tracking-wider">
+              Encuentros Disputados en esta Modalidad ({filteredHistory.length})
+            </span>
+
+            {filteredHistory.length === 0 ? (
+              <div className="p-5 rounded-xl bg-[#07090e] border border-slate-800 text-center space-y-1.5">
+                <p className="text-xs text-slate-400 font-bold">
+                  Aún no registra encuentros finalizados en esta modalidad.
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Las partidas y fechas correspondientes a esta categoría se sincronizarán aquí automáticamente.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredHistory.map((item) => {
+                  const isWon = item.isWin;
+                  const isOnline = item.modality === 'ONLINE';
+                  const isDouble = item.isDoublePoints;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3.5 rounded-xl bg-[#07090e] border border-slate-800 hover:border-slate-700 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm shadow-black"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-black border ${
+                            activeHistoryTab === 'NATIONAL_LEAGUE'
+                              ? 'bg-amber-400/15 text-amber-300 border-amber-400/30'
+                              : activeHistoryTab === 'LOCAL_LEAGUE'
+                              ? 'bg-sky-400/15 text-sky-300 border-sky-400/30'
+                              : activeHistoryTab === 'STANDALONE_TOURNAMENT'
+                              ? 'bg-[#00e676]/15 text-[#00e676] border-[#00e676]/30'
+                              : 'bg-purple-400/15 text-purple-300 border-purple-400/30'
+                          }`}
+                        >
+                          {activeHistoryTab === 'NATIONAL_LEAGUE' && '🇦🇷'}
+                          {activeHistoryTab === 'LOCAL_LEAGUE' && '🛡️'}
+                          {activeHistoryTab === 'STANDALONE_TOURNAMENT' && '🏆'}
+                          {activeHistoryTab === 'INDIVIDUAL' && '🎯'}
+                        </div>
+
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-black text-white">{item.eventName}</span>
+
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                isWon
+                                  ? 'bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/30'
+                                  : 'bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30'
+                              }`}
+                            >
+                              {isWon ? 'Victoria' : 'Derrota'} ({item.scoreLegs})
+                            </span>
+
+                            {/* BADGE ONLINE / PRESENCIAL */}
+                            {item.modality && (
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-black uppercase flex items-center gap-1 ${
+                                  isOnline
+                                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                }`}
+                              >
+                                {isOnline ? '🌐 Online' : '🏢 Presencial Sede'}
+                              </span>
+                            )}
+
+                            {/* BADGE DOBLE PUNTAJE X2 */}
+                            {isDouble && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-gradient-to-r from-amber-400/25 to-amber-500/15 text-amber-300 border border-amber-400/50 flex items-center gap-1 shadow-sm shadow-amber-500/20">
+                                <span>⚡</span>
+                                <span>Presencial x2 Puntos</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-[11px] text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-slate-300">{item.date}</span>
+                            <span>•</span>
+                            <span>{item.roundOrStage || 'Ronda Oficial'}</span>
+                            <span>•</span>
+                            <span>vs <strong className="text-white">{item.opponentName}</strong></span>
+                            <span>•</span>
+                            <span className="text-[#00e676] font-mono font-bold">{item.avg.toFixed(1)} AVG</span>
+                            {item.highestCheckout && item.highestCheckout > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="text-sky-300 font-mono font-bold">Cierre {item.highestCheckout}</span>
+                              </>
+                            )}
+                            {item.count180s && item.count180s > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="text-rose-400 font-mono font-bold">{item.count180s}x 180</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ACCIÓN DE ENLACE */}
+                      {item.eventType === 'INDIVIDUAL' || item.targetId === 'scorer-practice' ? (
+                        <Link
+                          href="/anotador"
+                          className="px-3 py-1.5 rounded-xl bg-[#111622] hover:bg-purple-900/40 text-purple-300 hover:text-white font-black text-xs border border-purple-500/30 hover:border-purple-400 flex items-center gap-1.5 transition-all self-end sm:self-center"
+                        >
+                          <span>Anotador</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleEventClick(
+                              item.eventType === 'STANDALONE_TOURNAMENT' ? 'TOURNAMENT' : 'LEAGUE',
+                              item.targetId,
+                              item.targetTab
+                            )
+                          }
+                          className="px-3 py-1.5 rounded-xl bg-[#111622] hover:bg-[#1e2a40] text-slate-200 hover:text-white font-black text-xs border border-slate-700 hover:border-[#00e676] flex items-center gap-1.5 transition-all self-end sm:self-center"
+                        >
+                          <span>
+                            {item.eventType === 'STANDALONE_TOURNAMENT' ? 'Ver Torneo' : 'Ver Liga'}
+                          </span>
+                          <ExternalLink className="w-3.5 h-3.5 text-[#00e676]" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

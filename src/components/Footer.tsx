@@ -46,6 +46,11 @@ export const Footer: React.FC = () => {
                 Ranking Nacional Argentino
               </Link>
             </li>
+            <li>
+              <Link href="/reglamento" className="text-[#00b853] hover:underline font-bold flex items-center gap-1 transition-colors">
+                📜 Reglamento & Fair Play
+              </Link>
+            </li>
           </ul>
         </div>
 

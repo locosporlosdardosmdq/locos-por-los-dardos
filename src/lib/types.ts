@@ -25,10 +25,12 @@ export interface PlayerTournamentWin {
   stage?: string;
 }
 
+export type HistoryCompetitionType = 'INDIVIDUAL' | 'STANDALONE_TOURNAMENT' | 'LOCAL_LEAGUE' | 'NATIONAL_LEAGUE' | 'TOURNAMENT' | 'LEAGUE';
+
 export interface PlayerHistoryDateItem {
   id: string;
   eventName: string;
-  eventType: 'TOURNAMENT' | 'LEAGUE';
+  eventType: HistoryCompetitionType;
   targetId: string;
   targetTab: 'ACTIVE_TAB' | 'HISTORY_TAB' | 'LEAGUES_TAB';
   date: string;
@@ -37,6 +39,11 @@ export interface PlayerHistoryDateItem {
   scoreLegs: string;
   isWin: boolean;
   avg: number;
+  modality?: 'ONLINE' | 'PRESENCIAL';
+  isDoublePoints?: boolean;
+  pointsEarned?: number;
+  highestCheckout?: number;
+  count180s?: number;
 }
 
 export interface PlayerProfile {
@@ -133,10 +140,21 @@ export type TournamentType = 'PRESENCIAL' | 'ONLINE';
 export type TournamentFormat = 'SINGLE_ELIMINATION' | 'ROUND_ROBIN' | 'DOUBLE_ELIMINATION' | 'HYBRID';
 export type TournamentStatus = 'UPCOMING' | 'REGISTRATION_OPEN' | 'IN_PROGRESS' | 'COMPLETED';
 
+export interface RoundLegsConfig {
+  quarterFinals?: number;
+  semiFinals?: number;
+  finals?: number;
+  losersRound?: number;
+  losersFinals?: number;
+  grandFinal?: number;
+}
+
 export interface TournamentBracketMatch {
   id: string;
   round: number; // 1, 2, 3...
   matchIndex: number;
+  bracketType?: 'WINNERS' | 'LOSERS' | 'FINALS';
+  legTarget?: number;
   player1?: { id: string; name: string; avatarUrl: string; seed?: number; nationality?: string; countryCode?: string };
   player2?: { id: string; name: string; avatarUrl: string; seed?: number; nationality?: string; countryCode?: string };
   scoreP1: number;
@@ -215,6 +233,12 @@ export interface Tournament {
   startingScore: number;
   outMode: OutMode;
   bestOfLegs: number;
+  roundLegsConfig?: RoundLegsConfig;
+  groupsCount?: number;
+  playersPerGroup?: number;
+  qualifiersPerGroup?: number;
+  doubleRoundRobin?: boolean;
+  tiebreakerDifference?: boolean;
   maxParticipants: number;
   registeredCount: number;
   venueName: string;

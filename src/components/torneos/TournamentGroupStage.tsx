@@ -38,6 +38,7 @@ export interface GroupMatch {
 interface TournamentGroupStageProps {
   tournamentTitle: string;
   bestOfLegs: number;
+  groupsCount?: number;
   onLaunchMatch: (match: GroupMatch, mode: 'LIVE' | 'ONLINE') => void;
   onAdvanceToBracket?: (qualifiedPlayers: GroupPlayer[]) => void;
 }
@@ -45,9 +46,12 @@ interface TournamentGroupStageProps {
 export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
   tournamentTitle,
   bestOfLegs,
+  groupsCount = 2,
   onLaunchMatch,
   onAdvanceToBracket
 }) => {
+  const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
+
   // Grupo 1 inicial con jugadores de la comunidad
   const [groupPlayers, setGroupPlayers] = useState<GroupPlayer[]>([
     { id: 'p1', name: 'Facundo López (Tiburón MDQ)', matchesPlayed: 2, matchesWon: 2, matchesLost: 0, legsFor: 4, legsAgainst: 1, points: 4 },
@@ -130,12 +134,32 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
 
   return (
     <div className="space-y-5">
+      {/* SELECTOR DE ZONAS / GRUPOS */}
+      {groupsCount > 1 && (
+        <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-black border border-slate-800">
+          {Array.from({ length: groupsCount }).map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setSelectedGroupIndex(idx)}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                selectedGroupIndex === idx
+                  ? 'bg-[#00e676] text-[#07090e] shadow-lg shadow-[#00e676]/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+              }`}
+            >
+              Zona {String.fromCharCode(65 + idx)} • Grupo {idx + 1}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Cabecera y controles del grupo */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0f1422] border border-[#ef4444]/30 rounded-2xl p-4">
         <div>
           <h3 className="text-base font-black text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-[#00e676]" />
-            <span>Grupo 1 • Round Robin (Todos contra Todos)</span>
+            <span>Zona {String.fromCharCode(65 + selectedGroupIndex)} • Grupo {selectedGroupIndex + 1} • Round Robin (Todos contra Todos)</span>
           </h3>
           <p className="text-xs text-slate-400">
             Victoria = 2 pts • Criterio de desempate: 1º Puntos, 2º Dif Legs (+/-), 3º Legs a favor

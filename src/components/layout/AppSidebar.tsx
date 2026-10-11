@@ -17,7 +17,8 @@ import {
   UserCog,
   LogOut,
   X,
-  ShieldCheck
+  ShieldCheck,
+  BookOpen
 } from 'lucide-react';
 
 interface AppSidebarProps {
@@ -106,6 +107,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       badge: 'AVG',
       badgeColor: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
       description: 'Datos personales y cálculo de categoría'
+    },
+    {
+      title: 'Reglamento & Fair Play',
+      subTitle: 'Código de Conducta',
+      href: '/reglamento',
+      icon: BookOpen,
+      badge: 'OFICIAL',
+      badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+      description: 'Normativa federada, medidas y juego online'
     }
   ];
 

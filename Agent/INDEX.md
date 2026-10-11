@@ -22,6 +22,7 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 * **`/jugadores` (Directorio Federal de Jugadores):** Directorio de la comunidad con buscador por nombre/apodo/club, selector federal de provincias, categorización por AVG y desafío directo al anotador.
 * **`/perfil` (Perfil & Registro):** Ficha deportiva del jugador con selector de provincias argentinas, slider de AVG con categorización automática en tiempo real y dashboard con métricas de rendimiento.
 * **`/reglamento` (Reglamento Oficial, Código de Conducta & Fair Play):** Manual de 5 capítulos con especificaciones de montaje de diana (1.73m altura, 2.37m tiro), reglas 501/Cricket, sistema de puntos por modalidad (Individuales, Torneos de 1 Día, Ligas Locales, Liga Nacional x2), código de etiqueta, requerimientos técnicos de cámara online y protocolo arbitral de W.O. y desconexiones.
+* **`/asociacion` (Órgano Institucional Oficial):** Sección oficial de las autoridades de La Asociación de Dardos Mar del Plata y Dardos Argentina, con fotos de perfil de jugador sincronizadas en vivo, cargos de Comisión Directiva, datos bancarios para transferencias de torneos y panel de gestión para ICEMAN.
 * **`/tienda` (E-Commerce Oficial):** Catálogo de productos (dardos 90% tungsteno, dianas sisal, plumas, cañas, cartucheras) con filtros por categoría y marca, y carrito de compras desplegable.
 
 ### 2. Endpoints Backend (`src/app/api/`)

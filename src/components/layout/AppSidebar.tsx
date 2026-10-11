@@ -109,6 +109,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       description: 'Datos personales y cálculo de categoría'
     },
     {
+      title: 'Asociación',
+      subTitle: 'MDQ & Argentina',
+      href: '/asociacion',
+      icon: ShieldCheck,
+      badge: 'SEDE',
+      badgeColor: 'bg-emerald-500/20 text-[#00e676] border-emerald-500/30',
+      description: 'Autoridades oficiales y datos de la asociación'
+    },
+    {
       title: 'Reglamento & Fair Play',
       subTitle: 'Código de Conducta',
       href: '/reglamento',

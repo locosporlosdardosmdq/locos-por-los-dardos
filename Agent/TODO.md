@@ -119,6 +119,20 @@
   * Botón `[🖥️ Pop-out 2ª Pantalla]` en la cabecera del anotador oficial.
   * Modo móvil de alternancia de cámara con botón `[📹 Diana Rival]` y conmutación automática al teclado táctil de 5 columnas en el turno local, preservando milimétricamente las dimensiones del teclado ergonómico.
 
+- [x] **Torneos Arancelados vs Gratuitos, Cálculo de Premios (60-30-10) y Modal de Pago:**
+  * Seteo explícito en la creación de torneo: `[🎉 Gratuito]` vs `[💰 Con Inscripción ($ ARS)]`.
+  * Cálculo automático del pozo de premios ($Cupo \times Inscripción$) con edición libre permitida.
+  * Desglose oficial de premios en tiempo real: **60% al 1º, 30% al 2º y 10% al 3º**.
+  * Modal de inscripción con datos bancarios oficiales (Banco, Titular, CUIT, Alias, CBU con botones para copiar).
+  * Botón directo a WhatsApp con mensaje pre-armado dirigido al administrador para enviar comprobante de pago.
+
+- [x] **Módulo Institucional Asociación (`/asociacion`) & Panel de Autoridades:**
+  * Nueva sección "Asociación" en `/asociacion` y vinculada en el menú lateral (`AppSidebar.tsx`).
+  * Pestañas para Asociación de Dardos Mar del Plata y Dardos Argentina.
+  * Grilla de autoridades de la Comisión Directiva con cargos y fotos de perfil de jugador sincronizadas en vivo.
+  * Sección de datos bancarios institucionales para transferencias.
+  * Panel administrativo exclusivo para ICEMAN (`marianodeux@gmail.com`) para gestionar autoridades (vinculando jugadores de la app) y modificar los datos de la cuenta bancaria.
+
 ---
 
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos

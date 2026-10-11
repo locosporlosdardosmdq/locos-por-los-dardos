@@ -1,4 +1,4 @@
-import { PlayerCategory, Tournament, Product, PlayerProfile, League } from './types';
+import { PlayerCategory, Tournament, Product, PlayerProfile, League, AssociationAuthority, AssociationBankAccount } from './types';
 
 export const PROVINCIAS_ARGENTINA = [
   'Buenos Aires',
@@ -965,5 +965,149 @@ export const DEFAULT_LEAGUES: League[] = [
     ]
   }
 ];
+
+// AUTORIDADES OFICIALES DE LA ASOCIACIÓN
+export const DEFAULT_ASSOCIATION_AUTHORITIES: AssociationAuthority[] = [
+  // ASOCIACIÓN MARPLATENSE DE DARDOS (DARDEROS MDQ)
+  {
+    id: 'auth-mdq-1',
+    scope: 'MDQ',
+    playerId: 'user-iceman-admin',
+    name: 'Mariano Deux',
+    nickname: 'ICEMAN',
+    roleTitle: 'Presidente',
+    photoUrl: '/logos/logo-mdq.png',
+    avatarUrl: '/logos/logo-mdq.png',
+    club: 'Darderos Mar del Plata',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    bio: 'Fundador de Darderos Mar del Plata y Locos por los Dardos. Impulsor del circuito presencial y online de la Costa Atlántica.',
+    orderIndex: 1,
+    phoneWhatsApp: '5492235218765',
+    email: 'marianodeux@gmail.com'
+  },
+  {
+    id: 'auth-mdq-2',
+    scope: 'MDQ',
+    playerId: 'user-mdq-001',
+    name: 'Facundo López',
+    nickname: 'El Halcón MDQ',
+    roleTitle: 'Vicepresidente',
+    photoUrl: '/logos/logo-mdq.png',
+    avatarUrl: '/logos/logo-mdq.png',
+    club: 'Darderos Mar del Plata',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    bio: 'Coordinador general de actividades de sede y competencias por parejas.',
+    orderIndex: 2
+  },
+  {
+    id: 'auth-mdq-3',
+    scope: 'MDQ',
+    playerId: 'rank-3',
+    name: 'Lucas Albornoz',
+    nickname: 'El Mago',
+    roleTitle: 'Director de Torneos y Arbitraje',
+    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+    club: 'Darderos Mar del Plata',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    bio: 'Juez oficial y encargado de planillas de llaves, desempates y asignación de pistas.',
+    orderIndex: 3
+  },
+  {
+    id: 'auth-mdq-4',
+    scope: 'MDQ',
+    playerId: 'rank-4',
+    name: 'Martín Rodríguez',
+    nickname: 'La Flecha MDQ',
+    roleTitle: 'Secretario General',
+    photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
+    club: 'Darderos Mar del Plata',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    bio: 'Actas oficiales, ranking local y acreditación federada de jugadores.',
+    orderIndex: 4
+  },
+  {
+    id: 'auth-mdq-5',
+    scope: 'MDQ',
+    playerId: 'rank-5',
+    name: 'Diego Pereyra',
+    nickname: 'El Buitre',
+    roleTitle: 'Tesorero Oficial',
+    photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&auto=format&fit=crop&q=80',
+    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&auto=format&fit=crop&q=80',
+    club: 'Darderos Mar del Plata',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    bio: 'Administración de inscripciones, rendición de pozos de premios y compras de equipamiento.',
+    orderIndex: 5
+  },
+
+  // ASOCIACIÓN / FEDERACIÓN DARDOS ARGENTINA
+  {
+    id: 'auth-arg-1',
+    scope: 'ARGENTINA',
+    playerId: 'user-iceman-admin',
+    name: 'Mariano Deux',
+    nickname: 'ICEMAN',
+    roleTitle: 'Presidente Nacional',
+    photoUrl: '/logos/logo-mdq.png',
+    avatarUrl: '/logos/logo-mdq.png',
+    club: 'Darderos Mar del Plata',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    bio: 'Coordinador del Circuito Federal Nacional y nexo con certámenes clasificatorios internacionales.',
+    orderIndex: 1,
+    phoneWhatsApp: '5492235218765',
+    email: 'marianodeux@gmail.com'
+  },
+  {
+    id: 'auth-arg-2',
+    scope: 'ARGENTINA',
+    playerId: 'rank-1',
+    name: 'Carlos Benítez',
+    nickname: 'El Tornado',
+    roleTitle: 'Vicepresidente Nacional',
+    photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+    club: 'Club Tiro Federal Córdoba',
+    city: 'Córdoba Capital',
+    province: 'Córdoba',
+    bio: 'Delegado de la Región Centro y desarrollo de ligas del interior.',
+    orderIndex: 2
+  },
+  {
+    id: 'auth-arg-3',
+    scope: 'ARGENTINA',
+    playerId: 'rank-2',
+    name: 'Alejandro Rossi',
+    nickname: 'El Vikingo',
+    roleTitle: 'Secretario de Torneos Federales',
+    photoUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&auto=format&fit=crop&q=80',
+    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&auto=format&fit=crop&q=80',
+    club: 'Rosario Darts Club',
+    city: 'Rosario',
+    province: 'Santa Fe',
+    bio: 'Planificación de fechas del calendario nacional anual y validación de AVG.',
+    orderIndex: 3
+  }
+];
+
+// DATOS BANCARIOS OFICIALES DE LA ASOCIACIÓN PARA INSCRIPCIONES
+export const DEFAULT_ASSOCIATION_BANK_ACCOUNT: AssociationBankAccount = {
+  bankName: 'Banco Provincia de Buenos Aires',
+  accountType: 'Cuenta Corriente Especial',
+  holderName: 'Asociación de Dardos Mar del Plata',
+  cuitCuil: '30-71849201-4',
+  alias: 'DARDOS.MDQ.OFICIAL',
+  cbuCvu: '0140323501980054321098',
+  adminWhatsAppPhone: '5492235218765',
+  adminWhatsAppName: 'Mariano Deux (ICEMAN)',
+  notes: 'Enviar comprobante de transferencia por WhatsApp indicando nombre completo y torneo para confirmar el cupo en la llave.'
+};
 
 

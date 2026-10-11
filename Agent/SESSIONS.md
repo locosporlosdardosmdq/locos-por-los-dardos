@@ -1,5 +1,31 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 14] - 2026-10-11
+- **Objetivo:** Implementación de seteo de torneos con/sin dinero (arancelados vs gratuitos), cálculo automático del pozo y desglose de premios (60% al 1º, 30% al 2º y 10% al 3º) con opción a edición manual, modal de inscripción con datos bancarios oficiales y botón directo de WhatsApp para compartir comprobante, creación del módulo institucional "Asociación" (`/asociacion`) para Comisión Directiva de Mar del Plata y Dardos Argentina con fotos de perfil sincronizadas y panel de gestión para ICEMAN, y guía técnica completa para Connection String en Supabase y Vercel.
+- **Realizado:**
+  - **Torneos Arancelados vs Gratuitos & Premios 60-30-10 (`TournamentManager.tsx`):**
+    * Switch interactivo en formulario de creación de torneos: `[🎉 Gratuito (Sin Costo)]` vs `[💰 Con Inscripción ($ ARS)]`.
+    * En torneos con inscripción: cálculo automático del pozo (`newPrizePool = newMaxParticipants * newEntryFee`) editable por el organizador.
+    * Tarjetas en tiempo real con distribución oficial: 🥇 1º Puesto (60%), 🥈 2º Puesto (30%), 🥉 3º Puesto (10%).
+    * Guardado de `isPaid` y `prizesBreakdown` en el objeto `Tournament`.
+    * Tabla de torneos activos distinguiendo torneos gratuitos (badge verde) de pagos con sus premios.
+  - **Acreditación y Datos Bancarios (`PlayerEnrollModal.tsx`):**
+    * Si el torneo es arancelado, despliega un cuadro oficial con datos bancarios de la Asociación (Banco Provincia, Alias `DARDOS.MDQ.OFICIAL`, CBU, CUIT, Titular con botones de un click para copiar).
+    * Alerta de comprobante obligatorio y botón verde oficial de WhatsApp con mensaje pre-redactado para enviar el comprobante directamente al administrador (`Mariano Deux (ICEMAN)`).
+  - **Módulo Institucional Asociación (`src/app/asociacion/page.tsx`):**
+    * Pestañas para Asociación de Dardos Mar del Plata (MDQ) y Dardos Argentina (Nacional).
+    * Grilla de autoridades con sus fotos de perfil sincronizadas con la cuenta del jugador en la plataforma, puesto/cargo oficial, club, localidad y responsabilidades.
+    * Sección de cuenta bancaria oficial de la institución con botones de copia.
+    * Panel administrativo exclusivo para ICEMAN (`marianodeux@gmail.com`) para dar de alta/editar/eliminar autoridades (vinculando jugadores de la app) y actualizar datos de la cuenta bancaria.
+  - **Navegación (`AppSidebar.tsx`):**
+    * Enlace incorporado a `/asociacion` con badge "SEDE" e icono institucional.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con código 0 (0 errores de tipado).
+    * `npm run build` completado exitosamente con 15 rutas estáticas y dinámicas generadas.
+- **Estado del Proyecto:** Plataforma lista con recaudación de inscripciones transparente, premios 60/30/10 automáticos, soporte de comprobantes por WhatsApp y módulo institucional de la Asociación plenamente operativo.
+
+---
+
 ## [Sesión 13] - 2026-10-11
 - **Objetivo:** Erradicación completa de marcas externas renombrando a "Configuración detallada por instancia de llave", aclaración y soporte oficial de Sets + Legs por ronda, resolución del scroll en el modal de torneos para desktop y móviles, e implementación de la Opción 1 de Cámara (Pop-out Window para setups de 2 pantallas / TV en PC + alternancia automática en celulares respetando las dimensiones del teclado de 5 columnas).
 - **Realizado:**

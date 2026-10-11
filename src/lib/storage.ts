@@ -278,4 +278,55 @@ export function clearActiveMatchSession(): void {
   }
 }
 
+// --- Persistencia de Autoridades y Cuentas de la Asociación ---
+const ASSOCIATION_KEYS = {
+  AUTHORITIES: 'lpld_association_authorities_v1',
+  BANK_ACCOUNT: 'lpld_association_bank_account_v1'
+};
+
+export function getStoredAssociationAuthorities(fallback: any[] = []): any[] {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const data = localStorage.getItem(ASSOCIATION_KEYS.AUTHORITIES);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveStoredAssociationAuthorities(authorities: any[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(ASSOCIATION_KEYS.AUTHORITIES, JSON.stringify(authorities));
+    window.dispatchEvent(new CustomEvent('lpld_association_updated', { detail: authorities }));
+  } catch (err) {
+    console.warn('[Storage] Error al guardar autoridades:', err);
+  }
+}
+
+export function getStoredAssociationBankAccount(fallback?: any): any {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const data = localStorage.getItem(ASSOCIATION_KEYS.BANK_ACCOUNT);
+    if (data) return JSON.parse(data);
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveStoredAssociationBankAccount(account: any): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(ASSOCIATION_KEYS.BANK_ACCOUNT, JSON.stringify(account));
+    window.dispatchEvent(new CustomEvent('lpld_association_bank_updated', { detail: account }));
+  } catch (err) {
+    console.warn('[Storage] Error al guardar datos bancarios de la asociación:', err);
+  }
+}
+
 

@@ -427,9 +427,10 @@ export const TournamentManager: React.FC = () => {
   const [newVenue, setNewVenue] = useState('Sede Darderos Mar del Plata');
   const [newCity, setNewCity] = useState('Mar del Plata');
   const [newProvince, setNewProvince] = useState('Buenos Aires');
+  const [newIsPaid, setNewIsPaid] = useState<boolean>(true);
   const [newEntryFee, setNewEntryFee] = useState(10000);
-  const [newPrizePool, setNewPrizePool] = useState(250000);
   const [newMaxParticipants, setNewMaxParticipants] = useState(32);
+  const [newPrizePool, setNewPrizePool] = useState(320000); // 32 * 10000 auto calculado
 
   // Configuración Detallada por Instancia de Llave
   const [showDetailedConfig, setShowDetailedConfig] = useState(false);
@@ -837,8 +838,14 @@ export const TournamentManager: React.FC = () => {
       startDate: new Date().toISOString(),
       status: 'REGISTRATION_OPEN',
       bannerImageUrl: '/logos/logo-mdq.png',
-      entryFeeArs: newEntryFee,
-      prizePoolArs: newPrizePool,
+      isPaid: newIsPaid,
+      entryFeeArs: newIsPaid ? newEntryFee : 0,
+      prizePoolArs: newIsPaid ? newPrizePool : 0,
+      prizesBreakdown: newIsPaid ? {
+        first: Math.round(newPrizePool * 0.60),
+        second: Math.round(newPrizePool * 0.30),
+        third: Math.round(newPrizePool * 0.10)
+      } : undefined,
       organizer: selectedLeague ? selectedLeague.organizerClub : 'Locos por los Dardos & Darderos Mar del Plata',
       matches: newMatches
     };
@@ -1133,14 +1140,28 @@ export const TournamentManager: React.FC = () => {
                               </td>
 
                               <td className="py-4 px-4">
-                                <div className="space-y-0.5">
-                                  <div className="font-black text-[#00e676]">
-                                    ${t.prizePoolArs?.toLocaleString('es-AR')} ARS
+                                {t.isPaid === false || t.entryFeeArs === 0 ? (
+                                  <div className="space-y-0.5">
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 inline-block">
+                                      🎉 Gratuito
+                                    </span>
+                                    <div className="text-[10px] text-slate-400">
+                                      Puntos de Ranking / Medallas
+                                    </div>
                                   </div>
-                                  <div className="text-[10px] text-slate-400">
-                                    Inscripción: ${t.entryFeeArs?.toLocaleString('es-AR')} ARS
+                                ) : (
+                                  <div className="space-y-0.5">
+                                    <div className="font-black text-[#00e676]">
+                                      ${t.prizePoolArs?.toLocaleString('es-AR')} ARS
+                                    </div>
+                                    <div className="text-[10px] text-amber-400 font-semibold">
+                                      Inscripción: ${t.entryFeeArs?.toLocaleString('es-AR')} ARS
+                                    </div>
+                                    <div className="text-[9px] text-slate-400">
+                                      1º: 60% • 2º: 30% • 3º: 10%
+                                    </div>
                                   </div>
-                                </div>
+                                )}
                               </td>
 
                               <td className="py-4 px-4">
@@ -1789,6 +1810,7 @@ export const TournamentManager: React.FC = () => {
       <PlayerEnrollModal
         isOpen={showEnrollModal}
         onClose={() => setShowEnrollModal(false)}
+        tournament={currentTournament}
         onEnrollPlayer={handleEnrollPlayer}
       />
 
@@ -2375,7 +2397,13 @@ export const TournamentManager: React.FC = () => {
                     min="4"
                     max="64"
                     value={newMaxParticipants}
-                    onChange={(e) => setNewMaxParticipants(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setNewMaxParticipants(val);
+                      if (newIsPaid) {
+                        setNewPrizePool(Math.round(val * newEntryFee));
+                      }
+                    }}
                     className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
                   />
                 </div>
@@ -2412,29 +2440,119 @@ export const TournamentManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-slate-300 font-bold block mb-1">Inscripción ($ ARS)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="500"
-                    value={newEntryFee}
-                    onChange={(e) => setNewEntryFee(Number(e.target.value))}
-                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
-                  />
+              {/* MODALIDAD DE INSCRIPCIÓN Y PREMIACIÓN */}
+              <div className="bg-[#111622] border border-slate-800 rounded-2xl p-3.5 space-y-3">
+                <label className="text-slate-300 font-bold text-xs block">
+                  Modalidad de Inscripción y Premiación
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewIsPaid(false);
+                      setNewEntryFee(0);
+                      setNewPrizePool(0);
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                      !newIsPaid 
+                        ? 'bg-[#00e676] text-[#07090e] shadow-lg shadow-[#00e676]/20' 
+                        : 'bg-[#07090e] text-slate-400 hover:text-white border border-slate-700'
+                    }`}
+                  >
+                    <span>🎉 Gratuito (Sin Costo)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewIsPaid(true);
+                      const defaultFee = 10000;
+                      setNewEntryFee(defaultFee);
+                      setNewPrizePool(newMaxParticipants * defaultFee);
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                      newIsPaid 
+                        ? 'bg-amber-400 text-[#07090e] shadow-lg shadow-amber-400/20' 
+                        : 'bg-[#07090e] text-slate-400 hover:text-white border border-slate-700'
+                    }`}
+                  >
+                    <span>💰 Con Inscripción ($ ARS)</span>
+                  </button>
                 </div>
-                <div>
-                  <label className="text-slate-300 font-bold block mb-1">Premio Estimado ($ ARS)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="5000"
-                    value={newPrizePool}
-                    onChange={(e) => setNewPrizePool(Number(e.target.value))}
-                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#00e676]"
-                  />
-                </div>
+
+                {newIsPaid ? (
+                  <div className="space-y-3 pt-2 border-t border-slate-800">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-slate-300 font-bold block mb-1 text-xs">
+                          Inscripción ($ ARS)
+                        </label>
+                        <input
+                          type="number"
+                          min="500"
+                          step="500"
+                          value={newEntryFee}
+                          onChange={(e) => {
+                            const fee = Math.max(0, Number(e.target.value));
+                            setNewEntryFee(fee);
+                            setNewPrizePool(Math.round(newMaxParticipants * fee));
+                          }}
+                          className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-300 font-bold block mb-1 text-xs">
+                          Pozo Estimado ($ ARS)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1000"
+                          value={newPrizePool}
+                          onChange={(e) => setNewPrizePool(Math.max(0, Number(e.target.value)))}
+                          className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-[#00e676] text-xs font-black focus:outline-none focus:border-[#00e676]"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 flex items-center justify-between">
+                      <span>⚡ Auto-calculado: Cupo ({newMaxParticipants}) × Inscripción (${newEntryFee.toLocaleString('es-AR')}) = ${(newMaxParticipants * newEntryFee).toLocaleString('es-AR')}</span>
+                      <span className="text-amber-400 font-semibold">(Editable)</span>
+                    </p>
+
+                    {/* DESGLOSE OFICIAL: 60% 1º, 30% 2º, 10% 3º */}
+                    <div className="bg-[#07090e] border border-amber-500/30 rounded-xl p-2.5">
+                      <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                        <span>🏆 Distribución Oficial de Premios</span>
+                        <span className="text-slate-400 font-normal">Pozo: ${newPrizePool.toLocaleString('es-AR')} ARS</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 text-center">
+                        <div className="bg-[#111622] border border-amber-500/40 rounded-lg p-2">
+                          <div className="text-[10px] font-black text-amber-400">🥇 1º Puesto (60%)</div>
+                          <div className="text-xs font-black text-white mt-1">
+                            ${Math.round(newPrizePool * 0.60).toLocaleString('es-AR')}
+                          </div>
+                        </div>
+                        <div className="bg-[#111622] border border-slate-600 rounded-lg p-2">
+                          <div className="text-[10px] font-black text-slate-300">🥈 2º Puesto (30%)</div>
+                          <div className="text-xs font-black text-white mt-1">
+                            ${Math.round(newPrizePool * 0.30).toLocaleString('es-AR')}
+                          </div>
+                        </div>
+                        <div className="bg-[#111622] border border-amber-700/40 rounded-lg p-2">
+                          <div className="text-[10px] font-black text-amber-600">🥉 3º Puesto (10%)</div>
+                          <div className="text-xs font-black text-white mt-1">
+                            ${Math.round(newPrizePool * 0.10).toLocaleString('es-AR')}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-[#07090e] border border-emerald-500/20 rounded-xl text-center">
+                    <span className="text-xs font-bold text-emerald-400">
+                      🎉 Torneo abierto gratuito sin costo de inscripción. Se disputarán puntos de ranking y medallas federativas.
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

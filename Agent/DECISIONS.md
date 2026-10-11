@@ -296,4 +296,36 @@
      * En `X01Board.tsx`: botón `[🖥️ Pop-out 2ª Pantalla]` (`window.open`), botón `[📹 Diana Rival]` para móviles, alternancia automática al cambiar de turno y sincronización continua dardo a dardo sin alterar el teclado de 5 columnas.
 - **Motivo:** Cumplimiento estricto de las directivas de soberanía de marca, soporte reglamentario para los dos formatos de competición de dardos (Legs y Sets), usabilidad móvil intacta y arquitectura multi-pantalla profesional sin dependencias externas pesadas.
 
+---
+
+## ADR-021: Torneos Arancelados vs Gratuitos, Cálculo Automático 60-30-10, Modal de Pago con WhatsApp y Módulo Institucional Asociación
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Los organizadores requerían indicar si un torneo requiere inscripción con dinero o si es gratuito.
+  2. Si el torneo es arancelado, el pozo total de premios se debía calcular automáticamente en función del cupo máximo y el valor de la inscripción ($Cupo \times Inscripción$), preservando la potestad de editar manualmente el valor del pozo si el club retiene porcentaje o suma sponsors. Al mismo tiempo, el sistema debía calcular y previsualizar en tiempo real el desglose de premios oficial: **60% al 1º, 30% al 2º y 10% al 3º**.
+  3. Al momento de inscribirse en un torneo con arancel, se debía desplegar un modal con los datos bancarios de la cuenta oficial de la Asociación donde transferir (Alias, CBU, Titular, Banco, CUIT) y la instrucción explícita de enviar el comprobante por WhatsApp al administrador designado (con botón de enlace directo a WhatsApp con mensaje pre-armado).
+  4. Se requería consolidar una sección aparte ("Asociación" en `/asociacion`) para definir y exhibir a las autoridades de **La Asociación de Dardos Mar del Plata** y **Dardos Argentina**, mostrando sus fotos de perfil oficiales (las mismas elegidas por los jugadores en la plataforma), sus cargos en la Comisión Directiva, y habilitando su administración y la configuración de los datos bancarios exclusivamente desde la cuenta de Administrador (ICEMAN `marianodeux@gmail.com`).
+- **Decisión:**
+  1. **Tipado y Storage (`types.ts`, `storage.ts`, `constants.ts`):**
+     * `Tournament` incorpora `isPaid?: boolean` y `prizesBreakdown?: { first: number; second: number; third: number }`.
+     * Se crearon los tipos `AssociationScope` ('MDQ' | 'ARGENTINA'), `AssociationAuthority` y `AssociationBankAccount`.
+     * `DEFAULT_ASSOCIATION_AUTHORITIES` inicializa la Comisión Directiva de Mar del Plata y Dardos Argentina (con Mariano Deux como Presidente con su foto de perfil y autoridades designadas).
+     * `DEFAULT_ASSOCIATION_BANK_ACCOUNT` define los datos bancarios oficiales del Banco Provincia (Alias: `DARDOS.MDQ.OFICIAL`) y WhatsApp de ICEMAN.
+     * Métodos de persistencia: `getStoredAssociationAuthorities`, `saveStoredAssociationAuthorities`, `getStoredAssociationBankAccount` y `saveStoredAssociationBankAccount`.
+  2. **Formulario de Creación de Torneo (`TournamentManager.tsx`):**
+     * Switch interactivo: `[🎉 Gratuito (Sin Costo)]` vs `[💰 Con Inscripción ($ ARS)]`.
+     * Si es arancelado: auto-cálculo `newPrizePool = newMaxParticipants * newEntryFee` con input editable y tarjetas en tiempo real para 1º (60%), 2º (30%) y 3º (10%).
+  3. **Acreditación y Pagos (`PlayerEnrollModal.tsx`):**
+     * Si el torneo tiene costo, muestra los datos bancarios oficiales con botones de copia de CBU y Alias, y botón verde directo de WhatsApp con mensaje completo pre-redactado dirigido al administrador.
+  4. **Página Oficial de la Asociación (`src/app/asociacion/page.tsx`):**
+     * Pestañas para Asociación Mar del Plata y Dardos Argentina.
+     * Grilla de autoridades con foto de perfil de jugador, cargo oficial, club y localidad.
+     * Sección de datos bancarios institucionales.
+     * Modal administrativo exclusivo para ICEMAN para sumar/editar autoridades (vinculando jugadores registrados) y actualizar cuentas bancarias.
+  5. **Navegación (`AppSidebar.tsx`):**
+     * Enlace oficial agregado a `/asociacion` con badge "SEDE".
+- **Motivo:** Transparencia económica y deportiva en la recaudación de torneos, automatización del cómputo de premios federados, agilidad en la confirmación de inscriptos vía WhatsApp y consolidación de la personería institucional de la Asociación de Mar del Plata y Dardos Argentina.
+
 

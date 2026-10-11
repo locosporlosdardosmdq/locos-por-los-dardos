@@ -256,9 +256,47 @@ export interface Tournament {
   bannerImageUrl: string;
   entryFeeArs: number;
   prizePoolArs: number;
+  isPaid?: boolean;
+  prizesBreakdown?: {
+    first: number;
+    second: number;
+    third: number;
+  };
   organizer: string;
   matches?: TournamentBracketMatch[];
   stats?: TournamentStats;
+}
+
+export type AssociationScope = 'MDQ' | 'ARGENTINA';
+
+export interface AssociationAuthority {
+  id: string;
+  scope: AssociationScope;
+  playerId?: string;
+  name: string;
+  nickname?: string;
+  roleTitle: string; // ej: 'Presidente', 'Vicepresidente', 'Secretario General', 'Tesorero', 'Director de Torneos', etc.
+  photoUrl: string;
+  avatarUrl?: string;
+  club?: string;
+  city?: string;
+  province?: string;
+  bio?: string;
+  orderIndex: number;
+  phoneWhatsApp?: string;
+  email?: string;
+}
+
+export interface AssociationBankAccount {
+  bankName: string;
+  accountType: string; // 'Cuenta Corriente', 'Caja de Ahorro', 'Mercado Pago'
+  holderName: string;
+  cuitCuil: string;
+  alias: string;
+  cbuCvu: string;
+  adminWhatsAppPhone: string; // ej: '5492235551234'
+  adminWhatsAppName: string; // ej: 'Mariano Deux (ICEMAN)'
+  notes?: string;
 }
 
 export type ProductCategory = 'DARDOS' | 'PLUMAS' | 'CANAS' | 'CARTUCHERAS' | 'DIANAS' | 'ACCESORIOS';

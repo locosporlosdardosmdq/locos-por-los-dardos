@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { League, LeagueScope } from '@/lib/types';
 import { PROVINCIAS_ARGENTINA } from '@/lib/constants';
 import { Trophy, X, Shield, MapPin, Sparkles, CheckCircle2, Flame, Award } from 'lucide-react';
@@ -134,6 +135,26 @@ export const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
                   Clasificatoria para torneos internacionales con fechas online y presenciales x2.
                 </span>
               </button>
+            </div>
+
+            {/* Emblema Oficial asignado según el Ámbito */}
+            <div className="mt-2 p-2.5 rounded-xl bg-[#07090e] border border-slate-800 flex items-center gap-3">
+              <div className="relative w-8 h-8 rounded-lg bg-black border border-slate-700 p-0.5 flex-shrink-0">
+                <Image
+                  src={scope === 'NATIONAL' ? '/logos/dardos-argentina.png' : '/logos/logo-mdq.png'}
+                  alt={scope === 'NATIONAL' ? 'Dardos Argentina' : 'Darderos Mar del Plata'}
+                  fill
+                  className="object-contain p-0.5"
+                />
+              </div>
+              <div className="leading-tight">
+                <span className="text-[11px] font-black text-white block">
+                  {scope === 'NATIONAL' ? 'Federación Oficial: Dardos Argentina' : 'Club Anfitrión Oficial: Darderos Mar del Plata'}
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  {scope === 'NATIONAL' ? 'Circuito Nacional Federado & Clasificatoria Internacional' : 'Sede Oficial del Circuito Regional MDQ'}
+                </span>
+              </div>
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { 
   Tournament, 
@@ -34,6 +34,9 @@ import {
   saveStoredLeagues
 } from '@/lib/storage';
 import { matchBroadcast, BroadcastMatchPayload } from '@/lib/broadcast';
+import { findCanonicalPlayer } from '@/lib/players-data';
+import { UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
+import { PlayerDetailModal } from '@/components/jugadores/PlayerDetailModal';
 import { TournamentBracket } from './TournamentBracket';
 import { TournamentGroupStage, GroupMatch } from './TournamentGroupStage';
 import { MatchDispatcherModal } from './MatchDispatcherModal';
@@ -186,6 +189,102 @@ const SAMPLE_HISTORY_TOURNAMENT: Tournament = {
   ]
 };
 
+// Torneo Nacional 2026 para el Historial Oficial
+const SAMPLE_NATIONAL_TOURNAMENT_2026: Tournament = {
+  id: 'hist-open-nacional-2026',
+  slug: 'gran-open-nacional-argentina-2026',
+  title: 'Gran Open Nacional de Argentina 2026 • Clasificatorio PDC',
+  description: 'Fecha oficial del circuito federado nacional clasificatorio a competiciones internacionales de la PDC y WDF.',
+  type: 'ONLINE',
+  format: 'SINGLE_ELIMINATION',
+  competitionMode: 'NATIONAL_LEAGUE',
+  leagueId: 'league-national-argentina',
+  leagueName: 'Liga Nacional Oficial de Argentina',
+  startingScore: 501,
+  outMode: 'DOUBLE_OUT',
+  bestOfLegs: 7,
+  maxParticipants: 16,
+  registeredCount: 16,
+  venueName: 'Sede Virtual Federal • Arena Dardos Argentina',
+  city: 'Buenos Aires',
+  province: 'CABA',
+  startDate: '2026-03-20T17:00:00.000Z',
+  endDate: '2026-03-20T22:30:00.000Z',
+  status: 'COMPLETED',
+  bannerImageUrl: '/logos/dardos-argentina.png',
+  entryFeeArs: 12000,
+  prizePoolArs: 350000,
+  organizer: 'Federación Argentina de Dardos & Locos por los Dardos',
+  stats: {
+    championId: 'user-iceman-admin',
+    championName: 'Mariano Deux (ICEMAN)',
+    championAvatar: '/logos/logo-mdq.png',
+    runnerUpId: 'rank-1',
+    runnerUpName: 'Martín Rossi (Sniper CABA)',
+    highestAvgPlayer: 'Mariano Deux (ICEMAN)',
+    highestAvgScore: 82.4,
+    total180s: 22,
+    highestCheckout: 170,
+    highestCheckoutPlayer: 'Mariano Deux (ICEMAN)',
+    bestLegDarts: 10,
+    bestLegPlayer: 'Mariano Deux (ICEMAN)',
+    totalMatchesPlayed: 7,
+    totalLegsPlayed: 33
+  },
+  matches: generateDefaultBracket('hist-open-nacional-2026').map(m => ({ ...m, status: 'FINISHED', scoreP1: 4, scoreP2: 2, winnerId: m.player1?.id }))
+};
+
+// Torneo Local 2025 para validar filtrado histórico por año
+const SAMPLE_HISTORY_TOURNAMENT_2025: Tournament = {
+  id: 'hist-copa-mdq-2025',
+  slug: 'copa-ciudad-mar-del-plata-2025',
+  title: 'Copa Ciudad de Mar del Plata 2025 • Sede Oficial MDQ',
+  description: 'Certamen clausura oficial de la temporada 2025 disputado en la sede de Darderos Mar del Plata.',
+  type: 'PRESENCIAL',
+  format: 'SINGLE_ELIMINATION',
+  competitionMode: 'LOCAL_LEAGUE',
+  leagueId: 'league-mdq-2025',
+  leagueName: 'Liga Marplatense 2025 • Darderos MDQ',
+  startingScore: 501,
+  outMode: 'DOUBLE_OUT',
+  bestOfLegs: 5,
+  maxParticipants: 16,
+  registeredCount: 16,
+  venueName: 'Sede Darderos Mar del Plata',
+  city: 'Mar del Plata',
+  province: 'Buenos Aires',
+  startDate: '2025-11-20T16:00:00.000Z',
+  endDate: '2025-11-20T21:00:00.000Z',
+  status: 'COMPLETED',
+  bannerImageUrl: '/logos/logo-mdq.png',
+  entryFeeArs: 6000,
+  prizePoolArs: 150000,
+  organizer: 'Darderos Mar del Plata',
+  stats: {
+    championId: 'user-iceman-admin',
+    championName: 'Mariano Deux (ICEMAN)',
+    championAvatar: '/logos/logo-mdq.png',
+    runnerUpId: 'user-mdq-001',
+    runnerUpName: 'Facundo López (El Halcón)',
+    highestAvgPlayer: 'Facundo López',
+    highestAvgScore: 76.5,
+    total180s: 15,
+    highestCheckout: 156,
+    highestCheckoutPlayer: 'Mariano Deux (ICEMAN)',
+    bestLegDarts: 12,
+    bestLegPlayer: 'Facundo López',
+    totalMatchesPlayed: 7,
+    totalLegsPlayed: 28
+  },
+  matches: generateDefaultBracket('hist-copa-mdq-2025').map(m => ({ ...m, status: 'FINISHED', scoreP1: 3, scoreP2: 1, winnerId: m.player1?.id }))
+};
+
+const SAMPLE_HISTORY_TOURNAMENTS: Tournament[] = [
+  SAMPLE_HISTORY_TOURNAMENT,
+  SAMPLE_NATIONAL_TOURNAMENT_2026,
+  SAMPLE_HISTORY_TOURNAMENT_2025
+];
+
 export const TournamentManager: React.FC = () => {
   // Pestaña principal: Torneos Activos vs Ligas & Posiciones vs Historial
   const [mainTab, setMainTab] = useState<'ACTIVE_TAB' | 'LEAGUES_TAB' | 'HISTORY_TAB'>('ACTIVE_TAB');
@@ -208,11 +307,27 @@ export const TournamentManager: React.FC = () => {
   // Subpestañas del torneo en detalle
   const [tournamentSubTab, setTournamentSubTab] = useState<'BRACKET' | 'GROUPS' | 'PLAYERS' | 'LIVE_BOARD'>('BRACKET');
 
-  // Historial de torneos
+  // Historial de torneos con soporte de temporadas 2026 y 2025
   const [historyTournaments, setHistoryTournaments] = useState<Tournament[]>(() => {
-    return getStoredTournamentHistory([]);
+    const stored = getStoredTournamentHistory([]);
+    return stored.length > 0 ? stored : SAMPLE_HISTORY_TOURNAMENTS;
   });
-  const [selectedHistoryTournamentId, setSelectedHistoryTournamentId] = useState<string | null>(null);
+  const [selectedHistoryYear, setSelectedHistoryYear] = useState<string>('ALL');
+  const [selectedHistoryTournamentId, setSelectedHistoryTournamentId] = useState<string | null>(
+    SAMPLE_HISTORY_TOURNAMENT.id
+  );
+
+  // Modal de Detalle de Jugador (Ficha completa con trofeos, AVG e historial)
+  const [selectedPlayerForDetail, setSelectedPlayerForDetail] = useState<UltimateDartsCardData | null>(null);
+  const [showPlayerDetailModal, setShowPlayerDetailModal] = useState<boolean>(false);
+
+  const handleOpenPlayerDetail = (playerIdOrName: string, playerName?: string) => {
+    const pData = findCanonicalPlayer(playerIdOrName, playerName);
+    if (pData) {
+      setSelectedPlayerForDetail(pData);
+      setShowPlayerDetailModal(true);
+    }
+  };
 
   // Perfil del usuario activo y permisos de administrador
   const [currentUser, setCurrentUser] = useState<PlayerProfile>(() => {
@@ -275,7 +390,24 @@ export const TournamentManager: React.FC = () => {
   }, []);
 
   const currentTournament = tournaments.find((t) => t.id === selectedTournamentId) || null;
-  const currentHistoryTournament = historyTournaments.find((t) => t.id === selectedHistoryTournamentId) || historyTournaments[0] || null;
+
+  // Años disponibles en el Historial de Torneos
+  const availableHistoryYears = useMemo(() => {
+    const years = new Set<string>();
+    historyTournaments.forEach((t) => {
+      const y = new Date(t.startDate).getFullYear().toString();
+      years.add(y);
+    });
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [historyTournaments]);
+
+  // Torneos filtrados por año en Historial
+  const filteredHistoryTournaments = useMemo(() => {
+    if (selectedHistoryYear === 'ALL') return historyTournaments;
+    return historyTournaments.filter((t) => new Date(t.startDate).getFullYear().toString() === selectedHistoryYear);
+  }, [historyTournaments, selectedHistoryYear]);
+
+  const currentHistoryTournament = filteredHistoryTournaments.find((t) => t.id === selectedHistoryTournamentId) || filteredHistoryTournaments[0] || historyTournaments[0] || null;
 
   // Actualizar resultado en el Cuadro Eliminatorio (en caliente)
   const handleUpdateMatchScore = (matchId: string, p1Score: number, p2Score: number, winnerId?: string, note?: string) => {
@@ -1135,6 +1267,7 @@ export const TournamentManager: React.FC = () => {
                           bestOfLegs={currentTournament.bestOfLegs}
                           isAdmin={isAdmin}
                           onAdminEditMatch={(m) => setAdminMatchToEdit(m)}
+                          onSelectPlayer={handleOpenPlayerDetail}
                         />
                       ) : (
                         <div className="text-center py-12 text-slate-500">
@@ -1268,6 +1401,7 @@ export const TournamentManager: React.FC = () => {
             <LeagueManager
               leagues={leagues}
               onOpenCreateLeague={() => setShowCreateLeagueModal(true)}
+              onSelectPlayer={handleOpenPlayerDetail}
             />
           )}
 
@@ -1303,22 +1437,44 @@ export const TournamentManager: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Selector de Torneos en Historial */}
+                  {/* BUSCADOR POR AÑO Y DESPLEGABLE DEPENDIENTE CON NOMBRES DE TORNEOS HISTÓRICOS */}
                   <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0f1422] border border-[#1e2a40] p-4 rounded-3xl">
-                    <div className="flex items-center gap-3">
-                      <History className="w-5 h-5 text-amber-400" />
-                      <div>
-                        <span className="text-xs font-black text-slate-400 uppercase tracking-wider block">
-                          Torneo Seleccionado en Historial:
-                        </span>
+                    <div className="flex flex-wrap items-center gap-4">
+                      {/* Buscador / Selector por Año */}
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs font-black text-slate-300">Año / Temporada:</span>
+                        <select
+                          value={selectedHistoryYear}
+                          onChange={(e) => {
+                            const y = e.target.value;
+                            setSelectedHistoryYear(y);
+                            const matching = y === 'ALL' 
+                              ? historyTournaments 
+                              : historyTournaments.filter(t => new Date(t.startDate).getFullYear().toString() === y);
+                            if (matching.length > 0) setSelectedHistoryTournamentId(matching[0].id);
+                          }}
+                          className="bg-[#07090e] border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-black text-white focus:outline-none focus:border-amber-400"
+                        >
+                          <option value="ALL">Todas las Temporadas</option>
+                          {availableHistoryYears.map(year => (
+                            <option key={year} value={year}>Temporada {year}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Desplegable dependiente con los nombres de los Torneos del año seleccionado */}
+                      <div className="flex items-center gap-2">
+                        <History className="w-4 h-4 text-[#00e676]" />
+                        <span className="text-xs font-black text-slate-300">Torneo:</span>
                         <select
                           value={selectedHistoryTournamentId || ''}
                           onChange={(e) => setSelectedHistoryTournamentId(e.target.value)}
                           className="bg-[#07090e] border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-black text-white focus:outline-none focus:border-[#00e676]"
                         >
-                          {historyTournaments.map((ht) => (
+                          {filteredHistoryTournaments.map((ht) => (
                             <option key={ht.id} value={ht.id}>
-                              {ht.title} ({new Date(ht.startDate).toLocaleDateString('es-AR')})
+                              {ht.competitionMode === 'NATIONAL_LEAGUE' ? '🇦🇷 ' : '📍 '} {ht.title} ({new Date(ht.startDate).toLocaleDateString('es-AR')})
                             </option>
                           ))}
                         </select>
@@ -1333,50 +1489,80 @@ export const TournamentManager: React.FC = () => {
                     )}
                   </div>
 
-                  {/* TARJETA DE ESTADÍSTICAS DEL TORNEO HISTÓRICO */}
+                  {/* TARJETA DE ESTADÍSTICAS DEL TORNEO HISTÓRICO CON LOGO OFICIAL */}
                   {currentHistoryTournament?.stats && (
                     <div className="bg-[#0f1422] border border-amber-500/30 rounded-3xl p-6 shadow-2xl space-y-5">
-                      <div className="flex items-center justify-between border-b border-[#1e2a40] pb-3">
-                        <div className="flex items-center gap-2.5">
-                          <Trophy className="w-5 h-5 text-amber-400" />
-                          <h3 className="text-base font-black text-white">
-                            Estadísticas Oficiales del Torneo
-                          </h3>
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1e2a40] pb-3">
+                        <div className="flex items-center gap-3">
+                          {/* Logo Oficial: Dardos Argentina si es Nacional, Darderos MDQ si es Local */}
+                          <div className="relative w-10 h-10 rounded-xl bg-black border border-slate-700 p-1 flex-shrink-0">
+                            <Image
+                              src={
+                                currentHistoryTournament.competitionMode === 'NATIONAL_LEAGUE' || currentHistoryTournament.title.includes('Nacional') || currentHistoryTournament.title.includes('Argentina')
+                                  ? '/logos/dardos-argentina.png'
+                                  : '/logos/logo-mdq.png'
+                              }
+                              alt={currentHistoryTournament.title}
+                              fill
+                              className="object-contain p-0.5"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Trophy className="w-4 h-4 text-amber-400" />
+                              <h3 className="text-base font-black text-white">
+                                Estadísticas Oficiales del Torneo
+                              </h3>
+                            </div>
+                            <span className="text-[11px] text-slate-400">
+                              {currentHistoryTournament.title}
+                            </span>
+                          </div>
                         </div>
+
                         <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
                           TORNEO CONCLUIDO
                         </span>
                       </div>
 
-                      {/* Cuadro de Honor: Campeón y Subcampeón */}
+                      {/* Cuadro de Honor: Campeón y Subcampeón (Clickeables para ver Ficha Oficial) */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Campeón */}
-                        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 to-transparent border border-amber-500/40 flex items-center gap-4">
-                          <div className="relative w-14 h-14 rounded-2xl bg-black border-2 border-amber-400 p-1 flex-shrink-0 flex items-center justify-center text-2xl shadow-lg shadow-amber-500/25">
+                        <div 
+                          onClick={() => currentHistoryTournament.stats?.championName && handleOpenPlayerDetail(currentHistoryTournament.stats.championName)}
+                          className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 to-transparent border border-amber-500/40 flex items-center gap-4 cursor-pointer hover:border-amber-400 transition-all group"
+                          title="Click para ver ficha y estadísticas del Campeón"
+                        >
+                          <div className="relative w-14 h-14 rounded-2xl bg-black border-2 border-amber-400 p-1 flex-shrink-0 flex items-center justify-center text-2xl shadow-lg shadow-amber-500/25 group-hover:scale-105 transition-transform">
                             🏆
                           </div>
                           <div>
                             <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block">
-                              Campeón Oficial
+                              Campeón Oficial (Tocar para ver ficha)
                             </span>
-                            <div className="text-base font-black text-white flex items-center gap-1.5">
-                              <span>{currentHistoryTournament.stats.championName}</span>
+                            <div className="text-base font-black text-white flex items-center gap-1.5 group-hover:text-amber-300">
+                              <span>{currentHistoryTournament.stats?.championName || 'Campeón'}</span>
                             </div>
                             <span className="text-[11px] text-slate-300">Medalla de Oro & Copa Oficial</span>
                           </div>
                         </div>
 
                         {/* Subcampeón */}
-                        <div className="p-4 rounded-2xl bg-[#141a29] border border-slate-700 flex items-center gap-4">
-                          <div className="relative w-14 h-14 rounded-2xl bg-black border-2 border-slate-400 p-1 flex-shrink-0 flex items-center justify-center text-2xl">
+                        <div 
+                          onClick={() => handleOpenPlayerDetail(currentHistoryTournament.stats?.runnerUpName || 'Martín Rossi')}
+                          className="p-4 rounded-2xl bg-[#141a29] border border-slate-700 flex items-center gap-4 cursor-pointer hover:border-slate-400 transition-all group"
+                          title="Click para ver ficha y estadísticas del Subcampeón"
+                        >
+                          <div className="relative w-14 h-14 rounded-2xl bg-black border-2 border-slate-400 p-1 flex-shrink-0 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform">
                             🥈
                           </div>
                           <div>
                             <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
-                              Subcampeón
+                              Subcampeón (Tocar para ver ficha)
                             </span>
-                            <div className="text-base font-black text-white">
-                              {currentHistoryTournament.stats.runnerUpName || 'Martín Rossi'}
+                            <div className="text-base font-black text-white group-hover:text-slate-200">
+                              {currentHistoryTournament.stats?.runnerUpName || 'Martín Rossi'}
                             </div>
                             <span className="text-[11px] text-slate-400">Medalla de Plata</span>
                           </div>
@@ -1385,26 +1571,34 @@ export const TournamentManager: React.FC = () => {
 
                       {/* Métricas destacadas */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="bg-[#07090e] border border-slate-800 rounded-2xl p-3.5 text-center">
+                        <div 
+                          onClick={() => handleOpenPlayerDetail(currentHistoryTournament.stats?.highestAvgPlayer || 'Mariano Deux')}
+                          className="bg-[#07090e] border border-slate-800 rounded-2xl p-3.5 text-center cursor-pointer hover:border-[#00e676]/40 transition-colors"
+                          title="Ver ficha del jugador con mayor AVG"
+                        >
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
                             Mayor Promedio (AVG)
                           </span>
                           <span className="text-2xl font-black text-[#00e676] font-mono block mt-1">
-                            {currentHistoryTournament.stats.highestAvgScore?.toFixed(1) || '78.5'}
+                            {currentHistoryTournament.stats?.highestAvgScore?.toFixed(1) || '78.5'}
                           </span>
-                          <span className="text-[10px] text-slate-400 truncate block">
-                            {currentHistoryTournament.stats.highestAvgPlayer || 'Mariano Deux'}
+                          <span className="text-[10px] text-slate-400 truncate block hover:text-[#00e676]">
+                            {currentHistoryTournament.stats?.highestAvgPlayer || 'Mariano Deux'}
                           </span>
                         </div>
 
-                        <div className="bg-[#07090e] border border-slate-800 rounded-2xl p-3.5 text-center">
+                        <div 
+                          onClick={() => handleOpenPlayerDetail(currentHistoryTournament.stats?.highestCheckoutPlayer || 'Mariano Deux (ICEMAN)')}
+                          className="bg-[#07090e] border border-slate-800 rounded-2xl p-3.5 text-center cursor-pointer hover:border-[#38bdf8]/40 transition-colors"
+                          title="Ver ficha del jugador con mayor checkout"
+                        >
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
                             Mayor Cierre
                           </span>
                           <span className="text-2xl font-black text-[#38bdf8] font-mono block mt-1">
-                            {currentHistoryTournament.stats.highestCheckout || 170}
+                            {currentHistoryTournament.stats?.highestCheckout || 170}
                           </span>
-                          <span className="text-[10px] text-slate-400 truncate block">
+                          <span className="text-[10px] text-slate-400 truncate block hover:text-[#38bdf8]">
                             {currentHistoryTournament.stats.highestCheckoutPlayer || 'Mariano Deux (ICEMAN)'}
                           </span>
                         </div>
@@ -1421,7 +1615,7 @@ export const TournamentManager: React.FC = () => {
 
                         <div className="bg-[#07090e] border border-slate-800 rounded-2xl p-3.5 text-center">
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
-                            Mejor Pierna
+                            Mejor Leg
                           </span>
                           <span className="text-2xl font-black text-amber-400 font-mono block mt-1">
                             {currentHistoryTournament.stats.bestLegDarts || 11} d.
@@ -1445,13 +1639,14 @@ export const TournamentManager: React.FC = () => {
                           </h3>
                         </div>
                         <span className="text-xs text-slate-400 font-bold">
-                          Cuartos, Semis y Gran Final
+                          Cuartos, Semis y Gran Final (Click en jugador para ver ficha)
                         </span>
                       </div>
 
                       <TournamentBracket
                         matches={currentHistoryTournament.matches}
                         bestOfLegs={currentHistoryTournament.bestOfLegs}
+                        onSelectPlayer={handleOpenPlayerDetail}
                       />
                     </div>
                   )}
@@ -1847,6 +2042,21 @@ export const TournamentManager: React.FC = () => {
         onClose={() => setShowCreateLeagueModal(false)}
         onCreateLeague={handleCreateLeague}
         canCreateNational={isAdmin}
+      />
+
+      {/* MODAL: DETALLE Y FICHA OFICIAL DEL JUGADOR */}
+      <PlayerDetailModal
+        player={selectedPlayerForDetail}
+        isOpen={showPlayerDetailModal}
+        onClose={() => setShowPlayerDetailModal(false)}
+        onNavigateToEvent={(eventType, targetId, targetTab) => {
+          if (eventType === 'LEAGUE') {
+            setMainTab('LEAGUES_TAB');
+          } else {
+            setMainTab('HISTORY_TAB');
+            setSelectedHistoryTournamentId(targetId);
+          }
+        }}
       />
     </div>
   );

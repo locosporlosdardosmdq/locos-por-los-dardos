@@ -212,3 +212,22 @@
      * `TournamentManager.tsx`: Selector en la creación de torneo de las 3 modalidades, liga local de pertenencia y selector de fecha nacional (online vs presencial oficial con multiplicador x2).
      * `UltimateDartsCard.tsx` & `PlayerDirectory.tsx`: Tarjetas estilo FIFA Ultimate Team con insignia superior dinámica que conmuta según el ranking activo: Mayor AVG App, Liga Nacional, Liga Marplatense o Torneos Presenciales MDQ (2 fechas al año).
 - **Motivo:** Coherencia federativa total, incentivo a la participación presencial oficial con puntaje doble y desacoplamiento limpio entre partidas casuales y competiciones oficiales.
+
+---
+
+## ADR-017: Jerarquía de Desempeño en Cartas Coleccionables (Liga/Torneo con Top 6), Remoción de Canción y Terminología Deportiva ("Leg")
+
+- **Fecha:** 2026-10-10
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. En la tarjeta coleccionable oficial (`UltimateDartsCard.tsx`), la visualización previa incluía una referencia a canción de entrada (*walkOnSong*) que no posee configuración en la ficha del jugador, robando espacio vertical valioso.
+  2. El texto de la última competición disputada requería jerarquía estricta: debe priorizar la última mejor actuación en una Liga (Nacional o Local), y si el jugador no posee datos de liga, tomarla de un Torneo. Si el jugador se ubicó entre los primeros 6 (Top 6: puestos 1 al 6), se debe hacer mención explícita a dicho puesto con trofeo/icono honorífico (`#1 Campeón`, `#2 Subcampeón`, `#3 3er Puesto`, `#4 4to Puesto`, `#5 5to Puesto`, `#6 6to Puesto`).
+  3. En Argentina, la comunidad practica el juego utilizando la terminología estándar en inglés: "Set", "Leg", "AVG", por lo que el vocablo "Pierna" debía ser completamente sustituido por "Leg".
+  4. La cabecera de la Liga Nacional Oficial debía incorporar el logotipo oficial de Dardos Argentina (`/logos/dardos-argentina.png`), y las ligas y torneos locales el logotipo de Darderos Mar del Plata (`/logos/logo-mdq.png`).
+- **Decisión:**
+  1. **Remoción de Canción y Rediseño de Cápsula:** Se eliminó todo texto o mención a canción en la tarjeta. En el espacio liberado, se diseñó una cápsula de 2 líneas bajo el nombre (`width: 270px`, `height: 32px`) que exhibe sin truncamientos el puesto Top 6 y el nombre completo de la competición disputada.
+  2. **Función `getPlayerPerformance`:** Implementa la jerarquía condicional: Liga Nacional > Liga Local > Torneo Oficial > Circuito Federado General, computando badges y textos vectoriales de esquina (#1 LIGA NACIONAL, #1 TORNEO OFICIAL).
+  3. **Reemplazo Universal a "Leg":** Se sustituyó "Pierna" por "Leg" en todos los componentes del sistema (anotador, fichas, estadísticas históricas, comparativas PDC y modales).
+  4. **Logos Federados Oficiales:** Se integró el logo de Dardos Argentina en `LeagueManager.tsx` y selector dinámico en `CreateLeagueModal.tsx` según el ámbito de la competición.
+- **Motivo:** Máxima autenticidad y representatividad deportiva, legibilidad sin textos cortados y respeto riguroso por el léxico utilizado por los competidores en el circuito.
+

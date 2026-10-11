@@ -175,7 +175,7 @@ export const VoiceCaller = {
   },
 
   speakGameShot: () => {
-    VoiceCaller.speak('¡Game Shot! ¡Juego y pierna!', { pitch: 1.25, rate: 1.15, lang: 'es-ES' });
+    VoiceCaller.speak('Game shot and the leg!', { pitch: 1.15, rate: 1.1, lang: 'en-GB' });
   },
 
   /**
@@ -192,30 +192,10 @@ export const VoiceCaller = {
    * - 180: Audio original de Clemens Kuntze ("ONE HUNDRED AND EIGHTY!")
    * - 1 al 179: Archivos MP3 oficiales de alta fidelidad de Russ Bray (/sounds/russ_bray/{score}.mp3)
    */
-  announceScore: (score: number, remaining = 0) => {
+  announceScore: (score: number, remaining?: number) => {
     if (score === 180) {
       SoundEngine.playClemens180();
       SoundEngine.playBullseye();
-      return;
-    }
-
-    if (score >= 170 && score < 180) {
-      // Intentar reproducir el MP3 del número y rematar
-      const audio = new Audio(`/sounds/russ_bray/${score}.mp3`);
-      audio.volume = 1.0;
-      audio.play().catch(() => {
-        SoundEngine.playClemens180();
-      });
-      return;
-    }
-
-    if (remaining === 0 && score > 0) {
-      const audioGameShot = new Audio('/sounds/russ_bray/gameshot.mp3');
-      audioGameShot.volume = 1.0;
-      audioGameShot.play().catch(() => {
-        SoundEngine.playGameShot();
-        VoiceCaller.speak('Game shot and the match', { lang: 'en-GB' });
-      });
       return;
     }
 
@@ -228,10 +208,13 @@ export const VoiceCaller = {
     try {
       const audio = new Audio(`/sounds/russ_bray/${score}.mp3`);
       audio.volume = 1.0;
-      audio.play().catch((err) => {
-        console.warn(`[VoiceCaller] Error reproduciendo MP3 para score ${score}, usando fallback:`, err);
-        VoiceCaller.speak(`${score}`, { lang: 'en-GB', rate: 1.05 });
-      });
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn(`[VoiceCaller] Error reproduciendo MP3 para score ${score}, usando fallback:`, err);
+          VoiceCaller.speak(`${score}`, { lang: 'en-GB', rate: 1.05 });
+        });
+      }
     } catch {
       VoiceCaller.speak(`${score}`, { lang: 'en-GB', rate: 1.05 });
     }

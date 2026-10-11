@@ -1,5 +1,26 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 10] - 2026-10-10
+- **Objetivo:** Refinamiento estético y funcional de la Tarjeta Coleccionable (`UltimateDartsCard.tsx`), jerarquía de desempeño deportivo priorizando Liga sobre Torneo con mención explícita a puestos Top 6 (#1 al #6), remoción total de menciones a canciones de entrada (*walkOnSong*), ampliación del espacio visual para la última competencia disputada, reemplazo universal del término "Pierna" por "Leg", e integración del logo oficial de Dardos Argentina en la cabecera federada de Ligas.
+- **Realizado:**
+  - Rediseño de `UltimateDartsCard.tsx`:
+    * Implementación de la función `getPlayerPerformance` con prioridad estricta: Liga Nacional > Liga Local > Torneo Oficial > Circuito Federado General.
+    * Lógica Top 6: Si el jugador quedó entre los puestos 1 y 6 en su historial, se explicita con iconografía de honor (`#1 CAMPEÓN 🏆`, `#2 SUBCAMPEÓN 🥈`, `#3 3ER PUESTO 🥉`, `#4 4TO PUESTO ⭐`, `#5 5TO PUESTO ⭐`, `#6 6TO PUESTO ⭐`).
+    * Remoción absoluta de la mención a canciones de entrada en la tarjeta y fichas deportivas.
+    * Con el espacio liberado, se diseñó una cápsula deportiva espaciosa de 2 líneas (`width: 270px`, `height: 32px`) bajo el nombre del competidor que exhibe sin truncamiento el puesto y el nombre completo de la competición disputada.
+    * La esquina superior izquierda exhibe el número y ámbito (#1 LIGA NACIONAL / #1 TORNEO OFICIAL) de forma limpia sin cortes.
+  - Reemplazo del término "Pierna" por "Leg":
+    * Actualizado en `RegisterAndProfile.tsx` ("Mejor Leg: 11 dardos", evolución de legs en histórico), `TournamentManager.tsx`, `MatchPdcStatsModal.tsx` y tablas comparativas.
+  - Logotipos Federados en Ligas:
+    * En `LeagueManager.tsx`, incorporación del logo oficial de Dardos Argentina (`/logos/dardos-argentina.png`) en la cabecera señalada de la Liga Nacional.
+    * En `CreateLeagueModal.tsx`, previsualización dinámica: si el ámbito es Nacional se despliega el logo de Dardos Argentina; si es Local, el de Darderos MDQ.
+  - Apertura interactiva de Ficha de Jugador:
+    * Se reforzó `findCanonicalPlayer` en `src/lib/players-data.ts` para resolver por ID de liga (`user-iceman-admin`, `rank-1`, etc.) o fallback por nombre/apodo, permitiendo que al hacer click en cualquier jugador de la tabla de posiciones o llaves eliminatorias se abra `PlayerDetailModal.tsx` con su carta coleccionable, palmarés de copas y enlaces a torneos.
+  - Validación completa con `npx tsc --noEmit` finalizando con código de salida 0 (0 errores de compilación).
+- **Estado del Proyecto:** Fichas y tarjetas coleccionables impecables sin información huérfana de canciones, jerarquía deportiva fidedigna con Top 6, terminología oficial en inglés ("Leg") y logos federados en sus ubicaciones exactas.
+
+---
+
 ## [Sesión 9] - 2026-10-10
 - **Objetivo:** Implementación del sistema oficial de Ligas en la creación de torneos con 4 modalidades canónicas (Torneos de un día sin liga, Torneos locales que suman a su liga local, Torneos Nacionales para la Única Liga Nacional clasificatoria internacional con duplicación de puntos x2 en fechas presenciales oficiales, y Modo de partida individual en anotador), sumado al diseño de Cartas Coleccionables de Jugadores (Ultimate Darts Cards estilo FUT) y filtros multidimensionales de ranking en el Directorio.
 - **Realizado:**

@@ -18,6 +18,27 @@ export interface PlayerStats {
   bestLegDarts: number;
 }
 
+export interface PlayerTournamentWin {
+  id: string;
+  name: string;
+  year: number;
+  stage?: string;
+}
+
+export interface PlayerHistoryDateItem {
+  id: string;
+  eventName: string;
+  eventType: 'TOURNAMENT' | 'LEAGUE';
+  targetId: string;
+  targetTab: 'ACTIVE_TAB' | 'HISTORY_TAB' | 'LEAGUES_TAB';
+  date: string;
+  roundOrStage: string;
+  opponentName: string;
+  scoreLegs: string;
+  isWin: boolean;
+  avg: number;
+}
+
 export interface PlayerProfile {
   id: string;
   email: string;
@@ -29,6 +50,7 @@ export interface PlayerProfile {
   nationality?: string;
   countryCode?: string;
   avatarUrl: string;
+  photoUrl?: string;
   estimatedAvg: number;
   category: PlayerCategory;
   isVerified?: boolean;
@@ -36,6 +58,12 @@ export interface PlayerProfile {
   preferredDartWeight?: number;
   role?: 'ADMIN' | 'PLAYER';
   stats: PlayerStats;
+  tournamentsWonList?: PlayerTournamentWin[];
+  lastTournamentRank?: number;
+  lastTournamentName?: string;
+  lastTournamentDate?: string;
+  lastTournamentTrophy?: 'GOLD' | 'SILVER' | 'BRONZE' | 'NONE';
+  recentHistory?: PlayerHistoryDateItem[];
   createdAt?: string;
 }
 

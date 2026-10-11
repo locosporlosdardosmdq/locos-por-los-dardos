@@ -731,6 +731,109 @@ export const DEFAULT_LEAGUES: League[] = [
         avg: 38.2
       }
     ]
+  },
+  {
+    id: 'league-national-2025',
+    slug: 'liga-nacional-argentina-2025',
+    name: 'Liga Nacional Oficial de Argentina 2025',
+    scope: 'NATIONAL',
+    description: 'Edición oficial 2025 del circuito nacional federado de la Asociación de Dardos Argentina.',
+    season: 'Temporada 2025',
+    organizerClub: 'Locos por los Dardos & Federación Argentina',
+    isOfficialNational: true,
+    doublePointsOnPresential: true,
+    activeTournamentsCount: 8,
+    createdAt: '2025-01-15T00:00:00.000Z',
+    standings: [
+      {
+        playerId: 'user-iceman-admin',
+        playerName: 'Mariano Deux (ICEMAN)',
+        nickname: 'ICEMAN',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 2100,
+        playedDates: 8,
+        tournamentsWon: 5,
+        podiums: 7,
+        avg: 76.2
+      },
+      {
+        playerId: 'user-mdq-001',
+        playerName: 'Facundo López',
+        nickname: 'El Halcón MDQ',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 1950,
+        playedDates: 8,
+        tournamentsWon: 2,
+        podiums: 6,
+        avg: 74.0
+      },
+      {
+        playerId: 'rank-1',
+        playerName: 'Martín Rossi',
+        nickname: 'Sniper CABA',
+        avatarUrl: '/logos/dardos-argentina.png',
+        club: 'Dardos Capital',
+        city: 'Buenos Aires',
+        province: 'CABA',
+        points: 1820,
+        playedDates: 8,
+        tournamentsWon: 1,
+        podiums: 5,
+        avg: 72.5
+      }
+    ]
+  },
+  {
+    id: 'league-mdq-2025',
+    slug: 'liga-marplatense-2025',
+    name: 'Liga Marplatense 2025 • Darderos Mar del Plata',
+    scope: 'LOCAL',
+    description: 'Torneo regular anual 2025 disputado en la sede oficial de Darderos Mar del Plata.',
+    season: 'Temporada 2025',
+    organizerClub: 'Darderos Mar del Plata',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    isOfficialNational: false,
+    doublePointsOnPresential: false,
+    activeTournamentsCount: 6,
+    createdAt: '2025-02-01T00:00:00.000Z',
+    standings: [
+      {
+        playerId: 'user-iceman-admin',
+        playerName: 'Mariano Deux (ICEMAN)',
+        nickname: 'ICEMAN',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 1150,
+        playedDates: 6,
+        tournamentsWon: 4,
+        podiums: 5,
+        avg: 75.8
+      },
+      {
+        playerId: 'user-mdq-001',
+        playerName: 'Facundo López',
+        nickname: 'El Halcón MDQ',
+        avatarUrl: '/logos/logo-mdq.png',
+        club: 'Darderos Mar del Plata',
+        city: 'Mar del Plata',
+        province: 'Buenos Aires',
+        points: 1080,
+        playedDates: 6,
+        tournamentsWon: 2,
+        podiums: 5,
+        avg: 75.1
+      }
+    ]
   }
 ];
+
 

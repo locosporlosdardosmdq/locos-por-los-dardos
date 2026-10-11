@@ -29,7 +29,10 @@ import {
   Edit3,
   Globe,
   ShieldAlert,
-  LogIn
+  LogIn,
+  Camera,
+  Upload,
+  Trash2
 } from 'lucide-react';
 
 export const RegisterAndProfile: React.FC = () => {
@@ -70,6 +73,64 @@ export const RegisterAndProfile: React.FC = () => {
     window.addEventListener('lpld_profile_updated', handleProfileUpdate);
     return () => window.removeEventListener('lpld_profile_updated', handleProfileUpdate);
   }, []);
+
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [customPhoto, setCustomPhoto] = useState<string | null>(() => {
+    return profile.photoUrl || null;
+  });
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.includes('png') && !file.type.includes('webp')) {
+      alert('Se recomienda una imagen en formato PNG (o WebP) con fondo transparente para un resultado óptimo en tu carta oficial de dardos.');
+    }
+
+    setUploadingPhoto(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        // Redimensionar y formatear a 400x520 px preservando canal alfa transparente
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 520;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, 400, 520);
+          
+          const scale = Math.min(400 / img.width, 520 / img.height);
+          const x = (400 - img.width * scale) / 2;
+          const y = (520 - img.height * scale); // Anclar al pie
+          
+          ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+          const dataUrl = canvas.toDataURL('image/png');
+          
+          setCustomPhoto(dataUrl);
+          const updatedProfile = { ...profile, photoUrl: dataUrl };
+          setProfile(updatedProfile);
+          saveCurrentPlayerProfile(updatedProfile);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('lpld_profile_updated', { detail: updatedProfile }));
+          }
+        }
+        setUploadingPhoto(false);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setCustomPhoto(null);
+    const updatedProfile = { ...profile, photoUrl: undefined };
+    setProfile(updatedProfile);
+    saveCurrentPlayerProfile(updatedProfile);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('lpld_profile_updated', { detail: updatedProfile }));
+    }
+  };
 
   const calculatedCategory = calculateCategory(estimatedAvg);
   const categoryInfo = CATEGORY_DETAILS[calculatedCategory];
@@ -127,7 +188,7 @@ export const RegisterAndProfile: React.FC = () => {
     name: profile.fullName || profile.nickname,
     nickname: profile.nickname,
     avatarUrl: profile.avatarUrl,
-    photoUrl: profile.id === 'user-iceman' ? '/images/players/iceman.jpg' : (profile.id === 'user-facundo' ? '/images/players/halcon.jpg' : '/images/players/iceman.jpg'),
+    photoUrl: customPhoto || profile.photoUrl || (profile.id === 'user-iceman' ? '/images/players/iceman.jpg' : (profile.id === 'user-facundo' ? '/images/players/halcon.jpg' : '/images/players/iceman.jpg')),
     nationality: profile.nationality || 'Argentina',
     countryCode: profile.countryCode || 'AR',
     province: profile.province,
@@ -140,8 +201,13 @@ export const RegisterAndProfile: React.FC = () => {
     count180s: profile.stats.count180s,
     highestCheckout: profile.stats.highestCheckout,
     isVerified: profile.isVerified,
-    majorTitle: profile.id === 'user-iceman' ? '1x SUPERADMIN & CAMPEÓN MDQ' : '1x CAMPEÓN COSTA ATLÁNTICA',
-    walkOnSong: profile.id === 'user-iceman' ? 'AC/DC - THUNDERSTRUCK' : 'PITBULL - GREENLIGHT',
+    nationalRank: 1,
+    nationalPoints: 1850,
+    mdqLeagueRank: 1,
+    mdqLeaguePoints: 980,
+    lastTournamentRank: 1,
+    lastTournamentName: 'Torneo Apertura Verano 2026 • Copa Mar del Plata',
+    lastTournamentDate: '15/02/2026',
     dartBrand: 'TARGET 90%',
     dartWeight: profile.preferredDartWeight || 24,
     bestLeg: profile.stats.bestLegDarts || 12
@@ -313,6 +379,44 @@ export const RegisterAndProfile: React.FC = () => {
                   <span>Darderos Mar del Plata Oficial</span>
                 </span>
               </div>
+
+              {/* UPLOADER DE FOTO OFICIAL CON FONDO TRANSPARENTE Y FORMATEO AUTOMÁTICO */}
+              <div className="p-4 rounded-2xl bg-[#14161f] border border-amber-400/40 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-black text-white uppercase tracking-wider">
+                    Foto Oficial para tu Carta Ultimate Darts
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#b8ad98] leading-relaxed">
+                  Para que tu carta luzca profesional al estilo PDC, sube tu foto en formato <strong className="text-amber-400 font-black">PNG con fondo transparente</strong> (sin fondo). El sistema la formateará automáticamente al tamaño exacto de la tarjeta (400x520 px).
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <label className="cursor-pointer px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0d0e12] font-black text-xs flex items-center gap-2 transition-all shadow-md shadow-amber-400/20 active:scale-95">
+                    <Upload className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>{uploadingPhoto ? 'Procesando en canvas...' : 'Subir Foto PNG Transparente'}</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/webp"
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                    />
+                  </label>
+
+                  {customPhoto && (
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="px-3 py-2 rounded-xl bg-[#242836] hover:bg-red-500/20 text-slate-300 hover:text-red-400 border border-slate-700 text-xs font-bold transition-all flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Quitar Foto</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-center flex-shrink-0">
@@ -375,7 +479,7 @@ export const RegisterAndProfile: React.FC = () => {
                 </span>
                 <span className="text-xs text-[#b8ad98]">Puntos</span>
               </div>
-              <p className="text-[10px] text-[#b8ad98]/70 mt-1">Mejor pierna: {profile.stats.bestLegDarts} dardos</p>
+              <p className="text-[10px] text-[#b8ad98]/70 mt-1">Mejor Leg: {profile.stats.bestLegDarts} dardos</p>
             </div>
 
             <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
@@ -404,11 +508,11 @@ export const RegisterAndProfile: React.FC = () => {
               </h3>
               <div className="space-y-2.5">
                 {[
-                  { fecha: 'Fecha 5 - Torneo MDQ 2026', avg: 68.2, piernas: '4-2', rival: 'Martín Rossi' },
-                  { fecha: 'Fecha 4 - Liga Federal Online', avg: 65.4, piernas: '3-1', rival: 'Diego Gómez' },
-                  { fecha: 'Fecha 3 - Amistoso Darderos MDQ', avg: 63.8, piernas: '5-4', rival: 'Lucas Pereyra' },
-                  { fecha: 'Fecha 2 - Copa Costa Atlántica', avg: 61.5, piernas: '2-4', rival: 'Carlos Méndez' },
-                  { fecha: 'Fecha 1 - Apertura Primavera', avg: 59.8, piernas: '4-0', rival: 'Rodrigo Morales' },
+                  { fecha: 'Fecha 5 - Torneo MDQ 2026', avg: 68.2, legs: '4-2', rival: 'Martín Rossi' },
+                  { fecha: 'Fecha 4 - Liga Federal Online', avg: 65.4, legs: '3-1', rival: 'Diego Gómez' },
+                  { fecha: 'Fecha 3 - Amistoso Darderos MDQ', avg: 63.8, legs: '5-4', rival: 'Lucas Pereyra' },
+                  { fecha: 'Fecha 2 - Copa Costa Atlántica', avg: 61.5, legs: '2-4', rival: 'Carlos Méndez' },
+                  { fecha: 'Fecha 1 - Apertura Primavera', avg: 59.8, legs: '4-0', rival: 'Rodrigo Morales' },
                 ].map((item, idx) => (
                   <div
                     key={idx}
@@ -416,7 +520,7 @@ export const RegisterAndProfile: React.FC = () => {
                   >
                     <div>
                       <strong className="text-white block">{item.fecha}</strong>
-                      <span className="text-[#b8ad98]">vs {item.rival} ({item.piernas})</span>
+                      <span className="text-[#b8ad98]">vs {item.rival} ({item.legs})</span>
                     </div>
                     <div className="text-right">
                       <span className="text-[#00b853] font-mono font-black text-sm">

@@ -13,6 +13,7 @@ interface TournamentBracketProps {
   bestOfLegs?: number;
   isAdmin?: boolean;
   onAdminEditMatch?: (match: TournamentBracketMatch) => void;
+  onSelectPlayer?: (player: any) => void;
 }
 
 export const TournamentBracket: React.FC<TournamentBracketProps> = ({
@@ -21,7 +22,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
   onUpdateScore,
   bestOfLegs = 5,
   isAdmin = false,
-  onAdminEditMatch
+  onAdminEditMatch,
+  onSelectPlayer
 }) => {
   const round1 = matches.filter((m) => m.round === 1);
   const round2 = matches.filter((m) => m.round === 2);
@@ -107,7 +109,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               : 'bg-[#111622] text-slate-200'
           }`}
         >
-          <div className="flex items-center gap-2 truncate">
+          <div 
+            onClick={(e) => {
+              if (m.player1 && onSelectPlayer) {
+                e.stopPropagation();
+                onSelectPlayer(m.player1.id || m.player1.name);
+              }
+            }}
+            title={m.player1 ? "Ver ficha y estadísticas del jugador" : undefined}
+            className={`flex items-center gap-2 truncate ${m.player1 ? 'cursor-pointer hover:text-[#00e676]' : ''}`}
+          >
             <span className="text-sm select-none" title={m.player1?.nationality || 'Argentina'}>
               {getCountryFlag(m.player1?.countryCode || m.player1?.nationality || 'AR')}
             </span>
@@ -142,7 +153,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               : 'bg-[#111622] text-slate-200'
           }`}
         >
-          <div className="flex items-center gap-2 truncate">
+          <div 
+            onClick={(e) => {
+              if (m.player2 && onSelectPlayer) {
+                e.stopPropagation();
+                onSelectPlayer(m.player2.id || m.player2.name);
+              }
+            }}
+            title={m.player2 ? "Ver ficha y estadísticas del jugador" : undefined}
+            className={`flex items-center gap-2 truncate ${m.player2 ? 'cursor-pointer hover:text-[#00e676]' : ''}`}
+          >
             <span className="text-sm select-none" title={m.player2?.nationality || 'Argentina'}>
               {getCountryFlag(m.player2?.countryCode || m.player2?.nationality || 'AR')}
             </span>

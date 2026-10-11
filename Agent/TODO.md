@@ -63,9 +63,14 @@
 ---
 
 - [x] **Directorio Federal de Jugadores & Cartas Coleccionables (FUT Style):**
-  * Tarjetas coleccionables `UltimateDartsCard.tsx` con diseño dorado de alta gama, foto del jugador, bandera nacional, club, patrocinador de dardos y canción de entrada (*walk-on*).
+  * Tarjetas coleccionables `UltimateDartsCard.tsx` con diseño de escudo Luke Littler, foto oficial, bandera nacional, club, patrocinador de dardos y eliminación total de canción de entrada (*walk-on song*).
   * 4 filtros de ordenamiento y ranking interactivos: Mayor AVG App, Liga Argentina (Circuito Federal), Liga Marplatense (con checkbox "Solo jugadores MDQ") y Torneos Presenciales MDQ (2 fechas oficiales al año).
-  * Insignia dinámica que actualiza el puesto y puntuación (#1 AVG • 75.0, #1 LIGA ARGENTINA • 1850 PTS, #1 TORNEO MDQ • 1x Campeón).
+  * Jerarquía estricta de última mejor actuación: prioridad Liga Nacional/Local, y si no tiene datos de liga, de un Torneo.
+  * Cápsula deportiva espaciosa de 2 líneas bajo el nombre para la última competencia disputada: mención explícita si estuvo entre los primeros 6 (Top 6: `#1 CAMPEÓN`, `#2 SUBCAMPEÓN`, `#3 3ER PUESTO`, `#4 4TO PUESTO`, `#5 5TO PUESTO`, `#6 6TO PUESTO`).
+  * Modal de Detalle de Jugador (`PlayerDetailModal.tsx`) con apertura interactiva desde el cuadro eliminatorio, historial o tabla de posiciones de ligas, palmarés con copas de oro, plata y bronce (#1, #2, #3), y enlaces a fechas disputadas.
+  * Reemplazo integral en toda la plataforma del término "Pierna" por "Leg" (práctica argentina del juego: Set, Leg, AVG).
+  * Incorporación del logo oficial de Dardos Argentina en cabecera de Ligas Nacionales y logo de Darderos MDQ en ligas y torneos locales.
+  * Módulo de subida de foto de perfil con recorte automático a 400x520 px sobre canvas preservando transparencia PNG.
 
 ---
 

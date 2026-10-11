@@ -41,7 +41,6 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     highestCheckout: 170,
     isVerified: true,
     majorTitle: '1x SUPERADMIN & CAMPEÓN MDQ',
-    walkOnSong: 'AC/DC - THUNDERSTRUCK',
     dartBrand: 'TARGET 90%',
     dartWeight: 24,
     bestLeg: 11,
@@ -51,7 +50,19 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     mdqLeagueRank: 1,
     presentialPoints: 420,
     presentialRank: 1,
-    presentialPodiums: '1x Campeón • 1x Finalista'
+    presentialPodiums: '1x Campeón • 1x Finalista',
+    lastTournamentRank: 1,
+    lastTournamentName: 'Gran Open Mar del Plata 2026',
+    lastTournamentDate: '15/02/2026',
+    lastTournamentTrophy: 'GOLD',
+    tournamentsWonList: [
+      { name: 'Gran Open Mar del Plata 2026', year: 2026, stage: 'Campeón de Oro' },
+      { name: 'Copa Costa Atlántica 2025', year: 2025, stage: 'Campeón' }
+    ],
+    recentHistory: [
+      { id: 'h-1', eventType: 'TOURNAMENT', eventName: 'Gran Open Mar del Plata 2026', targetId: 'torneo-sample-hist-2026', targetTab: 'HISTORY_TAB', date: '15/02/2026', opponentName: 'Facundo López', isWin: true, scoreLegs: '6-4', avg: 76.5 },
+      { id: 'h-2', eventType: 'LEAGUE', eventName: 'Liga Nacional 2026 • Fecha 3', targetId: 'league-national-argentina', targetTab: 'LEAGUES_TAB', date: '08/02/2026', opponentName: 'Martín Rossi', isWin: true, scoreLegs: '5-2', avg: 74.8 }
+    ]
   },
   {
     id: 'p-1',
@@ -72,7 +83,6 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     highestCheckout: 161,
     isVerified: true,
     majorTitle: '1x CAMPEÓN COSTA ATLÁNTICA',
-    walkOnSong: 'PITBULL - GREENLIGHT',
     dartBrand: 'TARGET SWISS 90%',
     dartWeight: 23,
     bestLeg: 12,
@@ -82,7 +92,17 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     mdqLeagueRank: 2,
     presentialPoints: 390,
     presentialRank: 2,
-    presentialPodiums: '1x Campeón Costa Atlántica'
+    presentialPodiums: '1x Campeón Costa Atlántica',
+    lastTournamentRank: 1,
+    lastTournamentName: 'Copa Costa Atlántica 2026',
+    lastTournamentDate: '10/01/2026',
+    lastTournamentTrophy: 'GOLD',
+    tournamentsWonList: [
+      { name: 'Copa Costa Atlántica 2026', year: 2026, stage: 'Campeón de Oro' }
+    ],
+    recentHistory: [
+      { id: 'h-3', eventType: 'TOURNAMENT', eventName: 'Copa Costa Atlántica 2026', targetId: 'torneo-sample-hist-2026', targetTab: 'HISTORY_TAB', date: '10/01/2026', opponentName: 'Carlos Méndez', isWin: true, scoreLegs: '5-3', avg: 75.2 }
+    ]
   },
   {
     id: 'p-2',
@@ -103,7 +123,6 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     highestCheckout: 156,
     isVerified: true,
     majorTitle: '1x LÍDER RANKING CABA',
-    walkOnSong: 'QUEEN - WE WILL ROCK YOU',
     dartBrand: 'WINMAU BLADE 24G',
     dartWeight: 24,
     bestLeg: 11,
@@ -113,7 +132,11 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     mdqLeagueRank: 0,
     presentialPoints: 260,
     presentialRank: 4,
-    presentialPodiums: '1x Semifinalista MDQ'
+    presentialPodiums: '1x Semifinalista MDQ',
+    lastTournamentRank: 3,
+    lastTournamentName: 'Copa CABA Darts 2026',
+    lastTournamentDate: '28/01/2026',
+    lastTournamentTrophy: 'BRONZE'
   },
   {
     id: 'p-3',
@@ -134,7 +157,6 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     highestCheckout: 140,
     isVerified: true,
     majorTitle: '1x CAMPEÓN SANTA FE',
-    walkOnSong: 'LOS PALMERAS - EL BOMBÓN',
     dartBrand: 'RED DRAGON 24G',
     dartWeight: 24,
     bestLeg: 13,
@@ -144,7 +166,11 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     mdqLeagueRank: 0,
     presentialPoints: 240,
     presentialRank: 5,
-    presentialPodiums: '1x Semifinalista MDQ'
+    presentialPodiums: '1x Semifinalista MDQ',
+    lastTournamentRank: 2,
+    lastTournamentName: 'Abierto de Rosario 2026',
+    lastTournamentDate: '20/01/2026',
+    lastTournamentTrophy: 'SILVER'
   },
   {
     id: 'p-4',
@@ -165,7 +191,6 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     highestCheckout: 130,
     isVerified: true,
     majorTitle: '1x SUB-CAMPEÓN CENTRO',
-    walkOnSong: 'LA KONGA - UNIVERSO',
     dartBrand: 'HARROWS CARBON',
     dartWeight: 23,
     bestLeg: 14,
@@ -175,7 +200,10 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     mdqLeagueRank: 0,
     presentialPoints: 180,
     presentialRank: 6,
-    presentialPodiums: 'Cuartos de Final MDQ'
+    presentialPodiums: 'Cuartos de Final MDQ',
+    lastTournamentRank: 4,
+    lastTournamentName: 'Torneo Centro Córdoba 2026',
+    lastTournamentDate: '12/01/2026'
   },
   {
     id: 'p-5',
@@ -196,7 +224,6 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     highestCheckout: 121,
     isVerified: true,
     majorTitle: '1x FINALISTA MDQ 2026',
-    walkOnSong: 'SODA STEREO - DE MÚSICA LIGERA',
     dartBrand: 'WINMAU 22G',
     dartWeight: 22,
     bestLeg: 14,
@@ -206,7 +233,11 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     mdqLeagueRank: 3,
     presentialPoints: 310,
     presentialRank: 3,
-    presentialPodiums: '1x Finalista Presencial'
+    presentialPodiums: '1x Finalista Presencial',
+    lastTournamentRank: 2,
+    lastTournamentName: 'Copa Mar del Plata 2026',
+    lastTournamentDate: '15/01/2026',
+    lastTournamentTrophy: 'SILVER'
   },
   {
     id: 'p-6',
@@ -227,17 +258,12 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     highestCheckout: 116,
     isVerified: false,
     majorTitle: '1x CAMPEÓN CUYANO',
-    walkOnSong: 'ENANITOS VERDES - LAMENTO',
     dartBrand: 'TARGET 80%',
     dartWeight: 23,
     bestLeg: 16,
-    nationalPoints: 1190,
-    nationalRank: 7,
-    mdqLeaguePoints: 0,
-    mdqLeagueRank: 0,
-    presentialPoints: 120,
-    presentialRank: 8,
-    presentialPodiums: 'Ronda 2 Presencial'
+    lastTournamentRank: 5,
+    lastTournamentName: 'Open Cuyo 2026',
+    lastTournamentDate: '05/02/2026'
   },
   {
     id: 'p-7',
@@ -258,17 +284,12 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     highestCheckout: 108,
     isVerified: false,
     majorTitle: '1x CAMPEÓN PATAGONIA',
-    walkOnSong: 'BERSUIT - MI CARAMELO',
     dartBrand: 'TARGET 90%',
     dartWeight: 24,
     bestLeg: 17,
-    nationalPoints: 1080,
-    nationalRank: 8,
-    mdqLeaguePoints: 0,
-    mdqLeagueRank: 0,
-    presentialPoints: 110,
-    presentialRank: 9,
-    presentialPodiums: 'Ronda 1 Presencial'
+    lastTournamentRank: 6,
+    lastTournamentName: 'Torneo Patagonia 2026',
+    lastTournamentDate: '18/01/2026'
   },
   {
     id: 'p-8',
@@ -289,17 +310,12 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     highestCheckout: 96,
     isVerified: false,
     majorTitle: '1x DESTACADO LITORAL',
-    walkOnSong: 'CHARLY GARCÍA - REZO POR VOS',
     dartBrand: 'WINMAU BRASS',
     dartWeight: 22,
     bestLeg: 18,
-    nationalPoints: 990,
-    nationalRank: 9,
-    mdqLeaguePoints: 0,
-    mdqLeagueRank: 0,
-    presentialPoints: 90,
-    presentialRank: 10,
-    presentialPodiums: 'Ronda 1 Presencial'
+    lastTournamentRank: 8,
+    lastTournamentName: 'Abierto Litoral 2026',
+    lastTournamentDate: '02/02/2026'
   },
   {
     id: 'p-9',
@@ -320,17 +336,18 @@ const MOCK_PLAYERS: UltimateDartsCardData[] = [
     highestCheckout: 80,
     isVerified: false,
     majorTitle: 'PROMESA MDQ 2026',
-    walkOnSong: 'LA RENGA - EL REVELDE',
     dartBrand: 'HARROWS SILVER',
     dartWeight: 21,
     bestLeg: 21,
-    nationalPoints: 820,
-    nationalRank: 10,
     mdqLeaguePoints: 610,
     mdqLeagueRank: 4,
     presentialPoints: 150,
     presentialRank: 7,
-    presentialPodiums: 'Ronda 2 Presencial'
+    presentialPodiums: 'Ronda 2 Presencial',
+    lastTournamentRank: 3,
+    lastTournamentName: 'Torneo Promocional MDQ 2026',
+    lastTournamentDate: '25/01/2026',
+    lastTournamentTrophy: 'BRONZE'
   }
 ];
 

@@ -4,6 +4,20 @@ import React from 'react';
 import Link from 'next/link';
 import { Target, ArrowUpRight } from 'lucide-react';
 
+export interface RecentHistoryItem {
+  id: string;
+  eventType: 'TOURNAMENT' | 'LEAGUE';
+  eventName: string;
+  targetId: string;
+  targetTab: string;
+  date: string;
+  opponentName: string;
+  isWin: boolean;
+  scoreLegs: string;
+  avg: number;
+  roundOrStage?: string;
+}
+
 export interface UltimateDartsCardData {
   id: string;
   name: string;
@@ -34,6 +48,12 @@ export interface UltimateDartsCardData {
   presentialPoints?: number;
   presentialRank?: number;
   presentialPodiums?: string;
+  lastTournamentRank?: number;
+  lastTournamentName?: string;
+  lastTournamentDate?: string;
+  lastTournamentTrophy?: 'GOLD' | 'SILVER' | 'BRONZE' | 'NONE';
+  tournamentsWonList?: Array<{ id?: string; name: string; year: number; stage?: string }>;
+  recentHistory?: RecentHistoryItem[];
 }
 
 export type RankingMode = 'AVG' | 'LIGA_ARG' | 'LIGA_MDQ' | 'PRESENCIAL_MDQ';
@@ -160,6 +180,109 @@ const renderSvgFlag = (countryCode: string = 'AR') => {
   );
 };
 
+/**
+ * Determina la última mejor actuación del jugador:
+ * Prioriza la Liga (Nacional o Local), y si no tiene datos de liga, de un torneo.
+ * Si estuvo entre los primeros 6 (Top 6), se hace mención explícita a ese puesto.
+ */
+function getPlayerPerformance(player: UltimateDartsCardData) {
+  const natRank = (player.nationalRank && player.nationalRank > 0) ? player.nationalRank : null;
+  const mdqRank = (player.mdqLeagueRank && player.mdqLeagueRank > 0) ? player.mdqLeagueRank : null;
+
+  let bestLeagueRank: number | null = null;
+  let bestLeagueName = '';
+  let leagueScopeLabel = 'LIGA NACIONAL';
+
+  if (natRank && (!mdqRank || natRank <= mdqRank)) {
+    bestLeagueRank = natRank;
+    bestLeagueName = 'LIGA NACIONAL OFICIAL 2026';
+    leagueScopeLabel = 'NACIONAL';
+  } else if (mdqRank) {
+    bestLeagueRank = mdqRank;
+    bestLeagueName = 'LIGA MARPLATENSE 2026';
+    leagueScopeLabel = 'DARDEROS MDQ';
+  }
+
+  // CASO 1: TIENE DATOS EN LIGA
+  if (bestLeagueRank !== null) {
+    const isTop6 = bestLeagueRank <= 6;
+    let rankLabel = `PUESTO #${bestLeagueRank}`;
+    if (bestLeagueRank === 1) rankLabel = 'CAMPEÓN';
+    else if (bestLeagueRank === 2) rankLabel = 'SUBCAMPEÓN';
+    else if (bestLeagueRank === 3) rankLabel = '3ER PUESTO';
+    else if (bestLeagueRank === 4) rankLabel = '4TO PUESTO';
+    else if (bestLeagueRank === 5) rankLabel = '5TO PUESTO';
+    else if (bestLeagueRank === 6) rankLabel = '6TO PUESTO';
+
+    const trophyIcon = bestLeagueRank === 1 ? '🏆' : bestLeagueRank === 2 ? '🥈' : bestLeagueRank === 3 ? '🥉' : '⭐';
+
+    return {
+      number: `#${bestLeagueRank}`,
+      rank: bestLeagueRank,
+      rankLabel,
+      trophyIcon,
+      cornerLine1: 'LIGA',
+      cornerLine2: leagueScopeLabel,
+      competitionName: bestLeagueName,
+      badgeTitle: isTop6 ? `${trophyIcon} #${bestLeagueRank} ${rankLabel}` : `PUESTO #${bestLeagueRank}`,
+      badgeSubtitle: bestLeagueName,
+      isTop6,
+      source: 'LEAGUE'
+    };
+  }
+
+  // CASO 2: NO TIENE DATOS EN LIGA -> TOMA DATOS DE UN TORNEO
+  const tourneyRank = (player.lastTournamentRank && player.lastTournamentRank > 0) 
+    ? player.lastTournamentRank 
+    : (player.presentialRank && player.presentialRank > 0 ? player.presentialRank : null);
+
+  const rawTourneyName = player.lastTournamentName 
+    || (player.presentialPodiums ? 'GRAN OPEN MAR DEL PLATA 2026' : 'COPA COSTA ATLÁNTICA 2026');
+  const tourneyName = rawTourneyName.split('•')[0].trim().toUpperCase();
+
+  if (tourneyRank !== null) {
+    const isTop6 = tourneyRank <= 6;
+    let rankLabel = `PUESTO #${tourneyRank}`;
+    if (tourneyRank === 1) rankLabel = 'CAMPEÓN';
+    else if (tourneyRank === 2) rankLabel = 'SUBCAMPEÓN';
+    else if (tourneyRank === 3) rankLabel = '3ER PUESTO';
+    else if (tourneyRank === 4) rankLabel = '4TO PUESTO';
+    else if (tourneyRank === 5) rankLabel = '5TO PUESTO';
+    else if (tourneyRank === 6) rankLabel = '6TO PUESTO';
+
+    const trophyIcon = tourneyRank === 1 ? '🏆' : tourneyRank === 2 ? '🥈' : tourneyRank === 3 ? '🥉' : '⭐';
+
+    return {
+      number: `#${tourneyRank}`,
+      rank: tourneyRank,
+      rankLabel,
+      trophyIcon,
+      cornerLine1: 'TORNEO',
+      cornerLine2: 'OFICIAL',
+      competitionName: tourneyName,
+      badgeTitle: isTop6 ? `${trophyIcon} #${tourneyRank} ${rankLabel}` : `PUESTO #${tourneyRank}`,
+      badgeSubtitle: tourneyName,
+      isTop6,
+      source: 'TOURNAMENT'
+    };
+  }
+
+  // CASO 3: CIRCUITO FEDERADO GENERAL
+  return {
+    number: '#1',
+    rank: 1,
+    rankLabel: 'CAMPEÓN',
+    trophyIcon: '🏆',
+    cornerLine1: 'CIRCUITO',
+    cornerLine2: 'FEDERADO',
+    competitionName: 'CIRCUITO NACIONAL 2026',
+    badgeTitle: '🏆 #1 CAMPEÓN OFICIAL',
+    badgeSubtitle: 'CIRCUITO NACIONAL 2026',
+    isTop6: true,
+    source: 'CIRCUIT'
+  };
+}
+
 export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
   player,
   showActions = true,
@@ -176,32 +299,29 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
   const outerPath = "M 34,44 C 70,14 125,18 152,32 C 160,36 180,36 188,32 C 215,18 270,14 306,44 C 324,56 328,70 328,95 L 328,255 L 310,270 L 328,285 L 328,435 C 328,458 314,476 295,488 L 170,536 L 45,488 C 26,476 12,458 12,435 L 12,285 L 30,270 L 12,255 L 12,95 C 12,70 16,56 34,44 Z";
   const innerPath = "M 39,49 C 72,21 123,25 151,37 C 160,41 180,41 189,37 C 217,25 268,21 301,49 C 317,60 321,74 321,97 L 321,254 L 306,270 L 321,286 L 321,431 C 321,451 309,467 292,478 L 170,523 L 48,478 C 31,467 19,451 19,431 L 19,286 L 34,270 L 19,254 L 19,97 C 19,74 23,60 39,49 Z";
 
-  // Parseo del título o badge según el criterio de ranking seleccionado
-  let titleNumber = '1x';
-  let titleText = 'CAMPEÓN MDQ';
-  let subtitleText = 'OFICIAL';
+  const bestPerformance = getPlayerPerformance(player);
+
+  // Parseo del título o badge según el criterio de ranking seleccionado o última mejor actuación
+  let titleNumber = bestPerformance.number;
+  let titleText = bestPerformance.cornerLine1;
+  let subtitleText = bestPerformance.cornerLine2;
 
   if (rankingMode === 'AVG') {
     titleNumber = `#${displayRank || 1}`;
     titleText = `${player.avg.toFixed(1)} AVG`;
-    subtitleText = 'APP 501 OFICIAL';
+    subtitleText = 'APP 501';
   } else if (rankingMode === 'LIGA_ARG') {
     titleNumber = `#${player.nationalRank || displayRank || 1}`;
-    titleText = 'LIGA ARGENTINA';
-    subtitleText = `${player.nationalPoints || 0} PUNTOS`;
+    titleText = 'LIGA';
+    subtitleText = 'ARGENTINA';
   } else if (rankingMode === 'LIGA_MDQ') {
     titleNumber = player.mdqLeagueRank ? `#${player.mdqLeagueRank}` : 'MDQ';
-    titleText = 'LIGA DARDEROS';
-    subtitleText = player.mdqLeaguePoints ? `${player.mdqLeaguePoints} PTS MDQ` : 'NO FEDERADO';
+    titleText = 'LIGA';
+    subtitleText = 'DARDEROS';
   } else if (rankingMode === 'PRESENCIAL_MDQ') {
     titleNumber = `#${player.presentialRank || displayRank || 1}`;
-    titleText = 'TORNEO MDQ';
-    subtitleText = player.presentialPodiums ? player.presentialPodiums.split('•')[0].trim() : `${player.presentialPoints || 0} PTS`;
-  } else {
-    const majorTitleParts = player.majorTitle ? player.majorTitle.split(' ') : ['1x', 'CAMPEÓN', 'MDQ'];
-    titleNumber = majorTitleParts[0] || '1x';
-    titleText = majorTitleParts.slice(1).join(' ') || 'CAMPEÓN OFICIAL MDQ';
-    subtitleText = 'WINNER';
+    titleText = 'TORNEO';
+    subtitleText = 'PRESENCIAL';
   }
 
   return (
@@ -275,7 +395,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                   preserveAspectRatio="xMidYMin slice"
                 />
                 {/* Degradado inferior para fundir el corte del torso */}
-                <rect x="0" y="200" width="340" height="70" fill={`url(#${fadeGradId})`} />
+                <rect x="0" y="195" width="340" height="75" fill={`url(#${fadeGradId})`} />
               </g>
             ) : (
               <g>
@@ -286,7 +406,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                   textAnchor="middle" 
                   fill={theme.accentColor} 
                   fontSize="48" 
-                  fontWeight="900"
+                  fontWeight="900" 
                   fontFamily="'Impact', 'Arial Black', sans-serif"
                 >
                   {player.nickname.slice(0, 2).toUpperCase()}
@@ -294,14 +414,14 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
               </g>
             )}
 
-            {/* COLUMNA SUPERIOR IZQUIERDA: LOGRO, BANDERA Y 180S */}
-            <g transform="translate(40, 52)">
-              {/* Título o Logro Principal (1x o Ranking) */}
+            {/* COLUMNA SUPERIOR IZQUIERDA: LOGRO / PUESTO, BANDERA Y 180S */}
+            <g transform="translate(38, 50)">
+              {/* Número o Logro Principal (#1, 1x o Ranking) */}
               <text 
                 x="0" 
-                y="36" 
+                y="34" 
                 fill={theme.accentColor} 
-                fontSize={titleNumber.length > 3 ? "34" : "40"} 
+                fontSize={titleNumber.length > 3 ? "32" : "38"} 
                 fontWeight="900" 
                 fontFamily="'Impact', 'Arial Black', sans-serif"
                 letterSpacing="-1"
@@ -312,35 +432,35 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
               
               <text 
                 x="0" 
-                y="50" 
+                y="48" 
                 fill={theme.accentColor} 
                 fontSize="8" 
                 fontWeight="800" 
                 fontFamily="system-ui, -apple-system, sans-serif"
                 letterSpacing="0.4"
               >
-                {titleText.length > 18 ? titleText.slice(0, 16) + '...' : titleText}
+                {titleText}
               </text>
               <text 
                 x="0" 
-                y="61" 
+                y="59" 
                 fill={theme.subColor} 
                 fontSize="7" 
                 fontWeight="700" 
                 fontFamily="system-ui, -apple-system, sans-serif"
                 letterSpacing="0.4"
               >
-                {subtitleText.length > 20 ? subtitleText.slice(0, 18) + '...' : subtitleText}
+                {subtitleText}
               </text>
 
               {/* Bandera Nacional Vectorial */}
-              <g transform="translate(0, 72)">
+              <g transform="translate(0, 70)">
                 <rect x="-1.5" y="-1.5" width="49" height="31" rx="3" fill="#000000" stroke={theme.borderColor} strokeWidth="1.5" />
                 {renderSvgFlag(player.countryCode || player.nationality || 'AR')}
               </g>
 
               {/* Métrica de 180s en Carrera */}
-              <g transform="translate(0, 126)">
+              <g transform="translate(0, 122)">
                 <text 
                   x="0" 
                   y="20" 
@@ -376,13 +496,13 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
             </g>
 
             {/* FRANJA CENTRAL: NOMBRE DEL JUGADOR (Dorado / Impact) */}
-            <g transform="translate(170, 260)">
+            <g transform="translate(170, 252)">
               <text 
                 x="0" 
                 y="0" 
                 textAnchor="middle" 
                 fill={theme.accentColor} 
-                fontSize="27" 
+                fontSize="25" 
                 fontWeight="900" 
                 fontFamily="'Impact', 'Arial Black', sans-serif"
                 letterSpacing="1.2"
@@ -391,28 +511,56 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                 {player.name.toUpperCase()}
               </text>
               
-              {/* Walk-on Song o Apodo */}
-              <text 
-                x="0" 
-                y="18" 
-                textAnchor="middle" 
-                fill={theme.subColor} 
-                fontSize="9.5" 
-                fontWeight="700" 
-                fontStyle="italic"
-                fontFamily="system-ui, -apple-system, sans-serif"
-                letterSpacing="0.8"
-              >
-                ♫ {player.walkOnSong ? player.walkOnSong.toUpperCase() : `"${player.nickname.toUpperCase()}"`}
-              </text>
+              {/* CÁPSULA ESPACIOSA DE ÚLTIMA COMPETENCIA DISPUTADA (Prioridad Liga o Torneo, Top 6 destacado) */}
+              <g transform="translate(0, 9)">
+                <rect 
+                  x="-135" 
+                  y="0" 
+                  width="270" 
+                  height="32" 
+                  rx="7" 
+                  fill="#050811" 
+                  fillOpacity="0.95" 
+                  stroke={theme.borderColor} 
+                  strokeWidth="1.2"
+                />
+                
+                {/* Renglón 1: Puesto y Trofeo (Top 6 explícito) */}
+                <text 
+                  x="0" 
+                  y="14" 
+                  textAnchor="middle" 
+                  fill={bestPerformance.isTop6 ? theme.accentColor : '#ffffff'} 
+                  fontSize="9.5" 
+                  fontWeight="900" 
+                  fontFamily="system-ui, -apple-system, sans-serif"
+                  letterSpacing="0.6"
+                >
+                  {bestPerformance.badgeTitle}
+                </text>
+
+                {/* Renglón 2: Nombre de la competición disputada */}
+                <text 
+                  x="0" 
+                  y="26" 
+                  textAnchor="middle" 
+                  fill={theme.subColor} 
+                  fontSize="7.5" 
+                  fontWeight="800" 
+                  fontFamily="system-ui, -apple-system, sans-serif"
+                  letterSpacing="0.5"
+                >
+                  {bestPerformance.badgeSubtitle}
+                </text>
+              </g>
             </g>
 
             {/* SEPARADOR HORIZONTAL DORADO */}
             <line 
               x1="45" 
-              y1="294" 
+              y1="302" 
               x2="295" 
-              y2="294" 
+              y2="302" 
               stroke={theme.borderColor} 
               strokeWidth="1.5" 
               opacity="0.85" 
@@ -421,9 +569,9 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
             {/* SEPARADOR VERTICAL ENTRE LAS 2 COLUMNAS */}
             <line 
               x1="170" 
-              y1="304" 
+              y1="310" 
               x2="170" 
-              y2="438" 
+              y2="442" 
               stroke={theme.borderColor} 
               strokeWidth="1.5" 
               opacity="0.85" 
@@ -431,7 +579,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
 
             {/* GRILLA DE ATRIBUTOS (2 COLUMNAS IDÉNTICAS A LUKE LITTLER) */}
             {/* Fila 1: HOME TOWN | DARTS */}
-            <g transform="translate(0, 318)">
+            <g transform="translate(0, 324)">
               {/* Columna Izquierda */}
               <text x="105" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
                 HOME TOWN
@@ -450,7 +598,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
             </g>
 
             {/* Fila 2: NICKNAME | WEIGHT */}
-            <g transform="translate(0, 362)">
+            <g transform="translate(0, 368)">
               {/* Columna Izquierda */}
               <text x="105" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
                 NICKNAME
@@ -469,7 +617,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
             </g>
 
             {/* Fila 3: PROMEDIO 501 | MAYOR CIERRE */}
-            <g transform="translate(0, 406)">
+            <g transform="translate(0, 412)">
               {/* Columna Izquierda */}
               <text x="105" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
                 PROMEDIO 501
@@ -488,14 +636,14 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
             </g>
 
             {/* ESCUDO DE MARCA EN LA PUNTA INFERIOR: ULTIMATE DARTS */}
-            <g transform="translate(170, 466)">
+            <g transform="translate(170, 468)">
               {/* Escudito / Placa dorada */}
               <path 
                 d="M -24,-14 L 24,-14 L 28,4 L 0,18 L -28,4 Z" 
                 fill="#000000" 
                 stroke={theme.borderColor} 
                 strokeWidth="1.2" 
-                opacity="0.95"
+                opacity="0.95" 
               />
               <text 
                 x="0" 

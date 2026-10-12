@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { MatchConfig, ParticipantPlayer, PlayerProfile } from '@/lib/types';
 import { getCurrentPlayerProfile } from '@/lib/storage';
 import { DEFAULT_NEW_PLAYER } from '@/lib/constants';
-import { OnlineRoom } from '@/lib/online-rooms';
+import { OnlineRoom, normalizeRoomCode } from '@/lib/online-rooms';
+import { hostPeerRoom, joinPeerRoom, setActiveWebRtcHandler } from '@/lib/webrtc-room';
 import { 
   Globe, 
   Copy, 
@@ -102,6 +103,23 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
       const data = await res.json();
       if (data.success && data.room) {
         setCreatedRoom(data.room);
+
+        // Inicializar host WebRTC P2P en segundo plano para conexión directa instantánea
+        try {
+          const handler = await hostPeerRoom(
+            data.room.code,
+            localPlayer,
+            currentMatchConfig,
+            (readyRoom) => {
+              onRoomReady(readyRoom, 0); // Local es P1 (Host)
+            },
+            () => {},
+            (err) => console.log('[WebRTC Host Notice]:', err)
+          );
+          setActiveWebRtcHandler(handler);
+        } catch (e) {
+          console.warn('[WebRTC Init]: Fallback a API Polling activado.');
+        }
       } else {
         setErrorMsg(data.error || 'No se pudo crear la sala.');
       }
@@ -114,32 +132,70 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
 
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!joinCodeInput.trim()) return;
+    const cleanCode = normalizeRoomCode(joinCodeInput);
+    if (!cleanCode) {
+      setErrorMsg('Por favor ingresa un código de sala válido.');
+      return;
+    }
 
     setIsJoining(true);
     setErrorMsg(null);
 
+    let joinedSuccess = false;
+
+    // 1. Intento paralelo inmediato por WebRTC P2P
+    try {
+      const handler = await joinPeerRoom(
+        cleanCode,
+        localPlayer,
+        (readyRoom) => {
+          if (!joinedSuccess) {
+            joinedSuccess = true;
+            setActiveWebRtcHandler(handler);
+            setIsJoining(false);
+            onRoomReady(readyRoom, 1); // Local es P2 (Guest)
+          }
+        },
+        () => {},
+        (webrtcErr) => {
+          console.log('[WebRTC Guest Notice]:', webrtcErr);
+        }
+      );
+    } catch (err) {
+      // Ignorar, fallback a HTTP API
+    }
+
+    // 2. Consulta concurrente vía API REST
     try {
       const res = await fetch('/api/salas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'JOIN',
-          code: joinCodeInput.trim().toUpperCase(),
+          code: cleanCode,
           guestPlayer: localPlayer
         })
       });
 
       const data = await res.json();
       if (data.success && data.room) {
-        onRoomReady(data.room, 1); // Local es P2 (Guest)
+        if (!joinedSuccess) {
+          joinedSuccess = true;
+          onRoomReady(data.room, 1); // Local es P2 (Guest)
+        }
       } else {
-        setErrorMsg(data.error || 'No se pudo ingresar a la sala.');
+        if (!joinedSuccess) {
+          setErrorMsg(data.error || 'La sala especificada no está disponible o ya caducó.');
+        }
       }
     } catch (e: any) {
-      setErrorMsg('Error de conexión al intentar unirse.');
+      if (!joinedSuccess) {
+        setErrorMsg('Error de conexión al intentar unirse a la sala.');
+      }
     } finally {
-      setIsJoining(false);
+      if (!joinedSuccess) {
+        setIsJoining(false);
+      }
     }
   };
 
@@ -343,8 +399,11 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
                 type="text"
                 required
                 value={joinCodeInput}
-                onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                placeholder="Ej: DART-842"
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\s+/g, '').toUpperCase();
+                  setJoinCodeInput(val);
+                }}
+                placeholder="Ej: DART-RYZD o RYZD"
                 className="w-full bg-[#07090e] border-2 border-slate-700 focus:border-[#00e676] rounded-2xl px-4 py-3 text-lg font-mono font-black text-white text-center tracking-widest placeholder:text-slate-600 focus:outline-none"
               />
             </div>

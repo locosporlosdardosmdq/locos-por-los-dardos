@@ -72,7 +72,8 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 
 ### 4. Capa de Datos y Modelos (`src/lib/` y `prisma/`)
 * **`src/lib/types.ts`:** Tipado TypeScript riguroso (PlayerProfile, MatchConfig con flags de sala online, DartThrow, Tournament, Product, etc.).
-* **`src/lib/online-rooms.ts`:** Gestor backend y memoria de servidores para ciclo de vida de salas remotas (`createOnlineRoom`, `joinOnlineRoom`, `submitRoomThrow`, `getOnlineRoom`).
+* **`src/lib/webrtc-room.ts`:** Módulo cliente WebRTC P2P con PeerJS para conexión directa, intercambio de tiradas dardo a dardo sin latencia y audio de voz entre contrincantes remotos.
+* **`src/lib/online-rooms.ts`:** Gestor backend con normalización agresiva de códigos de sala (`normalizeRoomCode`) y ciclo de vida de salas remotas (`createOnlineRoom`, `joinOnlineRoom`, `submitRoomThrow`, `getOnlineRoom`).
 * **`src/lib/constants.ts`:** Provincias de Argentina, checkout guide, categorización por AVG, validación de credenciales maestras de administrador y datasets de la comunidad.
 * **`src/lib/storage.ts`:** Persistencia offline-first con localStorage/IndexedDB y cola de sincronización.
 * **`src/lib/broadcast.ts`:** Canal de transmisión broadcast en tiempo real (BroadcastChannel API + storage sync) para marcadores de pista.

@@ -30,6 +30,8 @@ import {
   Target
 } from 'lucide-react';
 import { matchBroadcast } from '@/lib/broadcast';
+import { normalizeRoomCode } from '@/lib/online-rooms';
+import { getActiveWebRtcHandler } from '@/lib/webrtc-room';
 
 export interface TurnRecord {
   id: string;
@@ -444,9 +446,11 @@ export const X01Board: React.FC<X01BoardProps> = ({
   useEffect(() => {
     if (!config.isOnlineRoom || isMyTurn || isMatchFinished || !config.onlineRoomCode) return;
 
+    const cleanCode = normalizeRoomCode(config.onlineRoomCode);
+
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/salas?codigo=${config.onlineRoomCode}`);
+        const res = await fetch(`/api/salas?codigo=${cleanCode}`);
         const data = await res.json();
         if (data.success && data.room) {
           const room = data.room;
@@ -474,15 +478,26 @@ export const X01Board: React.FC<X01BoardProps> = ({
     const currentScore = scores[currentTurn];
     const newRemaining = currentScore - score;
 
-    // Si es una partida online y el tiro es del usuario local, sincronizar con el servidor
+    // Si es una partida online y el tiro es del usuario local, sincronizar con el servidor y WebRTC
     if (!fromRemoteSync && config.isOnlineRoom && config.onlineRoomCode) {
       lastSyncedThrowTimeRef.current = Date.now();
+      const cleanCode = normalizeRoomCode(config.onlineRoomCode);
+
+      // 1. Envío instantáneo por WebRTC P2P
+      try {
+        const webrtc = getActiveWebRtcHandler();
+        if (webrtc) {
+          webrtc.sendThrow(score, [], newRemaining === 0);
+        }
+      } catch (e) {}
+
+      // 2. Envío a API REST como respaldo
       fetch('/api/salas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'THROW',
-          code: config.onlineRoomCode,
+          code: cleanCode,
           playerIndex: localPlayerIdx,
           score,
           isCheckout: newRemaining === 0

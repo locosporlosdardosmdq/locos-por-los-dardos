@@ -157,8 +157,10 @@
   * Asignación obligatoria e inmutable del Jugador 1 (P1) como el perfil del usuario autenticado en la sesión (`[Tú (Logueado)]`).
   * Enriquecimiento del Jugador 2 (P2) con selector interactivo entre los miembros registrados de la Comunidad Oficial (`CANONICAL_PLAYERS` e `ICEMAN`), 4 dificultades de Bot IA (Fácil 40, Medio 55, Avanzado 70, Pro 85 AVG) e invitado ocasional.
 
-- [x] **Salas Online 1 vs 1 con Sincronización Remota en Tiempo Real (`/api/salas`, `OnlineRoomModal.tsx`, `X01Board.tsx`):**
-  * Endpoint REST `/api/salas` con gestión de ciclo de vida (`CREATE`, `JOIN`, `THROW`, sondeo continuo y purga de salas inactivas).
+- [x] **Salas Online 1 vs 1 con Sincronización Remota en Tiempo Real (`/api/salas`, `webrtc-room.ts`, `OnlineRoomModal.tsx`, `X01Board.tsx`):**
+  * Normalización inteligente de códigos de sala (`normalizeRoomCode`): erradica fallos por espacios accidentales (`DART - RYZD`), guiones o códigos sin prefijo (`RYZD`). Sanitización en tiempo real en el input de texto.
+  * Canal P2P WebRTC directo con PeerJS (`webrtc-room.ts`): conecta directamente el navegador del Host y del Guest sin depender de la memoria de las Lambdas serverless de Vercel.
+  * Endpoint REST `/api/salas` con gestión de ciclo de vida (`CREATE`, `JOIN`, `THROW`, sondeo continuo y purga de salas inactivas) como mecanismo de respaldo redundante.
   * Modal interactivo `OnlineRoomModal.tsx` con generación de código aleatorio (`DART-XXXX`), enlace directo de conexión para compartir por WhatsApp con un solo click y panel de espera animado esperando al rival.
   * Soporte de URL directa `/anotador?sala=CODE` para unirse de forma automática al abrir la invitación.
   * Sincronización dardo a dardo en `X01Board.tsx`: panel animado mientras lanza el oponente, bloqueo de teclado táctil fuera de turno, y reproducción automática de los audios de Russ Bray al cantar la puntuación del rival.

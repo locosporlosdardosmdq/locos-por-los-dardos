@@ -38,6 +38,19 @@ const getRoomsStore = (): Map<string, OnlineRoom> => {
   return globalAny.__LPLD_ONLINE_ROOMS__;
 };
 
+// Normalizador flexible de códigos de sala (elimina espacios intermedios y asegura prefijo DART-)
+export function normalizeRoomCode(raw: string): string {
+  if (!raw) return '';
+  let clean = raw.replace(/\s+/g, '').toUpperCase().trim();
+  if (clean.startsWith('DART-')) {
+    return clean;
+  }
+  if (clean.startsWith('DART')) {
+    return clean.replace(/^DART-?/, 'DART-');
+  }
+  return `DART-${clean}`;
+}
+
 // Generador de código amigable estilo DART-XXX
 export function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -92,7 +105,8 @@ export function createOnlineRoom(
 export function getOnlineRoom(code: string): OnlineRoom | null {
   if (!code) return null;
   const store = getRoomsStore();
-  return store.get(code.toUpperCase().trim()) || null;
+  const normalized = normalizeRoomCode(code);
+  return store.get(normalized) || null;
 }
 
 export function joinOnlineRoom(
@@ -100,7 +114,7 @@ export function joinOnlineRoom(
   guestPlayer: ParticipantPlayer
 ): { success: boolean; room?: OnlineRoom; error?: string } {
   const store = getRoomsStore();
-  const normalizedCode = code.toUpperCase().trim();
+  const normalizedCode = normalizeRoomCode(code);
   const room = store.get(normalizedCode);
 
   if (!room) {
@@ -136,7 +150,7 @@ export function submitRoomThrow(
   isCheckout: boolean = false
 ): { success: boolean; room?: OnlineRoom; error?: string } {
   const store = getRoomsStore();
-  const normalizedCode = code.toUpperCase().trim();
+  const normalizedCode = normalizeRoomCode(code);
   const room = store.get(normalizedCode);
 
   if (!room) {

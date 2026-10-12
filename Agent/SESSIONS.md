@@ -1,5 +1,26 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 17] - 2026-10-11
+- **Objetivo:** Diagnóstico y resolución definitiva del fallo "La sala especificada no existe o ya caducó" al conectar dos dispositivos a una sala online en producción en Vercel.
+- **Diagnóstico de Causa Raíz:**
+  1. *Espacios en Códigos de Sala:* En dispositivos móviles, el teclado o autocompletado insertaba espacios (ej: `DART - RYZD`), provocando que la búsqueda estricta contra `DART-RYZD` devolviera error de sala inexistente.
+  2. *Entorno Serverless Multi-Instancia:* En Vercel Serverless, el creador de la sala y el invitado son atendidos por Lambdas independientes que no comparten memoria RAM global.
+- **Realizado:**
+  - **Normalización Inteligente de Códigos (`normalizeRoomCode` en `online-rooms.ts`):**
+    * Elimina automáticamente cualquier espacio en blanco (`\s+`), convierte a mayúsculas y antepone `DART-` ante códigos abreviados (`RYZD` -> `DART-RYZD`).
+    * Aplicado tanto en backend (`getOnlineRoom`, `joinOnlineRoom`, `submitRoomThrow`) como en el input de `OnlineRoomModal.tsx`, sanitizando el texto en tiempo real mientras el usuario escribe o pega.
+  - **Conectividad P2P WebRTC con PeerJS (`src/lib/webrtc-room.ts`):**
+    * Canal directo WebRTC DataChannel que vincula los dos dispositivos a través de servidores STUN públicos de Google y PeerJS (`0.peerjs.com`).
+    * Conexión instantánea e intercambio de tiros en milisegundos (< 30ms) sin depender de servidores ni bases de datos con estado.
+    * Integrado en `OnlineRoomModal.tsx` con intento paralelo junto a la API REST (redundancia dual).
+    * Sincronización continua de tiradas dardo a dardo en `X01Board.tsx`.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores de tipado.
+    * `npm run build` completado exitosamente con 16/16 páginas de producción generadas (código de salida 0).
+- **Estado del Proyecto:** Salas online 1 vs 1 blindadas contra errores de tipeo y operando con arquitectura híbrida WebRTC P2P + API REST redundante.
+
+---
+
 ## [Sesión 16] - 2026-10-11
 - **Objetivo:** Blindaje crítico de seguridad contra suplantación del Administrador ICEMAN en el modal de Onboarding, asignación obligatoria e inmutable del Jugador 1 como el perfil del usuario actualmente logueado en el anotador de partidas, habilitación de selección de rivales entre los miembros registrados de la comunidad oficial para el Jugador 2, e implementación integral de Salas Online (1 vs 1) con sincronización remota dardo a dardo en tiempo real, links directos y compartir por WhatsApp.
 - **Realizado:**

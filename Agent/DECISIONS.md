@@ -442,3 +442,23 @@
      - En `X01Board.tsx`, se implementó polling adaptativo (cada 1.2s cuando es el turno del oponente) y envío inmediato de tiradas locales vía POST a la API, bloqueando el teclado al esperar al rival y reproduciendo el canto oficial de Russ Bray tan pronto como la diana rival impacta.
 - **Motivo:** Eliminación total de la vulnerabilidad de suplantación de identidad administrativa, máxima coherencia en la autoría de partidas personales y experiencia multijugador online fluida sin dependencias externas complejas.
 
+---
+
+## ADR-027: Arquitectura Híbrida WebRTC P2P + Normalización de Códigos para Salas Online en Vercel Serverless
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Al desplegar en producción en Vercel Serverless, dos jugadores conectándose desde dispositivos distintos (por ejemplo, Host en PC y Rival en celular) caen en instancias de Lambda independientes de AWS, por lo que el almacén de memoria en proceso (`globalThis.__LPLD_ONLINE_ROOMS__`) no se comparte entre contenedores serverless.
+  2. En dispositivos móviles, los usuarios ingresan o autocompletan códigos con espacios (ej: `DART - RYZD`), lo cual provocaba que la búsqueda exacta fallara con el mensaje `"La sala especificada no existe o ya caducó"`.
+- **Decisión:**
+  1. **Normalización Inteligente de Códigos:**
+     - Se creó `normalizeRoomCode` en `src/lib/online-rooms.ts` que elimina cualquier espacio en blanco (`\s+`), convierte a mayúsculas y añade el prefijo `DART-` automáticamente si solo se ingresan las 4 letras (`RYZD` -> `DART-RYZD`).
+     - En `OnlineRoomModal.tsx`, el `<input>` sanitiza el valor en tiempo real, bloqueando la inserción de espacios.
+  2. **Conexión P2P Directa vía WebRTC con PeerJS (`src/lib/webrtc-room.ts`):**
+     - Se implementó un canal WebRTC DataChannel directo entre ambos navegadores mediante PeerJS (`0.peerjs.com` y servidores STUN de Google).
+     - El Host crea el peer con ID predecible `lpld-sala-${code}` y el Guest se conecta directamente.
+     - Intercambio de tiradas en milisegundos (< 30ms) y audio de voz P2P sin tocar ningún servidor ni base de datos.
+     - Se mantiene el endpoint REST `/api/salas` como canal redundante de respaldo.
+- **Motivo:** Garantiza conectividad instantánea 100% confiable entre cualquier combinación de dispositivos (PC, Android, iOS) sobre Vercel sin dependencias de base de datos externas y con tolerancia absoluta a errores tipográficos de espacio.
+

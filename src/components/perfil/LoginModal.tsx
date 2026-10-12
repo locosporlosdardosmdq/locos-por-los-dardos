@@ -1,22 +1,27 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { PlayerProfile, PlayerCategory } from '@/lib/types';
-import { getCurrentPlayerProfile, saveCurrentPlayerProfile, fetchRegisteredPlayersFromCloud } from '@/lib/storage';
-import { getCountryFlag, validateAdminCredentials, USER_ICEMAN, DEFAULT_NEW_PLAYER } from '@/lib/constants';
+import { PlayerProfile } from '@/lib/types';
+import { 
+  getCurrentPlayerProfile, 
+  saveCurrentPlayerProfile, 
+  fetchRegisteredPlayersFromCloud,
+  getLastPlayerProfile,
+  getRecentAccounts 
+} from '@/lib/storage';
+import { getCountryFlag, validateAdminCredentials, USER_ICEMAN } from '@/lib/constants';
 import { 
   LogIn, 
   User, 
   ShieldCheck, 
-  CheckCircle2, 
   Search, 
   Sparkles, 
   X, 
   ArrowRight, 
   Lock, 
-  Target,
-  LogOut,
-  UserPlus
+  UserPlus,
+  Smartphone,
+  History
 } from 'lucide-react';
 
 interface LoginModalProps {
@@ -26,6 +31,8 @@ interface LoginModalProps {
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenRegister }) => {
+  const [lastPlayer, setLastPlayer] = useState<PlayerProfile | null>(null);
+  const [recentAccounts, setRecentAccounts] = useState<PlayerProfile[]>([]);
   const [registeredPlayers, setRegisteredPlayers] = useState<PlayerProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -34,9 +41,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
   const [selectedAdminToAuth, setSelectedAdminToAuth] = useState<PlayerProfile | null>(null);
   const [adminError, setAdminError] = useState<string | null>(null);
 
-  // Cargar jugadores registrados al abrir
+  // Cargar datos al abrir el modal
   useEffect(() => {
     if (isOpen) {
+      setLastPlayer(getLastPlayerProfile());
+      setRecentAccounts(getRecentAccounts());
       loadPlayers();
       setSearchError(null);
       setAdminError(null);
@@ -62,7 +71,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
 
   if (!isOpen) return null;
 
-  // Manejar login con 1 click sobre una cuenta
+  // Manejar selección de cuenta
   const handleSelectPlayer = (player: PlayerProfile) => {
     // Si la cuenta es de Mariano Deux / ICEMAN (Admin), requiere contraseña maestra
     if (player.email?.toLowerCase() === 'marianodeux@gmail.com' || player.nickname?.toUpperCase() === 'ICEMAN') {
@@ -72,7 +81,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
       return;
     }
 
-    // Para cualquier otro jugador de la comunidad (ej: Gabriel Rubio ZEUS)
+    // Para cualquier otro jugador de la comunidad
     saveCurrentPlayerProfile(player);
     onClose();
   };
@@ -116,7 +125,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
         setSearchError(data.error || 'No se encontró ningún jugador registrado con ese correo o apodo.');
       }
     } catch (err: any) {
-      setSearchError('Error de conexión con el servidor. Intenta nuevamente.');
+      setSearchError('Error de conexión con el servidor. Por favor, reintenta en unos instantes.');
     } finally {
       setIsLoading(false);
     }
@@ -124,8 +133,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
 
   return (
     <div className="fixed inset-0 z-50 bg-[#07090e]/95 backdrop-blur-xl flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="w-full max-w-xl bg-[#0f1422] border-2 border-[#1e2638] hover:border-[#00e676]/40 rounded-3xl shadow-2xl shadow-black p-5 sm:p-7 space-y-6 my-auto text-left relative overflow-hidden transition-colors">
-        {/* Halo de fondo */}
+      <div className="w-full max-w-xl bg-[#0f1422] border-2 border-[#1e2638] hover:border-[#00e676]/40 rounded-3xl shadow-2xl shadow-black p-5 sm:p-7 space-y-5 my-auto text-left relative overflow-hidden transition-colors">
+        {/* Halo de fondo decorativo */}
         <div className="absolute top-0 right-0 w-72 h-72 bg-[#00e676]/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Cabecera */}
@@ -139,7 +148,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
                 Iniciar Sesión / Cambiar Jugador
               </h2>
               <p className="text-xs text-[#b8ad98]">
-                Selecciona tu perfil guardado o ingresa con tu correo / apodo.
+                Selecciona tu perfil o ingresa con tu correo / apodo.
               </p>
             </div>
           </div>
@@ -196,30 +205,64 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
           </form>
         ) : (
           <>
-            {/* 1. SELECCIÓN RÁPIDA: Jugadores Registrados en la Plataforma */}
-            <div className="space-y-3">
+            {/* 1. TARJETA DESTACADA: ÚLTIMO JUGADOR EN ESTE DISPOSITIVO */}
+            {lastPlayer && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-[#14161f] to-[#14161f] border-2 border-[#00e676]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative w-12 h-12 rounded-2xl bg-[#00e676]/20 border border-[#00e676]/50 text-[#00e676] flex items-center justify-center font-black text-sm flex-shrink-0">
+                    {lastPlayer.nickname ? lastPlayer.nickname.slice(0, 2).toUpperCase() : 'PL'}
+                    <span className="absolute -bottom-1 -right-1 text-xs">
+                      {getCountryFlag(lastPlayer.countryCode || lastPlayer.nationality)}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-black text-[#00e676] uppercase tracking-wider flex items-center gap-1">
+                      <Smartphone className="w-3 h-3" />
+                      Último jugador en este celular
+                    </span>
+                    <span className="text-sm font-black text-white block truncate">
+                      {lastPlayer.nickname || lastPlayer.fullName}
+                    </span>
+                    <span className="text-xs text-slate-400 block truncate">
+                      {lastPlayer.city || 'Mar del Plata'} • {lastPlayer.category}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSelectPlayer(lastPlayer)}
+                  className="px-4 py-2.5 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-[#00e676]/25 active:scale-95 flex-shrink-0"
+                >
+                  <span>Continuar</span>
+                  <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                </button>
+              </div>
+            )}
+
+            {/* 2. PERFILES REGISTRADOS EN LA COMUNIDAD */}
+            <div className="space-y-2.5">
               <span className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
                 <User className="w-4 h-4 text-[#00e676]" />
                 Perfiles Registrados en el Circuito ({registeredPlayers.length})
               </span>
 
               {isLoading && registeredPlayers.length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-400">
-                  Cargando perfiles desde la base de datos...
+                <div className="p-4 text-center text-xs text-slate-400">
+                  Cargando perfiles desde Supabase...
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
                   {registeredPlayers.map((player) => (
                     <button
                       key={player.id || player.nickname}
                       type="button"
                       onClick={() => handleSelectPlayer(player)}
-                      className="flex items-center justify-between p-3 rounded-2xl bg-[#14161f] border border-[#1e2638] hover:border-[#00e676]/60 hover:bg-[#1a2333] transition-all text-left group active:scale-[0.98]"
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-[#14161f] border border-[#1e2638] hover:border-[#00e676]/60 hover:bg-[#1a2333] transition-all text-left group active:scale-[0.98]"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="relative w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[#00e676] flex items-center justify-center font-black text-xs flex-shrink-0">
+                        <div className="relative w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[#00e676] flex items-center justify-center font-black text-xs flex-shrink-0">
                           {player.nickname ? player.nickname.slice(0, 2).toUpperCase() : 'PL'}
-                          <span className="absolute -bottom-1 -right-1 text-xs">
+                          <span className="absolute -bottom-1 -right-1 text-[10px]">
                             {getCountryFlag(player.countryCode || player.nationality)}
                           </span>
                         </div>
@@ -233,14 +276,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
                         </div>
                       </div>
 
-                      <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-[#00e676] group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-2" />
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-[#00e676] group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-1" />
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* 2. BÚSQUEDA POR EMAIL O APODO */}
+            {/* 3. BÚSQUEDA POR EMAIL O APODO */}
             <form onSubmit={handleSearchSubmit} className="space-y-2 pt-2 border-t border-[#1e2638]">
               <span className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
                 <Search className="w-4 h-4 text-sky-400" />
@@ -267,7 +310,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
               )}
             </form>
 
-            {/* 3. BOTÓN PARA CREAR NUEVO JUGADOR */}
+            {/* 4. BOTÓN PARA CREAR NUEVO JUGADOR */}
             <div className="pt-2 border-t border-[#1e2638] flex items-center justify-between">
               <span className="text-xs text-slate-400">
                 ¿No estás en la lista?

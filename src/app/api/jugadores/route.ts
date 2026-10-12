@@ -153,56 +153,12 @@ export async function GET() {
 
     return NextResponse.json({ success: true, players });
   } catch (err: any) {
-    console.error('[API /api/jugadores GET Error]:', err);
-    // Fallback elegante en caso de problemas de red o conexión a Supabase
+    console.error('[API /api/jugadores GET Error]:', err.message);
     return NextResponse.json({
       success: false,
-      error: err.message,
-      players: [
-        {
-          id: 'user-iceman-admin',
-          email: 'marianodeux@gmail.com',
-          nickname: 'ICEMAN',
-          fullName: 'Mariano Deux (ICEMAN)',
-          phone: '',
-          province: 'Buenos Aires',
-          city: 'Mar del Plata',
-          nationality: 'Argentina',
-          countryCode: 'AR',
-          avatarUrl: '/images/iceman-perfil.png',
-          photoUrl: '/images/iceman-perfil.png',
-          logoUrl: '/logos/logo-iceman-card.png',
-          estimatedAvg: 48.0,
-          category: 'INTERMEDIA',
-          isVerified: true,
-          bio: 'Fundador y Presidente de Darderos Mar del Plata y Locos por los Dardos Argentina.',
-          club: 'Darderos Mar del Plata',
-          majorTitle: 'ADMINISTRADOR OFICIAL',
-          associationRole: 'Presidente • Asociación Mar del Plata',
-          age: 44,
-          preferredDartWeight: 24,
-          dartBrand: 'TARGET 90%',
-          isProfileComplete: true,
-          stats: {
-            overallAvg: 48.0,
-            first9Avg: 48.0,
-            matchesPlayed: 0,
-            matchesWon: 0,
-            legsPlayed: 0,
-            legsWon: 0,
-            highestCheckout: 0,
-            checkoutAttempts: 0,
-            checkoutHits: 0,
-            checkoutPercentage: 0,
-            count180s: 0,
-            count140Plus: 0,
-            count100Plus: 0,
-            count60Plus: 0,
-            bestLegDarts: 0
-          }
-        }
-      ]
-    });
+      error: 'Error de conexión con la base de datos de jugadores.',
+      players: []
+    }, { status: 503 });
   }
 }
 
@@ -255,49 +211,50 @@ export async function POST(request: NextRequest) {
     let profileId: string;
     if (profileRes.rows.length > 0) {
       profileId = profileRes.rows[0].id;
+      // Actualización defensiva con COALESCE para no pisar datos existentes si el payload es parcial
       await pool.query(
         `UPDATE profiles SET
-          nickname = $1,
-          full_name = $2,
-          phone = $3,
-          province = $4,
-          city = $5,
-          avatar_url = $6,
-          photo_url = $7,
-          logo_url = $8,
-          nationality = $9,
-          country_code = $10,
-          initial_estimated_avg = $11,
-          category = $12,
-          is_verified = $13,
-          bio = $14,
-          preferred_dart_weight_g = $15,
-          dart_brand = $16,
-          major_title = $17,
-          club = $18,
-          association_role = $19,
-          age = $20,
+          nickname = COALESCE($1, nickname),
+          full_name = COALESCE($2, full_name),
+          phone = COALESCE($3, phone),
+          province = COALESCE($4, province),
+          city = COALESCE($5, city),
+          avatar_url = COALESCE($6, avatar_url),
+          photo_url = COALESCE($7, photo_url),
+          logo_url = COALESCE($8, logo_url),
+          nationality = COALESCE($9, nationality),
+          country_code = COALESCE($10, country_code),
+          initial_estimated_avg = COALESCE($11, initial_estimated_avg),
+          category = COALESCE($12, category),
+          is_verified = COALESCE($13, is_verified),
+          bio = COALESCE($14, bio),
+          preferred_dart_weight_g = COALESCE($15, preferred_dart_weight_g),
+          dart_brand = COALESCE($16, dart_brand),
+          major_title = COALESCE($17, major_title),
+          club = COALESCE($18, club),
+          association_role = COALESCE($19, association_role),
+          age = COALESCE($20, age),
           updated_at = NOW()
         WHERE id = $21;`,
         [
-          nickname,
-          fullName,
+          nickname || null,
+          fullName || null,
           profile.phone || null,
-          profile.province || 'Buenos Aires',
-          profile.city || 'Mar del Plata',
-          profile.avatarUrl || '/images/iceman-perfil.png',
+          profile.province || null,
+          profile.city || null,
+          profile.avatarUrl || null,
           profile.photoUrl || null,
           profile.logoUrl || null,
-          profile.nationality || 'Argentina',
-          profile.countryCode || 'AR',
-          estimatedAvg,
-          category,
-          profile.isVerified ?? false,
+          profile.nationality || null,
+          profile.countryCode || null,
+          estimatedAvg || null,
+          category || null,
+          profile.isVerified ?? null,
           profile.bio || null,
-          profile.preferredDartWeight || 24,
-          profile.dartBrand || 'TARGET 90%',
+          profile.preferredDartWeight || null,
+          profile.dartBrand || null,
           profile.majorTitle || null,
-          (profile as any).club || 'Darderos Mar del Plata',
+          (profile as any).club || null,
           profile.associationRole || null,
           profile.age || null,
           profileId
@@ -403,7 +360,38 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, profile: savedProfile });
   } catch (err: any) {
-    console.error('[API /api/jugadores POST Error]:', err);
+    console.error('[API /api/jugadores POST Error]:', err.message);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
+// PATCH: Actualización quirúrgica de campos específicos (categoría, rol, club) sin sobreescribir el resto del perfil
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, category, nickname, associationRole, isVerified, club } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'ID de jugador requerido para actualización parcial.' }, { status: 400 });
+    }
+
+    const pool = getDbPool();
+    await pool.query(
+      `UPDATE profiles SET
+        category = COALESCE($1, category),
+        nickname = COALESCE($2, nickname),
+        association_role = COALESCE($3, association_role),
+        is_verified = COALESCE($4, is_verified),
+        club = COALESCE($5, club),
+        updated_at = NOW()
+      WHERE id = $6 OR user_id = $6;`,
+      [category || null, nickname || null, associationRole || null, isVerified ?? null, club || null, id]
+    );
+
+    return NextResponse.json({ success: true, message: 'Perfil actualizado exitosamente' });
+  } catch (err: any) {
+    console.error('[API /api/jugadores PATCH Error]:', err.message);
+    return NextResponse.json({ success: false, error: 'Error al actualizar el perfil' }, { status: 500 });
+  }
+}
+

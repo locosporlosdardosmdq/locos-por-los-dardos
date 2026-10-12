@@ -8,6 +8,7 @@ import { MOCK_CURRENT_USER, getCountryFlag, isUserAdmin } from '@/lib/constants'
 import { getCurrentPlayerProfile, clearCurrentPlayerSession } from '@/lib/storage';
 import { PlayerProfile } from '@/lib/types';
 import { LoginModal } from '@/components/perfil/LoginModal';
+import { InstallAppButton } from './InstallAppButton';
 import { 
   ShoppingBag, 
   Trophy, 
@@ -301,6 +302,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           )}
         </div>
       </div>
+
+      {/* Botón de Instalación PWA en Celular */}
+      <InstallAppButton variant="sidebar" isCollapsed={!isExpanded} />
 
       {/* División donde figura el jugador logueado con Acceso a Modificar Perfil y Cerrar Sesión */}
       <div className="p-3 border-t border-[#1a2333] bg-[#0c121e]">

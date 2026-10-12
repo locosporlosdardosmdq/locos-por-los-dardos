@@ -69,6 +69,12 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 * **`perfil/`:**
   * `RegisterAndProfile.tsx`: Ficha deportiva del jugador con selector de nacionalidad y banderas internacionales (`COUNTRIES`), provincias argentinas, slider interactivo de AVG, categorización automática y dashboard de estadísticas.
   * `OnboardingProfileModal.tsx`: Modal obligatorio de primer ingreso blindado con acceso administrativo protegido por clave maestra (`validateAdminCredentials`) exclusivo para el email oficial de Mariano Deux (`marianodeux@gmail.com`).
+* **`layout/`:**
+  * `AppSidebar.tsx`: Menú lateral hover-driven (80px colapsado / 256px expandido) con drawer móvil y footer de usuario con logout y perfil.
+  * `InstallAppButton.tsx`: Componente de instalación PWA permanente en barra lateral con detección de standalone y modal táctil instructivo para iOS y Android.
+  * `AppTopBar.tsx`: Barra superior con accesos contextuales.
+  * `AppBottomNav.tsx`: Barra de navegación inferior táctil para smartphones.
+  * `AppShell.tsx`: Envoltorio maestro del layout de la aplicación.
 * **`tienda/`:**
   * `ProductCatalog.tsx`: Grilla de productos con buscador y selector de marcas/categorías.
   * `CartDrawer.tsx`: Drawer lateral deslizable de compras con checkout de Mercado Pago.

@@ -1,34 +1,46 @@
 import { Pool } from 'pg';
 
-// Cadena de conexión directa a Supabase PostgreSQL con SSL
-const connectionString = 
-  process.env.DIRECT_URL || 
-  process.env.DATABASE_URL || 
-  'postgresql://postgres:D25SJh5t2oMiHa2K@db.pufyeabrvrlikbgkjplz.supabase.co:5432/postgres';
+/**
+ * Conexión central a Supabase PostgreSQL para Next.js App Router (Serverless & Local)
+ * Prioridad:
+ * 1. DATABASE_URL (Transaction Pooler - puerto 6543 para Serverless en Vercel)
+ * 2. DIRECT_URL (Session Pooler / Conexión directa)
+ */
+function getSanitizedConnectionString(): string {
+  let conn = process.env.DATABASE_URL || process.env.DIRECT_URL;
+
+  if (!conn) {
+    // Fallback de desarrollo local si no se cargó el .env.local
+    conn = 'postgresql://postgres.pufyeabrvrlikbgkjplz:D25SJh5t2oMiHa2K@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true';
+  }
+
+  // Auto-corrección de seguridad: si Vercel tiene configurada la región errónea 'aws-0-sa-east-1',
+  // redirigir automáticamente al pooler real del proyecto ('aws-0-us-east-1')
+  if (conn.includes('aws-0-sa-east-1.pooler.supabase.com')) {
+    conn = conn.replace('aws-0-sa-east-1.pooler.supabase.com', 'aws-0-us-east-1.pooler.supabase.com');
+  }
+
+  return conn;
+}
 
 let pool: Pool | null = null;
 
 export function getDbPool(): Pool {
   if (!pool) {
-    // Normalizar connection string: para Vercel serverless / conexión directa a Supabase
-    let finalConnectionString = connectionString;
-    // Si viene con pgbouncer o puerto 6543 y da error de tenant, preferir conexión directa a db.pufyeabrvrlikbgkjplz.supabase.co:5432
-    if (finalConnectionString.includes('aws-0-sa-east-1.pooler.supabase.com:6543')) {
-      finalConnectionString = 'postgresql://postgres:D25SJh5t2oMiHa2K@db.pufyeabrvrlikbgkjplz.supabase.co:5432/postgres';
-    }
+    const connectionString = getSanitizedConnectionString();
 
     pool = new Pool({
-      connectionString: finalConnectionString,
+      connectionString,
       ssl: {
         rejectUnauthorized: false
       },
       max: 5,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000
+      connectionTimeoutMillis: 8000
     });
 
     pool.on('error', (err) => {
-      console.error('[DB Pool Error]', err);
+      console.error('[DB Pool Critical Error]:', err.message);
     });
   }
 

@@ -1,18 +1,20 @@
 {
-  "name": "Locos por los Dardos Argentina",
-  "short_name": "Dardos Arg",
-  "description": "Plataforma integral de dardos en Argentina: Anotador en vivo, Torneos Nakka, Ranking nacional y Tienda oficial.",
-  "start_url": "/",
+  "name": "Locos por los Dardos • Argentina & Darderos MDQ",
+  "short_name": "Locos Dardos",
+  "id": "com.locosporlosdardos.app",
+  "lang": "es-AR",
+  "description": "Plataforma oficial de dardos en Argentina: Anotador interactivo, Torneos, Llaves en vivo, Rankings y Directorio Federal de Jugadores.",
+  "start_url": "/?source=pwa",
   "display": "standalone",
-  "background_color": "#0b0f19",
-  "theme_color": "#10b981",
+  "background_color": "#07090e",
+  "theme_color": "#00e676",
   "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/logos/logo-mdq.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/logos/logo-mdq.png",
@@ -21,6 +23,28 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["sports", "games", "productivity"],
-  "screenshots": []
+  "shortcuts": [
+    {
+      "name": "Anotar Partida",
+      "short_name": "Anotador",
+      "description": "Anotar partida en vivo de dardos",
+      "url": "/anotador",
+      "icons": [{ "src": "/logos/logo-mdq.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Torneos y Llaves",
+      "short_name": "Torneos",
+      "description": "Gestor de torneos y cuadros en vivo",
+      "url": "/torneos",
+      "icons": [{ "src": "/logos/logo-mdq.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Directorio de Jugadores",
+      "short_name": "Jugadores",
+      "description": "Cartas y fichas federadas",
+      "url": "/jugadores",
+      "icons": [{ "src": "/logos/logo-mdq.png", "sizes": "192x192" }]
+    }
+  ],
+  "categories": ["sports", "games", "entertainment"]
 }

@@ -115,7 +115,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: false, error: 'Acción no soportada.' }, { status: 400 });
   } catch (err: any) {
-    console.error('[API /api/auth POST Error]:', err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    console.error('[API /api/auth POST Error]:', err.message);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Servicio de autenticación temporalmente no disponible. Intenta nuevamente en unos instantes.' 
+    }, { status: 503 });
   }
 }

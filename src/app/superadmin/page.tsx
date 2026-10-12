@@ -199,9 +199,9 @@ export default function SuperadminPage() {
         category: newCategory
       };
       const res = await fetch('/api/jugadores', {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile: updated })
+        body: JSON.stringify({ id: player.id, category: newCategory })
       });
       if (res.ok) {
         setSaveSuccessMsg(`¡Categoría de ${player.nickname || player.name} actualizada a ${newCategory} con éxito!`);

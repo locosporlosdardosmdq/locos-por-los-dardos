@@ -27,6 +27,8 @@ const STORAGE_KEYS = {
   MATCHES: 'lpld_matches_history_v1',
   ACTIVE_SESSION: 'lpld_active_match_session_v1',
   CURRENT_PLAYER: 'lpld_player_profile_v1',
+  LAST_PLAYER: 'lpld_last_player_v1',
+  RECENT_ACCOUNTS: 'lpld_recent_accounts_v1',
   OFFLINE_QUEUE: 'lpld_sync_queue_v1',
   TOURNAMENTS: 'lpld_tournaments_local_v1',
 };
@@ -151,6 +153,22 @@ export function saveCurrentPlayerProfile(profile: any): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEYS.CURRENT_PLAYER, JSON.stringify(profile));
+    // Guardar el último jugador conectado en este dispositivo para recuperación rápida al cerrar sesión
+    localStorage.setItem(STORAGE_KEYS.LAST_PLAYER, JSON.stringify(profile));
+
+    // Mantener lista de cuentas recientes de este dispositivo (máx 5)
+    try {
+      const existingRaw = localStorage.getItem(STORAGE_KEYS.RECENT_ACCOUNTS);
+      let recent: any[] = existingRaw ? JSON.parse(existingRaw) : [];
+      recent = recent.filter(p => (
+        (p.id && p.id !== profile.id) &&
+        (p.email && p.email.toLowerCase() !== (profile.email || '').toLowerCase()) &&
+        (p.nickname && p.nickname.toLowerCase() !== (profile.nickname || '').toLowerCase())
+      ));
+      recent.unshift(profile);
+      localStorage.setItem(STORAGE_KEYS.RECENT_ACCOUNTS, JSON.stringify(recent.slice(0, 5)));
+    } catch {}
+
     // Notificar cambio a componentes oyentes
     window.dispatchEvent(new CustomEvent('lpld_profile_updated', { detail: profile }));
 
@@ -159,6 +177,17 @@ export function saveCurrentPlayerProfile(profile: any): void {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ profile })
+    }).then(async (res) => {
+      if (!res.ok) {
+        console.warn('[Storage Cloud Sync] Servidor respondió con status:', res.status);
+        return;
+      }
+      const data = await res.json();
+      if (data.success && data.profile?.id && data.profile.id !== profile.id) {
+        const reconciled = { ...profile, id: data.profile.id };
+        localStorage.setItem(STORAGE_KEYS.CURRENT_PLAYER, JSON.stringify(reconciled));
+        localStorage.setItem(STORAGE_KEYS.LAST_PLAYER, JSON.stringify(reconciled));
+      }
     }).catch((err) => {
       console.warn('[Storage Cloud Sync] Error al sincronizar con Supabase:', err);
     });
@@ -167,10 +196,31 @@ export function saveCurrentPlayerProfile(profile: any): void {
   }
 }
 
+export function getLastPlayerProfile(): any | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.LAST_PLAYER);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getRecentAccounts(): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.RECENT_ACCOUNTS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function clearCurrentPlayerSession(): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_PLAYER);
+    // NOTA: Se preserva STORAGE_KEYS.LAST_PLAYER y STORAGE_KEYS.RECENT_ACCOUNTS para facilitar el reingreso en este dispositivo
     window.dispatchEvent(new CustomEvent('lpld_session_logged_out', { detail: null }));
     window.dispatchEvent(new CustomEvent('lpld_profile_updated', { detail: null }));
   } catch (err) {

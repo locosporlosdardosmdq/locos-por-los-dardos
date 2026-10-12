@@ -547,4 +547,23 @@
      - En la pestaña de Demografía se incorporó la tabla de jugadores en tiempo real desde Supabase con selector `<select>` para modificar la categoría de cualquier usuario con un click y guardar en la base de datos.
 - **Motivo:** Ergonomía táctil inmediata para teléfonos móviles y flexibilidad total tanto para el jugador como para las autoridades federadas.
 
+---
+
+## ADR-032: Corrección de Región de Pooler Supabase (us-east-1), Último Jugador en Dispositivo y PWA Móvil
+
+- **Fecha:** 2026-10-12
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Durante la auditoría técnica de producción se detectó que el pooler de Supabase arrojaba el error `(ENOTFOUND) tenant/user postgres.pufyeabrvrlikbgkjplz not found`. El diagnóstico reveló que el proyecto fue provisionado en North Virginia (`aws-0-us-east-1`) y no en São Paulo (`aws-0-sa-east-1`).
+  2. Al realizar logout, la aplicación borraba toda la información del dispositivo, forzando a reescribir credenciales o perfiles en lugar de presentar al último jugador logueado en ese equipo.
+  3. En teléfonos celulares no existía un botón visible de instalación como PWA.
+  4. La modificación de categoría desde el Superadmin sobreescribía con valores por defecto campos como bio, teléfono y dardos del jugador al enviar payloads parciales al `POST`.
+- **Decisión:**
+  1. **Redirección y Estabilización de Pooler (`src/lib/db.ts`):** Prioridad a `DATABASE_URL` (puerto 6543) con auto-corrección de host hacia `aws-0-us-east-1.pooler.supabase.com`.
+  2. **Endpoint `/api/health/db`:** Verificación activa de latencia y estado de PostgreSQL.
+  3. **Actualización Quirúrgica (`PATCH /api/jugadores`):** Uso de `COALESCE` en queries de actualización y método `PATCH` para categorías.
+  4. **Persistencia de Dispositivo (`storage.ts` & `LoginModal.tsx`):** Claves `lpld_last_player_v1` y `lpld_recent_accounts_v1` preservadas tras logout con tarjeta destacada "Último jugador en este celular" para ingreso en 1-click.
+  5. **Instalación PWA (`InstallAppButton.tsx` & `providers.tsx`):** Contexto global `useInstallPwa` y botón permanente en barra lateral con guía interactiva para iPhone y Android.
+- **Motivo:** Eliminar errores de conexión en la nube, blindar los datos de los jugadores ante ediciones parciales y garantizar acceso offline y móvil de nivel profesional.
+
 

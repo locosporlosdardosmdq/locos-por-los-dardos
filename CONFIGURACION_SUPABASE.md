@@ -10,9 +10,9 @@
 | :--- | :--- |
 | **Nombre del Proyecto** | `locosporlosdardosmdq's Project` |
 | **Project Reference ID** | `pufyeabrvrlikbgkjplz` |
-| **Contraseña de Base de Datos** | `D25SJh5t2oMiHa2K` |
+| **Contraseña de Base de Datos** | `[CONFIGURADA_EN_SUPABASE]` |
 | **Motor de Base de Datos** | PostgreSQL 17 (Supabase Managed) |
-| **Región de Hosting** | São Paulo (`aws-0-sa-east-1`) / South America |
+| **Región de Hosting Real** | North Virginia (`aws-0-us-east-1`) / US East |
 
 ---
 
@@ -23,13 +23,13 @@ Estas son las cadenas de conexión armadas y listas para usar tanto en `.env.loc
 ### A. Para `DATABASE_URL` (Modo Transacción / Pooler - Puerto 6543)
 > **Uso:** Conexión para Vercel Serverless Functions y consultas del servidor web en producción con pooling de conexiones (evita agotar límites de conexiones concurrentes).
 ```text
-postgresql://postgres.pufyeabrvrlikbgkjplz:D25SJh5t2oMiHa2K@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+postgresql://postgres.pufyeabrvrlikbgkjplz:[TU_PASSWORD]@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
 ```
 
 ### B. Para `DIRECT_URL` (Modo Sesión / Directo - Puerto 5432)
 > **Uso:** Conexión directa a PostgreSQL requerida por Prisma ORM para ejecutar migraciones y comandos DDL de esquema.
 ```text
-postgresql://postgres.pufyeabrvrlikbgkjplz:D25SJh5t2oMiHa2K@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
+postgresql://postgres.pufyeabrvrlikbgkjplz:[TU_PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres
 ```
 
 ---
@@ -90,9 +90,9 @@ Una vez creado el esquema:
 En tu proyecto de [Vercel](https://vercel.com) en **Settings > Environment Variables**, cargá:
 
 ```ini
-# Base de Datos (Pooler y Directa)
-DATABASE_URL="postgresql://postgres.pufyeabrvrlikbgkjplz:D25SJh5t2oMiHa2K@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.pufyeabrvrlikbgkjplz:D25SJh5t2oMiHa2K@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
+# Base de Datos (Transaction Pooler para Serverless en Vercel)
+DATABASE_URL="postgresql://postgres.pufyeabrvrlikbgkjplz:[TU_PASSWORD]@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.pufyeabrvrlikbgkjplz:[TU_PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres"
 
 # Supabase API
 NEXT_PUBLIC_SUPABASE_URL="https://pufyeabrvrlikbgkjplz.supabase.co"

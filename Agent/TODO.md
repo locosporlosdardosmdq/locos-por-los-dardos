@@ -1,6 +1,15 @@
 # Tareas del Proyecto (TODO) • Locos por los Dardos
 
 ## 🏆 Tareas Completadas
+- [x] **Fase 0 de Estabilización Técnica (Auditoría `AUDITORIA.MD`):**
+  * Resolución de la causa raíz de conexión a Supabase: auto-corrección de región de pooler hacia `aws-0-us-east-1` (puerto 6543) eliminando el error `(ENOTFOUND) tenant/user postgres.pufyeabrvrlikbgkjplz not found`.
+  * Endpoint de diagnóstico en vivo `/api/health/db` con medición de latencia a PostgreSQL.
+  * Respuestas defensivas en `/api/auth` (sin exponer datos del pooler ni el usuario de BD a los teléfonos celulares).
+  * Endpoint `PATCH /api/jugadores` y cláusula `COALESCE` en queries SQL para evitar que editar una categoría borre el teléfono, bio o dardos del jugador.
+  * Persistencia de "Último Jugador del Dispositivo" (`lpld_last_player_v1`) y cuentas recientes preservadas al cerrar sesión.
+  * Modal de Login (`LoginModal.tsx`) con tarjeta destacada para continuar con el último jugador del equipo con un solo click.
+  * Botón de Instalación PWA en Celulares (`InstallAppButton.tsx`) visible de forma permanente en la barra lateral con guía interactiva para iPhone (Safari) y Android.
+  * Saneamiento de `public/manifest.json` y sanitización de secretos en la documentación.
 - [x] Configuración inicial del proyecto con Next.js 15, TypeScript y Tailwind CSS.
 - [x] Implementación de PWA con Web App Manifest (`manifest.json`) y Service Worker (`sw.js`).
 - [x] Identidad de marca unificada con +25% de preponderancia para Darderos Mar del Plata (`BrandLogo.tsx`).

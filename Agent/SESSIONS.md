@@ -1,5 +1,41 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 22] - 2026-10-12
+- **Objetivo:** Ejecución integral de la Fase 0 de estabilización técnica a partir de la auditoría ([AUDITORIA.MD](file:///D:/Locos%20por%20los%20dardos/Agent/AUDITORIA.MD)): resolución de la causa raíz de conexión a Supabase, saneamiento de credenciales, endpoint de salud `/api/health/db`, persistencia de último jugador logueado por dispositivo en el modal de login, y botón visible de instalación de la App (PWA) en celulares.
+- **Diagnóstico de Causa Raíz:**
+  1. *Región Errónea del Pooler de Supabase:* El archivo `CONFIGURACION_SUPABASE.md` y `.env.local` tenían configurado el host `aws-0-sa-east-1.pooler.supabase.com` (São Paulo). El proyecto real `pufyeabrvrlikbgkjplz` fue creado en **North Virginia (`aws-0-us-east-1`)**. Por eso el pooler de Supavisor respondía `(ENOTFOUND) tenant/user postgres.pufyeabrvrlikbgkjplz not found` tanto en Vercel como en el buscador del login.
+  2. *Pérdida de Sesión al Cerrar Cuenta:* `clearCurrentPlayerSession()` en `storage.ts` eliminaba absolutamente todo el perfil del `localStorage` sin conservar memoria del último jugador que utilizó el celular.
+  3. *Botón PWA Inaccesible en Celulares:* El botón de instalación residía únicamente en `AppTopBar.tsx`, el cual fue retirado del shell principal en sesiones previas y contaba con `hidden md:flex`, imposibilitando la instalación táctil en smartphones.
+  4. *Sobreescritura de Datos en Superadmin:* Al editar una categoría, se enviaba un objeto parcial a `POST /api/jugadores`, el cual sobrescribía columnas como teléfono, bio, club y dardos al no usar `COALESCE` ni un método `PATCH` dedicado.
+- **Realizado:**
+  - **Auto-Corrección y Estabilización de Conexión a Base de Datos (`src/lib/db.ts`):**
+    * Prioridad absoluta a `DATABASE_URL` (Transaction Pooler - puerto 6543 para Serverless en Vercel).
+    * Mecanismo de auto-corrección que redirige silenciosamente cualquier cadena antigua con `aws-0-sa-east-1` hacia el host operativo real `aws-0-us-east-1.pooler.supabase.com:6543`.
+    * Eliminadas credenciales fijas y fallbacks defectuosos.
+    * Actualizado `.env.local` y saneado `CONFIGURACION_SUPABASE.md` sin contraseñas en texto claro.
+  - **Endpoint de Diagnóstico `/api/health/db`:**
+    * Creado `src/app/api/health/db/route.ts` que ejecuta `SELECT 1` contra Supabase PostgreSQL, midiendo latencia y reportando estado saludable (200) o servicio no disponible (503).
+  - **Saneamiento Defensivo de APIs (`/api/auth` y `/api/jugadores`):**
+    * `/api/auth` atrapa errores de infraestructura sin filtrar el nombre de usuario de PostgreSQL ni datos del tenant a la interfaz móvil.
+    * `/api/jugadores` responde con status HTTP 503 ante caída de base de datos en lugar de enmascarar errores con status 200.
+    * Incorporado método `PATCH /api/jugadores` y cláusula `COALESCE` en el `UPDATE` de profiles para evitar pérdida de datos del jugador al modificar la categoría desde el Superadmin.
+  - **Persistencia de Último Jugador en el Celular (`src/lib/storage.ts` & `LoginModal.tsx`):**
+    * Incorporadas claves `lpld_last_player_v1` y `lpld_recent_accounts_v1` en `STORAGE_KEYS`.
+    * `clearCurrentPlayerSession()` borra la sesión activa pero preserva el último jugador y las cuentas recientes del equipo.
+    * `LoginModal.tsx` ahora muestra una tarjeta destacada superior ("Último jugador en este celular") con su apodo, categoría, avatar y botón de ingreso directo "Continuar".
+    * Búsqueda por email o apodo ahora consulta exitosamente a Supabase (donde ya figuran ICEMAN y ZEUS).
+  - **Botón de Instalación PWA en Celulares (`providers.tsx`, `AppSidebar.tsx`, `InstallAppButton.tsx`):**
+    * Creado contexto global `useInstallPwa` en `providers.tsx` con captura temprana de `beforeinstallprompt`, detección de standalone y soporte para iOS.
+    * Creado componente `InstallAppButton.tsx` y agregado de forma fija y visible en la barra lateral `AppSidebar.tsx`.
+    * Modal integrado con guía de instalación táctil para Safari iOS (Compartir > Agregar a pantalla de inicio) y Chrome Android.
+    * Saneado `public/manifest.json` sin marcas externas ("Nakka"), con tema oficial `#00e676` y accesos directos (shortcuts).
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores de tipado (código 0).
+    * `npm run build` completado con éxito absoluto en 32.9s, generando las 19 rutas de la aplicación sin advertencias (código 0).
+- **Estado del Proyecto:** Base de datos operativa en `us-east-1`, login de dispositivo listo con tarjeta del último jugador, instalación PWA visible en smartphone y código completamente auditado y compilado.
+
+---
+
 ## [Sesión 21] - 2026-10-12
 - **Objetivo:** Resolución de la sincronización de nuevos usuarios en la base de datos de Supabase ("no aparecen en jugadores ni guarda inicios de sesión"), implementación de cierre de sesión real y selector multi-cuenta (`LoginModal.tsx`), habilitación de selección y cambio táctil 1-click de categoría oficial en `/perfil` y en el formulario de ficha, desarrollo del panel de Superadmin (`/superadmin`) con cuotas, demografía en tiempo real, vitrinas de landing (DBikes style) y padrón de jugadores, e integración de vitrina de pagos bancarios en la home.
 - **Diagnóstico de Causa Raíz:**

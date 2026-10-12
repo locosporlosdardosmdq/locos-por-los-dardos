@@ -609,5 +609,38 @@
      - Incorporación de detección de impacto downstream (`previewDownstreamImpact`) con alerta visual amarilla que previene corrupciones al modificar o resetear resultados.
 - **Motivo:** Estabilidad matemática absoluta, fidelidad total a las normas internacionales de dardos y experiencia visual de premiación que jerarquiza a los competidores.
 
+---
 
+## ADR-035: Selector Universal de Cámaras, Reparación de Audio WebRTC en Smartphones, Invitación Federal por WhatsApp y Erradicación de Mocks
 
+- **Fecha:** 2026-10-12
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Durante pruebas reales de juego online entre una notebook (Mariano Deux / ICEMAN) y un smartphone (Gonzalo Diaz / GonDizz), el rival veía la cámara pero no escuchaba el audio del jugador en PC. La investigación técnica arrojó dos causas raíz:
+     - En `src/lib/webrtc-room.ts`, si la llamada P2P se negociaba antes de que ambos participantes tuvieran su micrófono activo, `replaceTrack` no surtía efecto porque no existía un sender de audio previo en `activeCall.peerConnection`, requiriéndose `pc.addTrack(audioTrack, stream)`.
+     - Las políticas de seguridad de Autoplay en navegadores móviles (iOS Safari / Android Chrome) bloquean el audio remoto si no hay una interacción táctil directa sobre el elemento multimedia.
+  2. En PCs y notebooks con múltiples dispositivos de video (cámara integrada, webcam USB en la diana, OBS Virtual Camera), el anotador no permitía elegir qué hardware utilizar, limitándose a un toggle fijo de `facingMode` móvil.
+  3. Los nuevos usuarios registrados (ej: Gabriel Rubio / ZEUS, Gonzalo Diaz / GonDizz) heredaban la foto de perfil de Mariano Deux (ICEMAN) en caso de no subir avatar propio, y en sus teléfonos veían a "GonDizz" como último jugador debido a un selector público de cambio de cuenta sin control.
+  4. Múltiples componentes (`NationalRankings`, `PlayerEnrollModal`, `asociacion/page.tsx`, `TournamentManager`, `MatchGameSettings`) consumían mocks estáticos (`MOCK_RANKINGS`) en lugar de los jugadores reales registrados en PostgreSQL / Supabase.
+  5. Se requirió una vía ágil y atractiva para que Mariano pueda invitar a nuevos jugadores de Argentina mediante un enlace directo de WhatsApp.
+- **Decisión:**
+  1. **Selector Universal de Cámara de Video (`src/components/anotador/X01Board.tsx` & `WebcamSetupModal.tsx`):**
+     - Detección de dispositivos mediante `navigator.mediaDevices.enumerateDevices()` filtrando `videoinput`.
+     - Selector desplegable `<select>` en la barra superior de dianas del anotador, con nombres legibles de cada cámara (ej. "HD Pro Webcam C920", "Integrated Camera", etc.).
+     - Persistencia del ID de cámara preferido en `localStorage` (`lpld_camera_device_id`) y fallback suave a `facingMode` en móviles.
+  2. **Reparación de Audio WebRTC P2P en Smartphones (`src/lib/webrtc-room.ts` & `X01Board.tsx`):**
+     - En `webrtc-room.ts`, `sendMediaStream` verifica si `pc.getSenders()` contiene un audio sender. Si no existe, invoca `pc.addTrack(audioTrack, stream)` en lugar de fallar silenciosamente en `replaceTrack`.
+     - En `X01Board.tsx`, se aisló el stream de audio remoto en un elemento `<audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />` dedicado.
+     - Captura de promesa rechazada en `play().catch(...)`: si el navegador móvil bloquea el autoplay, se despliega una barra táctil accesible: *"🔊 Toca aquí para escuchar la voz del rival en este teléfono"*, desbloqueando el contexto de audio con un solo toque.
+  3. **Herramienta e Invitación Oficial por WhatsApp (`src/components/comunidad/InvitePlayersModal.tsx`):**
+     - Modal con enlace directo al formulario de registro y perfil: `https://locosporlosdardos.com.ar/perfil`.
+     - Botón directo para compartir por WhatsApp con mensaje pre-redactado de la comunidad (`api.whatsapp.com/send?text=...`).
+     - Botones de "Copiar Enlace" (con feedback visual verde) y "Copiar Mensaje Completo".
+     - Integración en el menú lateral (`AppSidebar.tsx`) y en la cabecera del perfil (`RegisterAndProfile.tsx`).
+  4. **Sincronización Total de Jugadores Cloud (`fetchRegisteredPlayersFromCloud`):**
+     - Reemplazo de `MOCK_RANKINGS` por llamadas en vivo a la nube en `NationalRankings`, `PlayerEnrollModal`, `asociacion/page.tsx`, `TournamentManager` y `MatchGameSettings`.
+     - Si la base de datos está offline o vacía, fallback graceful sin corromper la interfaz.
+  5. **Saneamiento Defensivo de Avatares y Login Seguro:**
+     - Eliminado el selector público que permitía cambiar de identidad y marcar a otro jugador en `localStorage`.
+     - Asignación de avatares propios o avatar con iniciales dinámicas y colores distintivos para nuevos jugadores, previniendo que asuman la imagen de ICEMAN.
+- **Motivo:** Estabilidad técnica en partidas online federadas entre PC y teléfonos celulares, blindaje de identidad y expansión masiva de la comunidad mediante invitaciones directas por WhatsApp.

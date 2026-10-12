@@ -56,48 +56,57 @@ export async function GET() {
 
     const result = await pool.query(query);
 
-    const players = result.rows.map((row) => ({
-      id: row.id || row.user_id,
-      email: row.email || '',
-      nickname: row.nickname || '',
-      fullName: row.full_name || '',
-      phone: row.phone || '',
-      province: row.province || 'Buenos Aires',
-      city: row.city || 'Mar del Plata',
-      nationality: row.nationality || 'Argentina',
-      countryCode: row.country_code || 'AR',
-      avatarUrl: row.avatar_url || '/images/iceman-perfil.png',
-      photoUrl: row.photo_url || undefined,
-      logoUrl: row.logo_url || undefined,
-      estimatedAvg: parseFloat(row.initial_estimated_avg || '45.0'),
-      category: row.category || 'INTERMEDIA',
-      isVerified: !!row.is_verified,
-      bio: row.bio || '',
-      preferredDartWeight: row.preferred_dart_weight_g ? parseFloat(row.preferred_dart_weight_g) : 24,
-      dartBrand: row.dart_brand || 'TARGET 90%',
-      majorTitle: row.major_title || '',
-      associationRole: row.association_role || '',
-      age: row.age || undefined,
-      club: row.club || 'Darderos Mar del Plata',
-      isProfileComplete: true,
-      stats: {
-        overallAvg: row.overall_avg ? parseFloat(row.overall_avg) : parseFloat(row.initial_estimated_avg || '45.0'),
-        first9Avg: row.first_9_avg ? parseFloat(row.first_9_avg) : parseFloat(row.initial_estimated_avg || '45.0'),
-        matchesPlayed: parseInt(row.matches_played || '0', 10),
-        matchesWon: parseInt(row.matches_won || '0', 10),
-        legsPlayed: parseInt(row.legs_played || '0', 10),
-        legsWon: parseInt(row.legs_won || '0', 10),
-        highestCheckout: parseInt(row.highest_checkout || '0', 10),
-        checkoutAttempts: parseInt(row.checkout_attempts || '0', 10),
-        checkoutHits: parseInt(row.checkout_hits || '0', 10),
-        checkoutPercentage: row.checkout_percentage ? parseFloat(row.checkout_percentage) : 0,
-        count180s: parseInt(row.count_180s || '0', 10),
-        count140Plus: parseInt(row.count_140_plus || '0', 10),
-        count100Plus: parseInt(row.count_100_plus || '0', 10),
-        count60Plus: parseInt(row.count_60_plus || '0', 10),
-        bestLegDarts: parseInt(row.best_leg_darts || '0', 10)
-      }
-    }));
+    const players = result.rows.map((row) => {
+      const isIcemanRow = (row.nickname?.toLowerCase() === 'iceman') || 
+                          (row.email?.toLowerCase() === 'marianodeux@gmail.com') ||
+                          (row.full_name?.toLowerCase().includes('mariano deux'));
+      
+      const cleanAvatar = row.avatar_url && !row.avatar_url.includes('iceman') ? row.avatar_url : undefined;
+      const cleanPhoto = row.photo_url && !row.photo_url.includes('iceman') ? row.photo_url : undefined;
+
+      return {
+        id: row.id || row.user_id,
+        email: row.email || '',
+        nickname: row.nickname || '',
+        fullName: row.full_name || '',
+        phone: row.phone || '',
+        province: row.province || 'Buenos Aires',
+        city: row.city || 'Mar del Plata',
+        nationality: row.nationality || 'Argentina',
+        countryCode: row.country_code || 'AR',
+        avatarUrl: isIcemanRow ? (row.avatar_url || '/images/iceman-perfil.png') : cleanAvatar,
+        photoUrl: isIcemanRow ? (row.photo_url || '/images/iceman-perfil.png') : cleanPhoto,
+        logoUrl: row.logo_url || (isIcemanRow ? '/logos/logo-iceman-card.png' : undefined),
+        estimatedAvg: parseFloat(row.initial_estimated_avg || '45.0'),
+        category: row.category || 'INTERMEDIA',
+        isVerified: !!row.is_verified,
+        bio: row.bio || '',
+        preferredDartWeight: row.preferred_dart_weight_g ? parseFloat(row.preferred_dart_weight_g) : 24,
+        dartBrand: row.dart_brand || 'TARGET 90%',
+        majorTitle: row.major_title || '',
+        associationRole: row.association_role || '',
+        age: row.age || undefined,
+        club: row.club || 'Darderos Mar del Plata',
+        isProfileComplete: true,
+        stats: {
+          overallAvg: row.overall_avg ? parseFloat(row.overall_avg) : parseFloat(row.initial_estimated_avg || '45.0'),
+          first9Avg: row.first_9_avg ? parseFloat(row.first_9_avg) : parseFloat(row.initial_estimated_avg || '45.0'),
+          matchesPlayed: parseInt(row.matches_played || '0', 10),
+          matchesWon: parseInt(row.matches_won || '0', 10),
+          legsPlayed: parseInt(row.legs_played || '0', 10),
+          legsWon: parseInt(row.legs_won || '0', 10),
+          highestCheckout: parseInt(row.highest_checkout || '0', 10),
+          checkoutAttempts: parseInt(row.checkout_attempts || '0', 10),
+          checkoutHits: parseInt(row.checkout_hits || '0', 10),
+          checkoutPercentage: row.checkout_percentage ? parseFloat(row.checkout_percentage) : 0,
+          count180s: parseInt(row.count_180s || '0', 10),
+          count140Plus: parseInt(row.count_140_plus || '0', 10),
+          count100Plus: parseInt(row.count_100_plus || '0', 10),
+          count60Plus: parseInt(row.count_60_plus || '0', 10),
+          bestLegDarts: parseInt(row.best_leg_darts || '0', 10)
+        }
+      };
+    });
 
     // Si la BD no tiene a ICEMAN por algún motivo, inyectarlo como fallback prioritario
     const hasIceman = players.some(p => 
@@ -278,7 +287,7 @@ export async function POST(request: NextRequest) {
           profile.phone || null,
           profile.province || 'Buenos Aires',
           profile.city || 'Mar del Plata',
-          profile.avatarUrl || '/images/iceman-perfil.png',
+          (nickname.toLowerCase() === 'iceman' || email.toLowerCase() === 'marianodeux@gmail.com') ? (profile.avatarUrl || '/images/iceman-perfil.png') : (profile.avatarUrl || null),
           profile.photoUrl || null,
           profile.logoUrl || null,
           profile.nationality || 'Argentina',

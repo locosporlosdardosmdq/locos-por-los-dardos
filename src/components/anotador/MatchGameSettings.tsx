@@ -8,8 +8,8 @@ import {
   ParticipantPlayer,
   PlayerProfile 
 } from '@/lib/types';
-import { MOCK_RANKINGS, MOCK_CURRENT_USER, DEFAULT_NEW_PLAYER, USER_ICEMAN } from '@/lib/constants';
-import { getCurrentPlayerProfile } from '@/lib/storage';
+import { DEFAULT_NEW_PLAYER, USER_ICEMAN } from '@/lib/constants';
+import { getCurrentPlayerProfile, fetchRegisteredPlayersFromCloud } from '@/lib/storage';
 import { CANONICAL_PLAYERS } from '@/lib/players-data';
 import { OnlineRoomModal } from './OnlineRoomModal';
 import { OnlineRoom } from '@/lib/online-rooms';
@@ -153,31 +153,29 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
   // Modal de Ajustes de Audio/Árbitro
   const [showAudioSettingsModal, setShowAudioSettingsModal] = useState(false);
 
-  // Jugadores registrados en la aplicación (Comunidad oficial)
-  const registeredCommunityPlayers: PlayerProfile[] = [
-    USER_ICEMAN,
-    ...CANONICAL_PLAYERS.filter(p => p.id !== USER_ICEMAN.id).map(cp => ({
-      id: cp.id,
-      fullName: cp.name,
-      nickname: cp.nickname,
-      email: `${cp.nickname.toLowerCase()}@dardos.com.ar`,
-      province: cp.province,
-      city: cp.city,
-      avatarUrl: cp.avatarUrl || cp.photoUrl || '/images/iceman-perfil.png',
-      photoUrl: cp.photoUrl,
-      estimatedAvg: cp.avg,
-      category: cp.category,
-      stats: { overallAvg: cp.avg, first9Avg: cp.avg, matchesPlayed: 0, matchesWon: 0, legsPlayed: 0, legsWon: 0, highestCheckout: 0, checkoutAttempts: 0, checkoutHits: 0, checkoutPercentage: 0, count180s: 0, count140Plus: 0, count100Plus: 0, count60Plus: 0, bestLegDarts: 0 }
-    }))
-  ].filter(p => p.id !== player1.id && p.fullName !== player1.name);
+  // Jugadores registrados en la aplicación (Comunidad oficial desde Supabase)
+  const [cloudPlayers, setCloudPlayers] = useState<PlayerProfile[]>([USER_ICEMAN]);
+
+  useEffect(() => {
+    fetchRegisteredPlayersFromCloud().then((players) => {
+      if (players && players.length > 0) {
+        setCloudPlayers(players);
+      }
+    });
+  }, []);
+
+  const registeredCommunityPlayers: PlayerProfile[] = cloudPlayers.filter(
+    (p) => p.id !== player1.id && p.fullName !== player1.name && p.nickname !== player1.nickname
+  );
 
   const handleSelectExistingPlayer = (profile: PlayerProfile) => {
     if (!pickingSlot) return;
+    const isIceman = profile.nickname?.toUpperCase() === 'ICEMAN';
     const mapped: ParticipantPlayer = {
       id: profile.id,
-      name: profile.fullName,
+      name: profile.fullName || profile.nickname,
       nickname: profile.nickname,
-      avatarUrl: profile.avatarUrl || profile.photoUrl || '/images/iceman-perfil.png'
+      avatarUrl: profile.avatarUrl || profile.photoUrl || (isIceman ? '/images/iceman-perfil.png' : undefined)
     };
 
     if (pickingSlot === 'p2') setPlayer2(mapped);

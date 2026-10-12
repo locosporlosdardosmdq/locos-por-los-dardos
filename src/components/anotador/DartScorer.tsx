@@ -6,7 +6,7 @@ import { X01Board } from './X01Board';
 import { CricketBoard } from './CricketBoard';
 import { MatchPdcStatsModal } from './MatchPdcStatsModal';
 import { MatchConfig } from '@/lib/types';
-import { MOCK_CURRENT_USER, MOCK_RANKINGS } from '@/lib/constants';
+import { USER_ICEMAN } from '@/lib/constants';
 import { saveCompletedMatch, getActiveMatchSession, clearActiveMatchSession, ActiveMatchSession, getCurrentPlayerProfile } from '@/lib/storage';
 import { matchBroadcast } from '@/lib/broadcast';
 import { Play, Trash2, Clock } from 'lucide-react';
@@ -23,7 +23,7 @@ export const DartScorer: React.FC<DartScorerProps> = ({
   initialOnlineRoomCode
 }) => {
   // Configuración por defecto
-  const localUser = getCurrentPlayerProfile(MOCK_CURRENT_USER);
+  const localUser = getCurrentPlayerProfile(USER_ICEMAN);
   const defaultMatchConfig: MatchConfig = {
     gameType: 'X01',
     startingScore: 501,

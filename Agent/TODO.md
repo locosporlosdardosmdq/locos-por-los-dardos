@@ -204,6 +204,25 @@
   * Cámara Trasera por Defecto en Celulares (`facingMode: { ideal: 'environment' }`): enfoca automáticamente la diana física al encender la cámara en dispositivos móviles.
   * Botón interactivo de Alternancia de Cámara (`SwitchCamera`): permite conmutar en caliente entre cámara trasera (diana) y delantera (jugador).
 
+- [x] **Selector Universal de Hardware de Cámaras (`X01Board.tsx` & `WebcamSetupModal.tsx`):**
+  * Detección de dispositivos de video reales mediante `navigator.mediaDevices.enumerateDevices()` filtrando `videoinput`.
+  * Selector `<select>` desplegable integrado en la barra de diana del anotador para conmutar entre cámaras web USB, integrada o software de captura.
+  * Persistencia en `localStorage` (`lpld_camera_device_id`) y fallback a `facingMode` en smartphones.
+
+- [x] **Reparación de Audio WebRTC en Smartphones & Desbloqueo de Autoplay (`webrtc-room.ts` & `X01Board.tsx`):**
+  * En `webrtc-room.ts`, incorporación de `pc.addTrack(audioTrack, stream)` en `sendMediaStream` si no existe un audio sender previo, evitando silencios cuando la llamada se conecta antes de encender el micrófono.
+  * Elemento `<audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />` dedicado en `X01Board.tsx`.
+  * Detección de bloqueo de Autoplay en teléfonos móviles con banner táctil accesible: *"🔊 Toca aquí para escuchar la voz del rival en este teléfono"*.
+
+- [x] **Modal y Herramienta de Invitación Federal por WhatsApp (`InvitePlayersModal.tsx`):**
+  * Generación de enlace directo a `/perfil` (`https://locosporlosdardos.com.ar/perfil`).
+  * Botón para compartir por WhatsApp con mensaje pre-redactado de la comunidad, botón de copiado de link con feedback visual y botón de copiado de mensaje.
+  * Integración en menú lateral (`AppSidebar.tsx`) y en ficha de jugador (`RegisterAndProfile.tsx`).
+
+- [x] **Sincronización Total de Jugadores Cloud & Erradicación de Mocks:**
+  * Reemplazo de `MOCK_RANKINGS` por `fetchRegisteredPlayersFromCloud()` en `NationalRankings`, `PlayerEnrollModal`, `asociacion/page.tsx`, `TournamentManager` y `MatchGameSettings`.
+  * Sanitize defensivo de avatares para evitar herencias de imagen de ICEMAN en nuevos registros.
+
 ---
 
 ## ⚡ En Progreso / Siguientes Pasos Inmediatos

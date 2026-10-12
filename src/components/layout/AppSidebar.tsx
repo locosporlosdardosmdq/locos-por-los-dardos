@@ -8,6 +8,7 @@ import { MOCK_CURRENT_USER, getCountryFlag, isUserAdmin } from '@/lib/constants'
 import { getCurrentPlayerProfile, clearCurrentPlayerSession } from '@/lib/storage';
 import { PlayerProfile } from '@/lib/types';
 import { LoginModal } from '@/components/perfil/LoginModal';
+import { InvitePlayersModal } from '@/components/comunidad/InvitePlayersModal';
 import { InstallAppButton } from './InstallAppButton';
 import { 
   ShoppingBag, 
@@ -21,7 +22,8 @@ import {
   X,
   ShieldCheck,
   ShieldAlert,
-  BookOpen
+  BookOpen,
+  MessageCircle
 } from 'lucide-react';
 
 interface AppSidebarProps {
@@ -36,6 +38,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const pathname = usePathname();
   const [isHovered, setIsHovered] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<PlayerProfile>(() => {
     return getCurrentPlayerProfile(MOCK_CURRENT_USER);
   });
@@ -303,6 +306,31 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         </div>
       </div>
 
+      {/* Botón de Invitar por WhatsApp */}
+      <div className="p-2 border-t border-[#1a2333]/60 bg-[#090e18]">
+        <button
+          type="button"
+          onClick={() => {
+            onCloseMobile();
+            setIsInviteModalOpen(true);
+          }}
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-black transition-all border bg-emerald-500/10 hover:bg-emerald-500/20 text-[#00e676] border-emerald-500/30 ${
+            !isExpanded ? 'justify-center px-1.5' : ''
+          }`}
+          title="Invitar Jugadores por WhatsApp"
+        >
+          <MessageCircle className="w-4 h-4 flex-shrink-0 text-[#00e676]" />
+          {isExpanded && (
+            <div className="flex-1 text-left flex items-center justify-between min-w-0">
+              <span className="truncate">Invitar por WhatsApp</span>
+              <span className="text-[9px] bg-emerald-500/20 text-[#00e676] px-1.5 py-0.2 rounded font-black border border-emerald-500/30 ml-1">
+                LINK
+              </span>
+            </div>
+          )}
+        </button>
+      </div>
+
       {/* Botón de Instalación PWA en Celular */}
       <InstallAppButton variant="sidebar" isCollapsed={!isExpanded} />
 
@@ -421,6 +449,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       <LoginModal 
         isOpen={isLoginModalOpen} 
         onClose={() => setIsLoginModalOpen(false)} 
+      />
+
+      {/* Modal de Invitación por WhatsApp */}
+      <InvitePlayersModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        inviterName={currentUser.nickname || currentUser.fullName}
       />
     </>
   );

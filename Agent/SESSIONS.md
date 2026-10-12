@@ -1,5 +1,36 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 25] - 2026-10-12
+- **Objetivo:** Selector de hardware de cámara en el anotador (notebook vs webcam USB), reparación de audio WebRTC en smartphones para partidas remotas 1 vs 1, enlace y herramienta de invitación por WhatsApp para registro de nuevos jugadores, erradicación de mocks en selectores/rankings de jugadores y sanitización de avatares en perfiles.
+- **Diagnóstico de Causa Raíz:**
+  1. *Audio WebRTC silenciado en smartphones:* En `src/lib/webrtc-room.ts`, al conectarse la llamada P2P antes de que ambos participantes tuvieran stream de audio activo, `sendMediaStream` ejecutaba `replaceTrack`, pero `activeCall.peerConnection` no tenía audio sender previo, resultando en un no-op sin envío de audio. Sumado a esto, los navegadores móviles (iOS Safari / Android Chrome) bloquean el Autoplay de elementos de audio sin interacción de usuario directa.
+  2. *Cámara fija en notebook:* El anotador utilizaba exclusivamente `{ facingMode: { ideal: cameraFacingMode } }`, ignorando la existencia de múltiples cámaras de video en PCs (webcam USB en la diana, cámara integrada o capturadora).
+  3. *Avatares cruzados:* Perfiles nuevos sin foto asignada terminaban mostrando la foto de Mariano Deux (ICEMAN), y el modal de login público permitía asumir identidades marcándolas como último usuario en `localStorage`.
+  4. *Tablas y Selectores Desconectados:* `NationalRankings`, `PlayerEnrollModal`, `asociacion/page.tsx`, `TournamentManager` y `MatchGameSettings` consumían `MOCK_RANKINGS` en vez de los jugadores reales de Supabase PostgreSQL.
+- **Realizado:**
+  - **Selector Universal de Cámara de Video (`src/components/anotador/X01Board.tsx` & `WebcamSetupModal.tsx`):**
+    * Enumeración activa de cámaras con `navigator.mediaDevices.enumerateDevices()` filtrando `videoinput`.
+    * Selector desplegable `<select>` en la barra de dianas para conmutar en caliente entre webcam USB, integrada o software de video.
+    * Persistencia de `deviceId` en `localStorage` (`lpld_camera_device_id`) y fallback suave a cámara trasera en móviles.
+  - **Reparación de Audio WebRTC en Smartphones & Desbloqueo de Autoplay (`src/lib/webrtc-room.ts` & `X01Board.tsx`):**
+    * En `webrtc-room.ts`, `sendMediaStream` verifica la presencia de un audio sender en `activeCall.peerConnection`. Si no existe, ejecuta `pc.addTrack(audioTrack, stream)` en lugar de depender únicamente de `replaceTrack`.
+    * En `X01Board.tsx`, se aisló el audio del oponente en un elemento `<audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />` dedicado.
+    * Si el smartphone bloquea el Autoplay, se despliega una barra táctil accesible: *"🔊 Toca aquí para escuchar la voz del rival en este teléfono"*, que reanuda la reproducción en 1 toque.
+  - **Herramienta e Invitación Oficial por WhatsApp (`src/components/comunidad/InvitePlayersModal.tsx`):**
+    * Modal con enlace directo al formulario de registro y perfil: `https://locosporlosdardos.com.ar/perfil`.
+    * Botón directo "Enviar por WhatsApp" (`api.whatsapp.com/send?text=...`) con texto redactado e iconografía oficial.
+    * Botones "Copiar Enlace" con feedback visual verde y "Copiar Mensaje Completo para WhatsApp".
+    * Integrado en la barra lateral (`AppSidebar.tsx`) y en la cabecera del perfil (`RegisterAndProfile.tsx`).
+  - **Sincronización Total de Jugadores Cloud & Erradicación de Mocks:**
+    * Conectados `NationalRankings`, `PlayerEnrollModal`, `asociacion/page.tsx`, `TournamentManager` y `MatchGameSettings` a `fetchRegisteredPlayersFromCloud()`.
+    * Blindaje y sanitización de avatares en `LoginModal.tsx` y perfiles para asegurar que cada competidor tenga su propia imagen o iniciales coloreadas.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores de TypeScript.
+    * `npm run build` completado exitosamente con 20/20 páginas generadas sin errores.
+- **Estado del Proyecto:** Anotador con selector de cámara física, audio WebRTC bidireccional estable entre PC y celulares, jugadores reales sincronizados en toda la app y modal de invitación por WhatsApp operativo.
+
+---
+
 ## [Sesión 24] - 2026-10-12
 - **Objetivo:** Implementación del Motor Puro de Torneos y Ligas estándar Challonge & Nakka N01 Tournament (`src/lib/bracket-engine.ts`), Podio Oficial de Premiación (`TournamentPodiumView.tsx`), enrutamiento determinista por punteros y edición segura con aviso en cascada en `AdminMatchModal.tsx`.
 - **Realizado:**

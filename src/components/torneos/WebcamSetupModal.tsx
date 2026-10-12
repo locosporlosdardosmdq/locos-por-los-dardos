@@ -31,8 +31,15 @@ export const WebcamSetupModal: React.FC<WebcamSetupModalProps> = ({
   const [blockSpectatorCam, setBlockSpectatorCam] = useState(false);
   const [useAudio, setUseAudio] = useState(true);
 
-  const [selectedCamera, setSelectedCamera] = useState('Predeterminado');
-  const [selectedAudio, setSelectedAudio] = useState('Predeterminado');
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [availableAudios, setAvailableAudios] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('lpld_camera_device_id') || '';
+    }
+    return '';
+  });
+  const [selectedAudioId, setSelectedAudioId] = useState<string>('');
 
   const [cameraActive, setCameraActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -43,17 +50,31 @@ export const WebcamSetupModal: React.FC<WebcamSetupModalProps> = ({
 
     let stream: MediaStream | null = null;
     if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      const videoConstraint = selectedCameraId
+        ? { deviceId: { exact: selectedCameraId } }
+        : true;
+      const audioConstraint = useAudio
+        ? (selectedAudioId ? { deviceId: { exact: selectedAudioId } } : true)
+        : false;
+
       navigator.mediaDevices
-        .getUserMedia({ video: true, audio: useAudio })
+        .getUserMedia({ video: videoConstraint, audio: audioConstraint })
         .then((s) => {
           stream = s;
           setCameraActive(true);
           if (videoRef.current) {
             videoRef.current.srcObject = s;
           }
+
+          // Enumerar dispositivos reales con sus etiquetas
+          if (navigator.mediaDevices.enumerateDevices) {
+            navigator.mediaDevices.enumerateDevices().then((devices) => {
+              setAvailableCameras(devices.filter((d) => d.kind === 'videoinput'));
+              setAvailableAudios(devices.filter((d) => d.kind === 'audioinput'));
+            }).catch(() => {});
+          }
         })
         .catch(() => {
-          // Fallback silencioso si no hay permisos
           setCameraActive(false);
         });
     }
@@ -63,7 +84,7 @@ export const WebcamSetupModal: React.FC<WebcamSetupModalProps> = ({
         stream.getTracks().forEach((t) => t.stop());
       }
     };
-  }, [isOpen, useAudio]);
+  }, [isOpen, useAudio, selectedCameraId, selectedAudioId]);
 
   if (!isOpen) return null;
 
@@ -174,12 +195,16 @@ export const WebcamSetupModal: React.FC<WebcamSetupModalProps> = ({
                 Seleccionar Audio / Micrófono
               </label>
               <select
-                value={selectedAudio}
-                onChange={(e) => setSelectedAudio(e.target.value)}
+                value={selectedAudioId}
+                onChange={(e) => setSelectedAudioId(e.target.value)}
                 className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#00e676]"
               >
-                <option value="Predeterminado">Predeterminado (Micrófono del sistema)</option>
-                <option value="Micrófono Externo">Micrófono USB de Diana / Pista</option>
+                <option value="">Predeterminado (Micrófono del sistema)</option>
+                {availableAudios.map((audio, idx) => (
+                  <option key={audio.deviceId || idx} value={audio.deviceId}>
+                    {audio.label || `Micrófono ${idx + 1}`}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -188,12 +213,26 @@ export const WebcamSetupModal: React.FC<WebcamSetupModalProps> = ({
                 Seleccionar Cámara
               </label>
               <select
-                value={selectedCamera}
-                onChange={(e) => setSelectedCamera(e.target.value)}
+                value={selectedCameraId}
+                onChange={(e) => {
+                  const devId = e.target.value;
+                  setSelectedCameraId(devId);
+                  if (typeof window !== 'undefined') {
+                    if (devId) {
+                      localStorage.setItem('lpld_camera_device_id', devId);
+                    } else {
+                      localStorage.removeItem('lpld_camera_device_id');
+                    }
+                  }
+                }}
                 className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#00e676]"
               >
-                <option value="Predeterminado">Predeterminado (Cámara integrada)</option>
-                <option value="Cámara USB 1080p">Cámara Web HD Diana</option>
+                <option value="">Predeterminado (Cámara automática del sistema)</option>
+                {availableCameras.map((cam, idx) => (
+                  <option key={cam.deviceId || idx} value={cam.deviceId}>
+                    {cam.label || `Cámara ${idx + 1}`}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

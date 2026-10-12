@@ -66,9 +66,11 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `WebcamSetupModal.tsx`: Configuración de hardware de pista (cámara, micrófono, vúmetro de audio y soporte para celular como cámara de diana secundaria).
 * **`comunidad/`:**
   * `TournamentHeroBanner.tsx`: Head banner promocional de torneos con modal de inscripción.
-  * `NationalRankings.tsx`: Tabla de posiciones y podio con filtros provinciales.
+  * `NationalRankings.tsx`: Tabla de posiciones y podio con filtros provinciales conectado a la base de datos de jugadores en la nube (`fetchRegisteredPlayersFromCloud`).
+  * `InvitePlayersModal.tsx`: Modal oficial para invitar a nuevos jugadores a registrarse en la plataforma, con enlace directo a `/perfil` (`https://locosporlosdardos.com.ar/perfil`), botón de envío directo por WhatsApp con texto deportivo pre-redactado, copiado de link y copiado de mensaje completo.
 * **`perfil/`:**
-  * `RegisterAndProfile.tsx`: Ficha deportiva del jugador con selector de nacionalidad y banderas internacionales (`COUNTRIES`), provincias argentinas, slider interactivo de AVG, categorización automática y dashboard de estadísticas.
+  * `RegisterAndProfile.tsx`: Ficha deportiva del jugador con selector de nacionalidad y banderas internacionales (`COUNTRIES`), provincias argentinas, slider interactivo de AVG, categorización automática, botón de invitar por WhatsApp y dashboard de estadísticas.
+  * `LoginModal.tsx`: Modal de acceso con Magic Link + OTP de 6 dígitos, tarjeta de último jugador del dispositivo y sanitización de avatares.
   * `OnboardingProfileModal.tsx`: Modal obligatorio de primer ingreso blindado con acceso administrativo protegido por clave maestra (`validateAdminCredentials`) exclusivo para el email oficial de Mariano Deux (`marianodeux@gmail.com`).
 * **`layout/`:**
   * `AppSidebar.tsx`: Menú lateral hover-driven (80px colapsado / 256px expandido) con drawer móvil y footer de usuario con logout y perfil.

@@ -28,7 +28,9 @@ import {
   SwitchCamera,
   Mic,
   MicOff,
-  Target
+  Target,
+  Settings2,
+  Sliders
 } from 'lucide-react';
 import { matchBroadcast } from '@/lib/broadcast';
 import { normalizeRoomCode } from '@/lib/online-rooms';
@@ -128,9 +130,19 @@ export const X01Board: React.FC<X01BoardProps> = ({
   // Modal de opciones para Volver / Stand By / Abandonar
   const [showExitModal, setShowExitModal] = useState<boolean>(false);
 
-  // Cámara y Micrófono en dispositivo móvil (Doble Diana P2P estilo Nakka N01)
+  // Cámara y Micrófono en dispositivo móvil/PC (Doble Diana P2P estilo Nakka N01)
   const [showMobileCamera, setShowMobileCamera] = useState<boolean>(() => !!config.isOnlineRoom);
-  const [cameraFacingMode, setCameraFacingMode] = useState<'environment' | 'user'>('environment'); // Trasera por defecto para enfocar diana
+  const [cameraFacingMode, setCameraFacingMode] = useState<'environment' | 'user'>('environment'); // Trasera por defecto en móviles
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('lpld_camera_device_id') || '';
+    }
+    return '';
+  });
+  const [showCameraSelectModal, setShowCameraSelectModal] = useState<boolean>(false);
+  const [audioAutoplayBlocked, setAudioAutoplayBlocked] = useState<boolean>(false);
+
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const mobileVideoRef = useRef<HTMLVideoElement>(null);
@@ -139,16 +151,36 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // Stream remoto de la cámara del contrincante vía WebRTC P2P
+  // Stream remoto de la cámara y audio del contrincante vía WebRTC P2P
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(getActiveRemoteStream());
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
+
+  // Detectar y listar dispositivos de cámara disponibles (webcam integrada, USB, OBS)
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.enumerateDevices) {
+      navigator.mediaDevices.enumerateDevices().then((devices) => {
+        const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+        setAvailableCameras(videoInputs);
+      }).catch((e) => console.warn('[EnumerateDevices Error]:', e));
+    }
+  }, [showMobileCamera]);
 
   useEffect(() => {
     setWebRtcRemoteStreamListener((stream) => {
-      console.log('[WebRTC P2P] Stream de cámara rival actualizado:', !!stream);
+      console.log('[WebRTC P2P] Stream de cámara/audio rival actualizado:', !!stream);
       setRemoteStream(stream);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = stream;
+      }
+      if (remoteAudioRef.current && stream) {
+        remoteAudioRef.current.srcObject = stream;
+        remoteAudioRef.current.play().then(() => {
+          setAudioAutoplayBlocked(false);
+        }).catch((err) => {
+          console.warn('[Audio WebRTC Autoplay Blocked]:', err);
+          setAudioAutoplayBlocked(true);
+        });
       }
     });
 
@@ -158,14 +190,49 @@ export const X01Board: React.FC<X01BoardProps> = ({
   }, []);
 
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
+    if (remoteStream) {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().then(() => {
+          setAudioAutoplayBlocked(false);
+        }).catch((err) => {
+          console.warn('[Audio WebRTC Autoplay Blocked on Device]:', err);
+          setAudioAutoplayBlocked(true);
+        });
+      }
     }
   }, [remoteStream]);
 
   // Alternar entre cámara trasera (diana) y delantera (jugador)
   const handleToggleCameraFacing = () => {
     setCameraFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
+    setSelectedCameraDeviceId('');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('lpld_camera_device_id');
+    }
+  };
+
+  const handleSelectCameraDevice = (deviceId: string) => {
+    setSelectedCameraDeviceId(deviceId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lpld_camera_device_id', deviceId);
+    }
+    setShowCameraSelectModal(false);
+    showFeedback('Cámara seleccionada y activada', '#00e676');
+  };
+
+  const handleUnlockRemoteAudio = () => {
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.play().then(() => {
+        setAudioAutoplayBlocked(false);
+        showFeedback('Audio del rival activado', '#00e676');
+      }).catch((e) => {
+        console.warn('Could not unlock audio:', e);
+      });
+    }
   };
 
   useEffect(() => {
@@ -176,13 +243,22 @@ export const X01Board: React.FC<X01BoardProps> = ({
         mobileStreamRef.current = null;
       }
 
-      navigator.mediaDevices
-        .getUserMedia({ 
-          video: { 
-            facingMode: { ideal: cameraFacingMode }, // Trasera por default ('environment')
+      // Constraints de video: Si el usuario seleccionó una cámara específica por hardware (ej. USB o webcam de notebook)
+      const videoConstraints: MediaTrackConstraints = selectedCameraDeviceId
+        ? { 
+            deviceId: { exact: selectedCameraDeviceId }, 
             width: { ideal: 1280 }, 
             height: { ideal: 720 } 
-          }, 
+          }
+        : { 
+            facingMode: { ideal: cameraFacingMode }, 
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 } 
+          };
+
+      navigator.mediaDevices
+        .getUserMedia({ 
+          video: videoConstraints, 
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
@@ -203,6 +279,13 @@ export const X01Board: React.FC<X01BoardProps> = ({
             }
           } catch (e) {
             console.warn('[WebRTC SendMediaStream Notice]:', e);
+          }
+
+          // Refrescar lista de cámaras una vez otorgado el permiso para obtener nombres legibles
+          if (navigator.mediaDevices.enumerateDevices) {
+            navigator.mediaDevices.enumerateDevices().then((devs) => {
+              setAvailableCameras(devs.filter((d) => d.kind === 'videoinput'));
+            }).catch(() => {});
           }
 
           // Inicializar análisis de voz para vúmetro / feedback en tiempo real
@@ -253,7 +336,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
       }
       setIsSpeaking(false);
     }
-  }, [showMobileCamera, cameraFacingMode]);
+  }, [showMobileCamera, cameraFacingMode, selectedCameraDeviceId]);
 
   // Manejar silenciado de micrófono en caliente
   useEffect(() => {
@@ -1178,8 +1261,23 @@ export const X01Board: React.FC<X01BoardProps> = ({
       {/* PANEL DE DOBLE DIANA EN VIVO (ESTILO NAKKA N01 SPLIT-SCREEN) */}
       {(isOnline || showMobileCamera) && (
         <div className="bg-[#0b0e14] border border-slate-800 rounded-2xl p-2.5 sm:p-3 space-y-2.5 shadow-2xl">
+          {/* Audio dedicado remoto para WebRTC (blindado contra restricciones de autoplay en celulares) */}
+          <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+
+          {/* Banner de Desbloqueo de Audio para Celulares */}
+          {audioAutoplayBlocked && (
+            <button
+              type="button"
+              onClick={handleUnlockRemoteAudio}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:brightness-110 text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 animate-pulse transition-all cursor-pointer"
+            >
+              <Volume2 className="w-4 h-4 fill-black" />
+              <span>🔊 Toca aquí para activar el audio del rival en este teléfono</span>
+            </button>
+          )}
+
           {/* Barra de estado y controles superiores de las dianas */}
-          <div className="flex items-center justify-between text-xs px-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs px-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#00e676] animate-ping" />
               <span className="font-black text-white uppercase tracking-wider text-[11px] flex items-center gap-1.5">
@@ -1188,8 +1286,27 @@ export const X01Board: React.FC<X01BoardProps> = ({
                 {isOnline && <span className="text-[10px] text-slate-400 font-mono">({config.onlineRoomCode})</span>}
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
-              {/* Botón Alternar Cámara Trasera (Diana) / Delantera */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Selector de Dispositivo de Cámara (Notebook Webcam / USB / Celular) */}
+              {availableCameras.length > 0 && (
+                <div className="relative">
+                  <select
+                    value={selectedCameraDeviceId}
+                    onChange={(e) => handleSelectCameraDevice(e.target.value)}
+                    className="bg-[#111622] hover:bg-[#1a2234] border border-slate-700 hover:border-[#00e676] text-slate-200 text-[10px] font-bold rounded-lg px-2 py-1 focus:outline-none focus:border-[#00e676] max-w-[125px] sm:max-w-[170px] truncate"
+                    title="Seleccionar qué cámara usar (Notebook o USB)"
+                  >
+                    <option value="">Cámara por Defecto</option>
+                    {availableCameras.map((cam, idx) => (
+                      <option key={cam.deviceId || idx} value={cam.deviceId}>
+                        {cam.label || `Cámara ${idx + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Botón Alternar Cámara Trasera (Diana) / Delantera en Celulares */}
               <button
                 type="button"
                 onClick={handleToggleCameraFacing}
@@ -1215,6 +1332,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
                       ? 'bg-[#00e676]/30 text-[#00e676] border-[#00e676] ring-2 ring-[#00e676]/50 animate-pulse' 
                       : 'bg-[#111622] text-[#00e676] border-[#00e676]/40'
                 }`}
+                title={isMicMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
               >
                 {isMicMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
                 <span>{isMicMuted ? 'Mute' : isSpeaking ? 'Voz ON' : 'Mic'}</span>

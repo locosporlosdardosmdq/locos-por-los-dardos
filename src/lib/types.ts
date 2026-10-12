@@ -59,6 +59,7 @@ export interface PlayerProfile {
   avatarUrl: string;
   photoUrl?: string;
   logoUrl?: string;
+  club?: string;
   estimatedAvg: number;
   category: PlayerCategory;
   isVerified?: boolean;

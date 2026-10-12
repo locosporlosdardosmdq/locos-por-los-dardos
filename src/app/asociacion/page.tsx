@@ -6,8 +6,7 @@ import Link from 'next/link';
 import { 
   DEFAULT_ASSOCIATION_AUTHORITIES, 
   DEFAULT_ASSOCIATION_BANK_ACCOUNT,
-  MOCK_CURRENT_USER,
-  MOCK_RANKINGS,
+  USER_ICEMAN,
   isUserAdmin
 } from '@/lib/constants';
 import { 
@@ -15,7 +14,8 @@ import {
   saveStoredAssociationAuthorities,
   getStoredAssociationBankAccount,
   saveStoredAssociationBankAccount,
-  getCurrentPlayerProfile
+  getCurrentPlayerProfile,
+  fetchRegisteredPlayersFromCloud
 } from '@/lib/storage';
 import { 
   AssociationAuthority, 
@@ -55,8 +55,9 @@ export default function AsociacionPage() {
     return getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT);
   });
   const [currentUser, setCurrentUser] = useState<PlayerProfile>(() => {
-    return getCurrentPlayerProfile(MOCK_CURRENT_USER);
+    return getCurrentPlayerProfile(USER_ICEMAN);
   });
+  const [registeredPlayers, setRegisteredPlayers] = useState<PlayerProfile[]>([USER_ICEMAN]);
 
   const isAdmin = isUserAdmin(currentUser.email) || currentUser.role === 'ADMIN';
 
@@ -110,33 +111,44 @@ export default function AsociacionPage() {
     };
   }, []);
 
+  useEffect(() => {
+    fetchRegisteredPlayersFromCloud().then((cloud) => {
+      if (cloud && cloud.length > 0) {
+        setRegisteredPlayers(cloud);
+      }
+    });
+  }, []);
+
   // Lista de jugadores elegibles para vincular foto oficial
   const availablePlayers = useMemo(() => {
-    return [
+    const list = [
       {
         id: currentUser.id,
         fullName: currentUser.fullName,
         nickname: currentUser.nickname,
         photoUrl: currentUser.photoUrl || currentUser.avatarUrl,
-        club: 'Darderos Mar del Plata',
+        club: currentUser.club || 'Darderos Mar del Plata',
         city: currentUser.city,
         province: currentUser.province,
         email: currentUser.email,
         phone: currentUser.phone
       },
-      ...MOCK_RANKINGS.map((p) => ({
-        id: p.id,
-        fullName: p.fullName,
-        nickname: p.nickname,
-        photoUrl: p.photoUrl || p.avatarUrl,
-        club: p.province === 'Buenos Aires' ? 'Darderos Mar del Plata' : `Club ${p.province}`,
-        city: p.city,
-        province: p.province,
-        email: p.email,
-        phone: ''
-      }))
+      ...registeredPlayers
+        .filter((p) => p.id !== currentUser.id)
+        .map((p) => ({
+          id: p.id,
+          fullName: p.fullName,
+          nickname: p.nickname,
+          photoUrl: p.photoUrl || p.avatarUrl,
+          club: p.club || (p.province === 'Buenos Aires' ? 'Darderos Mar del Plata' : `Club ${p.province}`),
+          city: p.city,
+          province: p.province,
+          email: p.email,
+          phone: p.phone || ''
+        }))
     ];
-  }, [currentUser]);
+    return list;
+  }, [currentUser, registeredPlayers]);
 
   // Obtener autoridades filtradas por el ámbito seleccionado
   const filteredAuthorities = useMemo(() => {
@@ -154,8 +166,8 @@ export default function AsociacionPage() {
             nickname: currentUser.nickname || auth.nickname
           };
         }
-        // Si está vinculada a un ranking mock
-        const matched = MOCK_RANKINGS.find((p) => p.id === auth.playerId);
+        // Si está vinculada a un jugador registrado de la comunidad
+        const matched = registeredPlayers.find((p) => p.id === auth.playerId);
         if (matched) {
           return {
             ...auth,
@@ -164,7 +176,7 @@ export default function AsociacionPage() {
         }
         return auth;
       });
-  }, [authorities, activeScope, currentUser]);
+  }, [authorities, activeScope, currentUser, registeredPlayers]);
 
   const handleCopy = (text: string, field: string) => {
     navigator.clipboard.writeText(text);

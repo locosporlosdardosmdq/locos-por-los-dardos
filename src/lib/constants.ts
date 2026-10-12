@@ -454,7 +454,7 @@ export const DEFAULT_NEW_PLAYER: PlayerProfile = {
   countryCode: 'AR',
   province: 'Buenos Aires',
   city: 'Mar del Plata',
-  avatarUrl: '/images/iceman-perfil.png',
+  avatarUrl: '',
   photoUrl: '',
   estimatedAvg: 40.0,
   category: 'PRINCIPIANTE',

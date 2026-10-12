@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MOCK_RANKINGS, MOCK_CURRENT_USER, DEFAULT_ASSOCIATION_BANK_ACCOUNT } from '@/lib/constants';
-import { getStoredAssociationBankAccount } from '@/lib/storage';
-import { Tournament, AssociationBankAccount } from '@/lib/types';
+import { USER_ICEMAN, DEFAULT_ASSOCIATION_BANK_ACCOUNT } from '@/lib/constants';
+import { getStoredAssociationBankAccount, getCurrentPlayerProfile, fetchRegisteredPlayersFromCloud } from '@/lib/storage';
+import { Tournament, AssociationBankAccount, PlayerProfile } from '@/lib/types';
 import { WebcamSetupModal } from './WebcamSetupModal';
 import { 
   User, 
@@ -34,7 +34,9 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
   tournament,
   onEnrollPlayer
 }) => {
-  const [selectedPlayerName, setSelectedPlayerName] = useState(MOCK_CURRENT_USER.fullName);
+  const [currentUser] = useState<PlayerProfile>(() => getCurrentPlayerProfile(USER_ICEMAN));
+  const [selectedPlayerName, setSelectedPlayerName] = useState(currentUser.fullName);
+  const [availablePlayers, setAvailablePlayers] = useState<PlayerProfile[]>([USER_ICEMAN]);
   const [pin, setPin] = useState('1234');
   const [useWebcam, setUseWebcam] = useState(true);
   const [showWebcamModal, setShowWebcamModal] = useState(false);
@@ -43,6 +45,14 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
   const [bankAccount, setBankAccount] = useState<AssociationBankAccount>(() => {
     return getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT);
   });
+
+  useEffect(() => {
+    fetchRegisteredPlayersFromCloud().then((cloud) => {
+      if (cloud && cloud.length > 0) {
+        setAvailablePlayers(cloud);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const handleBankUpdate = (e: any) => {
@@ -252,14 +262,16 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
                 onChange={(e) => setSelectedPlayerName(e.target.value)}
                 className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-[#00e676]"
               >
-                <option value={MOCK_CURRENT_USER.fullName}>
-                  {MOCK_CURRENT_USER.fullName} (@{MOCK_CURRENT_USER.nickname})
+                <option value={currentUser.fullName}>
+                  {currentUser.fullName} (@{currentUser.nickname}) [Tú]
                 </option>
-                {MOCK_RANKINGS.map((p) => (
-                  <option key={p.id} value={p.fullName}>
-                    {p.fullName} (@{p.nickname}) • AVG {p.estimatedAvg}
-                  </option>
-                ))}
+                {availablePlayers
+                  .filter((p) => p.id !== currentUser.id && p.fullName !== currentUser.fullName)
+                  .map((p) => (
+                    <option key={p.id} value={p.fullName}>
+                      {p.fullName} (@{p.nickname}) • AVG {p.estimatedAvg || p.stats?.overallAvg || 45}
+                    </option>
+                  ))}
                 <option value="Invitado / Nuevo Jugador">+ Inscribir con nombre personalizado</option>
               </select>
             </div>

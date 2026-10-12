@@ -243,19 +243,37 @@ export async function hostPeerRoom(
     sendMediaStream: (stream: MediaStream) => {
       localMediaStream = stream;
       if (activeCall) {
-        // Si ya hay una llamada activa, reemplazar tracks
+        // Si ya hay una llamada activa, reemplazar tracks o agregarlos si no existían
         try {
-          const senders = activeCall.peerConnection?.getSenders?.() || [];
+          const pc = activeCall.peerConnection;
+          const senders: any[] = pc?.getSenders?.() || [];
           const videoTrack = stream.getVideoTracks()[0];
           const audioTrack = stream.getAudioTracks()[0];
 
+          let foundVideoSender = false;
+          let foundAudioSender = false;
+
           senders.forEach((sender: any) => {
             if (sender.track?.kind === 'video' && videoTrack) {
-              sender.replaceTrack(videoTrack);
+              sender.replaceTrack(videoTrack).catch(() => {});
+              foundVideoSender = true;
             } else if (sender.track?.kind === 'audio' && audioTrack) {
-              sender.replaceTrack(audioTrack);
+              sender.replaceTrack(audioTrack).catch(() => {});
+              foundAudioSender = true;
             }
           });
+
+          // Si la llamada previa se respondió sin stream inicial, añadir tracks
+          if (!foundAudioSender && audioTrack && pc) {
+            try {
+              pc.addTrack(audioTrack, stream);
+            } catch (err) {}
+          }
+          if (!foundVideoSender && videoTrack && pc) {
+            try {
+              pc.addTrack(videoTrack, stream);
+            } catch (err) {}
+          }
         } catch (e) {
           console.warn('[WebRTC Host Track Replace Notice]:', e);
         }
@@ -426,17 +444,35 @@ export async function joinPeerRoom(
       localMediaStream = stream;
       if (activeCall) {
         try {
-          const senders = activeCall.peerConnection?.getSenders?.() || [];
+          const pc = activeCall.peerConnection;
+          const senders: any[] = pc?.getSenders?.() || [];
           const videoTrack = stream.getVideoTracks()[0];
           const audioTrack = stream.getAudioTracks()[0];
 
+          let foundVideoSender = false;
+          let foundAudioSender = false;
+
           senders.forEach((sender: any) => {
             if (sender.track?.kind === 'video' && videoTrack) {
-              sender.replaceTrack(videoTrack);
+              sender.replaceTrack(videoTrack).catch(() => {});
+              foundVideoSender = true;
             } else if (sender.track?.kind === 'audio' && audioTrack) {
-              sender.replaceTrack(audioTrack);
+              sender.replaceTrack(audioTrack).catch(() => {});
+              foundAudioSender = true;
             }
           });
+
+          // Si no existía sender previo, agregar los tracks
+          if (!foundAudioSender && audioTrack && pc) {
+            try {
+              pc.addTrack(audioTrack, stream);
+            } catch (err) {}
+          }
+          if (!foundVideoSender && videoTrack && pc) {
+            try {
+              pc.addTrack(videoTrack, stream);
+            } catch (err) {}
+          }
         } catch (e) {
           console.warn('[WebRTC Guest Track Replace Notice]:', e);
         }

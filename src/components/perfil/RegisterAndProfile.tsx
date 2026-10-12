@@ -16,6 +16,7 @@ import {
 import { getCurrentPlayerProfile, saveCurrentPlayerProfile, clearCurrentPlayerSession } from '@/lib/storage';
 import { UltimateDartsCard, UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
 import { LoginModal } from '@/components/perfil/LoginModal';
+import { InvitePlayersModal } from '@/components/comunidad/InvitePlayersModal';
 import { 
   User, 
   MapPin, 
@@ -35,12 +36,14 @@ import {
   Users,
   Camera,
   Upload,
-  Trash2
+  Trash2,
+  MessageCircle
 } from 'lucide-react';
 
 export const RegisterAndProfile: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'PROFILE' | 'REGISTER_EDIT'>('PROFILE');
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [profile, setProfile] = useState<PlayerProfile>(() => {
     return getCurrentPlayerProfile(MOCK_CURRENT_USER);
   });
@@ -92,16 +95,12 @@ export const RegisterAndProfile: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.includes('png') && !file.type.includes('webp')) {
-      alert('Se recomienda una imagen en formato PNG (o WebP) con fondo transparente para un resultado óptimo en tu carta oficial de dardos.');
-    }
-
     setUploadingPhoto(true);
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new window.Image();
       img.onload = () => {
-        // Redimensionar y formatear a 400x520 px preservando canal alfa transparente
+        // Redimensionar y formatear a 400x520 px preservando canal alfa o centrando imagen
         const canvas = document.createElement('canvas');
         canvas.width = 400;
         canvas.height = 520;
@@ -109,15 +108,15 @@ export const RegisterAndProfile: React.FC = () => {
         if (ctx) {
           ctx.clearRect(0, 0, 400, 520);
           
-          const scale = Math.min(400 / img.width, 520 / img.height);
+          const scale = Math.max(400 / img.width, 520 / img.height);
           const x = (400 - img.width * scale) / 2;
-          const y = (520 - img.height * scale); // Anclar al pie
+          const y = (520 - img.height * scale) / 2;
           
           ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-          const dataUrl = canvas.toDataURL('image/png');
+          const dataUrl = canvas.toDataURL('image/png', 0.9);
           
           setCustomPhoto(dataUrl);
-          const updatedProfile = { ...profile, photoUrl: dataUrl };
+          const updatedProfile = { ...profile, photoUrl: dataUrl, avatarUrl: dataUrl };
           setProfile(updatedProfile);
           saveCurrentPlayerProfile(updatedProfile);
           if (typeof window !== 'undefined') {
@@ -133,7 +132,7 @@ export const RegisterAndProfile: React.FC = () => {
 
   const handleRemovePhoto = () => {
     setCustomPhoto(null);
-    const updatedProfile = { ...profile, photoUrl: undefined };
+    const updatedProfile = { ...profile, photoUrl: undefined, avatarUrl: '' };
     setProfile(updatedProfile);
     saveCurrentPlayerProfile(updatedProfile);
     if (typeof window !== 'undefined') {
@@ -230,13 +229,18 @@ export const RegisterAndProfile: React.FC = () => {
   const flag = getCountryFlag(profile.countryCode || profile.nationality);
   const isProfileAdmin = isUserAdmin(profile);
 
+  const isIcemanUser = (profile.nickname?.toUpperCase() === 'ICEMAN') || (profile.email?.toLowerCase() === 'marianodeux@gmail.com');
+  const userPhotoSrc = customPhoto || 
+    (profile.photoUrl && !profile.photoUrl.includes('iceman') ? profile.photoUrl : undefined) ||
+    (isIcemanUser ? (profile.avatarUrl || '/images/iceman-perfil.png') : (profile.avatarUrl && !profile.avatarUrl.includes('iceman') ? profile.avatarUrl : undefined));
+
   const currentUserCardData: UltimateDartsCardData = {
     id: profile.id,
     name: profile.fullName || profile.nickname,
     nickname: profile.nickname,
-    avatarUrl: profile.avatarUrl || '/images/iceman-perfil.png',
-    photoUrl: customPhoto || profile.photoUrl || profile.avatarUrl || '/images/iceman-perfil.png',
-    logoUrl: profile.logoUrl || (profile.id === 'user-iceman-admin' || profile.nickname === 'ICEMAN' ? '/logos/logo-iceman-card.png' : undefined),
+    avatarUrl: isIcemanUser ? (profile.avatarUrl || '/images/iceman-perfil.png') : (profile.avatarUrl && !profile.avatarUrl.includes('iceman') ? profile.avatarUrl : undefined),
+    photoUrl: userPhotoSrc,
+    logoUrl: profile.logoUrl || (isIcemanUser ? '/logos/logo-iceman-card.png' : undefined),
     nationality: profile.nationality || 'Argentina',
     countryCode: profile.countryCode || 'AR',
     province: profile.province,
@@ -290,6 +294,17 @@ export const RegisterAndProfile: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={() => setIsInviteModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-emerald-500/15 hover:bg-emerald-500/25 text-[#00e676] border border-emerald-500/40 transition-all shadow"
+            title="Invitar a otros jugadores a registrarse por WhatsApp"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Invitar por WhatsApp</span>
+            <span className="sm:hidden">Invitar</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleLogoutProfile}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#14161f] hover:bg-[#242836] text-slate-300 hover:text-red-400 border border-[#313647] hover:border-red-900/40 transition-colors"
             title="Cerrar sesión o cambiar de jugador"
@@ -323,14 +338,20 @@ export const RegisterAndProfile: React.FC = () => {
                   className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-[#00b853] shadow-xl bg-[#14161f] p-1 flex-shrink-0"
                   style={{ width: 112, height: 112, maxWidth: 112, maxHeight: 112, position: 'relative', overflow: 'hidden' }}
                 >
-                  <Image
-                    src={profile.photoUrl || profile.avatarUrl || '/images/iceman-perfil.png'}
-                    alt={profile.nickname}
-                    width={112}
-                    height={112}
-                    className="object-contain p-2 w-full h-full"
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
+                  {userPhotoSrc ? (
+                    <Image
+                      src={userPhotoSrc}
+                      alt={profile.nickname}
+                      width={112}
+                      height={112}
+                      className="object-contain p-2 w-full h-full"
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-xl bg-gradient-to-br from-[#00b853]/25 via-[#14161f] to-black flex items-center justify-center font-black text-3xl text-[#00e676] select-none">
+                      {profile.nickname ? profile.nickname.slice(0, 2).toUpperCase() : 'PL'}
+                    </div>
+                  )}
                   <span className="absolute bottom-1 right-1 text-xl select-none" title={profile.nationality || 'Argentina'}>
                     {flag}
                   </span>
@@ -448,16 +469,16 @@ export const RegisterAndProfile: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-[11px] text-[#b8ad98] leading-relaxed">
-                  Para que tu carta luzca profesional al estilo PDC, sube tu foto en formato <strong className="text-amber-400 font-black">PNG con fondo transparente</strong> (sin fondo). El sistema la formateará automáticamente al tamaño exacto de la tarjeta (400x520 px).
+                  Para que tu carta luzca profesional al estilo PDC, sube tu foto (selfie, foto con camiseta o fondo transparente). El sistema la optimizará automáticamente para tu ficha oficial.
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   <label className="cursor-pointer px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0d0e12] font-black text-xs flex items-center gap-2 transition-all shadow-md shadow-amber-400/20 active:scale-95">
                     <Upload className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span>{uploadingPhoto ? 'Procesando en canvas...' : 'Subir Foto PNG Transparente'}</span>
+                    <span>{uploadingPhoto ? 'Procesando foto...' : 'Subir Foto de Perfil'}</span>
                     <input
                       type="file"
-                      accept="image/png,image/webp"
+                      accept="image/*"
                       className="hidden"
                       onChange={handlePhotoUpload}
                       disabled={uploadingPhoto}
@@ -992,6 +1013,13 @@ export const RegisterAndProfile: React.FC = () => {
       <LoginModal 
         isOpen={isLoginModalOpen} 
         onClose={() => setIsLoginModalOpen(false)} 
+      />
+
+      {/* Modal de Invitación por WhatsApp */}
+      <InvitePlayersModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        inviterName={profile.nickname || profile.fullName}
       />
     </div>
   );

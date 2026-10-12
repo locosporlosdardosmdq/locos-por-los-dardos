@@ -32,7 +32,8 @@ import {
   getStoredTournamentHistory,
   saveStoredTournamentHistory,
   getStoredLeagues,
-  saveStoredLeagues
+  saveStoredLeagues,
+  fetchRegisteredPlayersFromCloud
 } from '@/lib/storage';
 import { matchBroadcast, BroadcastMatchPayload } from '@/lib/broadcast';
 import { findCanonicalPlayer } from '@/lib/players-data';
@@ -239,9 +240,31 @@ export const TournamentManager: React.FC = () => {
 
   // Lista de inscriptos locales
   const [enrolledPlayers, setEnrolledPlayers] = useState([
-    { id: currentUser.id, name: currentUser.fullName, nickname: currentUser.nickname, avg: currentUser.estimatedAvg, hasWebcam: true },
-    ...MOCK_RANKINGS.map((p) => ({ id: p.id, name: p.fullName, nickname: p.nickname, avg: p.estimatedAvg, hasWebcam: true }))
+    { id: currentUser.id, name: currentUser.fullName, nickname: currentUser.nickname, avg: currentUser.estimatedAvg || 48, hasWebcam: true }
   ]);
+
+  useEffect(() => {
+    fetchRegisteredPlayersFromCloud().then((cloud) => {
+      if (cloud && cloud.length > 0) {
+        setEnrolledPlayers((prev) => {
+          const map = new Map<string, { id: string; name: string; nickname: string; avg: number; hasWebcam: boolean }>();
+          prev.forEach((p) => map.set(p.id, p));
+          cloud.forEach((c) => {
+            if (!map.has(c.id)) {
+              map.set(c.id, {
+                id: c.id,
+                name: c.fullName || c.nickname,
+                nickname: c.nickname,
+                avg: c.estimatedAvg || c.stats?.overallAvg || 45,
+                hasWebcam: true
+              });
+            }
+          });
+          return Array.from(map.values());
+        });
+      }
+    });
+  }, []);
 
   // Formulario nuevo torneo y modalidades
   const [newTitle, setNewTitle] = useState('');

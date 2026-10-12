@@ -17,6 +17,7 @@ export interface WebRtcRoomHandler {
   sendThrow: (score: number, darts?: string[], isCheckout?: boolean) => void;
   sendVoiceState: (isTalking: boolean) => void;
   sendMediaStream: (stream: MediaStream) => void;
+  sendLeave?: () => void;
   getRemoteStream: () => MediaStream | null;
   destroy: () => void;
 }
@@ -198,6 +199,10 @@ export async function hostPeerRoom(
       if (incomingCall === call) {
         incomingCall = null;
       }
+      activeRemoteStream = null;
+      if (currentRemoteStreamListener) {
+        currentRemoteStreamListener(null);
+      }
     });
   });
 
@@ -243,6 +248,12 @@ export async function hostPeerRoom(
         if (localMediaStream && connectedGuestPeerId) {
           initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
         }
+      } else if (msg.type === 'LEAVE') {
+        console.log('[WebRTC Host] El rival salió de la partida (LEAVE)');
+        activeRemoteStream = null;
+        if (currentRemoteStreamListener) {
+          currentRemoteStreamListener(null);
+        }
       } else if (msg.type === 'THROW') {
         if (currentThrowListener) {
           currentThrowListener(msg.score, msg.darts, msg.isCheckout);
@@ -255,6 +266,10 @@ export async function hostPeerRoom(
 
     conn.on('close', () => {
       console.log('[WebRTC Host] Rival desconectado del canal de datos');
+      activeRemoteStream = null;
+      if (currentRemoteStreamListener) {
+        currentRemoteStreamListener(null);
+      }
     });
   });
 
@@ -334,6 +349,17 @@ export async function hostPeerRoom(
             }
           });
         } catch (err) {}
+      }
+    },
+    sendLeave: () => {
+      try {
+        if (activeConnection && activeConnection.open) {
+          activeConnection.send({ type: 'LEAVE' } as PeerMessage);
+        }
+      } catch (e) {}
+      activeRemoteStream = null;
+      if (currentRemoteStreamListener) {
+        currentRemoteStreamListener(null);
       }
     },
     getRemoteStream: () => activeRemoteStream,
@@ -442,6 +468,12 @@ export async function joinPeerRoom(
         if (localMediaStream) {
           initiateOutgoingCall(localMediaStream);
         }
+      } else if (msg.type === 'LEAVE') {
+        console.log('[WebRTC Guest] El Host salió de la partida (LEAVE)');
+        activeRemoteStream = null;
+        if (currentRemoteStreamListener) {
+          currentRemoteStreamListener(null);
+        }
       } else if (msg.type === 'THROW') {
         if (currentThrowListener) {
           currentThrowListener(msg.score, msg.darts, msg.isCheckout);
@@ -459,6 +491,10 @@ export async function joinPeerRoom(
 
     conn.on('close', () => {
       console.log('[WebRTC Guest] Conexión con sala cerrada');
+      activeRemoteStream = null;
+      if (currentRemoteStreamListener) {
+        currentRemoteStreamListener(null);
+      }
     });
   });
 
@@ -485,6 +521,10 @@ export async function joinPeerRoom(
       console.log('[WebRTC Guest] Stream de cámara del host cerrado');
       if (incomingCall === call) {
         incomingCall = null;
+      }
+      activeRemoteStream = null;
+      if (currentRemoteStreamListener) {
+        currentRemoteStreamListener(null);
       }
     });
   });
@@ -571,6 +611,17 @@ export async function joinPeerRoom(
             }
           });
         } catch (err) {}
+      }
+    },
+    sendLeave: () => {
+      try {
+        if (activeConnection && activeConnection.open) {
+          activeConnection.send({ type: 'LEAVE' } as PeerMessage);
+        }
+      } catch (e) {}
+      activeRemoteStream = null;
+      if (currentRemoteStreamListener) {
+        currentRemoteStreamListener(null);
       }
     },
     getRemoteStream: () => activeRemoteStream,

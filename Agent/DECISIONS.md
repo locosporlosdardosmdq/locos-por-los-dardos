@@ -678,3 +678,41 @@
      - Configurado `export const dynamic = 'force-dynamic'`, `export const revalidate = 0` y cabeceras `Cache-Control: no-store, no-cache, max-age=0`.
      - Parámetro de bust de caché `?t=${Date.now()}` y botón táctil "Actualizar" con icono `RefreshCw` en el directorio.
 - **Motivo:** Garantiza que la cámara y el audio del rival se visualicen y escuchen sin restricciones de red ni de navegador, con visualización dedicada en PC y padrón federado en tiempo real.
+
+---
+
+## ADR-037: Arquitectura Nakka n01 de Partidas Online (Turn-based Camera, Split-Screen en PC, Pop-out Desacoplado y SSR de Jugadores)
+
+- **Fecha:** 2026-10-12
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Cámara celular no se apagaba al salir:* Cuando Juli salió de la partida desde su celular, la luz de la cámara continuó encendida y transmitiendo video hacia la PC de Mariano. `X01Board.tsx` carecía de cleanup hook al desmontarse o salir, dejando los tracks de `getUserMedia` y los peer connections abiertos en background.
+  2. *Modal centrado en PC tapaba el anotador:* El modal emergente de la diana rival (`showRivalModal`) estaba centrado en pantalla sin posibilidad de moverse libremente, bloqueando el teclado táctil de tiro y las puntuaciones.
+  3. *Experiencia de juego estilo Nakka (n01):* En competiciones online de dardos, los jugadores requieren:
+     - Alternancia automática de cámara por turno (*Turn-based Active Camera*): cuando tira el rival, la pantalla muestra en grande su diana; cuando tira el jugador local, conmuta a su propia diana para verificar los impactos antes de digitar la puntuación.
+     - En PC / Escritorio: División de pantalla horizontal Split-Screen (50% Anotador | 50% Cámara en Vivo HD).
+     - Multi-monitor / 2ª Pantalla: Capacidad de abrir una ventana emergente desacoplada (`window.open`) que pueda arrastrarse a otro monitor o TV sin interferir con el anotador.
+  4. *Padrón de jugadores en PC:* La página `/jugadores` dependía exclusivamente de un fetch asíncrono en el cliente montado sobre `CANONICAL_PLAYERS` (que solo contiene a ICEMAN). Si la llamada tardaba o colisionaba con cachés del navegador, la interfaz quedaba estancada en "Mostrando 1 cartas oficiales".
+- **Decisión:**
+  1. **Apagado Estricto de Hardware y Desconexión WebRTC (`src/components/anotador/X01Board.tsx` & `src/lib/webrtc-room.ts`):**
+     - Creación de `cleanupHardwareAndWebRtc()` ejecutada en el cleanup hook de `useEffect` (al desmontar la página) y en todos los handlers de salida (`handleBackClick`, `handleAbandon`, `handleStandBy`, `confirmExitMatch`).
+     - Detiene explícitamente todos los tracks de audio y video (`mobileStreamRef.current.getTracks().forEach(t => t.stop())`), liberando la luz física de la cámara en smartphones.
+     - Envío del mensaje `{ type: 'LEAVE' }` por WebRTC y ejecución de `webrtc.destroy()` y `setActiveWebRtcHandler(null)`.
+     - En el receptor, al recibir `LEAVE` o al cerrarse el canal, se emite `remoteStream = null`, actualizando la vista inmediatamente con aviso de desconexión del oponente.
+  2. **Modo Dividido Split-Screen en PC (Anotador + Cámara en Vivo HD):**
+     - En pantallas de escritorio (`lg:`): El layout principal de `X01Board.tsx` conmuta automáticamente a un grid de 12 columnas:
+       - **Columna 1 (7 cols):** Anotador oficial completo (marcadores 501 gigantes, teclado táctil ergonómico de 5 columnas, sugerencia de cierre oficial y panel histórico de visitas).
+       - **Columna 2 (5 cols):** Panel Visor de Diana en Vivo en HD fijo y sincronizado (sin modales invasivos superpuestos).
+       - Botón para ocultar/mostrar el panel lateral en caso de preferir pantalla completa del marcador.
+  3. **Alternancia Automática de Cámara según el Turno (Nakka Style):**
+     - Lógica calculada `shouldShowRivalCamera`:
+       - En modo `AUTO`: conmuta automáticamente mostrando la diana del rival (`remoteStream`) cuando es su turno de tirar (`isRivalTurn`), y la diana local (`mobileStreamRef.current`) cuando es el turno local (`isMyTurn`).
+       - Con selector de foco manual (`[⚡ Auto]`, `[Diana Rival]`, `[Mi Diana]`) en la cabecera.
+  4. **Ventana Pop-out Desacoplada para Multi-Monitor / 2ª Pantalla (`handleOpenPopout`):**
+     - El botón `[Pop-out 2ª Pantalla]` invoca `window.open('/anotador/camara-popout?room=...', 'DianaRivalPopoutWindow', 'width=1080,height=760,...')`, abriendo una ventana nativa de Windows independiente que puede arrastrarse libremente a cualquier segundo monitor, proyector o pantalla de club.
+  5. **Server-Side Rendering (SSR) Garantizado para el Padrón de Jugadores (`src/app/jugadores/page.tsx` & `src/lib/server-players.ts`):**
+     - Creado helper de servidor `getRegisteredPlayersServer()` que consulta directamente a Supabase PostgreSQL con `getDbPool()`.
+     - Convertida la ruta `src/app/jugadores/page.tsx` a Server Component asíncrono (`export const dynamic = 'force-dynamic'`, `revalidate = 0`) que inyecta `initialPlayers` en `PlayerDirectory.tsx`.
+     - El HTML viaja desde el servidor ya cargado con los 5 jugadores oficiales (**ZEUS, GonDizz, ICEMAN, CARPO y Prueba/Juli**), eliminando de raíz cualquier congelamiento en una sola carta.
+- **Motivo:** Alinea la plataforma al estándar mundial de competiciones online de dardos (Nakka n01), garantiza ergonomía total en PCs con doble monitor o pantalla dividida, apaga el hardware del celular al salir y asegura la visualización inmediata de toda la comunidad federada.
+

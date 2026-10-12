@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { MatchConfig, DartThrow } from '@/lib/types';
 import { SoundEngine, VoiceCaller, isAppAudioMuted, setAppAudioMuted, unlockAudio } from '@/lib/sound-effects';
 import { getSuggestedCheckout } from '@/lib/constants';
@@ -35,6 +35,7 @@ import {
   Minimize2,
   PictureInPicture2,
   RefreshCw,
+  LayoutGrid,
   X
 } from 'lucide-react';
 import { matchBroadcast } from '@/lib/broadcast';
@@ -164,9 +165,67 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
+  // Modo de Alternancia de Cámara en Partidas Online (Nakka Style)
+  // 'AUTO': conmuta automáticamente según el turno del tirador
+  // 'RIVAL': fija la diana del rival
+  // 'LOCAL': fija la diana propia
+  const [cameraFocusMode, setCameraFocusMode] = useState<'AUTO' | 'RIVAL' | 'LOCAL'>('AUTO');
+  const [isDesktopSplitEnabled, setIsDesktopSplitEnabled] = useState<boolean>(true);
+  const splitScreenVideoRef = useRef<HTMLVideoElement>(null);
+
   // Modal Emergente de Diana del Rival (Optimizado para PC y móviles)
   const [showRivalModal, setShowRivalModal] = useState<boolean>(false);
   const modalRemoteVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Función Central de Apagado de Hardware y Desconexión WebRTC
+  const cleanupHardwareAndWebRtc = useCallback(() => {
+    console.log('[X01Board] Apagando hardware de cámara y cerrando sesión WebRTC...');
+    if (mobileStreamRef.current) {
+      try {
+        mobileStreamRef.current.getTracks().forEach((t) => t.stop());
+      } catch (e) {}
+      mobileStreamRef.current = null;
+    }
+    if (mobileVideoRef.current) {
+      mobileVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    if (modalRemoteVideoRef.current) {
+      modalRemoteVideoRef.current.srcObject = null;
+    }
+    if (splitScreenVideoRef.current) {
+      splitScreenVideoRef.current.srcObject = null;
+    }
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+
+    try {
+      const webrtc = getActiveWebRtcHandler();
+      if (webrtc) {
+        if (typeof webrtc.sendLeave === 'function') {
+          webrtc.sendLeave();
+        }
+        webrtc.destroy();
+        setActiveWebRtcHandler(null);
+      }
+    } catch (e) {}
+  }, []);
+
+  // Cleanup garantizado al desmontar el componente (navegación atrás, cambio de ruta, etc.)
+  useEffect(() => {
+    return () => {
+      cleanupHardwareAndWebRtc();
+    };
+  }, [cleanupHardwareAndWebRtc]);
 
   const handleTogglePiP = async () => {
     try {
@@ -417,8 +476,22 @@ export const X01Board: React.FC<X01BoardProps> = ({
     }
   }, [currentTurn, config.isOnlineRoom]);
 
-  // Manejador de Modal Emergente de Diana del Rival (en PC abre el modal con la cámara del rival)
+  // Manejador de Ventana Pop-out Desacoplada para 2º Monitor o TV (Nakka Style)
   const handleOpenPopout = () => {
+    if (typeof window !== 'undefined') {
+      const roomParam = config.onlineRoomCode ? `?room=${encodeURIComponent(config.onlineRoomCode)}` : '';
+      const popoutUrl = `/anotador/camara-popout${roomParam}`;
+      const win = window.open(
+        popoutUrl,
+        'DianaRivalPopoutWindow',
+        'width=1080,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes'
+      );
+      if (win) {
+        win.focus();
+        showFeedback('Ventana Pop-out abierta para 2º monitor / TV', '#00e676');
+        return;
+      }
+    }
     setShowRivalModal(true);
   };
 
@@ -469,6 +542,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const handleBackClick = () => {
     // Si no se registró ningún tiro, vuelve directo a configurar partida
     if (history.length === 0 && turnHistory.length === 0) {
+      cleanupHardwareAndWebRtc();
       clearActiveMatchSession();
       onExit();
       return;
@@ -505,6 +579,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
       savedAt: new Date().toISOString()
     });
     setShowExitModal(false);
+    cleanupHardwareAndWebRtc();
     if (onStandBy) {
       onStandBy();
     } else {
@@ -514,6 +589,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
   const handleAbandon = () => {
     setShowExitModal(false);
+    cleanupHardwareAndWebRtc();
     clearActiveMatchSession();
 
     if (config.tournamentTitle) {
@@ -640,6 +716,24 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const isMyTurn = !isOnline || currentTurn === localPlayerIdx;
   const isRivalTurn = isOnline && currentTurn === rivalPlayerIdx;
   const lastSyncedThrowTimeRef = useRef<number>(Date.now());
+
+  // Determinar qué diana debe verse en grande (Nakka Style Turn-based Camera)
+  const shouldShowRivalCamera = useMemo(() => {
+    if (cameraFocusMode === 'RIVAL') return true;
+    if (cameraFocusMode === 'LOCAL') return false;
+    return isRivalTurn;
+  }, [cameraFocusMode, isRivalTurn]);
+
+  // Conectar stream a splitScreenVideoRef en tiempo real
+  useEffect(() => {
+    if (splitScreenVideoRef.current) {
+      const targetStream = shouldShowRivalCamera ? remoteStream : mobileStreamRef.current;
+      splitScreenVideoRef.current.srcObject = targetStream || null;
+      if (targetStream) {
+        splitScreenVideoRef.current.play().catch(() => {});
+      }
+    }
+  }, [shouldShowRivalCamera, remoteStream, showMobileCamera]);
 
   // Auto-conexión / Auto-Healing de WebRTC si la sala es online y no hay handler activo
   useEffect(() => {
@@ -993,6 +1087,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
   // Confirmar y salir de la partida guardando estadísticas
   const confirmExitMatch = () => {
+    cleanupHardwareAndWebRtc();
     const winnerIdx = matchWinnerIndex !== null ? matchWinnerIndex : currentTurn;
     onMatchComplete({
       winnerIndex: winnerIdx,
@@ -1089,13 +1184,23 @@ export const X01Board: React.FC<X01BoardProps> = ({
   // Sugerencia de Checkout oficial (2 a 170)
   const currentCheckout = getSuggestedCheckout(scores[currentTurn]);
 
+  const isSplitActive = (isOnline || showMobileCamera) && isDesktopSplitEnabled;
+
   return (
-    <div className="w-full max-w-lg mx-auto space-y-4">
-      {/* PANEL 1: TABLERO DE TIRO PRINCIPAL (Fondo negro puro, dimensiones preservadas) */}
-      <div 
-        ref={boardRef}
-        className="w-full bg-black border border-[#ef4444]/40 rounded-3xl p-3 sm:p-5 shadow-2xl shadow-black space-y-3.5 select-none"
-      >
+    <div className={`w-full mx-auto transition-all ${
+      isSplitActive
+        ? 'max-w-[1550px] grid grid-cols-1 lg:grid-cols-12 gap-5 items-start'
+        : 'max-w-lg space-y-4'
+    }`}>
+      {/* COLUMNA IZQUIERDA: ANOTADOR OFICIAL COMPLETO (TABLERO + HISTORIAL) */}
+      <div className={`space-y-4 ${
+        isSplitActive ? 'lg:col-span-7 xl:col-span-7' : 'w-full'
+      }`}>
+        {/* PANEL 1: TABLERO DE TIRO PRINCIPAL (Fondo negro puro, dimensiones preservadas) */}
+        <div 
+          ref={boardRef}
+          className="w-full bg-black border border-[#ef4444]/40 rounded-3xl p-3 sm:p-5 shadow-2xl shadow-black space-y-3.5 select-none"
+        >
         {/* Cabecera superior oficial con botón Volver integrado */}
         <div className="flex items-center justify-between pb-2 border-b border-[#ef4444]/20">
           <div className="flex items-center gap-2">
@@ -1143,7 +1248,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
               <Camera className="w-4 h-4" />
             </button>
 
-            {/* Botón Pop-out 2ª Pantalla / TV (Opción 1) */}
+            {/* Botón Pop-out 2ª Pantalla / TV */}
             <button
               onClick={handleOpenPopout}
               title="Abrir Cámara y Marcador en 2ª Pantalla o TV (Pop-out)"
@@ -1151,6 +1256,18 @@ export const X01Board: React.FC<X01BoardProps> = ({
             >
               <Tv className="w-4 h-4" />
             </button>
+
+            {/* Botón Restaurar Diana Lateral en PC si fue ocultada */}
+            {!isDesktopSplitEnabled && (isOnline || showMobileCamera) && (
+              <button
+                type="button"
+                onClick={() => setIsDesktopSplitEnabled(true)}
+                title="Mostrar Diana en Panel Lateral (Pantalla Dividida)"
+                className="hidden lg:flex p-1.5 rounded-xl bg-black text-[#00e676] hover:bg-[#151515] border border-[#00e676]/40 transition-colors"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            )}
 
             {/* Botón Micrófono para Hablar con el Rival (Partida Online) */}
             <button
@@ -1894,6 +2011,245 @@ export const X01Board: React.FC<X01BoardProps> = ({
         <ChevronUp className="w-4 h-4 text-[#00e676]" />
         <span>Subir al Tablero de Tiro</span>
       </button>
+      </div>
+
+      {/* COLUMNA DERECHA (SOLO EN PC / NAKKA STYLE SPLIT-SCREEN): DIANA EN VIVO HD */}
+      {isSplitActive && (
+        <div className="hidden lg:flex flex-col space-y-3 lg:col-span-5 xl:col-span-5 sticky top-4 animate-in fade-in">
+          <div className="w-full bg-black border-2 border-[#0284c7]/50 rounded-3xl p-4 shadow-2xl shadow-[#0284c7]/15 flex flex-col space-y-3">
+            {/* Cabecera Deportiva de la Diana Activa */}
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-[#0284c7]/20 border border-[#0284c7] flex items-center justify-center flex-shrink-0">
+                  <Target className="w-4 h-4 text-[#38bdf8]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-white truncate">
+                      {shouldShowRivalCamera ? `Diana de ${rivalDisplay}` : `Tu Diana (${p1Display})`}
+                    </h3>
+                    <span className="bg-[#00e676]/20 border border-[#00e676]/40 text-[#00e676] text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1 flex-shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-ping" />
+                      En Vivo
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                    {isRivalTurn ? (
+                      <span className="text-[#00e676] font-bold flex items-center gap-1">
+                        🎯 {rivalDisplay} tirando en su diana ({scores[rivalPlayerIdx]} pts)
+                      </span>
+                    ) : (
+                      <span className="text-[#38bdf8] font-bold flex items-center gap-1">
+                        🎯 Tu turno de tiro ({scores[localPlayerIdx]} pts)
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Botones de Cabecera: 2ª Pantalla Pop-out + PiP */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleOpenPopout}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#0284c7]/20 hover:bg-[#0284c7]/40 text-[#38bdf8] border border-[#0284c7] text-xs font-black flex items-center gap-1.5 shadow transition-all cursor-pointer"
+                  title="Abrir en ventana desacoplada para llevar a un 2º monitor o TV"
+                >
+                  <Tv className="w-3.5 h-3.5" />
+                  <span>2ª Pantalla Pop-out</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTogglePiP}
+                  className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer"
+                  title="Picture-in-Picture en Windows"
+                >
+                  <PictureInPicture2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Selector de Alternancia de Foco (Nakka Style) */}
+            <div className="flex items-center justify-between gap-1 p-1 bg-[#111622] rounded-xl border border-slate-800 text-[11px] font-bold">
+              <span className="text-slate-400 pl-2 text-[10px] uppercase font-black">Cámara:</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCameraFocusMode('AUTO')}
+                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
+                    cameraFocusMode === 'AUTO'
+                      ? 'bg-[#00e676] text-black font-black shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Alterna automáticamente mostrando la diana del que está tirando"
+                >
+                  ⚡ Auto (Por Turno)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCameraFocusMode('RIVAL')}
+                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
+                    cameraFocusMode === 'RIVAL'
+                      ? 'bg-[#0284c7] text-white font-black shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Diana Rival
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCameraFocusMode('LOCAL')}
+                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
+                    cameraFocusMode === 'LOCAL'
+                      ? 'bg-amber-500 text-black font-black shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Mi Diana
+                </button>
+              </div>
+            </div>
+
+            {/* Visor de Video HD de la Diana Activa */}
+            <div className="relative aspect-video rounded-2xl overflow-hidden bg-black border-2 border-slate-800 flex items-center justify-center shadow-inner">
+              {shouldShowRivalCamera ? (
+                remoteStream ? (
+                  <video
+                    ref={splitScreenVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-6 text-center space-y-2 bg-gradient-to-b from-slate-900 to-black w-full h-full">
+                    <Target className="w-10 h-10 text-[#ef4444] animate-pulse mb-1" />
+                    <h4 className="text-sm font-black text-white">
+                      Esperando cámara de {rivalDisplay}...
+                    </h4>
+                    <p className="text-[11px] text-slate-400 max-w-xs">
+                      En cuanto {rivalDisplay} active su cámara en su celular o PC, la verás aquí en vivo.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleRetryWebRtc}
+                      className="mt-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-[#0284c7] text-slate-200 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <RefreshCw className="w-3 h-3" /> Reconectar WebRTC
+                    </button>
+                  </div>
+                )
+              ) : (
+                mobileStreamRef.current ? (
+                  <video
+                    ref={mobileVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-6 text-center space-y-2 bg-gradient-to-b from-slate-900 to-black w-full h-full">
+                    <Camera className="w-10 h-10 text-slate-500 mb-1" />
+                    <h4 className="text-sm font-black text-white">Tu Cámara está apagada</h4>
+                    <p className="text-[11px] text-slate-400">
+                      Encendé tu webcam o apuntá tu celular a la diana física.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowMobileCamera(true)}
+                      className="mt-2 px-4 py-1.5 rounded-xl bg-[#00e676] text-black font-black text-xs shadow-lg shadow-[#00e676]/20 cursor-pointer"
+                    >
+                      Encender Mi Cámara
+                    </button>
+                  </div>
+                )
+              )}
+
+              {/* Badge flotante de tiro */}
+              <div className="absolute top-2.5 left-2.5 pointer-events-none">
+                <div className="bg-black/85 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#00e676] animate-ping" />
+                  <span className="text-xs font-black text-white">
+                    {shouldShowRivalCamera ? rivalDisplay : p1Display}
+                  </span>
+                  <span className="text-xs font-bold text-[#38bdf8] font-mono">
+                    {scores[shouldShowRivalCamera ? rivalPlayerIdx : localPlayerIdx]} pts
+                  </span>
+                </div>
+              </div>
+
+              {isRivalTurn && shouldShowRivalCamera && (
+                <div className="absolute bottom-3 left-3 right-3 pointer-events-none flex justify-center">
+                  <div className="bg-[#00e676] text-black px-3.5 py-1 rounded-full font-black text-xs flex items-center gap-1.5 shadow-xl animate-bounce">
+                    <Target className="w-3.5 h-3.5" />
+                    <span>TIRANDO EN SU DIANA</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Ajustes y Controles Inferiores */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800 text-xs">
+              <div className="flex items-center gap-2">
+                {availableCameras.length > 0 && (
+                  <select
+                    value={selectedCameraDeviceId}
+                    onChange={(e) => handleSelectCameraDevice(e.target.value)}
+                    className="bg-[#111622] hover:bg-[#1a2234] border border-slate-700 text-slate-200 text-[10px] font-bold rounded-lg px-2 py-1 focus:outline-none"
+                    title="Seleccionar webcam o cámara USB"
+                  >
+                    <option value="">Cámara por Defecto</option>
+                    {availableCameras.map((cam, idx) => (
+                      <option key={cam.deviceId || idx} value={cam.deviceId}>
+                        {cam.label || `Cámara ${idx + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <button
+                  type="button"
+                  onClick={handleUnlockRemoteAudio}
+                  className="px-2 py-1 rounded-lg bg-[#111622] hover:bg-[#1a2234] border border-slate-700 text-slate-300 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Activar voz del rival"
+                >
+                  <Volume2 className="w-3 h-3 text-[#00e676]" />
+                  <span>Sonido Rival</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isMicMuted;
+                    setIsMicMuted(next);
+                    showFeedback(next ? 'Micrófono silenciado' : 'Micrófono activo', next ? '#ef4444' : '#00e676');
+                  }}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
+                    isMicMuted 
+                      ? 'bg-red-500/20 text-red-400 border-red-500/40' 
+                      : isSpeaking 
+                        ? 'bg-[#00e676]/30 text-[#00e676] border-[#00e676] ring-2 ring-[#00e676]/50 animate-pulse' 
+                        : 'bg-[#111622] text-[#00e676] border-[#00e676]/40'
+                  }`}
+                >
+                  {isMicMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                  <span>{isMicMuted ? 'Muted' : isSpeaking ? 'Hablando' : 'Mic'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsDesktopSplitEnabled(false)}
+                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] font-bold transition-colors cursor-pointer"
+                  title="Ocultar panel lateral en PC"
+                >
+                  Ocultar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
 
     {/* MODAL OFICIAL DE SALIDA / STAND BY / ABANDONO */}

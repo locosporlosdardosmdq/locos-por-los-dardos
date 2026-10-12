@@ -1,5 +1,36 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 27] - 2026-10-12
+- **Objetivo:** Implementación de la arquitectura de competiciones online de Nakka n01: apagado estricto del hardware de cámara al salir del match, alternancia automática de video por turno de tiro, modo Split-Screen 50/50 en PC, ventana Pop-out desacoplada para setups multi-monitor/TV y Server-Side Rendering (SSR) garantizado para los 5 jugadores federados en el padrón.
+- **Diagnóstico de Causa Raíz:**
+  1. *Cámara de celular no se apagaba al salir:* `X01Board.tsx` no contaba con cleanup hook al desmontarse ni al ejecutar `onExit()`, dejando vivos los tracks de `getUserMedia` (`mobileStreamRef.current`) y los RTCPeerConnections en background.
+  2. *Modal centrado bloqueaba el anotador en PC:* El modal emergente `showRivalModal` ocupaba el centro de la pantalla sin poder moverse, imposibilitando ingresar puntuaciones con el teclado táctil de 5 columnas.
+  3. *Padrón de jugadores en PC:* `src/app/jugadores/page.tsx` era un Client Component inicializado con `CANONICAL_PLAYERS` (solo ICEMAN). Al fallar o demorar la petición `fetch` del cliente debido a la caché, la PC quedaba clavada en "Mostrando 1 cartas oficiales" a pesar de que Supabase contenía 5 jugadores reales.
+- **Realizado:**
+  - **Apagado Estricto de Hardware y Desconexión WebRTC (`src/components/anotador/X01Board.tsx` & `src/lib/webrtc-room.ts`):**
+    * Función `cleanupHardwareAndWebRtc()` ejecutada en el cleanup hook de `useEffect` (desmontaje del componente) y en `handleBackClick`, `handleStandBy`, `handleAbandon` y `confirmExitMatch`.
+    * Invoca `track.stop()` en todos los tracks de audio y video de `mobileStreamRef.current`, apagando físicamente la luz de la cámara del celular.
+    * Envía el mensaje `{ type: 'LEAVE' }` al rival, destruye el handler P2P (`webrtc.destroy()`) y limpia `activeRemoteStream = null`.
+  - **Modo Dividido Split-Screen en PC (Anotador + Visor de Diana en Vivo HD):**
+    * En pantallas de escritorio (`lg:`), `X01Board.tsx` estructura el juego en 2 columnas: Columna izquierda (7 cols) para el Anotador 501 completo y Columna derecha (5 cols) para el Visor de Diana en Vivo en HD.
+    * Cero modales bloqueantes encima del teclado numérico.
+    * Botón para ocultar/restaurar la diana lateral (`LayoutGrid`) en caso de preferir pantalla completa del anotador.
+  - **Alternancia Automática de Cámara según el Turno (Nakka Style):**
+    * Variable reactiva `shouldShowRivalCamera`: en modo `AUTO`, conmuta automáticamente mostrando la diana del rival cuando tira el oponente (`isRivalTurn`), y la diana local cuando tira el jugador (`isMyTurn`).
+    * Selector manual de foco en la cabecera: `[⚡ Auto (Por Turno)]`, `[Diana Rival]` y `[Mi Diana]`.
+  - **Ventana Pop-out Desacoplada para Multi-Monitor / 2ª Pantalla (`handleOpenPopout`):**
+    * Invoca `window.open('/anotador/camara-popout?room=...', 'DianaRivalPopoutWindow', 'width=1080,height=760...')` para setups de doble monitor o pantallas de club por HDMI.
+  - **Server-Side Rendering (SSR) Garantizado en `/jugadores` (`src/app/jugadores/page.tsx` & `src/lib/server-players.ts`):**
+    * Creado `src/lib/server-players.ts` con `getRegisteredPlayersServer()` que consulta directamente a PostgreSQL de Supabase.
+    * Convertido `src/app/jugadores/page.tsx` en Server Component (`export const dynamic = 'force-dynamic'`, `revalidate = 0`) que inyecta `initialPlayers` en `PlayerDirectory.tsx`.
+    * El HTML llega desde el servidor con los 5 jugadores oficiales (**ZEUS, GonDizz, ICEMAN, CARPO, Prueba/Juli**), erradicando el problema de visualización de una sola carta.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores (código 0).
+    * `npm run build` completado exitosamente con 18/18 páginas generadas y `/jugadores` marcada como Dynamic SSR (código 0).
+- **Estado del Proyecto:** Experiencia online profesional alineada al estándar de Nakka n01: apagado de hardware de cámara garantizado, split-screen nativo en PC con alternancia por turno, pop-out multi-monitor y padrón federal sincronizado con SSR.
+
+---
+
 ## [Sesión 26] - 2026-10-12
 - **Objetivo:** Corrección de la visibilidad de nuevos jugadores en el padrón de PC (Juli / Prueba), transmisión de video y audio bidireccional WebRTC en partidas online 1 vs 1, modal emergente de la diana del contrincante en PC (Juli) con Picture-in-Picture nativo y desbloqueo universal de audio HTML5 y Russ Bray.
 - **Diagnóstico de Causa Raíz:**

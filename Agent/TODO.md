@@ -1,6 +1,12 @@
 # Tareas del Proyecto (TODO) • Locos por los Dardos
 
-## 🏆 Tareas Completadas
+- [x] **Arquitectura Nakka n01 de Partidas Online (Turn-based Camera, Split-Screen en PC, Pop-out Desacoplado y SSR de Jugadores):**
+  * Apagado estricto del hardware de cámara (`stream.getTracks().forEach(t => t.stop())`) al salir de la partida en `X01Board.tsx`, liberando inmediatamente la luz física del celular.
+  * Señalización `{ type: 'LEAVE' }` y destrucción limpia de WebRTC P2P (`webrtc.destroy()`) que resetea la diana en la pantalla del rival.
+  * Modo Dividido Split-Screen en PC (Desktop `lg:`): Columna izquierda con Anotador 501 completo y Columna derecha con Visor de Diana en Vivo HD fija y sincronizada (sin modales invasivos superpuestos).
+  * Alternancia automática de cámara por turno (*Turn-based Camera*): muestra automáticamente la diana del rival cuando tira el oponente y la diana local cuando tira el jugador, con switch manual `[⚡ Auto] | [Diana Rival] | [Mi Diana]`.
+  * Ventana Pop-out desacoplada (`window.open`) con `[2ª Pantalla / Pop-out]` para setups de doble monitor o TV sin tapar el anotador.
+  * Server-Side Rendering (SSR) garantizado en `/jugadores` (`getRegisteredPlayersServer`): consulta directa a PostgreSQL de Supabase en el servidor que inyecta a los 5 jugadores oficiales (**ZEUS, GonDizz, ICEMAN, CARPO, Prueba/Juli**) en el primer render de HTML.
 - [x] **WebRTC Bidireccional Puro, Modal de Cámara Rival en PC y Desbloqueo de Audio:**
   * Reparación de la transmisión de cámara entre PC y celulares en `webrtc-room.ts`: llamadas independientes salientes/entrantes, captura de `call.peer`, señalización `STREAM_READY` y registro inmediato de `setActiveWebRtcHandler` para el Guest.
   * Auto-Healing de WebRTC en `X01Board.tsx` que detecta salas online sin conexión y las levanta automáticamente reconectando y enviando el stream local.

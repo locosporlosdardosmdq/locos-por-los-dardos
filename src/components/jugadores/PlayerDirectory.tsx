@@ -60,8 +60,15 @@ function mapPlayerToCard(p: any): UltimateDartsCardData {
   };
 }
 
-export const PlayerDirectory: React.FC = () => {
+interface PlayerDirectoryProps {
+  initialPlayers?: UltimateDartsCardData[];
+}
+
+export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers }) => {
   const [playersList, setPlayersList] = useState<UltimateDartsCardData[]>(() => {
+    if (initialPlayers && initialPlayers.length > 0) {
+      return initialPlayers;
+    }
     const local = getCurrentPlayerProfile(null);
     if (local && local.nickname && local.nickname !== 'ICEMAN') {
       return [CANONICAL_PLAYERS[0], mapPlayerToCard(local)];

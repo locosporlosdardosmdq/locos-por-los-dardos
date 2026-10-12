@@ -1,11 +1,15 @@
-'use client';
-
 import React from 'react';
 import { PlayerDirectory } from '@/components/jugadores/PlayerDirectory';
 import { Users, UserPlus } from 'lucide-react';
 import Link from 'next/link';
+import { getRegisteredPlayersServer } from '@/lib/server-players';
 
-export default function JugadoresPage() {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function JugadoresPage() {
+  const initialPlayers = await getRegisteredPlayersServer();
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* Encabezado del Módulo */}
@@ -33,7 +37,7 @@ export default function JugadoresPage() {
         </Link>
       </div>
 
-      <PlayerDirectory />
+      <PlayerDirectory initialPlayers={initialPlayers} />
     </div>
   );
 }

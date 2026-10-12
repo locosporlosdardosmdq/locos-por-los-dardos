@@ -83,9 +83,10 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `CartDrawer.tsx`: Drawer lateral deslizable de compras con checkout de Mercado Pago.
 
 ### 4. Capa de Datos y Modelos (`src/lib/` y `prisma/`)
+* **`src/lib/server-players.ts`:** Helper de servidor para Server-Side Rendering (SSR) de jugadores federados desde Supabase PostgreSQL (`getRegisteredPlayersServer`). Garantiza que `/jugadores` cargue los 5 perfiles oficiales sin dependencia de fetch del cliente.
 * **`src/lib/bracket-engine.ts`:** Motor matemático puro de torneos y llaves eliminatorias (Challonge & Nakka N01 Standard). Implementa `generateSingleElimination`, `generateDoubleElimination`, `reportResult`, `computePodium`, `resetMatchSafely`, `previewDownstreamImpact`, siembra matemática con Byes automáticos y enrutamiento determinista por punteros (`nextMatchId`, `nextSlot`, `loserNextMatchId`, `loserNextSlot`).
 * **`src/lib/types.ts`:** Tipado TypeScript riguroso (PlayerProfile, TournamentBracketMatch con punteros, TournamentPodium, MatchConfig, etc.).
-* **`src/lib/webrtc-room.ts`:** Módulo cliente WebRTC P2P con PeerJS para conexión directa, intercambio de tiradas dardo a dardo sin latencia y audio de voz entre contrincantes remotos.
+* **`src/lib/webrtc-room.ts`:** Módulo cliente WebRTC P2P con PeerJS para conexión directa, intercambio de tiradas dardo a dardo sin latencia, streaming de video/audio bidireccional y señalización `{ type: 'LEAVE' }` para apagado limpio de hardware.
 * **`src/lib/online-rooms.ts`:** Gestor backend con normalización agresiva de códigos de sala (`normalizeRoomCode`) y ciclo de vida de salas remotas (`createOnlineRoom`, `joinOnlineRoom`, `submitRoomThrow`, `getOnlineRoom`).
 * **`src/lib/constants.ts`:** Provincias de Argentina, checkout guide, categorización por AVG, validación de credenciales maestras de administrador y datasets de la comunidad.
 * **`src/lib/storage.ts`:** Persistencia offline-first con localStorage/IndexedDB y cola de sincronización.

@@ -10,18 +10,21 @@ import {
   getRecentAccounts 
 } from '@/lib/storage';
 import { getCountryFlag, validateAdminCredentials, USER_ICEMAN } from '@/lib/constants';
+import { supabase } from '@/lib/supabase';
 import { 
   LogIn, 
   User, 
-  ShieldCheck, 
   Search, 
-  Sparkles, 
   X, 
   ArrowRight, 
   Lock, 
   UserPlus,
   Smartphone,
-  History
+  Mail,
+  KeyRound,
+  CheckCircle2,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 
 interface LoginModalProps {
@@ -31,15 +34,28 @@ interface LoginModalProps {
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenRegister }) => {
+  const [activeTab, setActiveTab] = useState<'DEVICE' | 'MAGIC_LINK'>('DEVICE');
   const [lastPlayer, setLastPlayer] = useState<PlayerProfile | null>(null);
   const [recentAccounts, setRecentAccounts] = useState<PlayerProfile[]>([]);
   const [registeredPlayers, setRegisteredPlayers] = useState<PlayerProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Búsqueda rápida por apodo
   const [searchInput, setSearchInput] = useState('');
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Login de Superadmin por clave maestra
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [selectedAdminToAuth, setSelectedAdminToAuth] = useState<PlayerProfile | null>(null);
   const [adminError, setAdminError] = useState<string | null>(null);
+
+  // Flujo Magic Link + OTP
+  const [magicEmail, setMagicEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [magicStep, setMagicStep] = useState<'INPUT_EMAIL' | 'INPUT_OTP'>('INPUT_EMAIL');
+  const [magicStatusMsg, setMagicStatusMsg] = useState<string | null>(null);
+  const [magicErrorMsg, setMagicErrorMsg] = useState<string | null>(null);
+  const [isMagicLoading, setIsMagicLoading] = useState(false);
 
   // Cargar datos al abrir el modal
   useEffect(() => {
@@ -50,6 +66,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
       setSearchError(null);
       setAdminError(null);
       setSelectedAdminToAuth(null);
+      setMagicErrorMsg(null);
+      setMagicStatusMsg(null);
+      setMagicStep('INPUT_EMAIL');
+      setOtpCode('');
     }
   }, [isOpen]);
 
@@ -71,9 +91,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
 
   if (!isOpen) return null;
 
-  // Manejar selección de cuenta
+  // Manejar selección de cuenta 1-click
   const handleSelectPlayer = (player: PlayerProfile) => {
-    // Si la cuenta es de Mariano Deux / ICEMAN (Admin), requiere contraseña maestra
+    // Si la cuenta es de Mariano Deux / ICEMAN (Admin), requiere contraseña maestra o Magic Link
     if (player.email?.toLowerCase() === 'marianodeux@gmail.com' || player.nickname?.toUpperCase() === 'ICEMAN') {
       setSelectedAdminToAuth(player);
       setAdminPasswordInput('');
@@ -86,7 +106,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
     onClose();
   };
 
-  // Confirmar clave de administrador
+  // Confirmar clave de administrador local
   const handleAdminAuthSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAdminToAuth) return;
@@ -102,7 +122,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
     onClose();
   };
 
-  // Buscar por email o nickname contra la API de Supabase
+  // Buscar por email o nickname contra la API
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const query = searchInput.trim();
@@ -124,10 +144,110 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
       } else {
         setSearchError(data.error || 'No se encontró ningún jugador registrado con ese correo o apodo.');
       }
-    } catch (err: any) {
+    } catch {
       setSearchError('Error de conexión con el servidor. Por favor, reintenta en unos instantes.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // 1. Enviar Enlace Mágico / Código OTP por Email
+  const handleSendMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = magicEmail.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      setMagicErrorMsg('Por favor ingresa un correo electrónico válido.');
+      return;
+    }
+
+    setIsMagicLoading(true);
+    setMagicErrorMsg(null);
+    setMagicStatusMsg(null);
+
+    try {
+      const redirectTo = typeof window !== 'undefined' 
+        ? `${window.location.origin}/auth/callback` 
+        : 'https://locosporlosdardos.com.ar/auth/callback';
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: redirectTo
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setMagicStep('INPUT_OTP');
+      setMagicStatusMsg(`¡Código enviado! Revisa tu correo (${email}). También puedes hacer clic en el enlace del email.`);
+    } catch (err: any) {
+      console.error('[Magic Link Error]:', err);
+      setMagicErrorMsg(err.message || 'No se pudo enviar el correo de acceso. Intenta nuevamente.');
+    } finally {
+      setIsMagicLoading(false);
+    }
+  };
+
+  // 2. Verificar Código OTP de 6 dígitos
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = magicEmail.trim().toLowerCase();
+    const token = otpCode.trim();
+
+    if (!token || token.length < 6) {
+      setMagicErrorMsg('Ingresa el código numérico de 6 dígitos.');
+      return;
+    }
+
+    setIsMagicLoading(true);
+    setMagicErrorMsg(null);
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email'
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Usuario autenticado exitosamente en Supabase Auth
+      // Sincronizar su ficha deportiva desde la base de datos
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'LOGIN', identifier: email })
+        });
+        const profData = await res.json();
+        if (profData.success && profData.profile) {
+          saveCurrentPlayerProfile(profData.profile);
+        } else {
+          // Si el email no tiene ficha creada aún, inicializar una ficha mínima con su email
+          saveCurrentPlayerProfile({
+            id: data.user?.id || `user-${Date.now()}`,
+            email,
+            nickname: email.split('@')[0].toUpperCase(),
+            fullName: email.split('@')[0],
+            category: 'INTERMEDIA',
+            estimatedAvg: 45.0,
+            isProfileComplete: false
+          });
+        }
+      } catch (syncErr) {
+        console.warn('Error syncing profile after OTP:', syncErr);
+      }
+
+      onClose();
+    } catch (err: any) {
+      console.error('[Verify OTP Error]:', err);
+      setMagicErrorMsg(err.message || 'Código incorrecto o vencido. Por favor intenta de nuevo.');
+    } finally {
+      setIsMagicLoading(false);
     }
   };
 
@@ -148,7 +268,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
                 Iniciar Sesión / Cambiar Jugador
               </h2>
               <p className="text-xs text-[#b8ad98]">
-                Selecciona tu perfil o ingresa con tu correo / apodo.
+                Ingreso por dispositivo o con Enlace Mágico por Email.
               </p>
             </div>
           </div>
@@ -161,172 +281,330 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
           </button>
         </div>
 
-        {/* Sub-modal: Validación de Contraseña para Mariano Deux (ICEMAN) */}
-        {selectedAdminToAuth ? (
-          <form onSubmit={handleAdminAuthSubmit} className="space-y-4 p-4 rounded-2xl bg-[#14161f] border border-amber-500/40">
-            <div className="flex items-center gap-2 text-amber-400">
-              <Lock className="w-4 h-4" />
-              <span className="text-xs font-black uppercase tracking-wider">
-                Verificación de Administrador ({selectedAdminToAuth.nickname})
-              </span>
-            </div>
-            <p className="text-xs text-slate-300">
-              Ingresa la contraseña maestra para habilitar la sesión de administración de <strong>Mariano Deux</strong>.
-            </p>
-            <div>
-              <input
-                type="password"
-                required
-                autoFocus
-                placeholder="Contraseña Maestra..."
-                value={adminPasswordInput}
-                onChange={(e) => setAdminPasswordInput(e.target.value)}
-                className="w-full bg-[#1c1f2b] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400"
-              />
-            </div>
-            {adminError && (
-              <p className="text-xs text-red-400 font-bold">{adminError}</p>
-            )}
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setSelectedAdminToAuth(null)}
-                className="px-4 py-2 rounded-xl bg-[#242836] text-slate-300 text-xs font-bold hover:text-white"
-              >
-                Volver
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-xs font-black transition-all shadow-md"
-              >
-                Acceder a ICEMAN
-              </button>
-            </div>
-          </form>
-        ) : (
-          <>
-            {/* 1. TARJETA DESTACADA: ÚLTIMO JUGADOR EN ESTE DISPOSITIVO */}
-            {lastPlayer && (
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-[#14161f] to-[#14161f] border-2 border-[#00e676]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative w-12 h-12 rounded-2xl bg-[#00e676]/20 border border-[#00e676]/50 text-[#00e676] flex items-center justify-center font-black text-sm flex-shrink-0">
-                    {lastPlayer.nickname ? lastPlayer.nickname.slice(0, 2).toUpperCase() : 'PL'}
-                    <span className="absolute -bottom-1 -right-1 text-xs">
-                      {getCountryFlag(lastPlayer.countryCode || lastPlayer.nationality)}
-                    </span>
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-black text-[#00e676] uppercase tracking-wider flex items-center gap-1">
-                      <Smartphone className="w-3 h-3" />
-                      Último jugador en este celular
-                    </span>
-                    <span className="text-sm font-black text-white block truncate">
-                      {lastPlayer.nickname || lastPlayer.fullName}
-                    </span>
-                    <span className="text-xs text-slate-400 block truncate">
-                      {lastPlayer.city || 'Mar del Plata'} • {lastPlayer.category}
-                    </span>
-                  </div>
+        {/* Selector de Modo: Dispositivo vs Magic Link */}
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#14161f] border border-[#1e2638] rounded-2xl">
+          <button
+            type="button"
+            onClick={() => setActiveTab('DEVICE')}
+            className={`py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all ${
+              activeTab === 'DEVICE'
+                ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/20'
+                : 'text-slate-400 hover:text-white hover:bg-[#1a2333]'
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>Este Dispositivo</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('MAGIC_LINK')}
+            className={`py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all ${
+              activeTab === 'MAGIC_LINK'
+                ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/20'
+                : 'text-slate-400 hover:text-white hover:bg-[#1a2333]'
+            }`}
+          >
+            <Mail className="w-3.5 h-3.5" />
+            <span>Enlace Mágico (Email)</span>
+          </button>
+        </div>
+
+        {/* MODO 1: Acceso con Magic Link / OTP */}
+        {activeTab === 'MAGIC_LINK' ? (
+          <div className="space-y-4 py-1">
+            {magicStep === 'INPUT_EMAIL' ? (
+              <form onSubmit={handleSendMagicLink} className="space-y-3">
+                <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-xs text-slate-300">
+                  <p className="font-bold text-white mb-1 flex items-center gap-1.5">
+                    <Mail className="w-4 h-4 text-sky-400" />
+                    Sin contraseñas: acceso por correo electrónico
+                  </p>
+                  Te enviaremos un código de 6 números y un enlace clickeable a tu casilla de correo para entrar al instante.
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleSelectPlayer(lastPlayer)}
-                  className="px-4 py-2.5 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-[#00e676]/25 active:scale-95 flex-shrink-0"
-                >
-                  <span>Continuar</span>
-                  <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
-                </button>
-              </div>
-            )}
 
-            {/* 2. PERFILES REGISTRADOS EN LA COMUNIDAD */}
-            <div className="space-y-2.5">
-              <span className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                <User className="w-4 h-4 text-[#00e676]" />
-                Perfiles Registrados en el Circuito ({registeredPlayers.length})
-              </span>
-
-              {isLoading && registeredPlayers.length === 0 ? (
-                <div className="p-4 text-center text-xs text-slate-400">
-                  Cargando perfiles desde Supabase...
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1.5">
+                    Tu Correo Electrónico:
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="ej: tu.email@gmail.com"
+                    value={magicEmail}
+                    onChange={(e) => setMagicEmail(e.target.value)}
+                    className="w-full bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#00e676]"
+                  />
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                  {registeredPlayers.map((player) => (
-                    <button
-                      key={player.id || player.nickname}
-                      type="button"
-                      onClick={() => handleSelectPlayer(player)}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-[#14161f] border border-[#1e2638] hover:border-[#00e676]/60 hover:bg-[#1a2333] transition-all text-left group active:scale-[0.98]"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="relative w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[#00e676] flex items-center justify-center font-black text-xs flex-shrink-0">
-                          {player.nickname ? player.nickname.slice(0, 2).toUpperCase() : 'PL'}
-                          <span className="absolute -bottom-1 -right-1 text-[10px]">
-                            {getCountryFlag(player.countryCode || player.nationality)}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <span className="text-xs font-black text-white block truncate group-hover:text-[#00e676] transition-colors">
-                            {player.nickname || player.fullName}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block truncate">
-                            {player.city} • {player.category}
-                          </span>
-                        </div>
-                      </div>
 
-                      <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-[#00e676] group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-1" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                {magicErrorMsg && (
+                  <p className="text-xs text-red-400 font-bold">{magicErrorMsg}</p>
+                )}
 
-            {/* 3. BÚSQUEDA POR EMAIL O APODO */}
-            <form onSubmit={handleSearchSubmit} className="space-y-2 pt-2 border-t border-[#1e2638]">
-              <span className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                <Search className="w-4 h-4 text-sky-400" />
-                Buscar Otra Cuenta Registrada
-              </span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Ingresa tu Email o Apodo (ej: ZEUS)..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className="flex-1 bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
-                />
                 <button
                   type="submit"
-                  disabled={isLoading || !searchInput.trim()}
-                  className="px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-black text-xs transition-all disabled:opacity-50"
+                  disabled={isMagicLoading || !magicEmail.trim()}
+                  className="w-full py-3 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-[#00e676]/25 disabled:opacity-50 active:scale-98"
                 >
-                  Buscar
+                  {isMagicLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Enviando enlace seguro...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Enviar Enlace y Código OTP</span>
+                      <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                    </>
+                  )}
                 </button>
-              </div>
-              {searchError && (
-                <p className="text-xs text-red-400 font-bold">{searchError}</p>
-              )}
-            </form>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="space-y-3">
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-slate-300">
+                  <p className="font-bold text-[#00e676] mb-1 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Código enviado a {magicEmail}
+                  </p>
+                  Ingresa los 6 dígitos que recibiste o haz clic en el botón de tu correo.
+                </div>
 
-            {/* 4. BOTÓN PARA CREAR NUEVO JUGADOR */}
-            <div className="pt-2 border-t border-[#1e2638] flex items-center justify-between">
-              <span className="text-xs text-slate-400">
-                ¿No estás en la lista?
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  if (onOpenRegister) onOpenRegister();
-                }}
-                className="px-4 py-2 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs flex items-center gap-1.5 transition-all shadow-md shadow-[#00e676]/20 active:scale-95"
-              >
-                <UserPlus className="w-4 h-4 stroke-[2.5]" />
-                <span>Registrar Nueva Ficha</span>
-              </button>
-            </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1.5">
+                    Código de 6 dígitos (OTP):
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    autoFocus
+                    placeholder="123456"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full bg-[#14161f] border-2 border-[#00e676]/50 rounded-xl px-4 py-3 text-center text-lg font-black tracking-widest text-[#00e676] focus:outline-none focus:border-[#00e676]"
+                  />
+                </div>
+
+                {magicErrorMsg && (
+                  <p className="text-xs text-red-400 font-bold">{magicErrorMsg}</p>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMagicStep('INPUT_EMAIL');
+                      setMagicErrorMsg(null);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-[#1e2638] text-slate-300 hover:text-white text-xs font-bold transition-colors"
+                  >
+                    Cambiar Email
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isMagicLoading || otpCode.length < 6}
+                    className="flex-1 py-2.5 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                  >
+                    {isMagicLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Verificando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Verificar y Entrar</span>
+                        <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        ) : (
+          /* MODO 2: Acceso por Dispositivo (Último jugador, cuentas guardadas y buscador) */
+          <>
+            {/* Sub-modal: Validación de Contraseña para Mariano Deux (ICEMAN) */}
+            {selectedAdminToAuth ? (
+              <form onSubmit={handleAdminAuthSubmit} className="space-y-4 p-4 rounded-2xl bg-[#14161f] border border-amber-500/40">
+                <div className="flex items-center gap-2 text-amber-400">
+                  <Lock className="w-4 h-4" />
+                  <span className="text-xs font-black uppercase tracking-wider">
+                    Verificación de Administrador ({selectedAdminToAuth.nickname})
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300">
+                  Ingresa la contraseña maestra para habilitar la sesión de administración de <strong>Mariano Deux</strong>.
+                </p>
+                <div>
+                  <input
+                    type="password"
+                    required
+                    autoFocus
+                    placeholder="Contraseña Maestra..."
+                    value={adminPasswordInput}
+                    onChange={(e) => setAdminPasswordInput(e.target.value)}
+                    className="w-full bg-[#1c1f2b] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                {adminError && (
+                  <p className="text-xs text-red-400 font-bold">{adminError}</p>
+                )}
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedAdminToAuth(null);
+                      setActiveTab('MAGIC_LINK');
+                      setMagicEmail('marianodeux@gmail.com');
+                    }}
+                    className="text-xs text-sky-400 hover:underline flex items-center gap-1"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    Entrar con Magic Link en mi email
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAdminToAuth(null)}
+                      className="px-4 py-2 rounded-xl bg-[#242836] text-slate-300 text-xs font-bold hover:text-white"
+                    >
+                      Volver
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-xs font-black transition-all shadow-md"
+                    >
+                      Acceder a ICEMAN
+                    </button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <>
+                {/* 1. TARJETA DESTACADA: ÚLTIMO JUGADOR EN ESTE DISPOSITIVO */}
+                {lastPlayer && (
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-[#14161f] to-[#14161f] border-2 border-[#00e676]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative w-12 h-12 rounded-2xl bg-[#00e676]/20 border border-[#00e676]/50 text-[#00e676] flex items-center justify-center font-black text-sm flex-shrink-0">
+                        {lastPlayer.nickname ? lastPlayer.nickname.slice(0, 2).toUpperCase() : 'PL'}
+                        <span className="absolute -bottom-1 -right-1 text-xs">
+                          {getCountryFlag(lastPlayer.countryCode || lastPlayer.nationality)}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-black text-[#00e676] uppercase tracking-wider flex items-center gap-1">
+                          <Smartphone className="w-3 h-3" />
+                          Último jugador en este celular
+                        </span>
+                        <span className="text-sm font-black text-white block truncate">
+                          {lastPlayer.nickname || lastPlayer.fullName}
+                        </span>
+                        <span className="text-xs text-slate-400 block truncate">
+                          {lastPlayer.city || 'Mar del Plata'} • {lastPlayer.category}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPlayer(lastPlayer)}
+                      className="px-4 py-2.5 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-[#00e676]/25 active:scale-95 flex-shrink-0"
+                    >
+                      <span>Continuar</span>
+                      <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                    </button>
+                  </div>
+                )}
+
+                {/* 2. PERFILES REGISTRADOS EN LA COMUNIDAD */}
+                <div className="space-y-2.5">
+                  <span className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <User className="w-4 h-4 text-[#00e676]" />
+                    Perfiles Registrados en el Circuito ({registeredPlayers.length})
+                  </span>
+
+                  {isLoading && registeredPlayers.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-400">
+                      Cargando perfiles desde Supabase...
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {registeredPlayers.map((player) => (
+                        <button
+                          key={player.id || player.nickname}
+                          type="button"
+                          onClick={() => handleSelectPlayer(player)}
+                          className="flex items-center justify-between p-2.5 rounded-xl bg-[#14161f] border border-[#1e2638] hover:border-[#00e676]/60 hover:bg-[#1a2333] transition-all text-left group active:scale-[0.98]"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="relative w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[#00e676] flex items-center justify-center font-black text-xs flex-shrink-0">
+                              {player.nickname ? player.nickname.slice(0, 2).toUpperCase() : 'PL'}
+                              <span className="absolute -bottom-1 -right-1 text-[10px]">
+                                {getCountryFlag(player.countryCode || player.nationality)}
+                              </span>
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs font-black text-white block truncate group-hover:text-[#00e676] transition-colors">
+                                {player.nickname || player.fullName}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block truncate">
+                                {player.city} • {player.category}
+                              </span>
+                            </div>
+                          </div>
+
+                          <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-[#00e676] group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-1" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. BÚSQUEDA POR EMAIL O APODO */}
+                <form onSubmit={handleSearchSubmit} className="space-y-2 pt-2 border-t border-[#1e2638]">
+                  <span className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <Search className="w-4 h-4 text-sky-400" />
+                    Buscar Otra Cuenta Registrada
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Ingresa tu Email o Apodo (ej: ZEUS)..."
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      className="flex-1 bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isLoading || !searchInput.trim()}
+                      className="px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-black text-xs transition-all disabled:opacity-50"
+                    >
+                      Buscar
+                    </button>
+                  </div>
+                  {searchError && (
+                    <p className="text-xs text-red-400 font-bold">{searchError}</p>
+                  )}
+                </form>
+
+                {/* 4. BOTÓN PARA CREAR NUEVO JUGADOR */}
+                <div className="pt-2 border-t border-[#1e2638] flex items-center justify-between">
+                  <span className="text-xs text-slate-400">
+                    ¿No estás en la lista?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      if (onOpenRegister) onOpenRegister();
+                    }}
+                    className="px-4 py-2 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs flex items-center gap-1.5 transition-all shadow-md shadow-[#00e676]/20 active:scale-95"
+                  >
+                    <UserPlus className="w-4 h-4 stroke-[2.5]" />
+                    <span>Registrar Nueva Ficha</span>
+                  </button>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>

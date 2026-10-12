@@ -29,10 +29,18 @@
     * Creado componente `InstallAppButton.tsx` y agregado de forma fija y visible en la barra lateral `AppSidebar.tsx`.
     * Modal integrado con guía de instalación táctil para Safari iOS (Compartir > Agregar a pantalla de inicio) y Chrome Android.
     * Saneado `public/manifest.json` sin marcas externas ("Nakka"), con tema oficial `#00e676` y accesos directos (shortcuts).
+  - **Autenticación Passwordless Híbrida (Magic Link + OTP de 6 Dígitos):**
+    * Instalada la librería oficial `@supabase/supabase-js`.
+    * Creado el cliente singleton `src/lib/supabase.ts` con persistencia en `localStorage`, refresco automático de token y captura de sesión en URL.
+    * Configurada la clave real `NEXT_PUBLIC_SUPABASE_ANON_KEY` en `.env.local` y Vercel.
+    * Creada la página de captura y callback `src/app/auth/callback/page.tsx` para confirmar el Magic Link e hidratar la ficha deportiva del jugador.
+    * Rediseñado `LoginModal.tsx` con navegación por pestañas: modo "Este Dispositivo" (1-click con último jugador y selector rápido) y modo "Enlace Mágico (Email)" con flujo de 2 pasos:
+      1. Envío de Enlace y Código OTP vía `supabase.auth.signInWithOtp`.
+      2. Verificación táctil in-app del código numérico de 6 dígitos vía `supabase.auth.verifyOtp` sin forzar al usuario a abandonar la PWA a pantalla completa.
   - **Validación de Compilación:**
     * `npx tsc --noEmit` completado con 0 errores de tipado (código 0).
-    * `npm run build` completado con éxito absoluto en 32.9s, generando las 19 rutas de la aplicación sin advertencias (código 0).
-- **Estado del Proyecto:** Base de datos operativa en `us-east-1`, login de dispositivo listo con tarjeta del último jugador, instalación PWA visible en smartphone y código completamente auditado y compilado.
+    * `npm run build` completado exitosamente con 20/20 páginas generadas (incluyendo `/auth/callback`) sin errores (código 0).
+- **Estado del Proyecto:** Fase 0 y Fase 1 completadas; base de datos y autenticación oficial con Supabase activas; listo para avanzar a la Fase 2 (Motor de Torneos puro estilo Challonge/n01).
 
 ---
 

@@ -566,4 +566,24 @@
   5. **Instalación PWA (`InstallAppButton.tsx` & `providers.tsx`):** Contexto global `useInstallPwa` y botón permanente en barra lateral con guía interactiva para iPhone y Android.
 - **Motivo:** Eliminar errores de conexión en la nube, blindar los datos de los jugadores ante ediciones parciales y garantizar acceso offline y móvil de nivel profesional.
 
+---
+
+## ADR-033: Autenticación Passwordless Híbrida (Magic Link + OTP de 6 Dígitos) con Supabase Auth
+
+- **Fecha:** 2026-10-12
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. El usuario seleccionó **Magic Link** como el método oficial de autenticación para la plataforma, buscando erradicar contraseñas débiles y recuperar cuentas sin fricción.
+  2. En el contexto de una PWA instalada en teléfonos celulares, el Magic Link tradicional presenta el riesgo de que el sistema operativo (iOS/Android) abra una nueva pestaña del navegador externo (Chrome/Safari) al hacer clic en el enlace desde Gmail, perdiendo la vista inmersiva de pantalla completa.
+- **Decisión:**
+  1. **Instalación de SDK Oficial:** Incorporación de `@supabase/supabase-js` y creación del cliente central `src/lib/supabase.ts` con persistencia de sesión en `localStorage` y refresco automático.
+  2. **Esquema Híbrido Magic Link + Código OTP:**
+     - Al ingresar el email, `supabase.auth.signInWithOtp` envía un correo con el botón de acceso directo Y un código de 6 dígitos numéricos.
+     - La interfaz de `LoginModal.tsx` ofrece un campo táctil con auto-enfoque para que el jugador ingrese el código de 6 números directamente desde la notificación sin salir de la PWA.
+  3. **Ruta de Callback (`src/app/auth/callback/page.tsx`):**
+     - Si el usuario opta por cliquear el enlace de su correo, la ruta de callback intercepta la sesión y sincroniza automáticamente su perfil deportivo federado (`profiles`).
+  4. **Superadmin Blindado:**
+     - Mariano Deux (`marianodeux@gmail.com`) cuenta con autenticación garantizada mediante Magic Link enviado a su casilla o ingreso de emergencia por clave maestra.
+- **Motivo:** Máxima seguridad y erradicación de robos de identidad combinada con una ergonomía táctil superior para torneos presenciales.
+
 

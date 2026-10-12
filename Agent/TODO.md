@@ -1,6 +1,14 @@
 # Tareas del Proyecto (TODO) • Locos por los Dardos
 
 ## 🏆 Tareas Completadas
+- [x] **WebRTC Bidireccional Puro, Modal de Cámara Rival en PC y Desbloqueo de Audio:**
+  * Reparación de la transmisión de cámara entre PC y celulares en `webrtc-room.ts`: llamadas independientes salientes/entrantes, captura de `call.peer`, señalización `STREAM_READY` y registro inmediato de `setActiveWebRtcHandler` para el Guest.
+  * Auto-Healing de WebRTC en `X01Board.tsx` que detecta salas online sin conexión y las levanta automáticamente reconectando y enviando el stream local.
+  * Solución a la congelación de video por Autoplay: añadido `muted={true}` en `<video ref={remoteVideoRef}>` para visualización garantizada en Android y Chrome PC.
+  * Reparación de audio WebRTC: reubicación de `<audio ref={remoteAudioRef}>` con estilos fijos fuera de pantalla (`top: -9999px`) erradicando `display: none` que congelaba el audio en navegadores móviles.
+  * Desbloqueo universal de audio HTML5 y Web Audio API (`unlockAudio()`) en el primer toque de usuario para garantizar locución de Russ Bray sin bloqueo.
+  * Modal Emergente de Diana del Contrincante (`showRivalModal`) en PC y segunda pantalla con Picture-in-Picture nativo (`handleTogglePiP`), marcador en vivo y botón de reconexión directa.
+  * Bypassing de caché en `/api/jugadores` (`force-dynamic`, `revalidate = 0`, `no-store`) y botón "Actualizar" en `PlayerDirectory.tsx` para sincronización inmediata de nuevos jugadores registrados (ej. Juli).
 - [x] **Fase 0 de Estabilización Técnica (Auditoría `AUDITORIA.MD`):**
   * Resolución de la causa raíz de conexión a Supabase: auto-corrección de región de pooler hacia `aws-0-us-east-1` (puerto 6543) eliminando el error `(ENOTFOUND) tenant/user postgres.pufyeabrvrlikbgkjplz not found`.
   * Endpoint de diagnóstico en vivo `/api/health/db` con medición de latencia a PostgreSQL.

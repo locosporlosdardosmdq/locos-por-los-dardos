@@ -17,6 +17,36 @@ function getAudioContext(): AudioContext | null {
 }
 
 let isAudioMuted: boolean = false;
+let isAudioUnlocked: boolean = false;
+
+export function unlockAudio() {
+  if (typeof window === 'undefined' || isAudioUnlocked) return;
+  try {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    // Buffer mudo para desbloquear Web Audio API
+    if (ctx) {
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      src.start(0);
+    }
+    // Dummy audio para desbloquear elemento HTML5 Audio
+    const dummy = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+    dummy.volume = 0;
+    dummy.play().catch(() => {});
+    isAudioUnlocked = true;
+  } catch {}
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pointerdown', () => unlockAudio(), { once: true, passive: true });
+  window.addEventListener('keydown', () => unlockAudio(), { once: true, passive: true });
+  window.addEventListener('touchstart', () => unlockAudio(), { once: true, passive: true });
+}
 
 export function setAppAudioMuted(muted: boolean) {
   isAudioMuted = muted;

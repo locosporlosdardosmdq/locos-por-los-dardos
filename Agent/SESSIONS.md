@@ -1,5 +1,34 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 26] - 2026-10-12
+- **Objetivo:** Corrección de la visibilidad de nuevos jugadores en el padrón de PC (Juli / Prueba), transmisión de video y audio bidireccional WebRTC en partidas online 1 vs 1, modal emergente de la diana del contrincante en PC (Juli) con Picture-in-Picture nativo y desbloqueo universal de audio HTML5 y Russ Bray.
+- **Diagnóstico de Causa Raíz:**
+  1. *Cámara del contrincante en blanco/espera:* En `OnlineRoomModal.tsx`, la API REST respondía en <50ms antes de que `joinPeerRoom` resolviera la conexión P2P; al pasar `joinedSuccess = true`, `setActiveWebRtcHandler(handler)` se saltaba y el Guest iniciaba la partida sin handler de WebRTC activo. Sumado a esto, los elementos `<video ref={remoteVideoRef}>` remotos carecían del atributo `muted`, lo que provocaba que Chrome/Android bloquearan el renderizado visual de todo video stream con audio sin interacción directa en el elemento.
+  2. *Audio silenciado:* El elemento `<audio ref={remoteAudioRef}>` tenía `className="hidden"` (`display: none`), suspendido por los motores WebKit y Blink en smartphones para ahorro de batería. Además, las llamadas a `new Audio()` disparadas asíncronamente por eventos de red fallaban por políticas de Autoplay.
+  3. *Popout en PC:* La función `handleOpenPopout` abría `/anotador/camara-popout` que mostraba la webcam local de Mariano en vez de la diana de la contrincante (Juli).
+  4. *Falta de visibilidad de nuevos jugadores en PC:* Juli estaba perfectamente guardada en PostgreSQL de Supabase, pero la ruta `/api/jugadores` era servida con caché por Vercel Edge y el navegador de escritorio.
+- **Realizado:**
+  - **Padrón Federal Dinámico y Sin Caché (`src/app/api/jugadores/route.ts` & `PlayerDirectory.tsx`):**
+    * Configurado `export const dynamic = 'force-dynamic'` y `export const revalidate = 0` con cabeceras `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`.
+    * Añadido query param de bust `?t=${Date.now()}` y botón táctil "Actualizar" con icono `RefreshCw` en el directorio.
+  - **Motor WebRTC Bidireccional Puro y Auto-Healing (`src/lib/webrtc-room.ts` & `X01Board.tsx`):**
+    * Soporte bidireccional puro con llamadas salientes y entrantes independientes (`incomingCall` / `outgoingCall`), captura de `call.peer` y señalización `STREAM_READY`.
+    * Registro inmediato e incondicional de `setActiveWebRtcHandler(handler)` en el Guest en `OnlineRoomModal.tsx`.
+    * Mecanismo de Auto-Healing en `X01Board.tsx` que detecta si la sala online no tiene handler activo y lo inicializa automáticamente reconectando y enviando el stream local.
+    * Incorporado `muted={true}` en `<video ref={remoteVideoRef}>` para garantizar renderizado visual instantáneo sin bloqueos de Autoplay.
+  - **Desbloqueo Universal de Audio (`src/lib/sound-effects.ts` & `X01Board.tsx`):**
+    * Reubicado `<audio ref={remoteAudioRef}>` fuera de pantalla con posicionamiento fijo (`top: -9999px`) sin `display: none`.
+    * Función `unlockAudio()` enganchada a eventos globales `pointerdown`, `touchstart` y `keydown` (`once: true`) para desbloquear el `AudioContext` y HTML5 Audio ante el primer toque.
+  - **Modal Emergente con la Diana del Contrincante en PC (`src/components/anotador/X01Board.tsx`):**
+    * Componente `showRivalModal` que muestra en HD la diana del oponente (Juli) en la PC con marcador en vivo, estado de tiro activo, AVG, botón de reconexión y Picture-in-Picture nativo (`handleTogglePiP`).
+    * Botones `[⛶ Ampliar]` en la diana remota del split-screen y en la barra superior del anotador.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores (código 0).
+    * `npm run build` completado exitosamente con 19/19 páginas generadas limpias (código 0).
+- **Estado del Proyecto:** Partidas online 1 vs 1 con streaming de video y audio bidireccional fluido, modal emergente de la contrincante en PC con PiP, Russ Bray desbloqueado y sincronización en tiempo real del padrón de jugadores.
+
+---
+
 ## [Sesión 25] - 2026-10-12
 - **Objetivo:** Selector de hardware de cámara en el anotador (notebook vs webcam USB), reparación de audio WebRTC en smartphones para partidas remotas 1 vs 1, enlace y herramienta de invitación por WhatsApp para registro de nuevos jugadores, erradicación de mocks en selectores/rankings de jugadores y sanitización de avatares en perfiles.
 - **Diagnóstico de Causa Raíz:**

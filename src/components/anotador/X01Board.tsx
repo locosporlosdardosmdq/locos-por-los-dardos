@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MatchConfig, DartThrow } from '@/lib/types';
-import { SoundEngine, VoiceCaller, isAppAudioMuted, setAppAudioMuted } from '@/lib/sound-effects';
+import { SoundEngine, VoiceCaller, isAppAudioMuted, setAppAudioMuted, unlockAudio } from '@/lib/sound-effects';
 import { getSuggestedCheckout } from '@/lib/constants';
 import { saveActiveMatchSession, clearActiveMatchSession, ActiveMatchSession } from '@/lib/storage';
 import { formatCardPlayerName } from '@/components/jugadores/UltimateDartsCard';
@@ -30,12 +30,20 @@ import {
   MicOff,
   Target,
   Settings2,
-  Sliders
+  Sliders,
+  Maximize2,
+  Minimize2,
+  PictureInPicture2,
+  RefreshCw,
+  X
 } from 'lucide-react';
 import { matchBroadcast } from '@/lib/broadcast';
 import { normalizeRoomCode } from '@/lib/online-rooms';
 import { 
   getActiveWebRtcHandler, 
+  setActiveWebRtcHandler,
+  hostPeerRoom,
+  joinPeerRoom,
   setWebRtcThrowListener, 
   setWebRtcRemoteStreamListener, 
   getActiveRemoteStream 
@@ -156,6 +164,51 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
+  // Modal Emergente de Diana del Rival (Optimizado para PC y móviles)
+  const [showRivalModal, setShowRivalModal] = useState<boolean>(false);
+  const modalRemoteVideoRef = useRef<HTMLVideoElement>(null);
+
+  const handleTogglePiP = async () => {
+    try {
+      if (typeof document !== 'undefined' && document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (modalRemoteVideoRef.current) {
+        await modalRemoteVideoRef.current.requestPictureInPicture();
+      } else if (remoteVideoRef.current) {
+        await remoteVideoRef.current.requestPictureInPicture();
+      }
+    } catch (e) {
+      console.warn('PiP notice:', e);
+    }
+  };
+
+  const handleRetryWebRtc = () => {
+    showFeedback('Reconectando cámara y audio con el rival...', '#00e676');
+    unlockAudio();
+    try {
+      const webrtc = getActiveWebRtcHandler();
+      if (webrtc && mobileStreamRef.current) {
+        webrtc.sendMediaStream(mobileStreamRef.current);
+      } else if (config.isOnlineRoom && config.onlineRoomCode) {
+        const cleanCode = normalizeRoomCode(config.onlineRoomCode);
+        const playerIdx = (config.localPlayerIndex !== undefined ? config.localPlayerIndex : 0) as 0 | 1;
+        if (playerIdx === 0) {
+          hostPeerRoom(cleanCode, config.player1, config, () => {}, () => {}, () => {})
+            .then((h) => {
+              setActiveWebRtcHandler(h);
+              if (mobileStreamRef.current) h.sendMediaStream(mobileStreamRef.current);
+            }).catch(() => {});
+        } else {
+          joinPeerRoom(cleanCode, config.player2, () => {}, () => {}, () => {})
+            .then((h) => {
+              setActiveWebRtcHandler(h);
+              if (mobileStreamRef.current) h.sendMediaStream(mobileStreamRef.current);
+            }).catch(() => {});
+        }
+      }
+    } catch (e) {}
+  };
+
   // Detectar y listar dispositivos de cámara disponibles (webcam integrada, USB, OBS)
   useEffect(() => {
     if (typeof navigator !== 'undefined' && navigator.mediaDevices?.enumerateDevices) {
@@ -170,8 +223,13 @@ export const X01Board: React.FC<X01BoardProps> = ({
     setWebRtcRemoteStreamListener((stream) => {
       console.log('[WebRTC P2P] Stream de cámara/audio rival actualizado:', !!stream);
       setRemoteStream(stream);
-      if (remoteVideoRef.current) {
+      if (remoteVideoRef.current && stream) {
         remoteVideoRef.current.srcObject = stream;
+        remoteVideoRef.current.play().catch(() => {});
+      }
+      if (modalRemoteVideoRef.current && stream) {
+        modalRemoteVideoRef.current.srcObject = stream;
+        modalRemoteVideoRef.current.play().catch(() => {});
       }
       if (remoteAudioRef.current && stream) {
         remoteAudioRef.current.srcObject = stream;
@@ -193,6 +251,11 @@ export const X01Board: React.FC<X01BoardProps> = ({
     if (remoteStream) {
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = remoteStream;
+        remoteVideoRef.current.play().catch(() => {});
+      }
+      if (modalRemoteVideoRef.current) {
+        modalRemoteVideoRef.current.srcObject = remoteStream;
+        modalRemoteVideoRef.current.play().catch(() => {});
       }
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
@@ -204,7 +267,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
         });
       }
     }
-  }, [remoteStream]);
+  }, [remoteStream, showRivalModal]);
 
   // Alternar entre cámara trasera (diana) y delantera (jugador)
   const handleToggleCameraFacing = () => {
@@ -354,15 +417,9 @@ export const X01Board: React.FC<X01BoardProps> = ({
     }
   }, [currentTurn, config.isOnlineRoom]);
 
-  // Manejador de Pop-out 2ª Pantalla / TV (Opción 1 para PC)
+  // Manejador de Modal Emergente de Diana del Rival (en PC abre el modal con la cámara del rival)
   const handleOpenPopout = () => {
-    if (typeof window !== 'undefined') {
-      window.open(
-        '/anotador/camara-popout',
-        'DianaPopout',
-        'width=1100,height=750,menubar=no,toolbar=no,location=no,status=no'
-      );
-    }
+    setShowRivalModal(true);
   };
 
   // Referencias para transición de scroll entre diana y puntuaciones
@@ -578,8 +635,54 @@ export const X01Board: React.FC<X01BoardProps> = ({
   // Variables y Sincronización para Sala Online (1 vs 1 Remoto)
   const isOnline = !!config.isOnlineRoom;
   const localPlayerIdx: 0 | 1 = (config.localPlayerIndex !== undefined ? config.localPlayerIndex : 0) as 0 | 1;
+  const rivalPlayerIdx: 0 | 1 = localPlayerIdx === 0 ? 1 : 0;
+  const rivalDisplay = rivalPlayerIdx === 0 ? p1Display : p2Display;
   const isMyTurn = !isOnline || currentTurn === localPlayerIdx;
+  const isRivalTurn = isOnline && currentTurn === rivalPlayerIdx;
   const lastSyncedThrowTimeRef = useRef<number>(Date.now());
+
+  // Auto-conexión / Auto-Healing de WebRTC si la sala es online y no hay handler activo
+  useEffect(() => {
+    if (!config.isOnlineRoom || !config.onlineRoomCode) return;
+    const cleanCode = normalizeRoomCode(config.onlineRoomCode);
+
+    if (!getActiveWebRtcHandler()) {
+      console.log('[WebRTC Auto-Healing] Conectando sala P2P:', cleanCode, 'rol:', localPlayerIdx);
+      if (localPlayerIdx === 0) {
+        hostPeerRoom(
+          cleanCode,
+          config.player1,
+          config,
+          () => {},
+          () => {},
+          (err) => console.log('[WebRTC AutoHost Notice]:', err)
+        ).then((handler) => {
+          setActiveWebRtcHandler(handler);
+          if (mobileStreamRef.current) {
+            handler.sendMediaStream(mobileStreamRef.current);
+          }
+        }).catch(() => {});
+      } else {
+        joinPeerRoom(
+          cleanCode,
+          config.player2,
+          () => {},
+          () => {},
+          (err) => console.log('[WebRTC AutoJoin Notice]:', err)
+        ).then((handler) => {
+          setActiveWebRtcHandler(handler);
+          if (mobileStreamRef.current) {
+            handler.sendMediaStream(mobileStreamRef.current);
+          }
+        }).catch(() => {});
+      }
+    } else {
+      const handler = getActiveWebRtcHandler();
+      if (handler && mobileStreamRef.current) {
+        handler.sendMediaStream(mobileStreamRef.current);
+      }
+    }
+  }, [config.isOnlineRoom, config.onlineRoomCode, localPlayerIdx]);
 
   // Sincronización instantánea de tiradas vía WebRTC P2P (< 30ms)
   useEffect(() => {
@@ -1261,8 +1364,13 @@ export const X01Board: React.FC<X01BoardProps> = ({
       {/* PANEL DE DOBLE DIANA EN VIVO (ESTILO NAKKA N01 SPLIT-SCREEN) */}
       {(isOnline || showMobileCamera) && (
         <div className="bg-[#0b0e14] border border-slate-800 rounded-2xl p-2.5 sm:p-3 space-y-2.5 shadow-2xl">
-          {/* Audio dedicado remoto para WebRTC (blindado contra restricciones de autoplay en celulares) */}
-          <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+          {/* Audio dedicado remoto para WebRTC (posicionado fuera de pantalla sin display:none para evitar suspensión en móviles) */}
+          <audio 
+            ref={remoteAudioRef} 
+            autoPlay 
+            playsInline 
+            style={{ position: 'fixed', top: -9999, left: -9999, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} 
+          />
 
           {/* Banner de Desbloqueo de Audio para Celulares */}
           {audioAutoplayBlocked && (
@@ -1338,6 +1446,17 @@ export const X01Board: React.FC<X01BoardProps> = ({
                 <span>{isMicMuted ? 'Mute' : isSpeaking ? 'Voz ON' : 'Mic'}</span>
               </button>
 
+              {/* Botón Modal Emergente Diana del Contrincante (PC) */}
+              <button
+                type="button"
+                onClick={handleOpenPopout}
+                className="px-2 py-1 rounded-lg bg-[#0284c7]/20 hover:bg-[#0284c7]/40 border border-[#0284c7] text-[#38bdf8] text-[10px] font-bold flex items-center gap-1 transition-colors"
+                title="Abrir Diana del Contrincante en Modal Emergente (PC)"
+              >
+                <Maximize2 className="w-3 h-3" />
+                <span className="hidden sm:inline">Diana Rival</span>
+              </button>
+
               {/* Toggle de Visualización de Cámaras */}
               <button
                 type="button"
@@ -1389,6 +1508,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
                       ref={remoteVideoRef} 
                       autoPlay 
                       playsInline 
+                      muted 
                       className="w-full h-full object-cover" 
                     />
                   ) : (
@@ -1396,6 +1516,13 @@ export const X01Board: React.FC<X01BoardProps> = ({
                       <Target className="w-6 h-6 text-[#ef4444] mb-1 animate-pulse" />
                       <span className="text-[10px] font-bold text-slate-300">{p1Display}</span>
                       <span className="text-[9px] text-slate-500">En espera de cámara...</span>
+                      <button
+                        type="button"
+                        onClick={handleRetryWebRtc}
+                        className="mt-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-[#0284c7] text-[8px] font-bold text-slate-300 hover:text-white border border-slate-700 flex items-center gap-1 transition-colors"
+                      >
+                        <RefreshCw className="w-2.5 h-2.5" /> Reconectar
+                      </button>
                     </div>
                   )
                 )}
@@ -1405,11 +1532,23 @@ export const X01Board: React.FC<X01BoardProps> = ({
                   <div className="bg-black/85 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] font-black text-white truncate max-w-[110px] border border-white/10">
                     {p1Display} {localPlayerIdx === 0 ? '(Tú)' : ''}
                   </div>
-                  {currentTurn === 0 && (
-                    <span className="bg-[#00e676] text-black text-[8px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-0.5 shadow">
-                      <Target className="w-2.5 h-2.5" /> Tirando
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {localPlayerIdx !== 0 && (
+                      <button
+                        type="button"
+                        onClick={handleOpenPopout}
+                        className="pointer-events-auto bg-black/85 hover:bg-[#0284c7] text-[8px] font-black text-white px-1.5 py-0.5 rounded border border-white/20 flex items-center gap-0.5 shadow transition-colors"
+                        title="Ampliar Diana en Modal"
+                      >
+                        <Maximize2 className="w-2.5 h-2.5" /> Ampliar
+                      </button>
+                    )}
+                    {currentTurn === 0 && (
+                      <span className="bg-[#00e676] text-black text-[8px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-0.5 shadow">
+                        <Target className="w-2.5 h-2.5" /> Tirando
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1446,6 +1585,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
                       ref={remoteVideoRef} 
                       autoPlay 
                       playsInline 
+                      muted 
                       className="w-full h-full object-cover" 
                     />
                   ) : (
@@ -1453,6 +1593,13 @@ export const X01Board: React.FC<X01BoardProps> = ({
                       <Target className="w-6 h-6 text-[#ef4444] mb-1 animate-pulse" />
                       <span className="text-[10px] font-bold text-slate-300">{p2Display}</span>
                       <span className="text-[9px] text-slate-500">En espera de cámara...</span>
+                      <button
+                        type="button"
+                        onClick={handleRetryWebRtc}
+                        className="mt-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-[#0284c7] text-[8px] font-bold text-slate-300 hover:text-white border border-slate-700 flex items-center gap-1 transition-colors"
+                      >
+                        <RefreshCw className="w-2.5 h-2.5" /> Reconectar
+                      </button>
                     </div>
                   )
                 )}
@@ -1462,11 +1609,23 @@ export const X01Board: React.FC<X01BoardProps> = ({
                   <div className="bg-black/85 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] font-black text-white truncate max-w-[110px] border border-white/10">
                     {p2Display} {localPlayerIdx === 1 ? '(Tú)' : ''}
                   </div>
-                  {currentTurn === 1 && (
-                    <span className="bg-[#00e676] text-black text-[8px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-0.5 shadow">
-                      <Target className="w-2.5 h-2.5" /> Tirando
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {localPlayerIdx !== 1 && (
+                      <button
+                        type="button"
+                        onClick={handleOpenPopout}
+                        className="pointer-events-auto bg-black/85 hover:bg-[#0284c7] text-[8px] font-black text-white px-1.5 py-0.5 rounded border border-white/20 flex items-center gap-0.5 shadow transition-colors"
+                        title="Ampliar Diana en Modal"
+                      >
+                        <Maximize2 className="w-2.5 h-2.5" /> Ampliar
+                      </button>
+                    )}
+                    {currentTurn === 1 && (
+                      <span className="bg-[#00e676] text-black text-[8px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-0.5 shadow">
+                        <Target className="w-2.5 h-2.5" /> Tirando
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1749,6 +1908,154 @@ export const X01Board: React.FC<X01BoardProps> = ({
       player2Name={p2Display}
       currentScoreOrLegs={`P1: ${scores[0]} pts (${legsWon[0]} legs) • P2: ${scores[1]} pts (${legsWon[1]} legs)`}
     />
+
+    {/* MODAL EMERGENTE DE LA CÁMARA DEL CONTRINCANTE (OPTIMIZADO PARA PC Y SEGUNDA PANTALLA) */}
+    {showRivalModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in">
+        <div className="bg-[#0b0e14] border-2 border-[#0284c7]/50 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl shadow-[#0284c7]/20 flex flex-col">
+          {/* Cabecera del Modal */}
+          <div className="p-3 sm:p-4 bg-gradient-to-r from-[#0f1422] to-[#141b2d] border-b border-slate-800 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-[#0284c7]/20 border border-[#0284c7] flex items-center justify-center flex-shrink-0">
+                <Target className="w-4 h-4 text-[#38bdf8]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-black text-white truncate">
+                    Diana de {rivalDisplay}
+                  </h3>
+                  <span className="bg-[#00e676]/20 border border-[#00e676]/40 text-[#00e676] text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-ping" />
+                    En Vivo
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5 flex-wrap">
+                  <span className="font-mono text-[#38bdf8] font-bold">{scores[rivalPlayerIdx]} pts</span>
+                  <span>•</span>
+                  <span>Legs: {legsWon[rivalPlayerIdx]}</span>
+                  <span>•</span>
+                  <span>AVG: {getAvg(rivalPlayerIdx)}</span>
+                  {isRivalTurn ? (
+                    <span className="text-[#00e676] font-bold flex items-center gap-1 ml-1">
+                      <Target className="w-3 h-3" /> Tirando ahora
+                    </span>
+                  ) : (
+                    <span className="text-slate-500 font-bold ml-1">Esperando turno</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Acciones de Cabecera */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleTogglePiP}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition-colors"
+                title="Desacoplar a mini-ventana flotante en Windows (Picture-in-Picture)"
+              >
+                <PictureInPicture2 className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleRetryWebRtc}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition-colors"
+                title="Reconectar señal de cámara WebRTC"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRivalModal(false)}
+                className="p-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 transition-colors"
+                title="Cerrar ventana emergente"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Cuerpo del Modal: Video en Vivo de la Diana del Rival */}
+          <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+            {remoteStream ? (
+              <video
+                ref={modalRemoteVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 text-center space-y-3 bg-gradient-to-b from-[#0b0e14] to-black">
+                <div className="w-16 h-16 rounded-full bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center animate-pulse">
+                  <Target className="w-8 h-8 text-[#ef4444]" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-white">
+                    Esperando señal de la cámara de {rivalDisplay}...
+                  </h4>
+                  <p className="text-xs text-slate-400 max-w-sm mt-1">
+                    Asegúrate de que {rivalDisplay} tenga activada su cámara en el celular o PC y conectada a la sala online.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRetryWebRtc}
+                  className="px-4 py-2 rounded-xl bg-[#00e676] hover:brightness-110 text-black font-black text-xs flex items-center gap-1.5 shadow-lg shadow-[#00e676]/30 transition-all cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Reconectar Llamada P2P</span>
+                </button>
+              </div>
+            )}
+
+            {/* Overlays flotantes dentro del video */}
+            <div className="absolute top-3 left-3 pointer-events-none">
+              <div className="bg-black/85 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#00e676] animate-ping" />
+                <span className="text-xs font-black text-white">{rivalDisplay}</span>
+                <span className="text-xs font-bold text-[#38bdf8] font-mono">{scores[rivalPlayerIdx]} pts</span>
+              </div>
+            </div>
+
+            {isRivalTurn && (
+              <div className="absolute bottom-3 left-3 right-3 pointer-events-none flex justify-center">
+                <div className="bg-[#00e676]/90 backdrop-blur-md text-black px-4 py-1.5 rounded-full font-black text-xs flex items-center gap-2 shadow-xl animate-bounce">
+                  <Target className="w-4 h-4" />
+                  <span>TIRANDO EN SU DIANA</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Pie del Modal con Sincronización y Audio */}
+          <div className="p-3 bg-[#0a0d14] border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 text-slate-400">
+              <span className="text-[11px] font-mono">Sala: <strong className="text-white">{config.onlineRoomCode}</strong></span>
+              <span>•</span>
+              <span className="text-[11px]">Sincronización P2P TURN TCP: <strong>443</strong></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleUnlockRemoteAudio}
+                className="px-2.5 py-1 rounded-lg bg-[#111622] hover:bg-[#1a2234] border border-slate-700 text-slate-200 text-[11px] font-bold flex items-center gap-1 transition-colors"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-[#00e676]" />
+                <span>Activar Sonido Rival</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRivalModal(false)}
+                className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-bold transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 );
 };

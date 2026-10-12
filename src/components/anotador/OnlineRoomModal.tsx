@@ -161,6 +161,9 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
           console.log('[WebRTC Guest Notice]:', webrtcErr);
         }
       );
+      if (handler) {
+        setActiveWebRtcHandler(handler);
+      }
     } catch (err) {
       // Ignorar, fallback a HTTP API
     }

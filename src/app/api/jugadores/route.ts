@@ -3,6 +3,9 @@ import { getDbPool } from '@/lib/db';
 import { PlayerProfile } from '@/lib/types';
 import { ICEMAN_CARD_DATA } from '@/lib/players-data';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Mapeo de perfiles desde la base de datos PostgreSQL de Supabase
 export async function GET() {
   try {
@@ -160,7 +163,11 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ success: true, players });
+    return NextResponse.json({ success: true, players }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+      }
+    });
   } catch (err: any) {
     console.error('[API /api/jugadores GET Error]:', err.message);
     return NextResponse.json({

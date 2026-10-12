@@ -19,7 +19,8 @@ import {
   Activity,
   Calendar,
   Sparkles,
-  ChevronDown
+  ChevronDown,
+  RefreshCw
 } from 'lucide-react';
 
 import { getCurrentPlayerProfile } from '@/lib/storage';
@@ -78,7 +79,7 @@ export const PlayerDirectory: React.FC = () => {
   const loadCloudPlayers = React.useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/jugadores');
+      const res = await fetch(`/api/jugadores?t=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error('Error al consultar /api/jugadores');
       const data = await res.json();
       if (data.players && Array.isArray(data.players) && data.players.length > 0) {
@@ -333,6 +334,18 @@ export const PlayerDirectory: React.FC = () => {
               <option value="PRINCIPIANTE">Principiante (0-39.9)</option>
             </select>
           </div>
+
+          {/* Botón Actualizar Padrón en la Nube */}
+          <button
+            type="button"
+            onClick={() => loadCloudPlayers()}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 bg-[#07090e] hover:bg-[#1a2234] border border-[#1e2638] hover:border-[#00e676] rounded-2xl px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+            title="Recargar y sincronizar jugadores de la nube"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-[#00e676] ${isLoading ? 'animate-spin' : ''}`} />
+            <span>{isLoading ? 'Actualizando...' : 'Actualizar'}</span>
+          </button>
         </div>
       </div>
 

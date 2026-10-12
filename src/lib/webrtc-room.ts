@@ -9,6 +9,8 @@ export type PeerMessage =
   | { type: 'THROW'; score: number; darts?: string[]; isCheckout?: boolean; playerIndex: 0 | 1 }
   | { type: 'VOICE_PING'; isTalking: boolean }
   | { type: 'CAMERA_TOGGLE'; enabled: boolean }
+  | { type: 'STREAM_READY' }
+  | { type: 'REQUEST_STREAM' }
   | { type: 'LEAVE' };
 
 export interface WebRtcRoomHandler {
@@ -51,7 +53,7 @@ export function getPeerIdFromRoomCode(code: string): string {
   return `lpld-sala-${clean}`;
 }
 
-// Configuración STUN + TURN (OpenRelay TCP 443) para atravesar CGNAT móvil (4G/LTE)
+// Configuración STUN + TURN (OpenRelay TCP 443 + Google STUN) para atravesar CGNAT móvil (4G/LTE)
 const PEER_CONFIG = {
   debug: 1,
   config: {
@@ -59,6 +61,8 @@ const PEER_CONFIG = {
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
       { urls: 'stun:stun.relay.metered.ca:80' },
       {
         urls: 'turn:relay.metered.ca:80',
@@ -75,12 +79,13 @@ const PEER_CONFIG = {
         username: 'openrelayproject',
         credential: 'openrelayproject'
       }
-    ]
+    ],
+    iceCandidatePoolSize: 10
   }
 };
 
 /**
- * HOST: Crea la sala P2P y queda a la espera del rival (DataChannel + Video Stream)
+ * HOST: Crea la sala P2P y queda a la espera del rival (DataChannel + Bidirectional Video/Audio Stream)
  */
 export async function hostPeerRoom(
   roomCode: string,
@@ -94,7 +99,8 @@ export async function hostPeerRoom(
   const peerId = getPeerIdFromRoomCode(roomCode);
 
   let activeConnection: any = null;
-  let activeCall: any = null;
+  let incomingCall: any = null;
+  let outgoingCall: any = null;
   let localMediaStream: MediaStream | null = null;
   let connectedGuestPeerId: string | null = null;
 
@@ -135,35 +141,67 @@ export async function hostPeerRoom(
     }
   });
 
-  // Escuchar llamadas entrantes de video del rival
-  peer.on('call', (incomingCall) => {
-    console.log('[WebRTC Host] Recibida videollamada de cámara del rival');
-    activeCall = incomingCall;
+  // Función para realizar llamada saliente hacia el rival
+  const initiateOutgoingCall = (targetGuestId: string, stream: MediaStream) => {
+    if (!targetGuestId || !stream) return;
+    console.log('[WebRTC Host] Realizando llamada saliente con cámara hacia:', targetGuestId);
+    try {
+      if (outgoingCall) {
+        try { outgoingCall.close(); } catch (e) {}
+      }
+      const call = peer.call(targetGuestId, stream);
+      outgoingCall = call;
 
-    if (localMediaStream) {
-      incomingCall.answer(localMediaStream);
-    } else {
-      incomingCall.answer();
+      call.on('stream', (remoteStream: MediaStream) => {
+        console.log('[WebRTC Host] Stream recibido en respuesta de llamada saliente:', remoteStream.id);
+        if (remoteStream && remoteStream.getTracks().length > 0) {
+          activeRemoteStream = remoteStream;
+          if (currentRemoteStreamListener) {
+            currentRemoteStreamListener(remoteStream);
+          }
+        }
+      });
+
+      call.on('error', (callErr: any) => {
+        console.warn('[WebRTC Host Outgoing Call Error]:', callErr);
+      });
+    } catch (err) {
+      console.warn('[WebRTC Host Call Exception]:', err);
+    }
+  };
+
+  // Escuchar llamadas entrantes de video del rival
+  peer.on('call', (call) => {
+    console.log('[WebRTC Host] Recibida llamada entrante de cámara/audio del rival');
+    incomingCall = call;
+
+    if (!connectedGuestPeerId && (call as any).peer) {
+      connectedGuestPeerId = (call as any).peer;
     }
 
-    incomingCall.on('stream', (remoteStream: MediaStream) => {
-      console.log('[WebRTC Host] Recibido stream de video de la diana rival');
+    if (localMediaStream) {
+      call.answer(localMediaStream);
+    } else {
+      call.answer();
+    }
+
+    call.on('stream', (remoteStream: MediaStream) => {
+      console.log('[WebRTC Host] ¡Stream de video y audio del rival recibido!', remoteStream.id);
       activeRemoteStream = remoteStream;
       if (currentRemoteStreamListener) {
         currentRemoteStreamListener(remoteStream);
       }
     });
 
-    incomingCall.on('close', () => {
-      console.log('[WebRTC Host] Stream de cámara del rival cerrado');
-      activeRemoteStream = null;
-      if (currentRemoteStreamListener) {
-        currentRemoteStreamListener(null);
+    call.on('close', () => {
+      console.log('[WebRTC Host] Stream entrante del rival cerrado');
+      if (incomingCall === call) {
+        incomingCall = null;
       }
     });
   });
 
-  // Escuchar canal de datos (tiros, turnos, chat)
+  // Escuchar canal de datos (tiros, turnos, pings)
   peer.on('connection', (conn) => {
     activeConnection = conn;
 
@@ -192,18 +230,18 @@ export async function hostPeerRoom(
 
         onGuestJoined(roomState);
 
-        // Si ya tenemos stream local disponible, llamar al rival
+        // Si ya tenemos stream local disponible, llamar al rival inmediatamente
         if (localMediaStream && connectedGuestPeerId) {
-          try {
-            const call = peer.call(connectedGuestPeerId, localMediaStream);
-            activeCall = call;
-            call.on('stream', (remoteStream) => {
-              activeRemoteStream = remoteStream;
-              if (currentRemoteStreamListener) currentRemoteStreamListener(remoteStream);
-            });
-          } catch (e) {
-            console.warn('[WebRTC Host Call Error]:', e);
-          }
+          initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
+        }
+      } else if (msg.type === 'STREAM_READY') {
+        console.log('[WebRTC Host] El rival notificó STREAM_READY');
+        if (localMediaStream && connectedGuestPeerId) {
+          initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
+        }
+      } else if (msg.type === 'REQUEST_STREAM') {
+        if (localMediaStream && connectedGuestPeerId) {
+          initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
         }
       } else if (msg.type === 'THROW') {
         if (currentThrowListener) {
@@ -216,7 +254,7 @@ export async function hostPeerRoom(
     });
 
     conn.on('close', () => {
-      console.log('[WebRTC Host] Rival desconectado');
+      console.log('[WebRTC Host] Rival desconectado del canal de datos');
     });
   });
 
@@ -241,60 +279,68 @@ export async function hostPeerRoom(
       }
     },
     sendMediaStream: (stream: MediaStream) => {
+      console.log('[WebRTC Host] sendMediaStream ejecutado. Tracks:', stream.getTracks().length);
       localMediaStream = stream;
-      if (activeCall) {
-        // Si ya hay una llamada activa, reemplazar tracks o agregarlos si no existían
+
+      // 1. Notificar al rival por DataChannel que tenemos la cámara lista
+      if (activeConnection && activeConnection.open) {
+        activeConnection.send({ type: 'STREAM_READY' } as PeerMessage);
+      }
+
+      // 2. Si ya hay una llamada saliente activa, reemplazar tracks
+      if (outgoingCall && outgoingCall.peerConnection) {
         try {
-          const pc = activeCall.peerConnection;
+          const pc = outgoingCall.peerConnection;
           const senders: any[] = pc?.getSenders?.() || [];
           const videoTrack = stream.getVideoTracks()[0];
           const audioTrack = stream.getAudioTracks()[0];
 
-          let foundVideoSender = false;
-          let foundAudioSender = false;
+          let replacedVideo = false;
+          let replacedAudio = false;
 
           senders.forEach((sender: any) => {
             if (sender.track?.kind === 'video' && videoTrack) {
               sender.replaceTrack(videoTrack).catch(() => {});
-              foundVideoSender = true;
+              replacedVideo = true;
             } else if (sender.track?.kind === 'audio' && audioTrack) {
               sender.replaceTrack(audioTrack).catch(() => {});
-              foundAudioSender = true;
+              replacedAudio = true;
             }
           });
 
-          // Si la llamada previa se respondió sin stream inicial, añadir tracks
-          if (!foundAudioSender && audioTrack && pc) {
-            try {
-              pc.addTrack(audioTrack, stream);
-            } catch (err) {}
-          }
-          if (!foundVideoSender && videoTrack && pc) {
-            try {
-              pc.addTrack(videoTrack, stream);
-            } catch (err) {}
+          // Si no existía video sender previo, reiniciar llamada saliente con el nuevo stream
+          if (!replacedVideo && videoTrack && connectedGuestPeerId) {
+            initiateOutgoingCall(connectedGuestPeerId, stream);
           }
         } catch (e) {
           console.warn('[WebRTC Host Track Replace Notice]:', e);
         }
       } else if (connectedGuestPeerId) {
-        // Llamar al rival con el stream de cámara
+        initiateOutgoingCall(connectedGuestPeerId, stream);
+      }
+
+      // 3. Si teníamos una llamada entrante abierta, actualizar sus senders también
+      if (incomingCall && incomingCall.peerConnection) {
         try {
-          const call = peer.call(connectedGuestPeerId, stream);
-          activeCall = call;
-          call.on('stream', (remoteStream: MediaStream) => {
-            activeRemoteStream = remoteStream;
-            if (currentRemoteStreamListener) currentRemoteStreamListener(remoteStream);
+          const pc = incomingCall.peerConnection;
+          const senders: any[] = pc?.getSenders?.() || [];
+          const videoTrack = stream.getVideoTracks()[0];
+          const audioTrack = stream.getAudioTracks()[0];
+          senders.forEach((sender: any) => {
+            if (sender.track?.kind === 'video' && videoTrack) {
+              sender.replaceTrack(videoTrack).catch(() => {});
+            } else if (sender.track?.kind === 'audio' && audioTrack) {
+              sender.replaceTrack(audioTrack).catch(() => {});
+            }
           });
-        } catch (e) {
-          console.warn('[WebRTC Host Call Error]:', e);
-        }
+        } catch (err) {}
       }
     },
     getRemoteStream: () => activeRemoteStream,
     destroy: () => {
       try {
-        if (activeCall) activeCall.close();
+        if (incomingCall) incomingCall.close();
+        if (outgoingCall) outgoingCall.close();
         if (activeConnection) activeConnection.close();
         activeRemoteStream = null;
         peer.destroy();
@@ -304,7 +350,7 @@ export async function hostPeerRoom(
 }
 
 /**
- * GUEST: Se conecta a la sala P2P del host (DataChannel + Video Stream)
+ * GUEST: Se conecta a la sala P2P del host (DataChannel + Bidirectional Video/Audio Stream)
  */
 export async function joinPeerRoom(
   roomCode: string,
@@ -317,7 +363,8 @@ export async function joinPeerRoom(
   const targetPeerId = getPeerIdFromRoomCode(roomCode);
 
   let activeConnection: any = null;
-  let activeCall: any = null;
+  let incomingCall: any = null;
+  let outgoingCall: any = null;
   let localMediaStream: MediaStream | null = null;
 
   // Guest usa un ID aleatorio único con prefijo
@@ -326,7 +373,36 @@ export async function joinPeerRoom(
 
   let connectionTimeout = setTimeout(() => {
     onError('No se pudo encontrar la sala del contrincante. Verifica el código o la conexión.');
-  }, 12000);
+  }, 14000);
+
+  // Función para realizar llamada saliente hacia el Host
+  const initiateOutgoingCall = (stream: MediaStream) => {
+    if (!targetPeerId || !stream) return;
+    console.log('[WebRTC Guest] Realizando llamada saliente con cámara hacia Host:', targetPeerId);
+    try {
+      if (outgoingCall) {
+        try { outgoingCall.close(); } catch (e) {}
+      }
+      const call = peer.call(targetPeerId, stream);
+      outgoingCall = call;
+
+      call.on('stream', (remoteStream: MediaStream) => {
+        console.log('[WebRTC Guest] Stream recibido en respuesta de llamada saliente:', remoteStream.id);
+        if (remoteStream && remoteStream.getTracks().length > 0) {
+          activeRemoteStream = remoteStream;
+          if (currentRemoteStreamListener) {
+            currentRemoteStreamListener(remoteStream);
+          }
+        }
+      });
+
+      call.on('error', (callErr: any) => {
+        console.warn('[WebRTC Guest Outgoing Call Error]:', callErr);
+      });
+    } catch (err) {
+      console.warn('[WebRTC Guest Call Exception]:', err);
+    }
+  };
 
   peer.on('open', () => {
     console.log('[WebRTC Guest] Conectando a Host:', targetPeerId, 'con Guest ID:', guestPeerId);
@@ -353,18 +429,18 @@ export async function joinPeerRoom(
       if (msg.type === 'JOIN_ACCEPTED') {
         onConnected(msg.room);
 
-        // Si ya teníamos stream local listo, llamar al host
+        // Si ya teníamos stream local listo, llamar al host inmediatamente
         if (localMediaStream) {
-          try {
-            const call = peer.call(targetPeerId, localMediaStream);
-            activeCall = call;
-            call.on('stream', (remoteStream) => {
-              activeRemoteStream = remoteStream;
-              if (currentRemoteStreamListener) currentRemoteStreamListener(remoteStream);
-            });
-          } catch (e) {
-            console.warn('[WebRTC Guest Call Error]:', e);
-          }
+          initiateOutgoingCall(localMediaStream);
+        }
+      } else if (msg.type === 'STREAM_READY') {
+        console.log('[WebRTC Guest] El Host notificó STREAM_READY');
+        if (localMediaStream) {
+          initiateOutgoingCall(localMediaStream);
+        }
+      } else if (msg.type === 'REQUEST_STREAM') {
+        if (localMediaStream) {
+          initiateOutgoingCall(localMediaStream);
         }
       } else if (msg.type === 'THROW') {
         if (currentThrowListener) {
@@ -387,29 +463,28 @@ export async function joinPeerRoom(
   });
 
   // Escuchar si el Host nos llama con su cámara
-  peer.on('call', (incomingCall) => {
-    console.log('[WebRTC Guest] Recibida llamada de cámara del Host');
-    activeCall = incomingCall;
+  peer.on('call', (call) => {
+    console.log('[WebRTC Guest] Recibida llamada entrante de cámara del Host');
+    incomingCall = call;
 
     if (localMediaStream) {
-      incomingCall.answer(localMediaStream);
+      call.answer(localMediaStream);
     } else {
-      incomingCall.answer();
+      call.answer();
     }
 
-    incomingCall.on('stream', (remoteStream: MediaStream) => {
-      console.log('[WebRTC Guest] Recibido stream de video de la diana del Host');
+    call.on('stream', (remoteStream: MediaStream) => {
+      console.log('[WebRTC Guest] ¡Stream de video y audio del Host recibido!', remoteStream.id);
       activeRemoteStream = remoteStream;
       if (currentRemoteStreamListener) {
         currentRemoteStreamListener(remoteStream);
       }
     });
 
-    incomingCall.on('close', () => {
+    call.on('close', () => {
       console.log('[WebRTC Guest] Stream de cámara del host cerrado');
-      activeRemoteStream = null;
-      if (currentRemoteStreamListener) {
-        currentRemoteStreamListener(null);
+      if (incomingCall === call) {
+        incomingCall = null;
       }
     });
   });
@@ -441,60 +516,69 @@ export async function joinPeerRoom(
       }
     },
     sendMediaStream: (stream: MediaStream) => {
+      console.log('[WebRTC Guest] sendMediaStream invocado. Tracks:', stream.getTracks().length);
       localMediaStream = stream;
-      if (activeCall) {
+
+      // 1. Notificar al Host por DataChannel que tenemos la cámara lista
+      if (activeConnection && activeConnection.open) {
+        activeConnection.send({ type: 'STREAM_READY' } as PeerMessage);
+      }
+
+      // 2. Si ya hay una llamada saliente activa, reemplazar tracks
+      if (outgoingCall && outgoingCall.peerConnection) {
         try {
-          const pc = activeCall.peerConnection;
+          const pc = outgoingCall.peerConnection;
           const senders: any[] = pc?.getSenders?.() || [];
           const videoTrack = stream.getVideoTracks()[0];
           const audioTrack = stream.getAudioTracks()[0];
 
-          let foundVideoSender = false;
-          let foundAudioSender = false;
+          let replacedVideo = false;
+          let replacedAudio = false;
 
           senders.forEach((sender: any) => {
             if (sender.track?.kind === 'video' && videoTrack) {
               sender.replaceTrack(videoTrack).catch(() => {});
-              foundVideoSender = true;
+              replacedVideo = true;
             } else if (sender.track?.kind === 'audio' && audioTrack) {
               sender.replaceTrack(audioTrack).catch(() => {});
-              foundAudioSender = true;
+              replacedAudio = true;
             }
           });
 
-          // Si no existía sender previo, agregar los tracks
-          if (!foundAudioSender && audioTrack && pc) {
-            try {
-              pc.addTrack(audioTrack, stream);
-            } catch (err) {}
-          }
-          if (!foundVideoSender && videoTrack && pc) {
-            try {
-              pc.addTrack(videoTrack, stream);
-            } catch (err) {}
+          // Si no existía video sender previo, iniciar llamada saliente
+          if (!replacedVideo && videoTrack) {
+            initiateOutgoingCall(stream);
           }
         } catch (e) {
           console.warn('[WebRTC Guest Track Replace Notice]:', e);
         }
       } else {
-        // Llamar al host
+        initiateOutgoingCall(stream);
+      }
+
+      // 3. Si teníamos una llamada entrante abierta, actualizar tracks
+      if (incomingCall && incomingCall.peerConnection) {
         try {
-          const call = peer.call(targetPeerId, stream);
-          activeCall = call;
-          call.on('stream', (remoteStream: MediaStream) => {
-            activeRemoteStream = remoteStream;
-            if (currentRemoteStreamListener) currentRemoteStreamListener(remoteStream);
+          const pc = incomingCall.peerConnection;
+          const senders: any[] = pc?.getSenders?.() || [];
+          const videoTrack = stream.getVideoTracks()[0];
+          const audioTrack = stream.getAudioTracks()[0];
+          senders.forEach((sender: any) => {
+            if (sender.track?.kind === 'video' && videoTrack) {
+              sender.replaceTrack(videoTrack).catch(() => {});
+            } else if (sender.track?.kind === 'audio' && audioTrack) {
+              sender.replaceTrack(audioTrack).catch(() => {});
+            }
           });
-        } catch (e) {
-          console.warn('[WebRTC Guest Call Error]:', e);
-        }
+        } catch (err) {}
       }
     },
     getRemoteStream: () => activeRemoteStream,
     destroy: () => {
       clearTimeout(connectionTimeout);
       try {
-        if (activeCall) activeCall.close();
+        if (incomingCall) incomingCall.close();
+        if (outgoingCall) outgoingCall.close();
         if (activeConnection) activeConnection.close();
         activeRemoteStream = null;
         peer.destroy();

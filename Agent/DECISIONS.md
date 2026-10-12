@@ -644,3 +644,37 @@
      - Eliminado el selector público que permitía cambiar de identidad y marcar a otro jugador en `localStorage`.
      - Asignación de avatares propios o avatar con iniciales dinámicas y colores distintivos para nuevos jugadores, previniendo que asuman la imagen de ICEMAN.
 - **Motivo:** Estabilidad técnica en partidas online federadas entre PC y teléfonos celulares, blindaje de identidad y expansión masiva de la comunidad mediante invitaciones directas por WhatsApp.
+
+---
+
+## ADR-036: WebRTC Bidireccional PeerJS, Desbloqueo Universal de Audio y Modal Emergente de Diana del Contrincante en PC
+
+- **Fecha:** 2026-10-12
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Durante partidas 1 vs 1 online entre la PC de Mariano Deux (ICEMAN) y el smartphone de Juli (Prueba), la cámara local funcionaba en ambos dispositivos, pero la diana remota del rival quedaba en *"En espera de cámara..."*.
+     - *Causa raíz 1:* En `OnlineRoomModal.tsx`, la API REST respondía en <50ms antes de que `joinPeerRoom` resolviera la conexión P2P, y como la bandera `joinedSuccess` pasaba a `true`, `setActiveWebRtcHandler(handler)` nunca se ejecutaba para el Guest. El tablero montaba sin handler WebRTC activo y nunca invocaba `sendMediaStream`.
+     - *Causa raíz 2:* PeerJS no renegocia automáticamente pistas con `addTrack()` en SDPs existentes. Se requirieron llamadas independientes salientes (`outgoingCall`) y entrantes (`incomingCall`) con señalización `STREAM_READY` por DataChannel y captura de `call.peer`.
+     - *Causa raíz 3 (Video):* Los elementos `<video ref={remoteVideoRef}>` remotos no poseían el atributo `muted`. Como los streams WebRTC incluyen pistas de audio, las políticas de Autoplay de Chrome (Desktop y Android) bloquean el renderizado visual de elementos multimedia no silenciados que no fueron activados por un gesto de usuario explícito sobre dicho elemento.
+  2. El audio de voz y los anuncios de Russ Bray no se escuchaban:
+     - *Causa raíz 1 (Audio WebRTC):* El elemento `<audio ref={remoteAudioRef}>` tenía `className="hidden"` (`display: none`), lo que en navegadores móviles suspende y congela el pipeline de audio para ahorro de batería.
+     - *Causa raíz 2 (Russ Bray):* Las llamadas a `new Audio()` disparadas asíncronamente por eventos de red (WebRTC o polling) fallaban por `NotAllowedError` hasta que hubiera un gesto táctil en el documento.
+  3. En la PC, el botón de ventana emergente ejecutaba un popout que abría la webcam local de Mariano en vez de mostrar en primer plano a la contrincante (Juli).
+  4. Los nuevos usuarios registrados (ej: Juli) se persistían en PostgreSQL de Supabase, pero la PC de Mariano mostraba el padrón cacheado por Vercel Edge / navegador.
+- **Decisión:**
+  1. **Motor WebRTC Bidireccional Puro y Auto-Healing (`src/lib/webrtc-room.ts` & `X01Board.tsx`):**
+     - Captura automática de `connectedGuestPeerId = (call as any).peer` en el Host.
+     - Registro inmediato de `setActiveWebRtcHandler(handler)` en el Guest sin esperar al callback ni depender del tiempo de respuesta de la API REST.
+     - Auto-healing en `X01Board.tsx`: si una partida online se monta sin handler activo, se auto-conecta automáticamente a la sala P2P y envía el stream local de inmediato.
+     - Marcado de `<video ref={remoteVideoRef} muted ...>` para garantizar reproducción visual instantánea.
+  2. **Desbloqueo Universal de Audio (`src/lib/sound-effects.ts` & `X01Board.tsx`):**
+     - Reubicación de `<audio ref={remoteAudioRef}>` con estilos fijos fuera de pantalla (`top: -9999px`) sin `display: none`.
+     - Creación de `unlockAudio()` enganchado a eventos globales `pointerdown`, `touchstart` y `keydown` (con `once: true`) para inicializar el `AudioContext` y el pipeline de HTML5 Audio en el primer toque de usuario.
+  3. **Modal Emergente con la Diana del Contrincante (`src/components/anotador/X01Board.tsx`):**
+     - Modal emergente `showRivalModal` con diseño deportivo oscuro para visualizar a la oponente (Juli) en HD en la PC.
+     - Integra marcador en vivo del rival, promedio, indicador de tiro activo en su diana, botón de reconexión y Picture-in-Picture nativo (`handleTogglePiP`).
+     - Botones `[⛶ Ampliar]` en la diana remota del split-screen y en la barra superior.
+  4. **Padrón Federal sin Caché (`/api/jugadores` & `PlayerDirectory.tsx`):**
+     - Configurado `export const dynamic = 'force-dynamic'`, `export const revalidate = 0` y cabeceras `Cache-Control: no-store, no-cache, max-age=0`.
+     - Parámetro de bust de caché `?t=${Date.now()}` y botón táctil "Actualizar" con icono `RefreshCw` en el directorio.
+- **Motivo:** Garantiza que la cámara y el audio del rival se visualicen y escuchen sin restricciones de red ni de navegador, con visualización dedicada en PC y padrón federado en tiempo real.

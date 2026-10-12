@@ -1,5 +1,26 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 20] - 2026-10-11
+- **Objetivo:** Corrección de la visibilidad de la pestaña "Historial" en dispositivos móviles en la sección de torneos (`/torneos`) y calibración de nitidez de la foto comunitaria en la landing page (`src/app/page.tsx`).
+- **Diagnóstico de Causa Raíz:**
+  1. *Desborde Horizontal en Pestañas de Torneos:* En la versión móvil previa, las 3 pestañas principales de `/torneos` utilizaban etiquetas de texto extensas ("TORNEOS ACTIVOS", "LIGAS & POSICIONES", "HISTORIAL DE TORNEOS") con layout flex que desbordaba el viewport, provocando que la tercera pestaña ("HISTORIAL") fuera empujada hacia la derecha y quedara cortada por el margen de la pantalla del celular.
+  2. *Contraste de Foto Comunitaria:* La imagen de fondo `Darderos.jpeg` tenía un overlay inicial excesivamente oscuro y con desenfoque (`backdrop-blur`) que opacaba la foto.
+- **Realizado:**
+  - **Rediseño Responsivo de Pestañas (`TournamentManager.tsx`):**
+    * Implementado layout `grid grid-cols-3 sm:flex` con `min-w-0`, `gap-1 sm:gap-2` y `px-1.5 sm:px-4`.
+    * En móviles (`sm:hidden`), las etiquetas se sintetizan de forma compacta: `Activos`, `Ligas`, e `Historial`, acompañadas por sus respectivos badges numéricos y tracking adaptativo `tracking-tight sm:tracking-wider`.
+    * En pantallas de escritorio (`hidden sm:inline`), se conservan los títulos completos: `Torneos Activos`, `Ligas & Posiciones` e `Historial de Torneos`.
+    * Las acciones de cabecera (`ADMIN` y `+ Crear Torneo`) se organizaron en una fila inferior complementaria (`w-full sm:w-auto`) con botones proporcionales (`flex-1 sm:flex-none`).
+  - **Aclarado y Nitidez de Foto Comunitaria (`src/app/page.tsx`):**
+    * Overlay degradado aligerado (`from-black/60 via-black/35 to-black/45` sin blur invasivo), permitiendo que los rostros, camisetas y dianas Blade 6 se aprecien con alta definición y luminosidad.
+    * Textos jerárquicos reforzados con `drop-shadow` de alto contraste para máxima legibilidad.
+    * Cajas informativas interiores calibradas al 90% de transparencia (`bg-black/20 backdrop-blur-md border border-white/20 text-white`).
+  - **Validación de Compilación:**
+    * `npm run build` ejecutado exitosamente con 0 errores de tipado o linting, y 16/16 páginas estáticas generadas (código 0).
+- **Estado del Proyecto:** La pestaña "Historial" ahora es 100% visible, cómoda y táctil en cualquier celular. La fotografía comunitaria de Darderos Mar del Plata luce luminosa y nítida.
+
+---
+
 ## [Sesión 19] - 2026-10-11
 - **Objetivo:** Implementación de la Doble Diana Split-Screen en vivo (estilo Nakka N01 Darts), servidores TURN OpenRelay TCP 443 para atravesar CGNAT en redes móviles 4G/LTE de Argentina, locución sincronizada inmediata de Russ Bray en ambos dispositivos al anotar cada tiro, y foto de la comunidad de Darderos Mar del Plata (`Darderos.jpeg`) de fondo en la landing page con cuadros interiores al 90% de transparencia.
 - **Diagnóstico de Causa Raíz:**

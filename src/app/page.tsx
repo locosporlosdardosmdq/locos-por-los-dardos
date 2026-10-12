@@ -27,46 +27,47 @@ export default function HomePage() {
       {/* 2. SECCIÓN INFORMATIVA & COMUNIDAD DE DARDOS ARGENTINA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative rounded-3xl p-6 sm:p-10 shadow-2xl border border-white/15 overflow-hidden">
-          {/* Fondo de foto Darderos con overlay oscuro para contraste perfecto */}
+          {/* Fondo de foto Darderos nítida y visible con overlay sutil */}
           <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat transform scale-105"
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{ backgroundImage: "url('/images/darderos.jpeg')" }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/80 to-black/85 backdrop-blur-[2px]" />
-          <div className="absolute top-0 left-1/3 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          {/* Overlay suave y translúcido que permite apreciar los rostros y dianas con gran nitidez */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/35 to-black/45" />
+          <div className="absolute top-0 left-1/3 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
 
           <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-7 space-y-4">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#00e676] animate-ping"></span>
-                <span className="text-xs font-black uppercase text-[#00e676] tracking-wider">
+                <span className="text-xs font-black uppercase text-[#00e676] tracking-wider drop-shadow-md">
                   Comunidad Nacional de Dardos
                 </span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight drop-shadow-md">
+              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
                 La plataforma que une a todos los <span className="text-[#00e676]">darderos del país</span>.
               </h2>
 
-              <p className="text-slate-200 text-sm sm:text-base leading-relaxed drop-shadow-sm">
+              <p className="text-white text-sm sm:text-base leading-relaxed font-medium drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
                 Nacida de la pasión de los jugadores de <strong className="text-[#00e676]">Darderos Mar del Plata</strong> y expandida a cada rincón de Argentina. Aquí puedes registrar tus partidas tiro a tiro, medir tu promedio histórico, competir en torneos presenciales y online con cuadros interactivos, y equiparte con material profesional importado.
               </p>
 
               {/* Pilares clave con estilo deportivo - Cuadros 90% transparentes */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div className="flex items-center gap-2.5 text-xs text-slate-200 bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 shadow-sm">
+                <div className="flex items-center gap-2.5 text-xs text-white bg-black/20 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-md">
                   <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Anotador PWA:</strong> funciona offline en cualquier pub o club.</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-slate-200 bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 shadow-sm">
+                <div className="flex items-center gap-2.5 text-xs text-white bg-black/20 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-md">
                   <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Categorización por AVG:</strong> Principiante a Elite.</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-slate-200 bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 shadow-sm">
+                <div className="flex items-center gap-2.5 text-xs text-white bg-black/20 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-md">
                   <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Torneos Oficiales:</strong> llaves y cruces en vivo.</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-slate-200 bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 shadow-sm">
+                <div className="flex items-center gap-2.5 text-xs text-white bg-black/20 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-md">
                   <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Mercado Pago:</strong> cuotas en pesos y envíos al país.</span>
                 </div>

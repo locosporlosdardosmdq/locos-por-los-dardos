@@ -14,6 +14,9 @@
   * Panel de Doble Diana simétrica en `X01Board.tsx` mostrando en tiempo real la diana local y la diana del rival con estados de tiro, badges y halos luminosos.
   * Locución garantizada de Russ Bray para ambos jugadores al impactar cada visita.
   * Fondo de la comunidad con `Darderos.jpeg` en la landing page (`src/app/page.tsx`) y cuadros interiores al 90% de transparencia.
+- [x] **Pestañas de Torneos en Celular (Historial 100% Visible) y Contraste de Foto Comunitaria:**
+  * Rediseño responsivo de la cabecera de `/torneos` (`TournamentManager.tsx`): layout `grid grid-cols-3 sm:flex` con `min-w-0`, `gap-1`, `px-1.5` y tracking adaptativo que garantiza que las 3 pestañas (Activos, Ligas, Historial) entren completas y perfectamente legibles en cualquier celular sin desbordes horizontales.
+  * Overlay de foto comunitaria (`src/app/page.tsx`) aligerado y calibrado (`from-black/60 via-black/35 to-black/45`) para resaltar rostros, camisetas y dianas con gran nitidez.
 - [x] Definición completa del esquema relacional en PostgreSQL / Supabase (`db-schema.sql`) y Prisma (`schema.prisma`).
 - [x] Rediseño integral de la paleta de colores basado 100% en la Diana de Dardos (Samurai 4) con fondo gris oscuro (`#14161f`).
 - [x] Persistencia offline-first de partidas y cola de sincronización en `src/lib/storage.ts`.

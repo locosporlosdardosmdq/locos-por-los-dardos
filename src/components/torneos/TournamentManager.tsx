@@ -705,22 +705,23 @@ export const TournamentManager: React.FC = () => {
       ) : (
         <>
           {/* PESTAÑAS PRINCIPALES: TORNEOS ACTIVOS vs HISTORIAL */}
-          <div className="flex flex-wrap items-center justify-between bg-[#0f1422] border border-[#1e2a40] p-2 rounded-2xl gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-[#0f1422] border border-[#1e2a40] p-1.5 sm:p-2 rounded-2xl gap-2 sm:gap-3">
+            <div className="grid grid-cols-3 sm:flex sm:items-center gap-1 sm:gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => {
                   setMainTab('ACTIVE_TAB');
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                className={`flex items-center justify-center sm:justify-start gap-1 sm:gap-2 px-1.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all min-w-0 ${
                   mainTab === 'ACTIVE_TAB'
                     ? 'bg-[#00e676] text-[#07090e] shadow-lg shadow-[#00e676]/20'
                     : 'text-slate-400 hover:text-white hover:bg-[#141a29]'
                 }`}
               >
-                <Trophy className="w-4 h-4" />
-                <span>Torneos Activos</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="truncate hidden sm:inline">Torneos Activos</span>
+                <span className="truncate sm:hidden">Activos</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black min-w-[18px] text-center ${
                   mainTab === 'ACTIVE_TAB' ? 'bg-[#07090e] text-[#00e676]' : 'bg-[#1e2a40] text-slate-300'
                 }`}>
                   {tournaments.length}
@@ -732,15 +733,16 @@ export const TournamentManager: React.FC = () => {
                 onClick={() => {
                   setMainTab('LEAGUES_TAB');
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                className={`flex items-center justify-center sm:justify-start gap-1 sm:gap-2 px-1.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all min-w-0 ${
                   mainTab === 'LEAGUES_TAB'
                     ? 'bg-[#ffe600] text-[#07090e] shadow-lg shadow-[#ffe600]/20'
                     : 'text-slate-400 hover:text-white hover:bg-[#141a29]'
                 }`}
               >
-                <Shield className="w-4 h-4 text-[#ffe600]" />
-                <span>Ligas & Posiciones</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ffe600] flex-shrink-0" />
+                <span className="truncate hidden sm:inline">Ligas & Posiciones</span>
+                <span className="truncate sm:hidden">Ligas</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black min-w-[18px] text-center ${
                   mainTab === 'LEAGUES_TAB' ? 'bg-[#07090e] text-[#ffe600]' : 'bg-[#1e2a40] text-slate-300'
                 }`}>
                   {leagues.length}
@@ -755,15 +757,16 @@ export const TournamentManager: React.FC = () => {
                     setSelectedHistoryTournamentId(historyTournaments[0].id);
                   }
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                className={`flex items-center justify-center sm:justify-start gap-1 sm:gap-2 px-1.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all min-w-0 ${
                   mainTab === 'HISTORY_TAB'
                     ? 'bg-[#00e676] text-[#07090e] shadow-lg shadow-[#00e676]/20'
                     : 'text-slate-400 hover:text-white hover:bg-[#141a29]'
                 }`}
               >
-                <History className="w-4 h-4" />
-                <span>Historial de Torneos</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                <History className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="truncate hidden sm:inline">Historial de Torneos</span>
+                <span className="truncate sm:hidden">Historial</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black min-w-[18px] text-center ${
                   mainTab === 'HISTORY_TAB' ? 'bg-[#07090e] text-[#00e676]' : 'bg-[#1e2a40] text-slate-300'
                 }`}>
                   {historyTournaments.length}
@@ -772,21 +775,21 @@ export const TournamentManager: React.FC = () => {
             </div>
 
             {/* Acciones de Cabecera y Badge de Administrador */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               {isAdmin && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#ef4444]/20 border border-[#ef4444]/40 text-[#ef4444] text-xs font-black">
-                  <ShieldAlert className="w-4 h-4" />
-                  <span>MODO ADMIN ACTIVO ({currentUser.nickname || 'ICEMAN'})</span>
+                <div className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#ef4444]/20 border border-[#ef4444]/40 text-[#ef4444] text-[11px] sm:text-xs font-black flex-1 sm:flex-none">
+                  <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">ADMIN ({currentUser.nickname || 'ICEMAN'})</span>
                 </div>
               )}
 
               <button
                 type="button"
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2.5 bg-[#ef4444] hover:bg-[#dc2626] text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-[#ef4444]/25 transition-all"
+                className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[#ef4444] hover:bg-[#dc2626] text-white font-black rounded-xl text-[11px] sm:text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-[#ef4444]/25 transition-all flex-1 sm:flex-none"
               >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span>+ Crear Torneo Oficial</span>
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3] flex-shrink-0" />
+                <span>+ Crear Torneo</span>
               </button>
             </div>
           </div>

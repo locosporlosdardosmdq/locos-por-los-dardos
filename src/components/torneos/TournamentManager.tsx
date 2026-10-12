@@ -76,87 +76,97 @@ import {
   ChevronRight
 } from 'lucide-react';
 
-// Generador de llave eliminatoria oficial de 8 jugadores
-function generateDefaultBracket(tournamentId: string, roundLegs?: RoundLegsConfig, defaultLegs: number = 3): TournamentBracketMatch[] {
-  const pList = [
-    { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/images/iceman-perfil.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-2', name: 'Por Acreditar #2', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-3', name: 'Por Acreditar #3', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-4', name: 'Por Acreditar #4', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-5', name: 'Por Acreditar #5', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-6', name: 'Por Acreditar #6', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-7', name: 'Por Acreditar #7', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-8', name: 'Por Acreditar #8', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' }
-  ];
+import { 
+  generateSingleElimination, 
+  generateDoubleElimination, 
+  reportResult, 
+  computePodium, 
+  resetMatchSafely, 
+  Participant 
+} from '@/lib/bracket-engine';
+import { TournamentPodiumView } from './TournamentPodiumView';
 
-  const distMode = roundLegs?.distanceMode || 'LEGS';
-  const qfVal = roundLegs?.quarterFinals || defaultLegs;
-  const sfVal = roundLegs?.semiFinals || defaultLegs;
-  const finalsVal = roundLegs?.finals || defaultLegs + 1;
-  const legsPerSet = roundLegs?.legsPerSet || 5;
+// Helper para crear la lista de participantes para la siembra (Seeding)
+function createTournamentParticipants(maxCount: number, firstPlayer?: PlayerProfile): Participant[] {
+  const pList: Participant[] = [];
 
-  return [
-    // Cuartos de Final (Ronda 1)
-    { id: `${tournamentId}-m1`, round: 1, matchIndex: 0, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[0], player2: pList[1], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:00' },
-    { id: `${tournamentId}-m2`, round: 1, matchIndex: 1, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[2], player2: pList[3], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:30' },
-    { id: `${tournamentId}-m3`, round: 1, matchIndex: 2, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[4], player2: pList[5], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:00' },
-    { id: `${tournamentId}-m4`, round: 1, matchIndex: 3, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[6], player2: pList[7], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:30' },
-    // Semifinales (Ronda 2)
-    { id: `${tournamentId}-m5`, round: 2, matchIndex: 0, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? sfVal : legsPerSet, setTarget: distMode === 'SETS' ? sfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:15' },
-    { id: `${tournamentId}-m6`, round: 2, matchIndex: 1, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? sfVal : legsPerSet, setTarget: distMode === 'SETS' ? sfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:45' },
-    // Gran Final (Ronda 3)
-    { id: `${tournamentId}-m7`, round: 3, matchIndex: 0, bracketType: 'FINALS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? finalsVal : legsPerSet, setTarget: distMode === 'SETS' ? finalsVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:30' }
-  ];
+  // Jugador 1: Admin o usuario activo con foto y bandera
+  pList.push({
+    id: firstPlayer?.id || 'user-iceman-admin',
+    name: firstPlayer?.fullName || 'Mariano Deux (ICEMAN)',
+    nickname: firstPlayer?.nickname || 'ICEMAN',
+    avatarUrl: firstPlayer?.avatarUrl || '/images/iceman-perfil.png',
+    seed: 1,
+    nationality: firstPlayer?.nationality || 'Argentina',
+    countryCode: firstPlayer?.countryCode || 'AR'
+  });
+
+  // Demás cupos abiertos para acreditación
+  for (let i = 2; i <= maxCount; i++) {
+    pList.push({
+      id: `slot-${i}`,
+      name: `Por Acreditar #${i}`,
+      avatarUrl: '/logos/logo-mdq.png',
+      seed: i,
+      nationality: 'Argentina',
+      countryCode: 'AR'
+    });
+  }
+
+  return pList;
 }
 
-// Generador oficial de Doble Eliminación (Winners Bracket, Losers Bracket y Gran Final)
-function generateDoubleEliminationBracket(tournamentId: string, roundLegs?: RoundLegsConfig, defaultLegs: number = 3): TournamentBracketMatch[] {
-  const pList = [
-    { id: 'user-iceman-admin', name: 'Mariano Deux (ICEMAN)', avatarUrl: '/images/iceman-perfil.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-2', name: 'Por Acreditar #2', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-3', name: 'Por Acreditar #3', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-4', name: 'Por Acreditar #4', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-5', name: 'Por Acreditar #5', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-6', name: 'Por Acreditar #6', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-7', name: 'Por Acreditar #7', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' },
-    { id: 'slot-8', name: 'Por Acreditar #8', avatarUrl: '/logos/logo-mdq.png', nationality: 'Argentina', countryCode: 'AR' }
-  ];
-
+// Generador de Eliminación Simple puro (Challonge/N01) con punteros y Byes
+function generateDefaultBracket(
+  tournamentId: string,
+  roundLegs?: RoundLegsConfig,
+  defaultLegs: number = 3,
+  maxCount: number = 8,
+  firstPlayer?: PlayerProfile
+): TournamentBracketMatch[] {
+  const participants = createTournamentParticipants(maxCount, firstPlayer);
   const distMode = roundLegs?.distanceMode || 'LEGS';
   const qfVal = roundLegs?.quarterFinals || defaultLegs;
-  const sfVal = roundLegs?.semiFinals || defaultLegs;
-  const wfVal = roundLegs?.finals || defaultLegs + 1;
-  const lrVal = roundLegs?.losersRound || defaultLegs;
-  const lfVal = roundLegs?.losersFinals || defaultLegs;
-  const gfVal = roundLegs?.grandFinal || defaultLegs + 2;
-  const legsPerSet = roundLegs?.legsPerSet || 5;
 
-  return [
-    // --- CUADRO DE GANADORES (Por Arriba) ---
-    // R1 Ganadores (Cuartos)
-    { id: `${tournamentId}-w1`, round: 1, matchIndex: 0, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[0], player2: pList[1], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:00', note: 'Por Arriba' },
-    { id: `${tournamentId}-w2`, round: 1, matchIndex: 1, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[2], player2: pList[3], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '15:30', note: 'Por Arriba' },
-    { id: `${tournamentId}-w3`, round: 1, matchIndex: 2, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[4], player2: pList[5], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:00', note: 'Por Arriba' },
-    { id: `${tournamentId}-w4`, round: 1, matchIndex: 3, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? qfVal : legsPerSet, setTarget: distMode === 'SETS' ? qfVal : undefined, player1: pList[6], player2: pList[7], scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:30', note: 'Por Arriba' },
-    // R2 Ganadores (Semifinales Ganadores)
-    { id: `${tournamentId}-w5`, round: 2, matchIndex: 0, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? sfVal : legsPerSet, setTarget: distMode === 'SETS' ? sfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:15', note: 'Semi Ganadores' },
-    { id: `${tournamentId}-w6`, round: 2, matchIndex: 1, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? sfVal : legsPerSet, setTarget: distMode === 'SETS' ? sfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:45', note: 'Semi Ganadores' },
-    // R3 Ganadores (Final de Ganadores)
-    { id: `${tournamentId}-w7`, round: 3, matchIndex: 0, bracketType: 'WINNERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? wfVal : legsPerSet, setTarget: distMode === 'SETS' ? wfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:30', note: 'Final Ganadores' },
+  const rawMatches = generateSingleElimination(participants, {
+    seeding: 'RANKED',
+    includeThirdPlace: true,
+    legTarget: qfVal,
+    distanceMode: distMode
+  });
 
-    // --- CUADRO DE PERDEDORES (Por Abajo) ---
-    // R1 Perdedores (Cruces de quienes caen de Cuartos)
-    { id: `${tournamentId}-l1`, round: 1, matchIndex: 0, bracketType: 'LOSERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? lrVal : legsPerSet, setTarget: distMode === 'SETS' ? lrVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '16:45', note: 'Por Abajo' },
-    { id: `${tournamentId}-l2`, round: 1, matchIndex: 1, bracketType: 'LOSERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? lrVal : legsPerSet, setTarget: distMode === 'SETS' ? lrVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:00', note: 'Por Abajo' },
-    // R2 Perdedores (Semifinal de Perdedores)
-    { id: `${tournamentId}-l3`, round: 2, matchIndex: 0, bracketType: 'LOSERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? lrVal : legsPerSet, setTarget: distMode === 'SETS' ? lrVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '17:50', note: 'Semi Perdedores' },
-    { id: `${tournamentId}-l4`, round: 2, matchIndex: 1, bracketType: 'LOSERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? lrVal : legsPerSet, setTarget: distMode === 'SETS' ? lrVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '18:15', note: 'Semi Perdedores' },
-    // R3 Perdedores (Final de Perdedores)
-    { id: `${tournamentId}-l5`, round: 3, matchIndex: 0, bracketType: 'LOSERS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? lfVal : legsPerSet, setTarget: distMode === 'SETS' ? lfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '19:00', note: 'Final Perdedores' },
+  return rawMatches.map((m) => ({
+    ...m,
+    id: `${tournamentId}-${m.id}`,
+    nextMatchId: m.nextMatchId ? `${tournamentId}-${m.nextMatchId}` : undefined,
+    loserNextMatchId: m.loserNextMatchId ? `${tournamentId}-${m.loserNextMatchId}` : undefined
+  }));
+}
 
-    // --- GRAN FINAL DEL TORNEO (Campeón de Ganadores vs Campeón de Perdedores) ---
-    { id: `${tournamentId}-gf1`, round: 4, matchIndex: 0, bracketType: 'FINALS', distanceMode: distMode, legTarget: distMode === 'LEGS' ? gfVal : legsPerSet, setTarget: distMode === 'SETS' ? gfVal : undefined, scoreP1: 0, scoreP2: 0, status: 'SCHEDULED', scheduledTime: '19:45', note: 'Gran Final' }
-  ];
+// Generador oficial de Doble Eliminación puro (Winners, Losers y Gran Final)
+function generateDoubleEliminationBracket(
+  tournamentId: string,
+  roundLegs?: RoundLegsConfig,
+  defaultLegs: number = 3,
+  maxCount: number = 8,
+  firstPlayer?: PlayerProfile
+): TournamentBracketMatch[] {
+  const participants = createTournamentParticipants(maxCount, firstPlayer);
+  const distMode = roundLegs?.distanceMode || 'LEGS';
+  const qfVal = roundLegs?.quarterFinals || defaultLegs;
+
+  const rawMatches = generateDoubleElimination(participants, {
+    seeding: 'RANKED',
+    legTarget: qfVal,
+    distanceMode: distMode
+  });
+
+  return rawMatches.map((m) => ({
+    ...m,
+    id: `${tournamentId}-${m.id}`,
+    nextMatchId: m.nextMatchId ? `${tournamentId}-${m.nextMatchId}` : undefined,
+    loserNextMatchId: m.loserNextMatchId ? `${tournamentId}-${m.loserNextMatchId}` : undefined
+  }));
 }
 
 // Torneos históricos en limpio para producción
@@ -302,7 +312,7 @@ export const TournamentManager: React.FC = () => {
 
   const currentHistoryTournament = filteredHistoryTournaments.find((t) => t.id === selectedHistoryTournamentId) || filteredHistoryTournaments[0] || historyTournaments[0] || null;
 
-  // Actualizar resultado en el Cuadro Eliminatorio (en caliente)
+  // Actualizar resultado en el Cuadro Eliminatorio (en caliente con Pure Engine)
   const handleUpdateMatchScore = (matchId: string, p1Score: number, p2Score: number, winnerId?: string, note?: string) => {
     if (!selectedTournamentId) return;
 
@@ -310,43 +320,40 @@ export const TournamentManager: React.FC = () => {
       const updated = prev.map((t) => {
         if (t.id !== selectedTournamentId || !t.matches) return t;
 
-        const updatedMatches = t.matches.map((m) => {
-          if (m.id === matchId) {
-            const isFinished = !!winnerId;
-            return {
-              ...m,
-              scoreP1: p1Score,
-              scoreP2: p2Score,
-              winnerId,
-              note: note !== undefined ? note : m.note,
-              status: isFinished ? ('FINISHED' as const) : ('LIVE' as const)
-            };
-          }
-          return m;
-        });
-
-        // Si se declaró ganador, avanzar a la siguiente ronda
+        let updatedMatches: TournamentBracketMatch[];
         if (winnerId) {
-          const match = t.matches.find((m) => m.id === matchId);
-          if (match && match.round < 3) {
-            const nextRound = match.round + 1;
-            const nextMatchIndex = Math.floor(match.matchIndex / 2);
-            const targetNextMatch = updatedMatches.find(
-              (m) => m.round === nextRound && m.matchIndex === nextMatchIndex
-            );
-
-            if (targetNextMatch) {
-              const winningPlayer = match.player1?.id === winnerId ? match.player1 : match.player2;
-              if (match.matchIndex % 2 === 0) {
-                targetNextMatch.player1 = winningPlayer;
-              } else {
-                targetNextMatch.player2 = winningPlayer;
-              }
+          // Motor puro: enrutamiento exacto por punteros (nextMatchId / loserNextMatchId)
+          updatedMatches = reportResult(t.matches, matchId, {
+            scoreP1: p1Score,
+            scoreP2: p2Score,
+            winnerId,
+            note
+          });
+        } else {
+          // Partido en vivo sin ganador definitivo todavía
+          updatedMatches = t.matches.map((m) => {
+            if (m.id === matchId) {
+              return {
+                ...m,
+                scoreP1: p1Score,
+                scoreP2: p2Score,
+                note: note !== undefined ? note : m.note,
+                status: 'LIVE' as const
+              };
             }
-          }
+            return m;
+          });
         }
 
-        return { ...t, matches: updatedMatches };
+        // Computar Podio Oficial de Premiación automáticamente (1º Oro, 2º Plata, 3º Bronce)
+        const format = t.format === 'DOUBLE_ELIMINATION' ? 'DOUBLE_ELIMINATION' : 'SINGLE_ELIMINATION';
+        const calculatedPodium = computePodium(updatedMatches, format);
+
+        return {
+          ...t,
+          matches: updatedMatches,
+          podium: calculatedPodium
+        };
       });
 
       saveStoredTournaments(updated);
@@ -360,7 +367,7 @@ export const TournamentManager: React.FC = () => {
     const match = currentTournament.matches?.find((m) => m.id === matchId);
     if (!match) return;
 
-    const legsToWin = Math.ceil(currentTournament.bestOfLegs / 2);
+    const legsToWin = match.legTarget || Math.ceil(currentTournament.bestOfLegs / 2);
     const p1Score = match.player1?.id === winnerId ? legsToWin : 0;
     const p2Score = match.player2?.id === winnerId ? legsToWin : 0;
     const note = `W.O. (${absentPlayerName} ausente)`;
@@ -368,7 +375,7 @@ export const TournamentManager: React.FC = () => {
     handleUpdateMatchScore(matchId, p1Score, p2Score, winnerId, note);
   };
 
-  // Administrador: Resetear partido
+  // Administrador: Resetear partido de forma segura con cascada
   const handleAdminResetMatch = (matchId: string) => {
     if (!selectedTournamentId) return;
 
@@ -376,40 +383,15 @@ export const TournamentManager: React.FC = () => {
       const updated = prev.map((t) => {
         if (t.id !== selectedTournamentId || !t.matches) return t;
 
-        const targetMatch = t.matches.find((m) => m.id === matchId);
-        if (!targetMatch) return t;
+        const updatedMatches = resetMatchSafely(t.matches, matchId, true);
+        const format = t.format === 'DOUBLE_ELIMINATION' ? 'DOUBLE_ELIMINATION' : 'SINGLE_ELIMINATION';
+        const calculatedPodium = computePodium(updatedMatches, format);
 
-        const updatedMatches = t.matches.map((m) => {
-          if (m.id === matchId) {
-            return {
-              ...m,
-              scoreP1: 0,
-              scoreP2: 0,
-              winnerId: undefined,
-              note: undefined,
-              status: 'SCHEDULED' as const
-            };
-          }
-          return m;
-        });
-
-        // Limpiar al jugador de la siguiente ronda si ya había avanzado
-        if (targetMatch.round < 3) {
-          const nextRound = targetMatch.round + 1;
-          const nextMatchIndex = Math.floor(targetMatch.matchIndex / 2);
-          const targetNext = updatedMatches.find(
-            (m) => m.round === nextRound && m.matchIndex === nextMatchIndex
-          );
-          if (targetNext) {
-            if (targetMatch.matchIndex % 2 === 0) {
-              targetNext.player1 = undefined;
-            } else {
-              targetNext.player2 = undefined;
-            }
-          }
-        }
-
-        return { ...t, matches: updatedMatches };
+        return {
+          ...t,
+          matches: updatedMatches,
+          podium: calculatedPodium
+        };
       });
 
       saveStoredTournaments(updated);
@@ -612,9 +594,9 @@ export const TournamentManager: React.FC = () => {
 
     let newMatches: TournamentBracketMatch[] = [];
     if (newFormat === 'SINGLE_ELIMINATION') {
-      newMatches = generateDefaultBracket(newId, roundLegsConfig, newBestOfLegs);
+      newMatches = generateDefaultBracket(newId, roundLegsConfig, newBestOfLegs, newMaxParticipants, currentUser);
     } else if (newFormat === 'DOUBLE_ELIMINATION') {
-      newMatches = generateDoubleEliminationBracket(newId, roundLegsConfig, newBestOfLegs);
+      newMatches = generateDoubleEliminationBracket(newId, roundLegsConfig, newBestOfLegs, newMaxParticipants, currentUser);
     }
 
     const selectedLeague = newCompetitionMode === 'LOCAL_LEAGUE'
@@ -630,6 +612,7 @@ export const TournamentManager: React.FC = () => {
       description: `Torneo oficial de competición federada. Modalidad ${newType.toLowerCase()}, formato ${newFormat === 'DOUBLE_ELIMINATION' ? 'Doble Eliminación' : newFormat === 'ROUND_ROBIN' ? 'Liga / Grupos' : 'Eliminación Simple'}.`,
       type: newType,
       format: newFormat,
+      podium: {},
       competitionMode: newCompetitionMode,
       leagueId: selectedLeague?.id,
       leagueName: selectedLeague?.name,
@@ -1204,6 +1187,8 @@ export const TournamentManager: React.FC = () => {
                           isAdmin={isAdmin}
                           onAdminEditMatch={(m) => setAdminMatchToEdit(m)}
                           onSelectPlayer={handleOpenPlayerDetail}
+                          podium={currentTournament.podium}
+                          prizesBreakdown={currentTournament.prizesBreakdown}
                         />
                       ) : (
                         <div className="text-center py-12 text-slate-500">
@@ -1584,6 +1569,8 @@ export const TournamentManager: React.FC = () => {
                         matches={currentHistoryTournament.matches}
                         bestOfLegs={currentHistoryTournament.bestOfLegs}
                         onSelectPlayer={handleOpenPlayerDetail}
+                        podium={currentHistoryTournament.podium}
+                        prizesBreakdown={currentHistoryTournament.prizesBreakdown}
                       />
                     </div>
                   )}
@@ -1599,6 +1586,7 @@ export const TournamentManager: React.FC = () => {
         isOpen={!!adminMatchToEdit}
         onClose={() => setAdminMatchToEdit(null)}
         match={adminMatchToEdit}
+        allMatches={currentTournament?.matches}
         onSaveScore={handleUpdateMatchScore}
         onAdvanceWalkover={handleAdminAdvanceWalkover}
         onResetMatch={handleAdminResetMatch}

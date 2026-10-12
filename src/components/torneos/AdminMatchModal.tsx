@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { TournamentBracketMatch } from '@/lib/types';
 import { getCountryFlag } from '@/lib/constants';
+import { previewDownstreamImpact } from '@/lib/bracket-engine';
 import { 
   ShieldAlert, 
   X, 
@@ -18,6 +19,7 @@ interface AdminMatchModalProps {
   isOpen: boolean;
   onClose: () => void;
   match: TournamentBracketMatch | null;
+  allMatches?: TournamentBracketMatch[];
   onSaveScore: (matchId: string, p1Score: number, p2Score: number, winnerId?: string, note?: string) => void;
   onAdvanceWalkover: (matchId: string, winnerId: string, absentPlayerName: string) => void;
   onResetMatch: (matchId: string) => void;
@@ -27,6 +29,7 @@ export const AdminMatchModal: React.FC<AdminMatchModalProps> = ({
   isOpen,
   onClose,
   match,
+  allMatches,
   onSaveScore,
   onAdvanceWalkover,
   onResetMatch
@@ -35,6 +38,9 @@ export const AdminMatchModal: React.FC<AdminMatchModalProps> = ({
   const [scoreP2, setScoreP2] = useState(0);
   const [selectedWinnerId, setSelectedWinnerId] = useState<string>('');
   const [note, setNote] = useState<string>('');
+
+  const downstreamImpact = match && allMatches ? previewDownstreamImpact(allMatches, match.id) : [];
+  const hasDownstreamImpact = downstreamImpact.length > 0;
 
   useEffect(() => {
     if (match) {
@@ -103,6 +109,21 @@ export const AdminMatchModal: React.FC<AdminMatchModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Alerta de Impacto en Cascada (Challonge Engine) */}
+        {hasDownstreamImpact && (
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/40 text-amber-300 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="text-xs space-y-1">
+              <p className="font-black text-amber-200">
+                Aviso de Cascada: Este partido tiene {downstreamImpact.length} cruce(s) posterior(es) enlazado(s).
+              </p>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                El motor de llaves propagará automáticamente al nuevo ganador o limpiará los puestos enlazados de forma segura sin romper la estructura del torneo.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Formulario de Edición de Resultado Manual */}
         <form onSubmit={handleSave} className="space-y-4">

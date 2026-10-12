@@ -1,5 +1,38 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 24] - 2026-10-12
+- **Objetivo:** Implementación del Motor Puro de Torneos y Ligas estándar Challonge & Nakka N01 Tournament (`src/lib/bracket-engine.ts`), Podio Oficial de Premiación (`TournamentPodiumView.tsx`), enrutamiento determinista por punteros y edición segura con aviso en cascada en `AdminMatchModal.tsx`.
+- **Realizado:**
+  - **Motor Matemático Inmutable (`src/lib/bracket-engine.ts`):**
+    * Funciones puras libres de efectos secundarios: `generateSingleElimination`, `generateDoubleElimination`, `reportResult`, `computePodium`, `resetMatchSafely`, `previewDownstreamImpact`.
+    * Enrutamiento determinista por punteros (`nextMatchId`, `nextSlot`, `loserNextMatchId`, `loserNextSlot`) que elimina la heurística rígida `Math.floor(matchIndex / 2)`.
+    * Soporte de Doble Eliminación completa (Winners -> Losers con inversión anti-revancha -> Gran Final).
+    * Siembra matemática (`seedParticipants`) con Byes automáticos para cuadros de 4, 8, 16, 32 y 64 participantes.
+  - **Componente de Podio Oficial (`TournamentPodiumView.tsx`):**
+    * Tarjetas de honor con medallas (1º Oro, 2º Plata, 3º Bronce), fotos de perfil, banderas de nacionalidad, marcadores de la final, desglose de premios en ARS (60-30-10) y enlaces interactivos a la ficha coleccionable.
+  - **Visualizador Dinámico (`TournamentBracket.tsx`):**
+    * Renderizado dinámico de rondas (soportando cualquier cantidad de competidores), integración de `TournamentPodiumView` en la cabecera y visualización de partidos por el 3º y 4º puesto.
+  - **Panel de Superadministrador ICEMAN (`AdminMatchModal.tsx`):**
+    * Detección de impacto en cascada (`previewDownstreamImpact`) con alerta visual de advertencia y reseteo seguro sin romper la llave.
+  - **Integración en `TournamentManager.tsx`:**
+    * Actualización en caliente de partidos mediante `reportResult` y cálculo reactivo del podio oficial `computePodium`.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores.
+    * `npm run build` completado exitosamente con 20/20 páginas estáticas y dinámicas generadas.
+- **Estado del Proyecto:** Motor de torneos elevado al estándar de oro de la industria (Challonge / Nakka N01), 100% type-safe, estable y listo para producción.
+
+---
+
+## [Sesión 23] - 2026-10-12
+- **Objetivo:** Implementación de Autenticación Passwordless Híbrida (Magic Link + OTP de 6 dígitos) con `@supabase/supabase-js`.
+- **Realizado:**
+  - Instalación del cliente oficial Supabase JS y creación de `src/lib/supabase.ts`.
+  - Creación de ruta de callback `/auth/callback` para redirecciones de correo.
+  - Pestaña de Magic Link en `LoginModal.tsx` con input de OTP numérico in-app para no salirse de la PWA en smartphones.
+  - Configuración y validación de `NEXT_PUBLIC_SUPABASE_ANON_KEY` en entorno y Vercel.
+
+---
+
 ## [Sesión 22] - 2026-10-12
 - **Objetivo:** Ejecución integral de la Fase 0 de estabilización técnica a partir de la auditoría ([AUDITORIA.MD](file:///D:/Locos%20por%20los%20dardos/Agent/AUDITORIA.MD)): resolución de la causa raíz de conexión a Supabase, saneamiento de credenciales, endpoint de salud `/api/health/db`, persistencia de último jugador logueado por dispositivo en el modal de login, y botón visible de instalación de la App (PWA) en celulares.
 - **Diagnóstico de Causa Raíz:**

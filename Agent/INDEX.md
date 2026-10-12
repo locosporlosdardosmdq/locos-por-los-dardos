@@ -58,7 +58,8 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `LeagueManager.tsx`: Gestor oficial de ligas y tabla de posiciones acumulada (PJ, Títulos, Podios, AVG 501, Pts) con selector entre Liga Nacional Oficial y Ligas Locales.
   * `CreateLeagueModal.tsx`: Formulario de creación de ligas locales y nacionales con sede, temporada y regla de puntos dobles.
   * `TournamentBracket.tsx`: Visor visual interactivo del cuadro eliminatorio con soporte para Eliminación Simple y Doble Eliminación con pestañas interactivas (Ver Todo, Ganadores por Arriba, Perdedores por Abajo, Gran Final), banderas de nacionalidad, estados de partida, partidas clickeables y administración.
-  * `AdminMatchModal.tsx`: Modal exclusivo para Administradores Oficiales (ICEMAN) con edición manual de legs, avance por Walkover (W.O.) ante jugador ausente y reseteo de partida a 0-0.
+  * `AdminMatchModal.tsx`: Modal exclusivo para Administradores Oficiales (ICEMAN) con edición manual de legs, avance por Walkover (W.O.) ante jugador ausente, aviso de cascada downstream y reseteo de partida a 0-0.
+  * `TournamentPodiumView.tsx`: Podio oficial de premiación estilo Challonge con medallas (1º Oro, 2º Plata, 3º Bronce), desglose de premios en ARS y acceso a fichas deportivas.
   * `TournamentGroupStage.tsx`: Fase de grupos (Round Robin) con tabla de posiciones oficial (PJ, G, P, LF, LC, +/-, Pts) y cruces a playoffs.
   * `MatchDispatcherModal.tsx`: Menú contextual de lanzamiento de partido (Partida Online, Anotador en Vivo de Club, o Registrar Resultados).
   * `PlayerEnrollModal.tsx`: Modal de inscripción y acreditación de competidores con contraseña de participante y toggle de webcam.
@@ -80,7 +81,8 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `CartDrawer.tsx`: Drawer lateral deslizable de compras con checkout de Mercado Pago.
 
 ### 4. Capa de Datos y Modelos (`src/lib/` y `prisma/`)
-* **`src/lib/types.ts`:** Tipado TypeScript riguroso (PlayerProfile, MatchConfig con flags de sala online, DartThrow, Tournament, Product, etc.).
+* **`src/lib/bracket-engine.ts`:** Motor matemático puro de torneos y llaves eliminatorias (Challonge & Nakka N01 Standard). Implementa `generateSingleElimination`, `generateDoubleElimination`, `reportResult`, `computePodium`, `resetMatchSafely`, `previewDownstreamImpact`, siembra matemática con Byes automáticos y enrutamiento determinista por punteros (`nextMatchId`, `nextSlot`, `loserNextMatchId`, `loserNextSlot`).
+* **`src/lib/types.ts`:** Tipado TypeScript riguroso (PlayerProfile, TournamentBracketMatch con punteros, TournamentPodium, MatchConfig, etc.).
 * **`src/lib/webrtc-room.ts`:** Módulo cliente WebRTC P2P con PeerJS para conexión directa, intercambio de tiradas dardo a dardo sin latencia y audio de voz entre contrincantes remotos.
 * **`src/lib/online-rooms.ts`:** Gestor backend con normalización agresiva de códigos de sala (`normalizeRoomCode`) y ciclo de vida de salas remotas (`createOnlineRoom`, `joinOnlineRoom`, `submitRoomThrow`, `getOnlineRoom`).
 * **`src/lib/constants.ts`:** Provincias de Argentina, checkout guide, categorización por AVG, validación de credenciales maestras de administrador y datasets de la comunidad.

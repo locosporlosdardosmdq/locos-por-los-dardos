@@ -178,6 +178,23 @@ export interface TournamentBracketMatch {
   status: 'SCHEDULED' | 'LIVE' | 'FINISHED';
   scheduledTime?: string;
   note?: string; // ej: "W.O. (Walkover)", "Abandono", "Manual"
+  nextMatchId?: string;
+  nextSlot?: 1 | 2;
+  loserNextMatchId?: string;
+  loserNextSlot?: 1 | 2;
+}
+
+export interface PodiumPlace {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  scoreDisplay?: string;
+}
+
+export interface TournamentPodium {
+  first?: PodiumPlace;
+  second?: PodiumPlace;
+  third?: PodiumPlace;
 }
 
 export interface TournamentStats {
@@ -274,6 +291,7 @@ export interface Tournament {
   organizer: string;
   matches?: TournamentBracketMatch[];
   stats?: TournamentStats;
+  podium?: TournamentPodium;
 }
 
 export type AssociationScope = 'MDQ' | 'ARGENTINA';

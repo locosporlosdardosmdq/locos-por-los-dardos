@@ -10,6 +10,17 @@
   * Modal de Login (`LoginModal.tsx`) con tarjeta destacada para continuar con el último jugador del equipo con un solo click.
   * Botón de Instalación PWA en Celulares (`InstallAppButton.tsx`) visible de forma permanente en la barra lateral con guía interactiva para iPhone (Safari) y Android.
   * Saneamiento de `public/manifest.json` y sanitización de secretos en la documentación.
+- [x] **Fase 1: Autenticación Passwordless Híbrida (Magic Link + OTP 6 Dígitos):**
+  * Integración de `@supabase/supabase-js` con `createClient` singleton en `src/lib/supabase.ts`.
+  * Envío y verificación de código OTP in-app (`signInWithOtp`, `verifyOtp`) para que los jugadores no tengan que salirse de la PWA en celulares.
+  * Ruta de callback con intercambio de sesión `/auth/callback`.
+- [x] **Fase 2: Motor Puro de Torneos y Ligas (Challonge & Nakka N01 Tournament Standard):**
+  * Motor matemático inmutable en `src/lib/bracket-engine.ts` (`generateSingleElimination`, `generateDoubleElimination`, `reportResult`, `computePodium`, `resetMatchSafely`, `previewDownstreamImpact`).
+  * Enrutamiento determinista por punteros (`nextMatchId`, `nextSlot`, `loserNextMatchId`, `loserNextSlot`) eliminando dependencias de heurísticas rígidas.
+  * Soporte de Byes automáticos y siembra matemática para cuadros de 4, 8, 16, 32 y 64 participantes.
+  * Componente de Podio Oficial de Premiación (`TournamentPodiumView.tsx`) con 1º Oro, 2º Plata y 3º Bronce, medallas, montos de premios y enlaces a fichas.
+  * Panel de Superadministrador ICEMAN (`AdminMatchModal.tsx`) con advertencia visual de impacto en cascada downstream y reseteo seguro.
+  * Integración en caliente en `TournamentManager.tsx` y `TournamentBracket.tsx` para torneos activos e históricos.
 - [x] Configuración inicial del proyecto con Next.js 15, TypeScript y Tailwind CSS.
 - [x] Implementación de PWA con Web App Manifest (`manifest.json`) y Service Worker (`sw.js`).
 - [x] Identidad de marca unificada con +25% de preponderancia para Darderos Mar del Plata (`BrandLogo.tsx`).

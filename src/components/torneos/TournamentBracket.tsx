@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { TournamentBracketMatch } from '@/lib/types';
+import { TournamentBracketMatch, TournamentPodium } from '@/lib/types';
 import { getCountryFlag } from '@/lib/constants';
-import { Trophy, Clock, CheckCircle2, Play, ShieldAlert, Zap, Repeat } from 'lucide-react';
+import { TournamentPodiumView } from './TournamentPodiumView';
+import { Trophy, Clock, CheckCircle2, Play, ShieldAlert, Zap, Repeat, Award } from 'lucide-react';
 
 interface TournamentBracketProps {
   matches: TournamentBracketMatch[];
@@ -14,6 +15,8 @@ interface TournamentBracketProps {
   isAdmin?: boolean;
   onAdminEditMatch?: (match: TournamentBracketMatch) => void;
   onSelectPlayer?: (player: any) => void;
+  podium?: TournamentPodium;
+  prizesBreakdown?: { first: number; second: number; third: number };
 }
 
 export const TournamentBracket: React.FC<TournamentBracketProps> = ({
@@ -23,30 +26,52 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
   bestOfLegs = 5,
   isAdmin = false,
   onAdminEditMatch,
-  onSelectPlayer
+  onSelectPlayer,
+  podium,
+  prizesBreakdown
 }) => {
   const isDoubleElim = matches.some((m) => m.bracketType === 'LOSERS');
   const [deTab, setDeTab] = useState<'ALL' | 'WINNERS' | 'LOSERS' | 'FINALS'>('ALL');
 
-  // Separación tradicional (Single Elimination)
-  const round1 = matches.filter((m) => m.round === 1 && (!m.bracketType || m.bracketType === 'WINNERS'));
-  const round2 = matches.filter((m) => m.round === 2 && (!m.bracketType || m.bracketType === 'WINNERS'));
-  const round3 = matches.filter((m) => m.round === 3 && (!m.bracketType || m.bracketType === 'WINNERS' || m.bracketType === 'FINALS'));
+  // Separación dinámica para Eliminación Simple
+  const singleMatches = matches.filter((m) => (!m.bracketType || m.bracketType === 'WINNERS' || m.bracketType === 'FINALS') && m.id !== 'se_third_place');
+  const singleRounds = Array.from(new Set(singleMatches.map((m) => m.round))).sort((a, b) => a - b);
+  const maxSingleRound = singleRounds.length > 0 ? Math.max(...singleRounds) : 1;
+  const thirdPlaceMatch = matches.find((m) => m.id === 'se_third_place');
 
-  // Separación para Doble Eliminación
+  // Separación dinámica para Doble Eliminación
   const winnersMatches = matches.filter((m) => m.bracketType === 'WINNERS');
-  const wR1 = winnersMatches.filter((m) => m.round === 1);
-  const wR2 = winnersMatches.filter((m) => m.round === 2);
-  const wR3 = winnersMatches.filter((m) => m.round === 3);
+  const winnersRounds = Array.from(new Set(winnersMatches.map((m) => m.round))).sort((a, b) => a - b);
+  const maxWinnersRound = winnersRounds.length > 0 ? Math.max(...winnersRounds) : 1;
 
   const losersMatches = matches.filter((m) => m.bracketType === 'LOSERS');
-  const lR1 = losersMatches.filter((m) => m.round === 1);
-  const lR2 = losersMatches.filter((m) => m.round === 2);
-  const lR3 = losersMatches.filter((m) => m.round === 3);
+  const losersRounds = Array.from(new Set(losersMatches.map((m) => m.round))).sort((a, b) => a - b);
+  const maxLosersRound = losersRounds.length > 0 ? Math.max(...losersRounds) : 1;
 
-  const grandFinalMatches = matches.filter((m) => m.bracketType === 'FINALS');
+  const grandFinalMatches = matches.filter((m) => m.bracketType === 'FINALS' && m.id !== 'se_third_place');
 
   const legsToWin = Math.ceil(bestOfLegs / 2);
+
+  const getSingleRoundTitle = (r: number, max: number) => {
+    if (r === max) return 'Gran Final del Torneo';
+    if (r === max - 1) return 'Semifinales';
+    if (r === max - 2) return 'Cuartos de Final';
+    if (r === max - 3) return 'Octavos de Final';
+    return `Ronda ${r}`;
+  };
+
+  const getWinnersRoundTitle = (r: number, max: number) => {
+    if (r === max) return 'Final de Ganadores';
+    if (r === max - 1) return 'Semifinales de Ganadores';
+    if (r === max - 2) return 'Cuartos de Ganadores';
+    return `Ganadores • Ronda ${r}`;
+  };
+
+  const getLosersRoundTitle = (r: number, max: number) => {
+    if (r === max) return 'Final de Perdedores';
+    if (r === max - 1) return 'Semifinal de Perdedores';
+    return `Perdedores • Ronda ${r}`;
+  };
 
   const renderMatchCard = (m: TournamentBracketMatch) => {
     const isP1Winner = m.winnerId && m.player1 && m.winnerId === m.player1.id;
@@ -243,7 +268,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
   };
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-6">
+      {/* PODIO OFICIAL DE PREMIACIÓN (CHALLONGE / N01 STYLE) */}
+      {podium && (podium.first || podium.second || podium.third) && (
+        <TournamentPodiumView
+          podium={podium}
+          prizesBreakdown={prizesBreakdown}
+          onSelectPlayer={onSelectPlayer ? (id, name) => onSelectPlayer({ id, name }) : undefined}
+        />
+      )}
+
       {/* PESTAÑAS DE DOBLE ELIMINACIÓN (SI APLICA) */}
       {isDoubleElim && (
         <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-black border border-slate-800">
@@ -317,35 +351,19 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
 
               <div className="w-full overflow-x-auto pb-3">
                 <div className="min-w-[940px] flex items-start gap-10 justify-between px-2">
-                  {/* R1 Winners */}
-                  {wR1.length > 0 && (
-                    <div className="flex flex-col gap-5">
-                      <div className="text-xs font-black text-[#00e676] uppercase tracking-wider pb-1 border-b border-[#00e676]/20">
-                        Cuartos de Ganadores ({wR1.length})
+                  {winnersRounds.map((r, idx) => {
+                    const roundList = winnersMatches.filter((m) => m.round === r);
+                    const paddingTop = idx === 0 ? '' : idx === 1 ? 'pt-10' : 'pt-20';
+                    return (
+                      <div key={`w-round-${r}`} className={`flex flex-col gap-5 ${paddingTop}`}>
+                        <div className="text-xs font-black text-[#00e676] uppercase tracking-wider pb-1 border-b border-[#00e676]/20 flex items-center justify-between">
+                          <span>{getWinnersRoundTitle(r, maxWinnersRound)}</span>
+                          <span className="text-[10px] text-slate-500 font-normal">({roundList.length})</span>
+                        </div>
+                        <div className="flex flex-col gap-5">{roundList.map(renderMatchCard)}</div>
                       </div>
-                      <div className="flex flex-col gap-5">{wR1.map(renderMatchCard)}</div>
-                    </div>
-                  )}
-
-                  {/* R2 Winners */}
-                  {wR2.length > 0 && (
-                    <div className="flex flex-col gap-5 pt-10">
-                      <div className="text-xs font-black text-[#00e676] uppercase tracking-wider pb-1 border-b border-[#00e676]/20">
-                        Semifinales de Ganadores ({wR2.length})
-                      </div>
-                      <div className="flex flex-col gap-12">{wR2.map(renderMatchCard)}</div>
-                    </div>
-                  )}
-
-                  {/* R3 Winners */}
-                  {wR3.length > 0 && (
-                    <div className="flex flex-col gap-5 pt-20">
-                      <div className="text-xs font-black text-[#00e676] uppercase tracking-wider pb-1 border-b border-[#00e676]/20">
-                        Final de Ganadores
-                      </div>
-                      <div className="flex flex-col gap-5">{wR3.map(renderMatchCard)}</div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -368,35 +386,19 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
 
               <div className="w-full overflow-x-auto pb-3">
                 <div className="min-w-[940px] flex items-start gap-10 justify-between px-2">
-                  {/* R1 Losers */}
-                  {lR1.length > 0 && (
-                    <div className="flex flex-col gap-5">
-                      <div className="text-xs font-black text-[#ef4444] uppercase tracking-wider pb-1 border-b border-[#ef4444]/20">
-                        Ronda 1 Perdedores ({lR1.length})
+                  {losersRounds.map((r, idx) => {
+                    const roundList = losersMatches.filter((m) => m.round === r);
+                    const paddingTop = idx === 0 ? '' : idx % 2 === 1 ? 'pt-8' : 'pt-14';
+                    return (
+                      <div key={`l-round-${r}`} className={`flex flex-col gap-5 ${paddingTop}`}>
+                        <div className="text-xs font-black text-[#ef4444] uppercase tracking-wider pb-1 border-b border-[#ef4444]/20 flex items-center justify-between">
+                          <span>{getLosersRoundTitle(r, maxLosersRound)}</span>
+                          <span className="text-[10px] text-slate-500 font-normal">({roundList.length})</span>
+                        </div>
+                        <div className="flex flex-col gap-5">{roundList.map(renderMatchCard)}</div>
                       </div>
-                      <div className="flex flex-col gap-5">{lR1.map(renderMatchCard)}</div>
-                    </div>
-                  )}
-
-                  {/* R2 Losers */}
-                  {lR2.length > 0 && (
-                    <div className="flex flex-col gap-5 pt-10">
-                      <div className="text-xs font-black text-[#ef4444] uppercase tracking-wider pb-1 border-b border-[#ef4444]/20">
-                        Semifinales de Perdedores ({lR2.length})
-                      </div>
-                      <div className="flex flex-col gap-12">{lR2.map(renderMatchCard)}</div>
-                    </div>
-                  )}
-
-                  {/* R3 Losers */}
-                  {lR3.length > 0 && (
-                    <div className="flex flex-col gap-5 pt-20">
-                      <div className="text-xs font-black text-[#ef4444] uppercase tracking-wider pb-1 border-b border-[#ef4444]/20">
-                        Final de Perdedores
-                      </div>
-                      <div className="flex flex-col gap-5">{lR3.map(renderMatchCard)}</div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -423,49 +425,39 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
           )}
         </div>
       ) : (
-        /* VISTA 2: ELIMINACIÓN DIRECTA ESTÁNDAR */
+        /* VISTA 2: ELIMINACIÓN DIRECTA ESTÁNDAR (DINÁMICA) */
         <div className="w-full overflow-x-auto pb-4">
           <div className="min-w-[940px] flex items-start gap-12 justify-between px-2">
-            {/* RONDA 1: CUARTOS DE FINAL */}
-            {round1.length > 0 && (
-              <div className="flex flex-col gap-6">
-                <div className="flex items-center gap-2 pb-2 border-b border-[#ef4444]/30">
-                  <span className="text-xs font-black text-white uppercase tracking-wider">
-                    Cuartos de Final
-                  </span>
-                  <span className="text-[10px] bg-[#ef4444]/20 text-[#ef4444] px-2 py-0.5 rounded-full font-bold">
-                    {round1.length} partidos
-                  </span>
+            {singleRounds.map((r, idx) => {
+              const roundList = matches.filter(
+                (m) => m.round === r && (!m.bracketType || m.bracketType === 'WINNERS' || (r === maxSingleRound && m.bracketType === 'FINALS')) && m.id !== 'se_third_place'
+              );
+              const paddingTop = idx === 0 ? '' : idx === 1 ? 'pt-12' : idx === 2 ? 'pt-24' : 'pt-32';
+              return (
+                <div key={`s-round-${r}`} className={`flex flex-col gap-6 ${paddingTop}`}>
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
+                    <span className="text-xs font-black text-white uppercase tracking-wider">
+                      {getSingleRoundTitle(r, maxSingleRound)}
+                    </span>
+                    <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
+                      {roundList.length} {roundList.length === 1 ? 'partido' : 'partidos'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-6">{roundList.map(renderMatchCard)}</div>
                 </div>
-                <div className="flex flex-col gap-6">{round1.map(renderMatchCard)}</div>
-              </div>
-            )}
+              );
+            })}
 
-            {/* RONDA 2: SEMIFINALES */}
-            {round2.length > 0 && (
-              <div className="flex flex-col gap-6 pt-12">
-                <div className="flex items-center gap-2 pb-2 border-b border-[#00e676]/30">
-                  <span className="text-xs font-black text-white uppercase tracking-wider">
-                    Semifinales
-                  </span>
-                  <span className="text-[10px] bg-[#00e676]/20 text-[#00e676] px-2 py-0.5 rounded-full font-bold">
-                    {round2.length} partidos
-                  </span>
-                </div>
-                <div className="flex flex-col gap-16">{round2.map(renderMatchCard)}</div>
-              </div>
-            )}
-
-            {/* RONDA 3: GRAN FINAL */}
-            {round3.length > 0 && (
+            {/* PARTIDO OPCIONAL POR EL 3ER PUESTO */}
+            {thirdPlaceMatch && (
               <div className="flex flex-col gap-6 pt-24">
-                <div className="flex items-center gap-2 pb-2 border-b border-amber-500/30">
-                  <Trophy className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
-                    Gran Final del Torneo
+                <div className="flex items-center gap-2 pb-2 border-b border-[#cd7f32]/40">
+                  <Award className="w-4 h-4 text-[#cd7f32]" />
+                  <span className="text-xs font-black text-[#cd7f32] uppercase tracking-wider">
+                    3º y 4º Puesto (Bronce)
                   </span>
                 </div>
-                <div className="flex flex-col gap-6">{round3.map(renderMatchCard)}</div>
+                <div className="flex flex-col gap-6">{renderMatchCard(thirdPlaceMatch)}</div>
               </div>
             )}
           </div>

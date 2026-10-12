@@ -586,4 +586,28 @@
      - Mariano Deux (`marianodeux@gmail.com`) cuenta con autenticación garantizada mediante Magic Link enviado a su casilla o ingreso de emergencia por clave maestra.
 - **Motivo:** Máxima seguridad y erradicación de robos de identidad combinada con una ergonomía táctil superior para torneos presenciales.
 
+---
+
+## ADR-034: Motor Matemático Puro de Torneos, Enrutamiento Determinista por Punteros y Podio Oficial (Challonge & Nakka N01 Standard)
+
+- **Fecha:** 2026-10-12
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. El gestor de torneos previo presentaba limitaciones severas: cuadro fijo de 8 participantes con nombres genéricos ("Por Acreditar #X"), avance rígido mediante heurísticas (`Math.floor(matchIndex / 2)`) que corrompían el cuadro de perdedores en Doble Eliminación, falta de cruces para Gran Final con campeones de ambas llaves, y ausencia de un podio visual de premiación.
+  2. El usuario requirió elevar el motor al estándar de oro de la industria: https://challonge.com/ y https://n01darts.com/n01/tournament/, soportando Eliminación Simple y Doble Eliminación completa (Winners, Losers y Gran Final), podio oficial con medallas de Oro, Plata y Bronce, y herramientas para que el Superadministrador pueda editar y resetear cruces con seguridad.
+- **Decisión:**
+  1. **Motor Puro Inmutable (`src/lib/bracket-engine.ts`):**
+     - Desacoplado 100% de React, con funciones puras libres de efectos secundarios: `generateSingleElimination`, `generateDoubleElimination`, `reportResult`, `computePodium`, `resetMatchSafely`, `previewDownstreamImpact`.
+     - **Enrutamiento por Punteros Explícitos:** Cada partido declara exactamente `nextMatchId`, `nextSlot` (1 o 2), `loserNextMatchId` y `loserNextSlot`. En Doble Eliminación, los perdedores de Ganadores descienden a Losers con inversión de orden para prevenir revanchas tempranas (estándar Challonge), y el campeón de Losers accede a la Gran Final enfrentando al invicto de Ganadores.
+     - **Siembra Matemática y Byes:** `seedParticipants` distribuye cabezas de serie para cuadros de 4, 8, 16, 32 y 64 competidores, resolviendo automáticamente los pases de ronda por Bye en la primera ronda.
+  2. **Podio Oficial de Premiación (`src/components/torneos/TournamentPodiumView.tsx`):**
+     - Componente deportivo visual con tarjetas de honor: 🥇 1º Puesto (Campeón - Oro), 🥈 2º Puesto (Subcampeón - Plata) y 🥉 3º Puesto (Bronce).
+     - Integra foto/avatar del jugador, bandera de nacionalidad, marcador final, montos de premios oficiales en ARS y enlace a la ficha coleccionable.
+  3. **Visualizador Dinámico (`src/components/torneos/TournamentBracket.tsx`):**
+     - Generación dinámica de rondas (soportando cualquier cantidad de participantes sin límites estáticos), badges de distancia (Legs vs Sets) y podio en la cabecera.
+  4. **Panel Superadministrador (`src/components/torneos/AdminMatchModal.tsx`):**
+     - Incorporación de detección de impacto downstream (`previewDownstreamImpact`) con alerta visual amarilla que previene corrupciones al modificar o resetear resultados.
+- **Motivo:** Estabilidad matemática absoluta, fidelidad total a las normas internacionales de dardos y experiencia visual de premiación que jerarquiza a los competidores.
+
+
 

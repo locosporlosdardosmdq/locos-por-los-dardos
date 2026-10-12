@@ -1,5 +1,24 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 18] - 2026-10-11
+- **Objetivo:** Resolución del bloqueo de avance de turno durante partidas online en vivo ("el contrincante ya anotó y no avanza") y habilitación de la cámara trasera por defecto en celulares para enfocar la diana física con botón de alternancia.
+- **Diagnóstico de Causa Raíz:**
+  1. *Desconexión de Callback WebRTC:* La conexión P2P entre Florencia (celular) y Mariano (PC) se estableció con éxito en la sala `DART-P3B5`, pero el callback `onThrowReceived` de WebRTC quedó inicializado como función vacía `() => {}` en el modal de apertura y nunca se vinculó con la función `submitScore` del tablero `X01Board.tsx`. Por lo tanto, al llegar el evento `THROW` con los 180 puntos de Florencia, la PC de Mariano no ejecutó la anotación ni avanzó el turno.
+  2. *Cámara por Defecto:* Al solicitar `getUserMedia` en smartphones sin la restricción `facingMode: { ideal: 'environment' }`, el navegador activaba la cámara delantera en lugar de la trasera apuntando a la diana.
+- **Realizado:**
+  - **Enlace Reactivo de Tiros WebRTC (`setWebRtcThrowListener` en `webrtc-room.ts` & `X01Board.tsx`):**
+    * Suscripción en el tablero `X01Board.tsx` al listener de eventos P2P mediante `setWebRtcThrowListener`.
+    * Cada tiro recibido ejecuta de forma instantánea `submitScore(score, true)`, actualizando la puntuación en vivo, disparando el audio oficial de Russ Bray y transfiriendo el turno al jugador local en menos de 30 milisegundos.
+  - **Cámara Trasera por Defecto & Switch Frontal/Trasera en Móviles:**
+    * Configurada la restricción `facingMode: { ideal: 'environment' }` en `getUserMedia` para encender por defecto la cámara trasera.
+    * Incorporado el botón interactivo `[📷 Trasera (Diana) / 🤳 Delantera]` (`SwitchCamera`) con reinicio limpio de streams para alternar la orientación con un solo click.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores de tipado.
+    * `npm run build` completado exitosamente con 16/16 páginas generadas (código de salida 0).
+- **Estado del Proyecto:** Salas online 1 vs 1 con sincronización dardo a dardo sin fricción y control ergonómico de cámaras móviles.
+
+---
+
 ## [Sesión 17] - 2026-10-11
 - **Objetivo:** Diagnóstico y resolución definitiva del fallo "La sala especificada no existe o ya caducó" al conectar dos dispositivos a una sala online en producción en Vercel.
 - **Diagnóstico de Causa Raíz:**

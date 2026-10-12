@@ -16,6 +16,13 @@ export interface WebRtcRoomHandler {
   destroy: () => void;
 }
 
+// Listener mutable que conecta la llegada de tiros directamente con el tablero activo
+let currentThrowListener: ((score: number, darts?: string[], isCheckout?: boolean) => void) | null = null;
+
+export function setWebRtcThrowListener(listener: ((score: number, darts?: string[], isCheckout?: boolean) => void) | null) {
+  currentThrowListener = listener;
+}
+
 // Genera un ID de Peer seguro y consistente a partir del código de sala
 export function getPeerIdFromRoomCode(code: string): string {
   const normalized = normalizeRoomCode(code);
@@ -112,7 +119,12 @@ export async function hostPeerRoom(
 
         onGuestJoined(roomState);
       } else if (msg.type === 'THROW') {
-        onThrowReceived(msg.score, msg.darts, msg.isCheckout);
+        if (currentThrowListener) {
+          currentThrowListener(msg.score, msg.darts, msg.isCheckout);
+        }
+        if (onThrowReceived) {
+          onThrowReceived(msg.score, msg.darts, msg.isCheckout);
+        }
       }
     });
 
@@ -196,7 +208,12 @@ export async function joinPeerRoom(
       if (msg.type === 'JOIN_ACCEPTED') {
         onConnected(msg.room);
       } else if (msg.type === 'THROW') {
-        onThrowReceived(msg.score, msg.darts, msg.isCheckout);
+        if (currentThrowListener) {
+          currentThrowListener(msg.score, msg.darts, msg.isCheckout);
+        }
+        if (onThrowReceived) {
+          onThrowReceived(msg.score, msg.darts, msg.isCheckout);
+        }
       }
     });
 

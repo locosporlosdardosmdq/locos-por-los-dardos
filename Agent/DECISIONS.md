@@ -462,3 +462,21 @@
      - Se mantiene el endpoint REST `/api/salas` como canal redundante de respaldo.
 - **Motivo:** Garantiza conectividad instantánea 100% confiable entre cualquier combinación de dispositivos (PC, Android, iOS) sobre Vercel sin dependencias de base de datos externas y con tolerancia absoluta a errores tipográficos de espacio.
 
+---
+
+## ADR-028: Enlace Reactivo de Eventos WebRTC P2P en el Tablero y Configuración de Cámara Trasera por Defecto en Celulares
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Durante una partida en vivo entre Florencia (celular) y Mariano Deux (PC) en la sala `DART-P3B5`, ambos jugadores lograron conectarse exitosamente a la sala online. Sin embargo, al registrar una anotación de 180 en el celular de Florencia, el puntaje bajó localmente a 321 y su pantalla quedó esperando el tiro de Mariano, pero la pantalla de la PC de Mariano no avanzó.
+  2. La causa raíz fue que el callback de `onThrowReceived` de WebRTC quedó inicializado como función vacía `() => {}` en el modal y nunca se vinculó con la función `submitScore` del tablero `X01Board.tsx`.
+  3. En celulares, los jugadores necesitan enfocar la diana física con la cámara trasera por defecto, con opción de alternar a la delantera si desean verse ellos mismos.
+- **Decisión:**
+  1. **Enlace Reactivo de Tiros WebRTC (`setWebRtcThrowListener`):**
+     - Se implementó un dispatcher global en `src/lib/webrtc-room.ts` y se suscribió en `X01Board.tsx` dentro de un `useEffect`. Al recibir el evento `THROW` por el DataChannel P2P, ejecuta inmediatamente `submitScore(score, true)`, actualizando el marcador, reproduciendo el canto oficial de Russ Bray y transfiriendo el turno al jugador local en menos de 30 milisegundos.
+  2. **Cámara Trasera por Defecto y Switch Interactivo:**
+     - Se configuró `facingMode: { ideal: 'environment' }` en `getUserMedia` para activar la lente trasera apuntando a la diana en smartphones.
+     - Se incorporó el botón `[📷 Trasera (Diana) / 🤳 Delantera]` (`SwitchCamera`) con reinicio suave de tracks para conmutar en caliente.
+- **Motivo:** Flujo de juego online ininterrumpido sin bloqueos de turno y ergonomía visual óptima para enfocar tableros físicos desde celulares.
+

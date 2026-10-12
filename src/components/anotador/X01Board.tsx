@@ -25,13 +25,14 @@ import {
   CheckCircle2,
   Tv,
   Camera,
+  SwitchCamera,
   Mic,
   MicOff,
   Target
 } from 'lucide-react';
 import { matchBroadcast } from '@/lib/broadcast';
 import { normalizeRoomCode } from '@/lib/online-rooms';
-import { getActiveWebRtcHandler } from '@/lib/webrtc-room';
+import { getActiveWebRtcHandler, setWebRtcThrowListener } from '@/lib/webrtc-room';
 
 export interface TurnRecord {
   id: string;
@@ -124,6 +125,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
   // Cámara y Micrófono en dispositivo móvil (Opción 1: Alternancia diana rival y voz en vivo)
   const [showMobileCamera, setShowMobileCamera] = useState<boolean>(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState<'environment' | 'user'>('environment'); // Trasera por defecto para enfocar diana
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const mobileVideoRef = useRef<HTMLVideoElement>(null);
@@ -132,11 +134,26 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
+  // Alternar entre cámara trasera (diana) y delantera (jugador)
+  const handleToggleCameraFacing = () => {
+    setCameraFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
+  };
+
   useEffect(() => {
     if (showMobileCamera && typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      // Detener stream anterior si se está alternando de cámara
+      if (mobileStreamRef.current) {
+        mobileStreamRef.current.getTracks().forEach((t) => t.stop());
+        mobileStreamRef.current = null;
+      }
+
       navigator.mediaDevices
         .getUserMedia({ 
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
+          video: { 
+            facingMode: { ideal: cameraFacingMode }, // Trasera por default ('environment')
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 } 
+          }, 
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
@@ -197,7 +214,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
       }
       setIsSpeaking(false);
     }
-  }, [showMobileCamera]);
+  }, [showMobileCamera, cameraFacingMode]);
 
   // Manejar silenciado de micrófono en caliente
   useEffect(() => {
@@ -442,7 +459,21 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const isMyTurn = !isOnline || currentTurn === localPlayerIdx;
   const lastSyncedThrowTimeRef = useRef<number>(Date.now());
 
-  // Polling continuo en sala online cuando es el turno del rival
+  // Sincronización instantánea de tiradas vía WebRTC P2P (< 30ms)
+  useEffect(() => {
+    if (!config.isOnlineRoom) return;
+
+    setWebRtcThrowListener((score, _darts, _isCheckout) => {
+      console.log('[WebRTC P2P] Recibida tirada del rival:', score);
+      submitScore(score, true);
+    });
+
+    return () => {
+      setWebRtcThrowListener(null);
+    };
+  }, [config.isOnlineRoom, currentTurn, scores]);
+
+  // Polling continuo en sala online cuando es el turno del rival (respaldo redundante)
   useEffect(() => {
     if (!config.isOnlineRoom || isMyTurn || isMatchFinished || !config.onlineRoomCode) return;
 
@@ -1153,8 +1184,20 @@ export const X01Board: React.FC<X01BoardProps> = ({
             </div>
           </div>
 
-          {/* Panel de Control de Audio & Voz con el Contrincante */}
-          <div className="flex items-center justify-between p-2 rounded-xl bg-black/70 border border-slate-800 text-xs">
+          {/* Panel de Control de Cámara & Micrófono con el Contrincante */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-black/70 border border-slate-800 text-xs">
+            {/* Botón Alternar Cámara Trasera (Diana) / Delantera */}
+            <button
+              type="button"
+              onClick={handleToggleCameraFacing}
+              className="px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all bg-[#111622] hover:bg-[#1a2234] border border-amber-500/40 text-amber-400 shadow-sm"
+              title="Alternar entre cámara trasera (apuntando a la diana) y cámara delantera"
+            >
+              <SwitchCamera className="w-3.5 h-3.5" />
+              <span>{cameraFacingMode === 'environment' ? '📷 Trasera (Diana)' : '🤳 Delantera'}</span>
+            </button>
+
+            {/* Botón Silenciar/Activar Micrófono */}
             <button
               type="button"
               onClick={() => {
@@ -1171,12 +1214,8 @@ export const X01Board: React.FC<X01BoardProps> = ({
               }`}
             >
               {isMicMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-              <span>{isMicMuted ? 'Activar Micrófono' : isSpeaking ? 'Hablando en Vivo' : 'Silenciar Micrófono'}</span>
+              <span>{isMicMuted ? 'Micrófono OFF' : isSpeaking ? 'Hablando' : 'Micrófono ON'}</span>
             </button>
-
-            <span className="text-[10px] text-slate-400 font-medium">
-              {isMicMuted ? 'Rival no te escucha' : 'Hablá con tu rival en vivo'}
-            </span>
           </div>
 
           <button

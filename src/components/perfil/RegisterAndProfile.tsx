@@ -13,8 +13,9 @@ import {
   getCountryFlag, 
   isUserAdmin 
 } from '@/lib/constants';
-import { getCurrentPlayerProfile, saveCurrentPlayerProfile } from '@/lib/storage';
+import { getCurrentPlayerProfile, saveCurrentPlayerProfile, clearCurrentPlayerSession } from '@/lib/storage';
 import { UltimateDartsCard, UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
+import { LoginModal } from '@/components/perfil/LoginModal';
 import { 
   User, 
   MapPin, 
@@ -30,6 +31,8 @@ import {
   Globe,
   ShieldAlert,
   LogIn,
+  LogOut,
+  Users,
   Camera,
   Upload,
   Trash2
@@ -37,6 +40,7 @@ import {
 
 export const RegisterAndProfile: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'PROFILE' | 'REGISTER_EDIT'>('PROFILE');
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [profile, setProfile] = useState<PlayerProfile>(() => {
     return getCurrentPlayerProfile(MOCK_CURRENT_USER);
   });
@@ -51,6 +55,8 @@ export const RegisterAndProfile: React.FC = () => {
   const [province, setProvince] = useState(profile.province);
   const [city, setCity] = useState(profile.city);
   const [estimatedAvg, setEstimatedAvg] = useState<number>(profile.estimatedAvg);
+  const [selectedCategory, setSelectedCategory] = useState<PlayerCategory>(profile.category || 'INTERMEDIA');
+  const [categoryFeedback, setCategoryFeedback] = useState<string | null>(null);
   const [bio, setBio] = useState(profile.bio || '');
   const [preferredWeight, setPreferredWeight] = useState<number>(profile.preferredDartWeight || 24);
   const [dartBrand, setDartBrand] = useState<string>(profile.dartBrand || 'TARGET 90%');
@@ -136,7 +142,43 @@ export const RegisterAndProfile: React.FC = () => {
   };
 
   const calculatedCategory = calculateCategory(estimatedAvg);
-  const categoryInfo = CATEGORY_DETAILS[calculatedCategory];
+  const categoryInfo = CATEGORY_DETAILS[selectedCategory || calculatedCategory];
+
+  // Cambio directo e interactivo de categoría al hacer click
+  const handleQuickCategoryChange = (newCat: PlayerCategory) => {
+    setSelectedCategory(newCat);
+    
+    // Si el usuario cambia la categoría, ajustar estimatedAvg de forma armónica
+    let newAvg = estimatedAvg;
+    if (newCat === 'PRINCIPIANTE' && newAvg >= 40) newAvg = 38.0;
+    if (newCat === 'INTERMEDIA' && (newAvg < 40 || newAvg >= 55)) newAvg = 48.0;
+    if (newCat === 'AVANZADA' && (newAvg < 55 || newAvg >= 70)) newAvg = 62.0;
+    if (newCat === 'ELITE' && newAvg < 70) newAvg = 75.0;
+    setEstimatedAvg(newAvg);
+
+    const updated: PlayerProfile = {
+      ...profile,
+      category: newCat,
+      estimatedAvg: newAvg,
+      stats: {
+        ...(profile.stats || {}),
+        overallAvg: newAvg,
+        first9Avg: newAvg
+      }
+    };
+
+    setProfile(updated);
+    saveCurrentPlayerProfile(updated);
+    setCategoryFeedback(`¡Categoría cambiada a ${CATEGORY_DETAILS[newCat].label} con éxito!`);
+    setTimeout(() => setCategoryFeedback(null), 3500);
+  };
+
+  const handleLogoutProfile = () => {
+    if (confirm(`¿Deseas cerrar la sesión de ${profile.nickname || profile.fullName}?`)) {
+      clearCurrentPlayerSession();
+      setIsLoginModalOpen(true);
+    }
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +194,7 @@ export const RegisterAndProfile: React.FC = () => {
       province,
       city,
       estimatedAvg,
-      category: calculatedCategory,
+      category: selectedCategory || calculatedCategory,
       bio,
       preferredDartWeight: preferredWeight,
       dartBrand: dartBrand.trim(),
@@ -246,8 +288,15 @@ export const RegisterAndProfile: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Botón de acceso rápido para ICEMAN */}
-          
+          <button
+            type="button"
+            onClick={handleLogoutProfile}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#14161f] hover:bg-[#242836] text-slate-300 hover:text-red-400 border border-[#313647] hover:border-red-900/40 transition-colors"
+            title="Cerrar sesión o cambiar de jugador"
+          >
+            <LogOut className="w-3.5 h-3.5 text-red-400" />
+            <span className="hidden sm:inline">Cambiar Jugador / Salir</span>
+          </button>
 
           <div className="flex items-center gap-2 text-xs text-[#00b853] px-3 font-bold bg-[#14161f] border border-[#313647] rounded-xl py-1.5">
             <span className="text-base select-none">{flag}</span>
@@ -295,9 +344,21 @@ export const RegisterAndProfile: React.FC = () => {
                     <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                       {profile.nickname}
                     </h2>
-                    <span className="text-xs font-black px-2.5 py-0.5 rounded-lg border bg-[#00b853]/20 text-[#00b853] border-[#00b853]/40">
-                      {currentCategoryInfo.label}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const el = document.getElementById('esquema-categorias');
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                      }}
+                      className="text-xs font-black px-2.5 py-0.5 rounded-lg border bg-[#00b853]/20 hover:bg-[#00b853]/30 text-[#00b853] border-[#00b853]/50 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                      title="Haz click para cambiar tu categoría oficial"
+                    >
+                      <Award className="w-3.5 h-3.5" />
+                      <span>{currentCategoryInfo.label}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">✎</span>
+                    </button>
                     {isProfileAdmin && (
                       <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-[#ef4444] text-white flex items-center gap-1 shadow-md shadow-[#ef4444]/30">
                         <ShieldAlert className="w-3.5 h-3.5" />
@@ -513,37 +574,74 @@ export const RegisterAndProfile: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-5 shadow-lg">
-              <h3 className="font-black text-sm text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Award className="w-4 h-4 text-[#00b853]" />
-                Esquema de Categorías Oficiales
-              </h3>
+            <div id="esquema-categorias" className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-5 shadow-lg space-y-3.5 scroll-mt-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-[#313647]/60 pb-2.5">
+                <div>
+                  <h3 className="font-black text-sm text-white uppercase tracking-wider flex items-center gap-2">
+                    <Award className="w-4 h-4 text-[#00e676]" />
+                    Esquema de Categorías Oficiales
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Toca cualquier categoría para asignarla directamente a tu perfil competitivo.
+                  </p>
+                </div>
+                <span className="text-[10px] text-[#00e676] font-bold uppercase tracking-wider bg-[#00e676]/10 px-2 py-0.5 rounded-md border border-[#00e676]/30 self-start sm:self-auto">
+                  1-Click Táctil
+                </span>
+              </div>
+
+              {categoryFeedback && (
+                <div className="p-3.5 rounded-xl bg-[#00e676]/20 border-2 border-[#00e676] text-[#00e676] text-xs font-black flex items-center gap-2.5 animate-in fade-in slide-in-from-top-1 duration-200 shadow-lg shadow-[#00e676]/20">
+                  <CheckCircle2 className="w-5 h-5 flex-shrink-0 stroke-[2.5]" />
+                  <span>{categoryFeedback}</span>
+                </div>
+              )}
+
               <div className="space-y-2.5">
                 {(Object.keys(CATEGORY_DETAILS) as PlayerCategory[]).map((catKey) => {
                   const item = CATEGORY_DETAILS[catKey];
                   const isCurrent = profile.category === catKey;
 
                   return (
-                    <div
+                    <button
                       key={catKey}
-                      className={`p-3 rounded-2xl border transition-all ${
+                      type="button"
+                      onClick={() => handleQuickCategoryChange(catKey)}
+                      className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer active:scale-[0.98] group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                         isCurrent
-                          ? 'bg-[#00b853]/15 border-[#00b853] shadow-md shadow-[#00b853]/20'
-                          : 'bg-[#14161f] border-[#313647]'
+                          ? 'bg-[#00e676]/20 border-[#00e676] shadow-lg shadow-[#00e676]/25 ring-2 ring-[#00e676]/50'
+                          : 'bg-[#14161f] border-[#313647] hover:border-[#00e676]/60 hover:bg-[#1a2030]'
                       }`}
+                      title={`Toca para asignar categoría ${item.label}`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-black uppercase text-[#efe7d8]">
-                          {item.label}
-                        </span>
-                        {isCurrent && (
-                          <span className="text-[11px] font-black text-[#00b853] flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Tu Categoría
+                      <div className="space-y-1 pr-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-black uppercase tracking-wider ${isCurrent ? 'text-[#00e676]' : 'text-[#efe7d8] group-hover:text-white'}`}>
+                            {item.label}
+                          </span>
+                          {isCurrent && (
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#00e676] text-[#07090e] uppercase">
+                              Activa
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#b8ad98] leading-snug">{item.desc}</p>
+                      </div>
+
+                      <div className="flex-shrink-0 self-end sm:self-center">
+                        {isCurrent ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#00e676] px-3 py-1.5 rounded-xl bg-[#00e676]/15 border border-[#00e676]/40">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Tu Categoría</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-300 group-hover:text-[#00e676] px-3 py-1.5 rounded-xl bg-[#242836] group-hover:bg-[#00e676]/15 border border-[#313647] group-hover:border-[#00e676]/40 transition-all shadow-sm">
+                            <span>Elegir</span>
+                            <span className="text-sm">→</span>
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-[#b8ad98] leading-snug">{item.desc}</p>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -828,9 +926,39 @@ export const RegisterAndProfile: React.FC = () => {
                 max="100"
                 step="0.5"
                 value={estimatedAvg}
-                onChange={(e) => setEstimatedAvg(parseFloat(e.target.value))}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setEstimatedAvg(val);
+                  setSelectedCategory(calculateCategory(val));
+                }}
                 className="w-full accent-[#00b853] h-2 bg-[#242836] rounded-lg cursor-pointer"
               />
+
+              {/* Selección Manual de Categoría */}
+              <div className="space-y-2 pt-2 border-t border-[#313647]">
+                <span className="text-xs font-bold text-[#efe7d8] block uppercase">
+                  Seleccionar Categoría Oficial:
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {(Object.keys(CATEGORY_DETAILS) as PlayerCategory[]).map((catKey) => {
+                    const isSelected = selectedCategory === catKey;
+                    return (
+                      <button
+                        key={catKey}
+                        type="button"
+                        onClick={() => handleQuickCategoryChange(catKey)}
+                        className={`p-2.5 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center gap-1 border ${
+                          isSelected
+                            ? 'bg-[#00e676] text-[#07090e] border-[#00e676] shadow-md shadow-[#00e676]/30 ring-2 ring-[#00e676]/50'
+                            : 'bg-[#14161f] text-slate-300 border-[#313647] hover:border-slate-500 hover:text-white'
+                        }`}
+                      >
+                        <span>{CATEGORY_DETAILS[catKey].label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
               <div className="p-4 rounded-xl bg-[#1c1f2b] border border-[#313647] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
@@ -859,6 +987,12 @@ export const RegisterAndProfile: React.FC = () => {
           </form>
         </div>
       )}
+
+      {/* Modal de Inicio de Sesión y Selección de Jugador */}
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+      />
     </div>
   );
 };

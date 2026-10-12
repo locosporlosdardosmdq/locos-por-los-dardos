@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { MOCK_CURRENT_USER, getCountryFlag } from '@/lib/constants';
-import { getCurrentPlayerProfile } from '@/lib/storage';
+import { MOCK_CURRENT_USER, getCountryFlag, isUserAdmin } from '@/lib/constants';
+import { getCurrentPlayerProfile, clearCurrentPlayerSession } from '@/lib/storage';
 import { PlayerProfile } from '@/lib/types';
+import { LoginModal } from '@/components/perfil/LoginModal';
 import { 
   ShoppingBag, 
   Trophy, 
@@ -18,6 +19,7 @@ import {
   LogOut,
   X,
   ShieldCheck,
+  ShieldAlert,
   BookOpen
 } from 'lucide-react';
 
@@ -32,13 +34,19 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const [isHovered, setIsHovered] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<PlayerProfile>(() => {
     return getCurrentPlayerProfile(MOCK_CURRENT_USER);
   });
 
   useEffect(() => {
     const handleUpdate = (e: any) => {
-      if (e.detail) setCurrentUser(e.detail);
+      if (e.detail) {
+        setCurrentUser(e.detail);
+      } else {
+        const fresh = getCurrentPlayerProfile(MOCK_CURRENT_USER);
+        setCurrentUser(fresh);
+      }
     };
     window.addEventListener('lpld_profile_updated', handleUpdate);
     return () => window.removeEventListener('lpld_profile_updated', handleUpdate);
@@ -46,7 +54,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   const handleLogout = () => {
     if (confirm(`¿Deseas cerrar la sesión de ${currentUser.nickname || currentUser.fullName}?`)) {
-      alert('Sesión cerrada. Hasta la próxima partida.');
+      clearCurrentPlayerSession();
+      setIsLoginModalOpen(true);
     }
   };
 
@@ -126,7 +135,16 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       badge: 'OFICIAL',
       badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
       description: 'Normativa federada, medidas y juego online'
-    }
+    },
+    ...(isUserAdmin(currentUser?.email) ? [{
+      title: 'Superadmin',
+      subTitle: 'Centro de Control',
+      href: '/superadmin',
+      icon: ShieldAlert,
+      badge: 'ROOT',
+      badgeColor: 'bg-red-500/20 text-red-400 border-red-500/30',
+      description: 'Infraestructura, vitrinas y comisión directiva'
+    }] : [])
   ];
 
   // Render del contenido del sidebar según el estado expandido (isHovered en desktop o true en móvil)
@@ -394,6 +412,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal interactivo de Inicio de Sesión y Selección de Cuenta */}
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+      />
     </>
   );
 };

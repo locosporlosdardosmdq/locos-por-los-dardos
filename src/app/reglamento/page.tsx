@@ -18,7 +18,8 @@ import {
   Flame,
   ArrowLeft,
   Tv,
-  Compass
+  Compass,
+  Eye
 } from 'lucide-react';
 import { BrandLogo } from '@/components/BrandLogo';
 
@@ -185,6 +186,66 @@ export default function ReglamentoPage() {
                     Se juegan los sectores 15, 16, 17, 18, 19, 20 y Bullseye. Cada sector requiere 3 marcas para ser abierto. Si un jugador abre un sector antes que su rival, suma puntos por cada impacto posterior. Gana el jugador que cierra todos los sectores con puntaje igual o superior.
                   </p>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* DIAGRAMA VISUAL OFICIAL DE MEDIDAS DE PISTA (DARDOS ARGENTINA PRO MEASUREMENT GUIDE) */}
+          <div className="bg-[#0f1422] border border-slate-800 rounded-3xl p-5 sm:p-7 shadow-2xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+              <div>
+                <span className="text-[10px] font-black uppercase text-[#00e676] tracking-wider px-2.5 py-0.5 rounded-full bg-[#00e676]/10 border border-[#00e676]/20">
+                  Infografía Oficial Homologada
+                </span>
+                <h3 className="text-lg sm:text-xl font-black text-white mt-1.5 flex items-center gap-2">
+                  <span>📐 Pista Oficial de Lanzamiento • Pro Measurement Guide</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Esquema reglamentario de la WDF, PDC y Federación Argentina para montaje de canchas en clubes y sedes oficiales.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs font-black flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Norma Homologada 2026</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Contenedor de la Imagen con overlay explicativo */}
+            <div className="relative rounded-2xl overflow-hidden border border-slate-700/80 bg-black group shadow-2xl">
+              <img
+                src="/images/medidas-cancha.jpg"
+                alt="Medidas Reglamentarias de Pista y Montaje de Diana - Locos por los Dardos Argentina"
+                className="w-full h-auto max-h-[680px] object-contain mx-auto transition-transform duration-500 group-hover:scale-[1.01]"
+              />
+
+              <div className="p-4 bg-gradient-to-t from-black via-black/90 to-transparent border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs font-bold text-white">
+                  <div className="flex items-center gap-2 bg-[#07090e] px-3 py-1.5 rounded-xl border border-yellow-400/30">
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse"></span>
+                    <span><strong className="text-yellow-400 font-mono text-sm">173 cm</strong>: Altura al Centro del Bullseye</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-[#07090e] px-3 py-1.5 rounded-xl border border-yellow-400/30">
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse"></span>
+                    <span><strong className="text-yellow-400 font-mono text-sm">237 cm</strong>: Distancia Horizontal a Diana</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-[#07090e] px-3 py-1.5 rounded-xl border border-yellow-400/30">
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse"></span>
+                    <span><strong className="text-yellow-400 font-mono text-sm">293 cm</strong>: Hipotenusa Diagonal de Tiro</span>
+                  </div>
+                </div>
+
+                <a
+                  href="/images/medidas-cancha.jpg"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-[#00e676] hover:bg-[#00c853] text-[#07090e] text-xs font-black rounded-xl transition-all shadow-lg shadow-[#00e676]/20 flex items-center gap-1.5 ml-auto"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>Abrir en Pantalla Completa</span>
+                </a>
               </div>
             </div>
           </div>

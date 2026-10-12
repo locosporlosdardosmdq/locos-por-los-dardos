@@ -64,6 +64,9 @@ export interface PlayerProfile {
   isVerified?: boolean;
   isProfileComplete?: boolean;
   bio?: string;
+  age?: number;
+  associationRole?: string; // ej: 'Tesorero • Asociación Mar del Plata'
+  majorTitle?: string;
   preferredDartWeight?: number;
   dartBrand?: string;
   role?: 'ADMIN' | 'PLAYER';
@@ -327,4 +330,54 @@ export interface Product {
 export interface CartItem {
   product: Product;
   quantity: number;
+}
+
+// Configuración de Vitrinas Dinámicas de la Landing Page
+export interface LandingShowcaseSettings {
+  heroTournament: {
+    enabled: boolean;
+    tagBadge: string;
+    subBadge: string;
+    title: string;
+    highlightCity: string;
+    year: string;
+    description: string;
+    date: string;
+    venue: string;
+    prizePool: string;
+    registeredCount: number;
+    maxParticipants: number;
+    googleFormUrl: string;
+    autoSyncGoogleForm: boolean;
+    lastSyncedAt?: string;
+    ctaButtonText: string;
+    bannerDesktopUrl?: string;
+    bannerMobileUrl?: string;
+  };
+  communitySection: {
+    enabled: boolean;
+    tag: string;
+    title: string;
+    highlightText: string;
+    description: string;
+    backgroundImageUrl: string;
+    overlayOpacity: number; // 10..90 %
+    provincesCount: number;
+    tournamentsCount: string;
+    playersCount: string;
+    record180sText: string;
+    pilars: Array<{ title: string; desc: string }>;
+  };
+  affiliatedClubs: Array<{
+    id: string;
+    name: string;
+    city: string;
+    province: string;
+    address: string;
+    boardsCount: number;
+    logoUrl: string;
+    isCentral?: boolean;
+    status: 'ACTIVO' | 'EN_AFILIACION';
+    description: string;
+  }>;
 }

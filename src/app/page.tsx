@@ -6,6 +6,9 @@ import Image from 'next/image';
 import { TournamentHeroBanner } from '@/components/comunidad/TournamentHeroBanner';
 import { NationalRankings } from '@/components/comunidad/NationalRankings';
 import { BrandLogo } from '@/components/BrandLogo';
+import { getStoredAssociationBankAccount } from '@/lib/storage';
+import { DEFAULT_ASSOCIATION_BANK_ACCOUNT } from '@/lib/constants';
+import { AssociationBankAccount } from '@/lib/types';
 import { 
   Target, 
   Trophy, 
@@ -14,6 +17,11 @@ import {
   ArrowRight,
   TrendingUp,
   MapPin,
+  CreditCard,
+  Copy,
+  Check,
+  MessageCircle,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -289,6 +297,171 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* 6. VITRINA OFICIAL: DATOS PARA PAGO DE INSCRIPCIONES A TORNEOS */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <HomePaymentShowcase />
+      </section>
+    </div>
+  );
+}
+
+function HomePaymentShowcase() {
+  const [account, setAccount] = React.useState<AssociationBankAccount>(() => {
+    return getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT);
+  });
+  const [copiedField, setCopiedField] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail) setAccount(e.detail);
+    };
+    window.addEventListener('lpld_association_bank_updated', handleUpdate);
+    return () => window.removeEventListener('lpld_association_bank_updated', handleUpdate);
+  }, []);
+
+  const handleCopy = (text: string, field: string) => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2500);
+    }
+  };
+
+  const whatsappMessage = encodeURIComponent(
+    `Hola ${account.adminWhatsAppName}! Te envío el comprobante de pago de inscripción a torneo en Locos por los Dardos.`
+  );
+  const whatsappUrl = `https://wa.me/${account.adminWhatsAppPhone.replace(/\D/g, '')}?text=${whatsappMessage}`;
+
+  return (
+    <div className="bg-[#0f1422] border-2 border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Cabecera */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#1e2638] pb-5">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-black uppercase tracking-wider">
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>Cuenta Bancaria Oficial de Cobros</span>
+          </div>
+          <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            Datos para Pago de Inscripciones a Torneos
+          </h3>
+          <p className="text-xs text-[#b8ad98]">
+            Cuenta habilitada para recepción de transferencias bancarias oficiales de competidores.
+          </p>
+        </div>
+
+        <Link
+          href="/asociacion"
+          className="text-xs font-bold text-slate-400 hover:text-white px-3 py-2 rounded-xl bg-[#14161f] border border-[#1e2638] transition-colors flex items-center gap-1.5"
+        >
+          <ShieldCheck className="w-4 h-4 text-[#00e676]" />
+          <span>Ver Comisión Directiva</span>
+        </Link>
+      </div>
+
+      {/* Columnas de Datos */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Banco */}
+        <div className="p-4 rounded-2xl bg-[#14161f] border border-[#1e2638] space-y-1">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+            Banco / Entidad
+          </span>
+          <p className="text-sm font-black text-white">{account.bankName}</p>
+          <p className="text-[11px] text-slate-400">{account.accountType}</p>
+        </div>
+
+        {/* Titular */}
+        <div className="p-4 rounded-2xl bg-[#14161f] border border-[#1e2638] space-y-1">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+            Titular de la Cuenta
+          </span>
+          <p className="text-sm font-black text-white">{account.holderName}</p>
+          <p className="text-[11px] text-slate-400">CUIT: {account.cuitCuil}</p>
+        </div>
+
+        {/* Alias */}
+        <div className="p-4 rounded-2xl bg-[#14161f] border border-amber-500/20 space-y-1 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
+              Alias CBU / CVU
+            </span>
+            <p className="text-sm font-black text-white font-mono">{account.alias}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleCopy(account.alias, 'alias')}
+            className="mt-2 w-full py-1.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-black flex items-center justify-center gap-1.5 transition-colors"
+          >
+            {copiedField === 'alias' ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                <span>Copiado</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copiar Alias</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* CBU */}
+        <div className="p-4 rounded-2xl bg-[#14161f] border border-amber-500/20 space-y-1 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
+              CBU / CVU
+            </span>
+            <p className="text-xs font-bold text-white font-mono break-all leading-tight">{account.cbuCvu}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleCopy(account.cbuCvu, 'cbu')}
+            className="mt-2 w-full py-1.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-black flex items-center justify-center gap-1.5 transition-colors"
+          >
+            {copiedField === 'cbu' ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                <span>Copiado</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copiar CBU</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Envío de Comprobante por WhatsApp */}
+      <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-[#00e676] flex items-center justify-center flex-shrink-0">
+            <MessageCircle className="w-5 h-5" />
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-xs font-black text-white block">
+              Envío de Comprobante por WhatsApp al Administrador Designado
+            </span>
+            <p className="text-[11px] text-slate-300">
+              Administración: <strong>{account.adminWhatsAppName}</strong> • Enviar comprobante indicando nombre completo y torneo para confirmar el cupo.
+            </p>
+          </div>
+        </div>
+
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-5 py-2.5 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs flex items-center gap-2 transition-transform active:scale-95 shadow-md flex-shrink-0"
+        >
+          <MessageCircle className="w-4 h-4 fill-current" />
+          <span>Abrir Chat de WhatsApp</span>
+        </a>
+      </div>
     </div>
   );
 }

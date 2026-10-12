@@ -3,7 +3,7 @@
  * Diseñado para operar 100% offline en clubes, pubs y canchas de tiro con mala señal.
  */
 
-import { MatchConfig } from './types';
+import { MatchConfig, LandingShowcaseSettings } from './types';
 
 export interface SavedMatch {
   id: string;
@@ -153,9 +153,43 @@ export function saveCurrentPlayerProfile(profile: any): void {
     localStorage.setItem(STORAGE_KEYS.CURRENT_PLAYER, JSON.stringify(profile));
     // Notificar cambio a componentes oyentes
     window.dispatchEvent(new CustomEvent('lpld_profile_updated', { detail: profile }));
+
+    // Sincronizar asíncronamente con Supabase en la nube
+    fetch('/api/jugadores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile })
+    }).catch((err) => {
+      console.warn('[Storage Cloud Sync] Error al sincronizar con Supabase:', err);
+    });
   } catch (err) {
     console.warn('[Storage] Error al guardar perfil de jugador:', err);
   }
+}
+
+export function clearCurrentPlayerSession(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_PLAYER);
+    window.dispatchEvent(new CustomEvent('lpld_session_logged_out', { detail: null }));
+    window.dispatchEvent(new CustomEvent('lpld_profile_updated', { detail: null }));
+  } catch (err) {
+    console.warn('[Storage] Error al limpiar sesión:', err);
+  }
+}
+
+export async function fetchRegisteredPlayersFromCloud(): Promise<any[]> {
+  try {
+    const res = await fetch('/api/jugadores');
+    if (!res.ok) throw new Error('Error al consultar /api/jugadores');
+    const data = await res.json();
+    if (data.success && Array.isArray(data.players)) {
+      return data.players;
+    }
+  } catch (err) {
+    console.warn('[Storage] Error fetching registered players from cloud:', err);
+  }
+  return [];
 }
 
 // --- Persistencia de Torneos Activos e Historial ---
@@ -351,6 +385,123 @@ export function saveStoredAssociationBankAccount(account: any): void {
     window.dispatchEvent(new CustomEvent('lpld_association_bank_updated', { detail: account }));
   } catch (err) {
     console.warn('[Storage] Error al guardar datos bancarios de la asociación:', err);
+  }
+}
+
+// --- Persistencia de Vitrinas Dinámicas de la Landing Page ---
+const SHOWCASE_KEYS = {
+  SHOWCASES: 'lpld_landing_showcases_v1'
+};
+
+export const DEFAULT_LANDING_SHOWCASES: LandingShowcaseSettings = {
+  heroTournament: {
+    enabled: true,
+    tagBadge: 'Próximo Gran Torneo Oficial',
+    subBadge: 'Inscripciones Abiertas • Cupos Limitados',
+    title: 'Gran Open',
+    highlightCity: 'Mar del Plata',
+    year: '2026',
+    description: 'La cita cumbre de los dardos en la Costa Atlántica y Argentina. Dos jornadas de máxima adrenalina: fase de grupos, llaves directas 501 Doble Out, marcadores digitales táctiles y transmisión oficial.',
+    date: '14 y 15 Nov',
+    venue: 'MDQ Central',
+    prizePool: '$450.000 ARS',
+    registeredCount: 38,
+    maxParticipants: 64,
+    googleFormUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScTorneoOficialLPD2026/viewform',
+    autoSyncGoogleForm: true,
+    lastSyncedAt: 'Hoy, 10:45 hs',
+    ctaButtonText: 'Inscripción Rápida',
+    bannerDesktopUrl: '',
+    bannerMobileUrl: ''
+  },
+  communitySection: {
+    enabled: true,
+    tag: 'Comunidad Nacional de Dardos',
+    title: 'La plataforma que une a todos los',
+    highlightText: 'darderos del país',
+    description: 'Nacida de la pasión de los jugadores de Darderos Mar del Plata y expandida a cada rincón de Argentina. Aquí puedes registrar tus partidas tiro a tiro, medir tu promedio histórico, competir en torneos presenciales y online con cuadros interactivos, y equiparte con material profesional importado.',
+    backgroundImageUrl: '/images/darderos.jpeg',
+    overlayOpacity: 40,
+    provincesCount: 24,
+    tournamentsCount: '35+',
+    playersCount: '1.200+',
+    record180sText: 'Registro Vivo',
+    pilars: [
+      { title: 'Anotador PWA:', desc: 'funciona offline en cualquier pub o club.' },
+      { title: 'Categorización por AVG:', desc: 'Principiante a Elite.' },
+      { title: 'Torneos Oficiales:', desc: 'llaves y cruces en vivo.' },
+      { title: 'Mercado Pago:', desc: 'cuotas en pesos y envíos al país.' }
+    ]
+  },
+  affiliatedClubs: [
+    {
+      id: 'club-mdq-central',
+      name: 'Club Darderos Mar del Plata',
+      city: 'Mar del Plata',
+      province: 'Buenos Aires',
+      address: 'Sede Central Oficial • Calle Alvarado 2450',
+      boardsCount: 6,
+      logoUrl: '/logos/logo-mdq.png',
+      isCentral: true,
+      status: 'ACTIVO',
+      description: '6 dianas profesionales Samurai y Winmau Blade 6 con iluminación led circular y marcadores digitales para torneos oficiales.'
+    },
+    {
+      id: 'club-caba-espacio',
+      name: 'Espacio Dardos Buenos Aires',
+      city: 'Palermo, CABA',
+      province: 'Ciudad Autónoma de Buenos Aires',
+      address: 'Honduras 4820, Palermo Soho',
+      boardsCount: 4,
+      logoUrl: '/logos/dardos-argentina.png',
+      isCentral: false,
+      status: 'ACTIVO',
+      description: 'Liga Metropolitana 501 Doble Out los jueves por la noche y clínicas de lanzamiento para principiantes.'
+    },
+    {
+      id: 'club-interior-federal',
+      name: 'Circuito Federal del Interior',
+      city: 'Rosario • Córdoba • Mendoza',
+      province: 'Santa Fe / Córdoba',
+      address: 'Sedes Multiclub Regionales',
+      boardsCount: 8,
+      logoUrl: '/logos/dardos-argentina.png',
+      isCentral: false,
+      status: 'ACTIVO',
+      description: 'Encuentros mensuales y fechas clasificatorias para el Gran Open de Mar del Plata con puntaje nacional.'
+    }
+  ]
+};
+
+export function getStoredLandingShowcases(fallback: LandingShowcaseSettings = DEFAULT_LANDING_SHOWCASES): LandingShowcaseSettings {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const data = localStorage.getItem(SHOWCASE_KEYS.SHOWCASES);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (parsed && parsed.heroTournament && parsed.communitySection) {
+        return {
+          ...fallback,
+          ...parsed,
+          heroTournament: { ...fallback.heroTournament, ...parsed.heroTournament },
+          communitySection: { ...fallback.communitySection, ...parsed.communitySection },
+          affiliatedClubs: Array.isArray(parsed.affiliatedClubs) ? parsed.affiliatedClubs : fallback.affiliatedClubs
+        };
+      }
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveStoredLandingShowcases(settings: LandingShowcaseSettings): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SHOWCASE_KEYS.SHOWCASES, JSON.stringify(settings));
+    window.dispatchEvent(new CustomEvent('lpld_showcases_updated', { detail: settings }));
+  } catch (err) {
+    console.warn('[Storage] Error al guardar vitrinas de la landing:', err);
   }
 }
 

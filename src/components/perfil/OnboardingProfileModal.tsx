@@ -15,6 +15,7 @@ import {
 } from '@/lib/constants';
 import { getCurrentPlayerProfile, saveCurrentPlayerProfile } from '@/lib/storage';
 import { BrandLogo } from '@/components/BrandLogo';
+import { LoginModal } from '@/components/perfil/LoginModal';
 import { 
   User, 
   MapPin, 
@@ -24,16 +25,18 @@ import {
   CheckCircle2, 
   Zap, 
   Globe, 
-  Sparkles,
-  Camera,
-  Crown,
-  Lock,
-  X
+  Sparkles, 
+  Camera, 
+  Crown, 
+  Lock, 
+  X,
+  LogIn
 } from 'lucide-react';
 
 export const OnboardingProfileModal: React.FC = () => {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Form State
   const [fullName, setFullName] = useState('');
@@ -326,11 +329,36 @@ export const OnboardingProfileModal: React.FC = () => {
               className="w-full accent-[#00e676] cursor-pointer"
             />
 
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
+              {(Object.keys(CATEGORY_DETAILS) as PlayerCategory[]).map((catKey) => {
+                const isSelected = currentCategory === catKey;
+                return (
+                  <button
+                    key={catKey}
+                    type="button"
+                    onClick={() => {
+                      if (catKey === 'PRINCIPIANTE') setEstimatedAvg(35.0);
+                      if (catKey === 'INTERMEDIA') setEstimatedAvg(48.0);
+                      if (catKey === 'AVANZADA') setEstimatedAvg(62.0);
+                      if (catKey === 'ELITE') setEstimatedAvg(75.0);
+                    }}
+                    className={`py-1.5 px-2 rounded-xl text-[10px] font-black transition-all border ${
+                      isSelected
+                        ? 'bg-[#00e676] text-[#07090e] border-[#00e676] shadow-sm ring-1 ring-[#00e676]'
+                        : 'bg-[#14161f] text-slate-400 border-slate-800 hover:text-white hover:border-slate-700'
+                    }`}
+                  >
+                    {CATEGORY_DETAILS[catKey].label}
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase">
-              <span>Principiante (&lt; 45)</span>
-              <span>Intermedia (45 - 60)</span>
-              <span>Avanzada (60 - 80)</span>
-              <span>Elite (&gt; 80)</span>
+              <span>Principiante (&lt; 40)</span>
+              <span>Intermedia (40 - 55)</span>
+              <span>Avanzada (55 - 70)</span>
+              <span>Elite (&ge; 70)</span>
             </div>
           </div>
 
@@ -378,9 +406,17 @@ export const OnboardingProfileModal: React.FC = () => {
           </button>
         </form>
 
-        {/* Acceso para Administrador Mariano Deux - Protegido por Contraseña Maestra */}
-        <div className="pt-4 border-t border-[#1e2638] flex items-center justify-between text-xs">
-          <span className="text-slate-500">¿Administrador de la plataforma?</span>
+        {/* Opciones de Acceso Rápido y Cuenta Existente */}
+        <div className="pt-4 border-t border-[#1e2638] flex flex-wrap items-center justify-between gap-3 text-xs">
+          <button
+            type="button"
+            onClick={() => setShowLoginModal(true)}
+            className="text-[#00e676] hover:text-[#00c853] font-bold flex items-center gap-1.5 transition-colors"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>¿Ya estás registrado? Iniciar Sesión</span>
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -471,6 +507,12 @@ export const OnboardingProfileModal: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Modal de Inicio de Sesión y Selección de Cuenta */}
+        <LoginModal 
+          isOpen={showLoginModal} 
+          onClose={() => setShowLoginModal(false)} 
+        />
       </div>
     </div>
   );

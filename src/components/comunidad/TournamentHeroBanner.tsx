@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Tournament } from '@/lib/types';
-import { MOCK_TOURNAMENTS } from '@/lib/constants';
 import { 
   Trophy, 
   Calendar, 
@@ -13,13 +11,28 @@ import {
   DollarSign, 
   Sparkles, 
   ChevronRight,
-  Flame
+  Flame,
+  ExternalLink
 } from 'lucide-react';
+import { getStoredLandingShowcases, DEFAULT_LANDING_SHOWCASES } from '@/lib/storage';
+import { LandingShowcaseSettings } from '@/lib/types';
 
 export const TournamentHeroBanner: React.FC = () => {
-  const featuredTournament: Tournament | undefined = MOCK_TOURNAMENTS[0];
-  const [registered, setRegistered] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  const [heroSettings, setHeroSettings] = useState<LandingShowcaseSettings['heroTournament']>(() => {
+    return getStoredLandingShowcases(DEFAULT_LANDING_SHOWCASES).heroTournament;
+  });
+
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail?.heroTournament) {
+        setHeroSettings(e.detail.heroTournament);
+      }
+    };
+    window.addEventListener('lpld_showcases_updated', handleUpdate);
+    return () => window.removeEventListener('lpld_showcases_updated', handleUpdate);
+  }, []);
+
+  if (!heroSettings.enabled) return null;
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-[#1c1f2b] border-2 border-[#00b853]/60 shadow-[0_0_35px_rgba(0,184,83,0.2)] p-6 sm:p-8 lg:p-10">
@@ -34,19 +47,19 @@ export const TournamentHeroBanner: React.FC = () => {
           <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
             <span className="bg-[#e52521] text-white text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-red-500/30">
               <Flame className="w-3.5 h-3.5 fill-white" />
-              Próximo Gran Torneo Oficial
+              {heroSettings.tagBadge || 'Próximo Gran Torneo Oficial'}
             </span>
             <span className="bg-[#242836] text-[#00b853] border border-[#00b853]/40 text-xs font-black px-3 py-1 rounded-full">
-              Inscripciones Abiertas • Cupos Limitados
+              {heroSettings.subBadge || 'Inscripciones Abiertas • Cupos Limitados'}
             </span>
           </div>
 
           {/* Título Principal */}
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-            Gran Open <span className="text-[#00b853]">Mar del Plata</span> 2026
+            {heroSettings.title} <span className="text-[#00b853]">{heroSettings.highlightCity}</span> {heroSettings.year}
           </h1>
           <p className="text-sm sm:text-base text-[#efe7d8] leading-relaxed">
-            La cita cumbre de los dardos en la Costa Atlántica y Argentina. Dos jornadas de máxima adrenalina: fase de grupos, llaves directas 501 Doble Out, marcadores digitales táctiles y transmisión oficial.
+            {heroSettings.description}
           </p>
 
           {/* Metadata Rápida: Fecha, Lugar, Premio en Marfil Sisal y Verde Diana */}
@@ -56,7 +69,7 @@ export const TournamentHeroBanner: React.FC = () => {
                 <Calendar className="w-3 h-3 text-[#00b853]" /> Fecha
               </span>
               <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5">
-                14 y 15 Nov
+                {heroSettings.date}
               </strong>
             </div>
 
@@ -64,8 +77,8 @@ export const TournamentHeroBanner: React.FC = () => {
               <span className="text-[10px] uppercase font-black text-[#b8ad98] block flex items-center justify-center lg:justify-start gap-1">
                 <MapPin className="w-3 h-3 text-[#e52521]" /> Sede
               </span>
-              <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5 truncate" title="Mar del Plata">
-                MDQ Central
+              <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5 truncate" title={heroSettings.venue}>
+                {heroSettings.venue}
               </strong>
             </div>
 
@@ -74,7 +87,7 @@ export const TournamentHeroBanner: React.FC = () => {
                 <DollarSign className="w-3 h-3 text-[#00b853]" /> Bolsa
               </span>
               <strong className="text-xs sm:text-sm text-[#00b853] font-black block mt-0.5 font-mono">
-                $450.000 ARS
+                {heroSettings.prizePool}
               </strong>
             </div>
 
@@ -83,20 +96,33 @@ export const TournamentHeroBanner: React.FC = () => {
                 <Users className="w-3 h-3 text-[#1d68ed]" /> Inscriptos
               </span>
               <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5">
-                {featuredTournament?.registeredCount || 0} / {featuredTournament?.maxParticipants || 64}
+                {heroSettings.registeredCount} / {heroSettings.maxParticipants}
               </strong>
             </div>
           </div>
 
           {/* Botones de Acción */}
           <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-3">
-            <button
-              onClick={() => setShowModal(true)}
-              className="px-6 py-3.5 bg-[#00b853] hover:bg-[#009e47] active:scale-95 text-[#0d0e12] font-black text-sm uppercase tracking-wider rounded-2xl transition-all shadow-xl shadow-[#00b853]/30 flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4 fill-[#0d0e12]" />
-              <span>{registered ? 'Inscripto ✓' : 'Inscripción Rápida'}</span>
-            </button>
+            {heroSettings.googleFormUrl ? (
+              <a
+                href={heroSettings.googleFormUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3.5 bg-[#00b853] hover:bg-[#00c853] active:scale-95 text-[#0d0e12] font-black text-sm uppercase tracking-wider rounded-2xl transition-all shadow-xl shadow-[#00b853]/30 flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 fill-[#0d0e12]" />
+                <span>{heroSettings.ctaButtonText || 'Inscripción Rápida'}</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            ) : (
+              <Link
+                href="/torneos"
+                className="px-6 py-3.5 bg-[#00b853] hover:bg-[#00c853] active:scale-95 text-[#0d0e12] font-black text-sm uppercase tracking-wider rounded-2xl transition-all shadow-xl shadow-[#00b853]/30 flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 fill-[#0d0e12]" />
+                <span>{heroSettings.ctaButtonText || 'Inscripción Rápida'}</span>
+              </Link>
+            )}
 
             <Link
               href="/torneos"
@@ -153,62 +179,6 @@ export const TournamentHeroBanner: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Modal de Inscripción Rápida */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-[#14161f]/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-left">
-            <div className="w-12 h-12 rounded-2xl bg-[#00b853]/20 border border-[#00b853]/40 flex items-center justify-center text-[#00b853] mb-4">
-              <Trophy className="w-6 h-6" />
-            </div>
-
-            <h3 className="text-xl font-black text-white uppercase tracking-tight mb-1">
-              Inscripción al Torneo
-            </h3>
-            <p className="text-xs text-[#b8ad98] mb-4">
-              {featuredTournament.title}
-            </p>
-
-            <div className="bg-[#14161f] rounded-2xl p-4 border border-[#313647] text-xs space-y-2 mb-6">
-              <div className="flex justify-between">
-                <span className="text-[#b8ad98]">Modalidad:</span>
-                <strong className="text-white">Presencial (501 Doble Out)</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#b8ad98]">Arancel de Inscripción:</span>
-                <strong className="text-[#00b853] font-mono text-sm">
-                  ${featuredTournament.entryFeeArs.toLocaleString('es-AR')} ARS
-                </strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#b8ad98]">Medio de Pago:</span>
-                <strong className="text-[#38bdf8]">Mercado Pago / Efectivo en Sede</strong>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setRegistered(true);
-                  setShowModal(false);
-                  alert('¡Inscripción confirmada! Te esperamos en Mar del Plata el 14 de Noviembre.');
-                }}
-                className="flex-1 py-3.5 bg-[#00b853] hover:bg-[#009e47] text-[#0d0e12] font-black rounded-2xl text-xs uppercase tracking-wider transition-all"
-              >
-                Confirmar Inscripción
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="px-5 py-3.5 bg-[#242836] hover:bg-[#2b3040] text-white font-bold rounded-2xl text-xs border border-[#313647]"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

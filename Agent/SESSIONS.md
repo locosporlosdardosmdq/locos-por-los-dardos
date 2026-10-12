@@ -1,5 +1,42 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 21] - 2026-10-12
+- **Objetivo:** Resolución de la sincronización de nuevos usuarios en la base de datos de Supabase ("no aparecen en jugadores ni guarda inicios de sesión"), implementación de cierre de sesión real y selector multi-cuenta (`LoginModal.tsx`), habilitación de selección y cambio táctil 1-click de categoría oficial en `/perfil` y en el formulario de ficha, desarrollo del panel de Superadmin (`/superadmin`) con cuotas, demografía en tiempo real, vitrinas de landing (DBikes style) y padrón de jugadores, e integración de vitrina de pagos bancarios en la home.
+- **Diagnóstico de Causa Raíz:**
+  1. *Aislamiento en LocalStorage:* El frontend guardaba únicamente en el navegador local del usuario. Al registrarse un competidor (ej: Gabriel Rubio "ZEUS" en su celular), el registro no existía en el servidor y por tanto no era visible para Mariano Deux ni otros jugadores en `/jugadores`.
+  2. *Categoría No Clickeable:* En `/perfil`, las tarjetas de "Esquema de Categorías Oficiales" eran elementos div estáticos sin controladores `onClick`, y en el formulario de edición el slider de AVG forzaba la categoría sin dar opción a selección manual ni feedback visual táctil.
+  3. *Cierre de Sesión Simulado:* El botón de logout en el menú lateral solo disparaba un alert sin purgar la sesión ni ofrecer selector de ingreso.
+- **Realizado:**
+  - **Conexión Directa a Supabase & Endpoints Backend (`src/lib/db.ts`, `/api/jugadores`, `/api/auth`):**
+    * Conexión por pool SSL directo a PostgreSQL de Supabase.
+    * Migración DDL en Supabase para soportar foto de perfil, marcas de dardos, clubes, roles y edades.
+    * Endpoint `/api/jugadores` con `GET` federado y `POST` con UPSERT en las tablas `users`, `profiles` y `player_stats`.
+    * Endpoint `/api/auth` para autenticación y recuperación instantánea de cuentas por email o nickname.
+  - **Sincronización en `storage.ts` & Directorio Federal Dinámico (`PlayerDirectory.tsx`):**
+    * `saveCurrentPlayerProfile` envía asíncronamente las actualizaciones a la nube.
+    * `PlayerDirectory.tsx` consume la API de jugadores en vivo y refresca automáticamente ante eventos `lpld_profile_updated`.
+  - **Cambio Táctil 1-Click de Categoría Oficial (`RegisterAndProfile.tsx`):**
+    * En la pestaña de perfil, las 4 tarjetas oficiales (Principiante, Intermedia, Avanzada, Elite Pro) son botones táctiles con feedback verde inmediato (`handleQuickCategoryChange`), ajustando armónicamente el promedio estimado y sincronizando en Supabase.
+    * Badge de categoría interactivo en la cabecera que hace scroll suave y enfoca la sección de categorías.
+    * Sincronización bidireccional en el formulario entre el slider de AVG y los 4 botones manuales de categoría.
+    * En `OnboardingProfileModal.tsx`, selector de 4 botones para categoría inicial y rangos corregidos (<40, 40-55, 55-70, 70+).
+  - **Modal de Inicio de Sesión & Cierre de Sesión (`LoginModal.tsx` & `AppSidebar.tsx`):**
+    * Modal interactivo para seleccionar entre los jugadores registrados en la nube con un solo click o ingresar como administrador.
+    * Botón de cierre de sesión funcional en la barra lateral y en el perfil.
+  - **Panel Central de Superadministración (`/superadmin`):**
+    * Pestaña 1: Cuotas & Servidores (Supabase, Storage, Vercel Edge, TURN WebRTC).
+    * Pestaña 2: Demografía federal, edades en vivo y Padrón Oficial de Jugadores con selector para cambiar la categoría de cualquier usuario registrado.
+    * Pestaña 3: Vitrinas de la Landing Page con configuración de banners, medidas recomendadas y sincronización de Google Forms.
+    * Pestaña 4: Comisión Directiva de Mar del Plata y Nacional vinculando jugadores registrados de la app a sus cargos.
+  - **Vitrina de Cobro de Torneos en Home (`src/app/page.tsx`):**
+    * Cuadro oficial con datos bancarios (Banco, Titular, CUIT, Alias, CBU) con botones de copia y enlace directo a WhatsApp.
+  - **Validación de Compilación y Producción:**
+    * `npx tsc --noEmit` completado con 0 errores (código 0).
+    * `npm run build` completado exitosamente con 19/19 páginas generadas (código 0).
+- **Estado del Proyecto:** Persistencia en la nube de Supabase 100% activa, jugadores visibles en red federal en cualquier dispositivo, cambio de categoría táctil e instantáneo en móvil y escritorio, y panel de Superadmin plenamente operativo.
+
+---
+
 ## [Sesión 20] - 2026-10-11
 - **Objetivo:** Corrección de la visibilidad de la pestaña "Historial" en dispositivos móviles en la sección de torneos (`/torneos`) y calibración de nitidez de la foto comunitaria en la landing page (`src/app/page.tsx`).
 - **Diagnóstico de Causa Raíz:**

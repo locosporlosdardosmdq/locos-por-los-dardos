@@ -506,4 +506,45 @@
      - Se copió `Darderos.jpeg` a `public/images/darderos.jpeg` y se aplicó como fondo de la sección 2 de `src/app/page.tsx` con overlay oscuro y cuadros interiores al 90% de transparencia (`bg-black/10 backdrop-blur-md`).
 - **Motivo:** Replicar la ergonomía profesional de Nakka N01 Darts con latencia mínima (< 25ms), máxima robustez en redes móviles 4G y homenaje visual a la comunidad de Darderos Mar del Plata.
 
+---
+
+## ADR-030: Persistencia Federada en Supabase PostgreSQL & API de Jugadores y Auth
+
+- **Fecha:** 2026-10-12
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Anteriormente la plataforma guardaba los registros de nuevos jugadores únicamente en el `localStorage` del navegador local. Esto provocaba que si un jugador (ej: Gabriel Rubio "ZEUS") se registraba en su teléfono celular, dicho usuario no existía en el servidor ni aparecía en el Directorio Federal (`/jugadores`) para otros competidores en sus computadoras o celulares.
+  2. Tampoco existía una función de cierre de sesión real (`LogOut`), ni un selector para cambiar de usuario o recuperar cuentas registradas en la nube.
+- **Decisión:**
+  1. **Conexión Directa a Supabase (`src/lib/db.ts`):** Se configuró conexión directa mediante `pg.Pool` con SSL (`rejectUnauthorized: false`) al servidor PostgreSQL de Supabase (`db.pufyeabrvrlikbgkjplz.supabase.co:5432/postgres`).
+  2. **Migración de Tablas:** Se añadieron a `profiles` las columnas faltantes: `photo_url`, `logo_url`, `nationality`, `country_code`, `dart_brand`, `major_title`, `club`, `association_role`, `age`.
+  3. **Endpoints Backend:**
+     - `GET & POST /api/jugadores`: Lectura consolidada con `JOIN` de `profiles`, `player_stats` y `users`, y `UPSERT` en la nube al registrarse o modificar perfiles.
+     - `POST /api/auth`: Búsqueda instantánea de jugadores por email o apodo para inicio de sesión en 1-click.
+  4. **Componente `LoginModal.tsx` & Storage:**
+     - En `storage.ts`, `saveCurrentPlayerProfile` persiste en `localStorage` y envía asíncronamente un `POST` a `/api/jugadores`.
+     - `clearCurrentPlayerSession` limpia el perfil y abre el modal de login con lista de cuentas en la nube y login administrativo.
+- **Motivo:** Garantizar que ningún usuario quede atrapado en un navegador local, posibilitando una comunidad federada en tiempo real entre múltiples dispositivos.
+
+---
+
+## ADR-031: Selección Táctil de Categorías 1-Click, Sincronización Bidireccional de AVG y Gestión desde Superadmin
+
+- **Fecha:** 2026-10-12
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. En `/perfil`, el esquema oficial de categorías era puramente ilustrativo (tarjetas estáticas sin eventos clickeables), y en el formulario de edición la categoría estaba atada forzosamente al slider de AVG sin permitir forzar o cambiar la categoría deportiva deseada.
+  2. En dispositivos móviles, el usuario no tenía ningún botón claro para cambiar su categoría en 1-click.
+  3. El Superadministrador requería poder visualizar a todos los jugadores registrados en la base de datos y cambiar la categoría de cualquiera de ellos directamente desde su panel.
+- **Decisión:**
+  1. **Interactividad 1-Click en Esquema de Categorías (`RegisterAndProfile.tsx`):**
+     - Las 4 tarjetas (Principiante, Intermedia, Avanzada, Elite Pro) se convirtieron en botones táctiles interactivos con feedback visual verde inmediato (`handleQuickCategoryChange`), ajustando armónicamente el AVG sugerido y guardando en `localStorage` y en la base de datos de Supabase.
+     - Se añadió un badge de categoría interactivo en la cabecera que realiza scroll suave al esquema con foco visual.
+  2. **Sincronización Bidireccional en Formulario:**
+     - Al deslizar el slider de AVG se actualiza de inmediato `selectedCategory = calculateCategory(val)`.
+     - Al presionar cualquiera de los 4 botones de categoría manual, el slider salta al promedio estándar de la categoría seleccionada (35.0, 48.0, 62.0, 75.0 AVG).
+  3. **Padrón de Jugadores en Panel de Superadmin (`src/app/superadmin/page.tsx`):**
+     - En la pestaña de Demografía se incorporó la tabla de jugadores en tiempo real desde Supabase con selector `<select>` para modificar la categoría de cualquier usuario con un click y guardar en la base de datos.
+- **Motivo:** Ergonomía táctil inmediata para teléfonos móviles y flexibilidad total tanto para el jugador como para las autoridades federadas.
+
 

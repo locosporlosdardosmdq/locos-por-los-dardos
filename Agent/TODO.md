@@ -14,9 +14,23 @@
   * Panel de Doble Diana simétrica en `X01Board.tsx` mostrando en tiempo real la diana local y la diana del rival con estados de tiro, badges y halos luminosos.
   * Locución garantizada de Russ Bray para ambos jugadores al impactar cada visita.
   * Fondo de la comunidad con `Darderos.jpeg` en la landing page (`src/app/page.tsx`) y cuadros interiores al 90% de transparencia.
-- [x] **Pestañas de Torneos en Celular (Historial 100% Visible) y Contraste de Foto Comunitaria:**
-  * Rediseño responsivo de la cabecera de `/torneos` (`TournamentManager.tsx`): layout `grid grid-cols-3 sm:flex` con `min-w-0`, `gap-1`, `px-1.5` y tracking adaptativo que garantiza que las 3 pestañas (Activos, Ligas, Historial) entren completas y perfectamente legibles en cualquier celular sin desbordes horizontales.
-  * Overlay de foto comunitaria (`src/app/page.tsx`) aligerado y calibrado (`from-black/60 via-black/35 to-black/45`) para resaltar rostros, camisetas y dianas con gran nitidez.
+- [x] **Persistencia en la Nube con Supabase PostgreSQL & Directorio Federal Dinámico:**
+  * Implementación de conexión directa con SSL a PostgreSQL de Supabase en `src/lib/db.ts` con pool de conexiones.
+  * Endpoints `/api/jugadores` (GET y POST) con JOIN de `profiles`, `users` y `player_stats`, permitiendo que todos los usuarios registrados en cualquier celular o PC aparezcan inmediatamente en el directorio federado.
+  * Endpoint `/api/auth` para autenticación y recuperación de perfiles por email o nickname.
+  * Sincronización asíncrona automática en `storage.ts` que persiste en `localStorage` y en la nube en segundo plano.
+- [x] **Selección y Cambio Táctil 1-Click de Categoría Oficial (`RegisterAndProfile.tsx`):**
+  * Esquema de Categorías Oficiales completamente interactivo: las 4 tarjetas (Principiante, Intermedia, Avanzada, Elite Pro) son botones táctiles con feedback verde inmediato (`handleQuickCategoryChange`), guardado en `localStorage` y persistencia en Supabase.
+  * Sincronización bidireccional entre el slider de AVG y los botones de categoría en la pestaña de edición de ficha.
+  * Badge de categoría en la cabecera del perfil interactivo que scrollea y enfoca la sección de categorías.
+  * Selector directo de 4 categorías en el modal de onboarding obligatorio (`OnboardingProfileModal.tsx`).
+- [x] **Cierre de Sesión y Selección Rápida de Cuentas (`LoginModal.tsx` & `AppSidebar.tsx`):**
+  * Modal interactivo `LoginModal.tsx` con listado de jugadores registrados en la nube para cambiar de usuario con 1-click.
+  * Botón de cierre de sesión en la barra lateral y en la cabecera del perfil (`clearCurrentPlayerSession`).
+- [x] **Panel Central de Superadmin (`/superadmin`):**
+  * Módulo con 4 pestañas: 1. Cuotas & Servidores; 2. Demografía & Edades en vivo con Padrón de Jugadores y asignación de categorías; 3. Vitrinas de Landing Page (Gran Torneo con contador de Google Forms, Comunidad, Clubes y Pagos); 4. Comisión Directiva de Mar del Plata y Nacional.
+- [x] **Vitrina Oficial de Pago de Inscripciones en la Landing Page (`src/app/page.tsx`):**
+  * Vitrina con datos bancarios oficiales (Banco, Titular, CUIT, Alias, CBU con botones para copiar) y enlace directo a WhatsApp.
 - [x] Definición completa del esquema relacional en PostgreSQL / Supabase (`db-schema.sql`) y Prisma (`schema.prisma`).
 - [x] Rediseño integral de la paleta de colores basado 100% en la Diana de Dardos (Samurai 4) con fondo gris oscuro (`#14161f`).
 - [x] Persistencia offline-first de partidas y cola de sincronización en `src/lib/storage.ts`.

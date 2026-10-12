@@ -22,18 +22,101 @@ import {
   ChevronDown
 } from 'lucide-react';
 
-const MOCK_PLAYERS: UltimateDartsCardData[] = CANONICAL_PLAYERS;
+import { getCurrentPlayerProfile } from '@/lib/storage';
+
+function mapPlayerToCard(p: any): UltimateDartsCardData {
+  return {
+    id: p.id,
+    name: p.fullName || p.name || p.nickname || 'Jugador',
+    nickname: p.nickname || p.fullName || 'Jugador',
+    avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
+    photoUrl: p.photoUrl || p.avatarUrl,
+    logoUrl: p.logoUrl,
+    nationality: p.nationality || 'Argentina',
+    countryCode: p.countryCode || 'AR',
+    province: p.province || 'Buenos Aires',
+    city: p.city || 'Mar del Plata',
+    club: p.club || 'Darderos Mar del Plata',
+    avg: p.stats?.overallAvg ?? p.estimatedAvg ?? p.avg ?? 40.0,
+    category: p.category || 'INTERMEDIA',
+    matchesWon: p.stats?.matchesWon ?? p.matchesWon ?? 0,
+    matchesTotal: p.stats?.matchesPlayed ?? p.matchesTotal ?? 0,
+    count180s: p.stats?.count180s ?? p.count180s ?? 0,
+    highestCheckout: p.stats?.highestCheckout ?? p.highestCheckout ?? 0,
+    isVerified: p.isVerified ?? false,
+    majorTitle: p.majorTitle || (p.associationRole ? p.associationRole : undefined),
+    dartBrand: p.dartBrand || 'TARGET 90%',
+    dartWeight: p.preferredDartWeight || p.dartWeight || 24,
+    bestLeg: p.stats?.bestLegDarts ?? p.bestLeg ?? 0,
+    nationalPoints: p.nationalPoints ?? 0,
+    nationalRank: p.nationalRank ?? 1,
+    mdqLeaguePoints: p.mdqLeaguePoints ?? 0,
+    mdqLeagueRank: p.mdqLeagueRank ?? 1,
+    presentialPoints: p.presentialPoints ?? 0,
+    presentialRank: p.presentialRank ?? 1,
+    tournamentsWonList: p.tournamentsWonList || [],
+    recentHistory: p.recentHistory || []
+  };
+}
 
 export const PlayerDirectory: React.FC = () => {
+  const [playersList, setPlayersList] = useState<UltimateDartsCardData[]>(() => {
+    const local = getCurrentPlayerProfile(null);
+    if (local && local.nickname && local.nickname !== 'ICEMAN') {
+      return [CANONICAL_PLAYERS[0], mapPlayerToCard(local)];
+    }
+    return CANONICAL_PLAYERS;
+  });
+  const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvince, setSelectedProvince] = useState('TODAS');
   const [selectedCategory, setSelectedCategory] = useState<string>('TODAS');
   const [rankingMode, setRankingMode] = useState<RankingMode>('AVG');
   const [onlyMdqLeague, setOnlyMdqLeague] = useState(false);
 
+  // Cargar jugadores desde /api/jugadores
+  const loadCloudPlayers = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/jugadores');
+      if (!res.ok) throw new Error('Error al consultar /api/jugadores');
+      const data = await res.json();
+      if (data.players && Array.isArray(data.players) && data.players.length > 0) {
+        const mapped = data.players.map(mapPlayerToCard);
+        
+        // Incluir perfil local si no estuviera en la nube todavía
+        const local = getCurrentPlayerProfile(null);
+        if (local && local.nickname) {
+          const exists = mapped.some((p: UltimateDartsCardData) => 
+            p.nickname.toLowerCase() === local.nickname.toLowerCase() ||
+            (local.email && p.id === local.id)
+          );
+          if (!exists) {
+            mapped.push(mapPlayerToCard(local));
+          }
+        }
+        setPlayersList(mapped);
+      }
+    } catch (err) {
+      console.warn('[PlayerDirectory] Error cargando jugadores de la nube:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadCloudPlayers();
+
+    const handleProfileUpdate = () => {
+      loadCloudPlayers();
+    };
+    window.addEventListener('lpld_profile_updated', handleProfileUpdate);
+    return () => window.removeEventListener('lpld_profile_updated', handleProfileUpdate);
+  }, [loadCloudPlayers]);
+
   // Filtrado y Ordenamiento
   const filteredAndSortedPlayers = useMemo(() => {
-    let result = MOCK_PLAYERS.filter((player) => {
+    let result = playersList.filter((player) => {
       const matchesSearch = 
         player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         player.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||

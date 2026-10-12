@@ -9,6 +9,11 @@
 - [x] Módulo 3: Gestor de Torneos Oficial con llaves eliminatorias en vivo y fase de grupos (Round Robin).
 - [x] Módulo 4: Landing Page comunitaria con Head Banner promocional superior (Hero Torneos) y Leaderboard público.
 - [x] Módulo 5: E-commerce integrado con catálogo, carrito lateral (`CartDrawer`) y API de Mercado Pago en ARS.
+- [x] **Doble Diana Split-Screen en Vivo (Estilo Nakka N01) & WebRTC TURN TCP 443:**
+  * Implementación de streaming de video P2P bidireccional entre celulares en red 4G y PCs mediante servidores TURN de OpenRelay en puerto TCP 443.
+  * Panel de Doble Diana simétrica en `X01Board.tsx` mostrando en tiempo real la diana local y la diana del rival con estados de tiro, badges y halos luminosos.
+  * Locución garantizada de Russ Bray para ambos jugadores al impactar cada visita.
+  * Fondo de la comunidad con `Darderos.jpeg` en la landing page (`src/app/page.tsx`) y cuadros interiores al 90% de transparencia.
 - [x] Definición completa del esquema relacional en PostgreSQL / Supabase (`db-schema.sql`) y Prisma (`schema.prisma`).
 - [x] Rediseño integral de la paleta de colores basado 100% en la Diana de Dardos (Samurai 4) con fondo gris oscuro (`#14161f`).
 - [x] Persistencia offline-first de partidas y cola de sincronización en `src/lib/storage.ts`.

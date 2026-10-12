@@ -26,7 +26,13 @@ export default function HomePage() {
 
       {/* 2. SECCIÓN INFORMATIVA & COMUNIDAD DE DARDOS ARGENTINA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-[#0f1422] border border-[#1e2638] rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+        <div className="relative rounded-3xl p-6 sm:p-10 shadow-2xl border border-white/15 overflow-hidden">
+          {/* Fondo de foto Darderos con overlay oscuro para contraste perfecto */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat transform scale-105"
+            style={{ backgroundImage: "url('/images/darderos.jpeg')" }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/80 to-black/85 backdrop-blur-[2px]" />
           <div className="absolute top-0 left-1/3 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
           <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -38,55 +44,55 @@ export default function HomePage() {
                 </span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
+              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight drop-shadow-md">
                 La plataforma que une a todos los <span className="text-[#00e676]">darderos del país</span>.
               </h2>
 
-              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+              <p className="text-slate-200 text-sm sm:text-base leading-relaxed drop-shadow-sm">
                 Nacida de la pasión de los jugadores de <strong className="text-[#00e676]">Darderos Mar del Plata</strong> y expandida a cada rincón de Argentina. Aquí puedes registrar tus partidas tiro a tiro, medir tu promedio histórico, competir en torneos presenciales y online con cuadros interactivos, y equiparte con material profesional importado.
               </p>
 
-              {/* Pilares clave con estilo deportivo */}
+              {/* Pilares clave con estilo deportivo - Cuadros 90% transparentes */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div className="flex items-center gap-2.5 text-xs text-slate-300 bg-[#07090e] p-3 rounded-2xl border border-[#1e2638]">
+                <div className="flex items-center gap-2.5 text-xs text-slate-200 bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 shadow-sm">
                   <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Anotador PWA:</strong> funciona offline en cualquier pub o club.</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-slate-300 bg-[#07090e] p-3 rounded-2xl border border-[#1e2638]">
+                <div className="flex items-center gap-2.5 text-xs text-slate-200 bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 shadow-sm">
                   <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Categorización por AVG:</strong> Principiante a Elite.</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-slate-300 bg-[#07090e] p-3 rounded-2xl border border-[#1e2638]">
+                <div className="flex items-center gap-2.5 text-xs text-slate-200 bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 shadow-sm">
                   <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Torneos Oficiales:</strong> llaves y cruces en vivo.</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-slate-300 bg-[#07090e] p-3 rounded-2xl border border-[#1e2638]">
+                <div className="flex items-center gap-2.5 text-xs text-slate-200 bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 shadow-sm">
                   <CheckCircle2 className="w-4 h-4 text-[#00e676] flex-shrink-0" />
                   <span><strong>Mercado Pago:</strong> cuotas en pesos y envíos al país.</span>
                 </div>
               </div>
             </div>
 
-            {/* Showcase Visual de la Comunidad */}
-            <div className="lg:col-span-5 bg-[#07090e] border border-[#1e2638] rounded-3xl p-6 text-center shadow-xl space-y-4">
+            {/* Showcase Visual de la Comunidad - Cuadro 90% transparente */}
+            <div className="lg:col-span-5 bg-black/10 backdrop-blur-md border border-white/15 rounded-3xl p-6 text-center shadow-2xl space-y-4">
               <div className="flex justify-center pb-2">
                 <BrandLogo size="lg" />
               </div>
-              <p className="text-xs text-slate-400 leading-snug">
+              <p className="text-xs text-slate-300 leading-snug drop-shadow-sm">
                 Más de <strong className="text-white">1.200 jugadores</strong> activos compitiendo en ligas provinciales y torneos abiertos.
               </p>
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#1e2638] text-center">
-                <div className="bg-[#0f1422] p-3 rounded-2xl border border-[#1e2638]">
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/15 text-center">
+                <div className="bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15">
                   <span className="font-black text-[#00e676] text-lg font-mono">24</span>
-                  <span className="text-[10px] text-slate-400 block font-bold">Provincias</span>
+                  <span className="text-[10px] text-slate-300 block font-bold">Provincias</span>
                 </div>
-                <div className="bg-[#0f1422] p-3 rounded-2xl border border-[#1e2638]">
+                <div className="bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15">
                   <span className="font-black text-[#ef4444] text-lg font-mono">35+</span>
-                  <span className="text-[10px] text-slate-400 block font-bold">Torneos / Año</span>
+                  <span className="text-[10px] text-slate-300 block font-bold">Torneos / Año</span>
                 </div>
-                <div className="bg-[#0f1422] p-3 rounded-2xl border border-[#1e2638]">
+                <div className="bg-black/10 backdrop-blur-md p-3 rounded-2xl border border-white/15">
                   <span className="font-black text-[#0284c7] text-lg font-mono">180s</span>
-                  <span className="text-[10px] text-slate-400 block font-bold">Registro Vivo</span>
+                  <span className="text-[10px] text-slate-300 block font-bold">Registro Vivo</span>
                 </div>
               </div>
             </div>

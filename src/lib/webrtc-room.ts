@@ -4,23 +4,44 @@ import { MatchConfig, ParticipantPlayer } from './types';
 import { OnlineRoom, normalizeRoomCode } from './online-rooms';
 
 export type PeerMessage =
-  | { type: 'JOIN_REQUEST'; player: ParticipantPlayer }
-  | { type: 'JOIN_ACCEPTED'; room: OnlineRoom }
+  | { type: 'JOIN_REQUEST'; player: ParticipantPlayer; guestPeerId?: string }
+  | { type: 'JOIN_ACCEPTED'; room: OnlineRoom; hostPeerId?: string }
   | { type: 'THROW'; score: number; darts?: string[]; isCheckout?: boolean; playerIndex: 0 | 1 }
   | { type: 'VOICE_PING'; isTalking: boolean }
+  | { type: 'CAMERA_TOGGLE'; enabled: boolean }
   | { type: 'LEAVE' };
 
 export interface WebRtcRoomHandler {
   sendThrow: (score: number, darts?: string[], isCheckout?: boolean) => void;
   sendVoiceState: (isTalking: boolean) => void;
+  sendMediaStream: (stream: MediaStream) => void;
+  getRemoteStream: () => MediaStream | null;
   destroy: () => void;
 }
 
-// Listener mutable que conecta la llegada de tiros directamente con el tablero activo
+// Listeners globales para desacoplar componentes y reaccionar en caliente
 let currentThrowListener: ((score: number, darts?: string[], isCheckout?: boolean) => void) | null = null;
+let currentRemoteStreamListener: ((stream: MediaStream | null) => void) | null = null;
+let activeRemoteStream: MediaStream | null = null;
 
-export function setWebRtcThrowListener(listener: ((score: number, darts?: string[], isCheckout?: boolean) => void) | null) {
+export function setWebRtcThrowListener(
+  listener: ((score: number, darts?: string[], isCheckout?: boolean) => void) | null
+) {
   currentThrowListener = listener;
+}
+
+export function setWebRtcRemoteStreamListener(
+  listener: ((stream: MediaStream | null) => void) | null
+) {
+  currentRemoteStreamListener = listener;
+  // Si ya disponemos de un stream remoto activo, disparar de inmediato
+  if (listener && activeRemoteStream) {
+    listener(activeRemoteStream);
+  }
+}
+
+export function getActiveRemoteStream(): MediaStream | null {
+  return activeRemoteStream;
 }
 
 // Genera un ID de Peer seguro y consistente a partir del código de sala
@@ -30,19 +51,36 @@ export function getPeerIdFromRoomCode(code: string): string {
   return `lpld-sala-${clean}`;
 }
 
+// Configuración STUN + TURN (OpenRelay TCP 443) para atravesar CGNAT móvil (4G/LTE)
 const PEER_CONFIG = {
   debug: 1,
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:global.stun.twilio.com:3478' }
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun.relay.metered.ca:80' },
+      {
+        urls: 'turn:relay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:relay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:relay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
     ]
   }
 };
 
 /**
- * HOST: Crea la sala P2P y queda a la espera del rival
+ * HOST: Crea la sala P2P y queda a la espera del rival (DataChannel + Video Stream)
  */
 export async function hostPeerRoom(
   roomCode: string,
@@ -56,6 +94,10 @@ export async function hostPeerRoom(
   const peerId = getPeerIdFromRoomCode(roomCode);
 
   let activeConnection: any = null;
+  let activeCall: any = null;
+  let localMediaStream: MediaStream | null = null;
+  let connectedGuestPeerId: string | null = null;
+
   const peer = new Peer(peerId, PEER_CONFIG);
 
   const startScore = initialConfig.startingScore || 501;
@@ -81,7 +123,7 @@ export async function hostPeerRoom(
   };
 
   peer.on('open', (id) => {
-    console.log('[WebRTC Host] Sala abierta con Peer ID:', id);
+    console.log('[WebRTC Host] Sala P2P abierta con Peer ID:', id);
   });
 
   peer.on('error', (err: any) => {
@@ -93,11 +135,40 @@ export async function hostPeerRoom(
     }
   });
 
+  // Escuchar llamadas entrantes de video del rival
+  peer.on('call', (incomingCall) => {
+    console.log('[WebRTC Host] Recibida videollamada de cámara del rival');
+    activeCall = incomingCall;
+
+    if (localMediaStream) {
+      incomingCall.answer(localMediaStream);
+    } else {
+      incomingCall.answer();
+    }
+
+    incomingCall.on('stream', (remoteStream: MediaStream) => {
+      console.log('[WebRTC Host] Recibido stream de video de la diana rival');
+      activeRemoteStream = remoteStream;
+      if (currentRemoteStreamListener) {
+        currentRemoteStreamListener(remoteStream);
+      }
+    });
+
+    incomingCall.on('close', () => {
+      console.log('[WebRTC Host] Stream de cámara del rival cerrado');
+      activeRemoteStream = null;
+      if (currentRemoteStreamListener) {
+        currentRemoteStreamListener(null);
+      }
+    });
+  });
+
+  // Escuchar canal de datos (tiros, turnos, chat)
   peer.on('connection', (conn) => {
     activeConnection = conn;
 
     conn.on('open', () => {
-      console.log('[WebRTC Host] Conexión P2P establecida con rival');
+      console.log('[WebRTC Host] Conexión de datos P2P establecida con rival');
     });
 
     conn.on('data', (data: any) => {
@@ -105,6 +176,7 @@ export async function hostPeerRoom(
       if (!msg) return;
 
       if (msg.type === 'JOIN_REQUEST') {
+        connectedGuestPeerId = msg.guestPeerId || null;
         roomState.player2 = msg.player;
         roomState.config.player2 = msg.player;
         roomState.config.player2Name = msg.player.name;
@@ -114,10 +186,25 @@ export async function hostPeerRoom(
         // Responder con aceptación y estado completo
         conn.send({
           type: 'JOIN_ACCEPTED',
-          room: roomState
+          room: roomState,
+          hostPeerId: peerId
         } as PeerMessage);
 
         onGuestJoined(roomState);
+
+        // Si ya tenemos stream local disponible, llamar al rival
+        if (localMediaStream && connectedGuestPeerId) {
+          try {
+            const call = peer.call(connectedGuestPeerId, localMediaStream);
+            activeCall = call;
+            call.on('stream', (remoteStream) => {
+              activeRemoteStream = remoteStream;
+              if (currentRemoteStreamListener) currentRemoteStreamListener(remoteStream);
+            });
+          } catch (e) {
+            console.warn('[WebRTC Host Call Error]:', e);
+          }
+        }
       } else if (msg.type === 'THROW') {
         if (currentThrowListener) {
           currentThrowListener(msg.score, msg.darts, msg.isCheckout);
@@ -153,9 +240,45 @@ export async function hostPeerRoom(
         } as PeerMessage);
       }
     },
+    sendMediaStream: (stream: MediaStream) => {
+      localMediaStream = stream;
+      if (activeCall) {
+        // Si ya hay una llamada activa, reemplazar tracks
+        try {
+          const senders = activeCall.peerConnection?.getSenders?.() || [];
+          const videoTrack = stream.getVideoTracks()[0];
+          const audioTrack = stream.getAudioTracks()[0];
+
+          senders.forEach((sender: any) => {
+            if (sender.track?.kind === 'video' && videoTrack) {
+              sender.replaceTrack(videoTrack);
+            } else if (sender.track?.kind === 'audio' && audioTrack) {
+              sender.replaceTrack(audioTrack);
+            }
+          });
+        } catch (e) {
+          console.warn('[WebRTC Host Track Replace Notice]:', e);
+        }
+      } else if (connectedGuestPeerId) {
+        // Llamar al rival con el stream de cámara
+        try {
+          const call = peer.call(connectedGuestPeerId, stream);
+          activeCall = call;
+          call.on('stream', (remoteStream: MediaStream) => {
+            activeRemoteStream = remoteStream;
+            if (currentRemoteStreamListener) currentRemoteStreamListener(remoteStream);
+          });
+        } catch (e) {
+          console.warn('[WebRTC Host Call Error]:', e);
+        }
+      }
+    },
+    getRemoteStream: () => activeRemoteStream,
     destroy: () => {
       try {
+        if (activeCall) activeCall.close();
         if (activeConnection) activeConnection.close();
+        activeRemoteStream = null;
         peer.destroy();
       } catch (e) {}
     }
@@ -163,7 +286,7 @@ export async function hostPeerRoom(
 }
 
 /**
- * GUEST: Se conecta a la sala P2P del host
+ * GUEST: Se conecta a la sala P2P del host (DataChannel + Video Stream)
  */
 export async function joinPeerRoom(
   roomCode: string,
@@ -176,16 +299,19 @@ export async function joinPeerRoom(
   const targetPeerId = getPeerIdFromRoomCode(roomCode);
 
   let activeConnection: any = null;
-  // Guest usa un ID aleatorio único
+  let activeCall: any = null;
+  let localMediaStream: MediaStream | null = null;
+
+  // Guest usa un ID aleatorio único con prefijo
   const guestPeerId = `lpld-guest-${Math.random().toString(36).substring(2, 9)}`;
   const peer = new Peer(guestPeerId, PEER_CONFIG);
 
   let connectionTimeout = setTimeout(() => {
     onError('No se pudo encontrar la sala del contrincante. Verifica el código o la conexión.');
-  }, 10000);
+  }, 12000);
 
   peer.on('open', () => {
-    console.log('[WebRTC Guest] Conectando a Host:', targetPeerId);
+    console.log('[WebRTC Guest] Conectando a Host:', targetPeerId, 'con Guest ID:', guestPeerId);
     const conn = peer.connect(targetPeerId, {
       reliable: true
     });
@@ -193,11 +319,12 @@ export async function joinPeerRoom(
 
     conn.on('open', () => {
       clearTimeout(connectionTimeout);
-      console.log('[WebRTC Guest] Conexión P2P abierta con Host');
-      // Enviar solicitud de ingreso
+      console.log('[WebRTC Guest] Conexión P2P de datos abierta con Host');
+      // Enviar solicitud de ingreso informando nuestro guestPeerId
       conn.send({
         type: 'JOIN_REQUEST',
-        player: guestPlayer
+        player: guestPlayer,
+        guestPeerId
       } as PeerMessage);
     });
 
@@ -207,6 +334,20 @@ export async function joinPeerRoom(
 
       if (msg.type === 'JOIN_ACCEPTED') {
         onConnected(msg.room);
+
+        // Si ya teníamos stream local listo, llamar al host
+        if (localMediaStream) {
+          try {
+            const call = peer.call(targetPeerId, localMediaStream);
+            activeCall = call;
+            call.on('stream', (remoteStream) => {
+              activeRemoteStream = remoteStream;
+              if (currentRemoteStreamListener) currentRemoteStreamListener(remoteStream);
+            });
+          } catch (e) {
+            console.warn('[WebRTC Guest Call Error]:', e);
+          }
+        }
       } else if (msg.type === 'THROW') {
         if (currentThrowListener) {
           currentThrowListener(msg.score, msg.darts, msg.isCheckout);
@@ -224,6 +365,34 @@ export async function joinPeerRoom(
 
     conn.on('close', () => {
       console.log('[WebRTC Guest] Conexión con sala cerrada');
+    });
+  });
+
+  // Escuchar si el Host nos llama con su cámara
+  peer.on('call', (incomingCall) => {
+    console.log('[WebRTC Guest] Recibida llamada de cámara del Host');
+    activeCall = incomingCall;
+
+    if (localMediaStream) {
+      incomingCall.answer(localMediaStream);
+    } else {
+      incomingCall.answer();
+    }
+
+    incomingCall.on('stream', (remoteStream: MediaStream) => {
+      console.log('[WebRTC Guest] Recibido stream de video de la diana del Host');
+      activeRemoteStream = remoteStream;
+      if (currentRemoteStreamListener) {
+        currentRemoteStreamListener(remoteStream);
+      }
+    });
+
+    incomingCall.on('close', () => {
+      console.log('[WebRTC Guest] Stream de cámara del host cerrado');
+      activeRemoteStream = null;
+      if (currentRemoteStreamListener) {
+        currentRemoteStreamListener(null);
+      }
     });
   });
 
@@ -253,10 +422,45 @@ export async function joinPeerRoom(
         } as PeerMessage);
       }
     },
+    sendMediaStream: (stream: MediaStream) => {
+      localMediaStream = stream;
+      if (activeCall) {
+        try {
+          const senders = activeCall.peerConnection?.getSenders?.() || [];
+          const videoTrack = stream.getVideoTracks()[0];
+          const audioTrack = stream.getAudioTracks()[0];
+
+          senders.forEach((sender: any) => {
+            if (sender.track?.kind === 'video' && videoTrack) {
+              sender.replaceTrack(videoTrack);
+            } else if (sender.track?.kind === 'audio' && audioTrack) {
+              sender.replaceTrack(audioTrack);
+            }
+          });
+        } catch (e) {
+          console.warn('[WebRTC Guest Track Replace Notice]:', e);
+        }
+      } else {
+        // Llamar al host
+        try {
+          const call = peer.call(targetPeerId, stream);
+          activeCall = call;
+          call.on('stream', (remoteStream: MediaStream) => {
+            activeRemoteStream = remoteStream;
+            if (currentRemoteStreamListener) currentRemoteStreamListener(remoteStream);
+          });
+        } catch (e) {
+          console.warn('[WebRTC Guest Call Error]:', e);
+        }
+      }
+    },
+    getRemoteStream: () => activeRemoteStream,
     destroy: () => {
       clearTimeout(connectionTimeout);
       try {
+        if (activeCall) activeCall.close();
         if (activeConnection) activeConnection.close();
+        activeRemoteStream = null;
         peer.destroy();
       } catch (e) {}
     }
@@ -275,4 +479,3 @@ export function setActiveWebRtcHandler(handler: WebRtcRoomHandler | null) {
 export function getActiveWebRtcHandler(): WebRtcRoomHandler | null {
   return activeWebRtcHandler;
 }
-

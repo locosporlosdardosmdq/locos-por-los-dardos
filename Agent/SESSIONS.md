@@ -1,6 +1,32 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
-## [Sesión 18] - 2026-10-11
+## [Sesión 19] - 2026-10-11
+- **Objetivo:** Implementación de la Doble Diana Split-Screen en vivo (estilo Nakka N01 Darts), servidores TURN OpenRelay TCP 443 para atravesar CGNAT en redes móviles 4G/LTE de Argentina, locución sincronizada inmediata de Russ Bray en ambos dispositivos al anotar cada tiro, y foto de la comunidad de Darderos Mar del Plata (`Darderos.jpeg`) de fondo en la landing page con cuadros interiores al 90% de transparencia.
+- **Diagnóstico de Causa Raíz:**
+  1. *Bloqueo P2P por CGNAT Celular:* Los servidores STUN de Google no pueden atravesar el NAT simétrico de las compañías de telefonía móvil (Claro, Movistar, Personal) cuando un usuario está en 4G/LTE y el otro en Wi-Fi. Se requerían servidores TURN con transporte TCP sobre el puerto 443.
+  2. *Cámara Local en lugar de Diana Rival:* La interfaz solo abría la cámara propia en lugar de transmitir el stream y recibir el video del rival. Además, tapaba el área con una tarjeta azul fija en el turno del contrincante.
+  3. *Locución del Árbitro para el Rival:* Al impactar una visita en el celular, el contrincante en su PC no escuchaba la puntuación cantada porque dependía únicamente del refresco del marcador.
+- **Realizado:**
+  - **Servidores TURN OpenRelay TCP 443 (`webrtc-room.ts`):**
+    * Integrados servidores TURN de `relay.metered.ca` con puertos 80 y 443 (TCP/UDP) para negociación garantizada entre cualquier tipo de conexión celular y fija.
+    * Incorporado streaming P2P bidireccional (`sendMediaStream`, `peer.call`, `peer.on('call')` y `setWebRtcRemoteStreamListener`).
+  - **Doble Diana Split-Screen en Vivo (Estilo Nakka N01 en `X01Board.tsx`):**
+    * Panel simétrico con ambas dianas en vivo simultáneas (Diana de P1 y Diana de P2).
+    * Diana local con cámara seleccionable (trasera por default / frontal) y diana remota con el stream de video recibido en tiempo real.
+    * Halos luminosos verdes (`#00e676`) y badges activos (`[🎯 Tirando]`) indicando claramente quién está en la línea de tiro.
+    * Teclado ergonómico accesible para anotar sin perder la visual de las dianas.
+  - **Canto Sincronizado de Russ Bray:**
+    * Ejecución instantánea de `VoiceCaller.speakScore(score)` y `SoundEngine.play180()` en el cliente remoto al llegar el evento P2P, garantizando que el rival escuche claramente los puntos de cada visita por los parlantes.
+  - **Fondo de la Comunidad Darderos MDQ en Landing Page (`src/app/page.tsx`):**
+    * Copiado `Darderos.jpeg` a `public/images/darderos.jpeg`.
+    * Aplicado como fondo de la sección 2 con overlay oscuro para óptimo contraste y cuadros interiores al 90% de transparencia con `backdrop-blur-md`.
+  - **Compilación de Producción:**
+    * `npm run build` ejecutado exitosamente con 0 errores y 16/16 páginas generadas (código de salida 0).
+- **Estado del Proyecto:** Salas online 1 vs 1 con experiencia idéntica a Nakka N01 Darts (doble diana en vivo, voz de Russ Bray para ambos jugadores, conectividad P2P blindada con TURN) y landing comunitaria con identidad fotográfica de Darderos Mar del Plata.
+
+---
+
+
 - **Objetivo:** Resolución del bloqueo de avance de turno durante partidas online en vivo ("el contrincante ya anotó y no avanza") y habilitación de la cámara trasera por defecto en celulares para enfocar la diana física con botón de alternancia.
 - **Diagnóstico de Causa Raíz:**
   1. *Desconexión de Callback WebRTC:* La conexión P2P entre Florencia (celular) y Mariano (PC) se estableció con éxito en la sala `DART-P3B5`, pero el callback `onThrowReceived` de WebRTC quedó inicializado como función vacía `() => {}` en el modal de apertura y nunca se vinculó con la función `submitScore` del tablero `X01Board.tsx`. Por lo tanto, al llegar el evento `THROW` con los 180 puntos de Florencia, la PC de Mariano no ejecutó la anotación ni avanzó el turno.

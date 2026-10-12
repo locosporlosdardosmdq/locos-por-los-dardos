@@ -32,7 +32,12 @@ import {
 } from 'lucide-react';
 import { matchBroadcast } from '@/lib/broadcast';
 import { normalizeRoomCode } from '@/lib/online-rooms';
-import { getActiveWebRtcHandler, setWebRtcThrowListener } from '@/lib/webrtc-room';
+import { 
+  getActiveWebRtcHandler, 
+  setWebRtcThrowListener, 
+  setWebRtcRemoteStreamListener, 
+  getActiveRemoteStream 
+} from '@/lib/webrtc-room';
 
 export interface TurnRecord {
   id: string;
@@ -123,8 +128,8 @@ export const X01Board: React.FC<X01BoardProps> = ({
   // Modal de opciones para Volver / Stand By / Abandonar
   const [showExitModal, setShowExitModal] = useState<boolean>(false);
 
-  // Cámara y Micrófono en dispositivo móvil (Opción 1: Alternancia diana rival y voz en vivo)
-  const [showMobileCamera, setShowMobileCamera] = useState<boolean>(false);
+  // Cámara y Micrófono en dispositivo móvil (Doble Diana P2P estilo Nakka N01)
+  const [showMobileCamera, setShowMobileCamera] = useState<boolean>(() => !!config.isOnlineRoom);
   const [cameraFacingMode, setCameraFacingMode] = useState<'environment' | 'user'>('environment'); // Trasera por defecto para enfocar diana
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
@@ -133,6 +138,30 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+
+  // Stream remoto de la cámara del contrincante vía WebRTC P2P
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(getActiveRemoteStream());
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    setWebRtcRemoteStreamListener((stream) => {
+      console.log('[WebRTC P2P] Stream de cámara rival actualizado:', !!stream);
+      setRemoteStream(stream);
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = stream;
+      }
+    });
+
+    return () => {
+      setWebRtcRemoteStreamListener(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   // Alternar entre cámara trasera (diana) y delantera (jugador)
   const handleToggleCameraFacing = () => {
@@ -164,6 +193,16 @@ export const X01Board: React.FC<X01BoardProps> = ({
           mobileStreamRef.current = stream;
           if (mobileVideoRef.current) {
             mobileVideoRef.current.srcObject = stream;
+          }
+
+          // Transmitir inmediatamente la cámara al rival por WebRTC TURN P2P
+          try {
+            const webrtc = getActiveWebRtcHandler();
+            if (webrtc) {
+              webrtc.sendMediaStream(stream);
+            }
+          } catch (e) {
+            console.warn('[WebRTC SendMediaStream Notice]:', e);
           }
 
           // Inicializar análisis de voz para vúmetro / feedback en tiempo real
@@ -225,12 +264,12 @@ export const X01Board: React.FC<X01BoardProps> = ({
     }
   }, [isMicMuted]);
 
-  // Si cambia el turno al usuario local (0), ocultar cámara y mostrar teclado de 5 columnas automáticamente
+  // En partidas locales no online, al volver el turno local se puede replegar la cámara si se desea
   useEffect(() => {
-    if (currentTurn === 0 && showMobileCamera) {
+    if (!config.isOnlineRoom && currentTurn === 0 && showMobileCamera) {
       setShowMobileCamera(false);
     }
-  }, [currentTurn]);
+  }, [currentTurn, config.isOnlineRoom]);
 
   // Manejador de Pop-out 2ª Pantalla / TV (Opción 1 para PC)
   const handleOpenPopout = () => {
@@ -465,13 +504,29 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
     setWebRtcThrowListener((score, _darts, _isCheckout) => {
       console.log('[WebRTC P2P] Recibida tirada del rival:', score);
+      // Disparar audio oficial de Russ Bray inmediatamente para que el contrincante escuche los tantos
+      try {
+        if (!isMuted) {
+          if (score === 180) {
+            SoundEngine.play180();
+            if (voiceCallerEnabled) VoiceCaller.speakScore(180);
+          } else if (score >= 100) {
+            if (voiceCallerEnabled) VoiceCaller.speakScore(score);
+          } else if (score > 0) {
+            SoundEngine.playDartHit();
+            if (voiceCallerEnabled) VoiceCaller.speakScore(score);
+          }
+        }
+      } catch (e) {
+        console.warn('[Audio WebRTC Sync Notice]:', e);
+      }
       submitScore(score, true);
     });
 
     return () => {
       setWebRtcThrowListener(null);
     };
-  }, [config.isOnlineRoom, currentTurn, scores]);
+  }, [config.isOnlineRoom, currentTurn, scores, isMuted, voiceCallerEnabled]);
 
   // Polling continuo en sala online cuando es el turno del rival (respaldo redundante)
   useEffect(() => {
@@ -1120,110 +1175,200 @@ export const X01Board: React.FC<X01BoardProps> = ({
         </button>
       </div>
 
-      {/* CÁMARA MÓVIL EN VIVO (OPCIÓN 1) vs ESPERA DE RIVAL ONLINE vs TECLADO TÁCTIL */}
-      {isOnline && !isMyTurn ? (
-        <div className="bg-[#0f1422] border-2 border-[#0284c7]/50 rounded-2xl p-6 text-center space-y-3.5 shadow-xl animate-in fade-in">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-[#0284c7]/20 border border-[#0284c7]/40 flex items-center justify-center text-[#38bdf8]">
-            <Target className="w-7 h-7 animate-pulse" />
+      {/* PANEL DE DOBLE DIANA EN VIVO (ESTILO NAKKA N01 SPLIT-SCREEN) */}
+      {(isOnline || showMobileCamera) && (
+        <div className="bg-[#0b0e14] border border-slate-800 rounded-2xl p-2.5 sm:p-3 space-y-2.5 shadow-2xl">
+          {/* Barra de estado y controles superiores de las dianas */}
+          <div className="flex items-center justify-between text-xs px-1">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#00e676] animate-ping" />
+              <span className="font-black text-white uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5 text-[#00e676]" />
+                <span>Doble Diana en Vivo</span>
+                {isOnline && <span className="text-[10px] text-slate-400 font-mono">({config.onlineRoomCode})</span>}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {/* Botón Alternar Cámara Trasera (Diana) / Delantera */}
+              <button
+                type="button"
+                onClick={handleToggleCameraFacing}
+                className="px-2 py-1 rounded-lg bg-[#111622] hover:bg-[#1a2234] border border-amber-500/40 text-amber-400 text-[10px] font-bold flex items-center gap-1 transition-colors"
+                title="Alternar entre cámara trasera (apuntando a la diana) y delantera"
+              >
+                <SwitchCamera className="w-3 h-3" />
+                <span className="hidden sm:inline">{cameraFacingMode === 'environment' ? 'Trasera (Diana)' : 'Delantera'}</span>
+              </button>
+
+              {/* Botón Silenciar/Activar Micrófono */}
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !isMicMuted;
+                  setIsMicMuted(next);
+                  showFeedback(next ? 'Micrófono silenciado' : 'Micrófono activo para hablar con el rival', next ? '#ef4444' : '#00e676');
+                }}
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-all ${
+                  isMicMuted 
+                    ? 'bg-red-500/20 text-red-400 border-red-500/40' 
+                    : isSpeaking 
+                      ? 'bg-[#00e676]/30 text-[#00e676] border-[#00e676] ring-2 ring-[#00e676]/50 animate-pulse' 
+                      : 'bg-[#111622] text-[#00e676] border-[#00e676]/40'
+                }`}
+              >
+                {isMicMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                <span>{isMicMuted ? 'Mute' : isSpeaking ? 'Voz ON' : 'Mic'}</span>
+              </button>
+
+              {/* Toggle de Visualización de Cámaras */}
+              <button
+                type="button"
+                onClick={() => setShowMobileCamera(!showMobileCamera)}
+                className={`px-2 py-1 rounded-lg border text-[10px] font-bold transition-colors ${
+                  showMobileCamera 
+                    ? 'bg-[#00e676] text-black border-[#00e676]' 
+                    : 'bg-black text-slate-400 border-slate-800 hover:text-white'
+                }`}
+              >
+                {showMobileCamera ? 'Ocultar' : 'Ver Cámaras'}
+              </button>
+            </div>
           </div>
-          <div>
-            <h4 className="text-base font-black text-white">
-              Turno de {currentTurn === 0 ? p1Display : p2Display} en su Diana
-            </h4>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              Esperando que tu contrincante lance sus 3 dardos y anote el puntaje... El marcador se actualizará automáticamente.
-            </p>
-          </div>
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#07090e] rounded-full border border-slate-800 text-[11px] text-[#38bdf8] font-mono font-bold">
-            <span className="w-2 h-2 rounded-full bg-[#38bdf8] animate-ping" />
-            <span>Sincronizando sala {config.onlineRoomCode}</span>
-          </div>
+
+          {/* Grid Split-Screen con las DOS Dianas Lado a Lado (Estilo Nakka N01) */}
+          {showMobileCamera && (
+            <div className="grid grid-cols-2 gap-2">
+              {/* DIANA 1 (Jugador 1) */}
+              <div className={`relative aspect-square sm:aspect-video rounded-xl overflow-hidden bg-black border-2 transition-all ${
+                currentTurn === 0 
+                  ? 'border-[#00e676] ring-2 ring-[#00e676]/50 shadow-lg shadow-[#00e676]/20' 
+                  : 'border-slate-800 opacity-85'
+              }`}>
+                {localPlayerIdx === 0 ? (
+                  mobileStreamRef.current ? (
+                    <video 
+                      ref={mobileVideoRef} 
+                      autoPlay 
+                      playsInline 
+                      muted 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-gradient-to-b from-slate-900 to-black">
+                      <Camera className="w-6 h-6 text-slate-500 mb-1" />
+                      <span className="text-[10px] font-bold text-slate-300">Tu Diana</span>
+                      <button
+                        onClick={() => setShowMobileCamera(true)}
+                        className="mt-1 px-2 py-0.5 rounded bg-[#00e676] text-black text-[9px] font-black"
+                      >
+                        Encender
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  remoteStream ? (
+                    <video 
+                      ref={remoteVideoRef} 
+                      autoPlay 
+                      playsInline 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-gradient-to-b from-slate-900 to-black">
+                      <Target className="w-6 h-6 text-[#ef4444] mb-1 animate-pulse" />
+                      <span className="text-[10px] font-bold text-slate-300">{p1Display}</span>
+                      <span className="text-[9px] text-slate-500">En espera de cámara...</span>
+                    </div>
+                  )
+                )}
+
+                {/* Overlays informativos sobre la Diana 1 */}
+                <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between pointer-events-none">
+                  <div className="bg-black/85 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] font-black text-white truncate max-w-[110px] border border-white/10">
+                    {p1Display} {localPlayerIdx === 0 ? '(Tú)' : ''}
+                  </div>
+                  {currentTurn === 0 && (
+                    <span className="bg-[#00e676] text-black text-[8px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-0.5 shadow">
+                      <Target className="w-2.5 h-2.5" /> Tirando
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* DIANA 2 (Jugador 2) */}
+              <div className={`relative aspect-square sm:aspect-video rounded-xl overflow-hidden bg-black border-2 transition-all ${
+                currentTurn === 1 
+                  ? 'border-[#00e676] ring-2 ring-[#00e676]/50 shadow-lg shadow-[#00e676]/20' 
+                  : 'border-slate-800 opacity-85'
+              }`}>
+                {localPlayerIdx === 1 ? (
+                  mobileStreamRef.current ? (
+                    <video 
+                      ref={mobileVideoRef} 
+                      autoPlay 
+                      playsInline 
+                      muted 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-gradient-to-b from-slate-900 to-black">
+                      <Camera className="w-6 h-6 text-slate-500 mb-1" />
+                      <span className="text-[10px] font-bold text-slate-300">Tu Diana</span>
+                      <button
+                        onClick={() => setShowMobileCamera(true)}
+                        className="mt-1 px-2 py-0.5 rounded bg-[#00e676] text-black text-[9px] font-black"
+                      >
+                        Encender
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  remoteStream ? (
+                    <video 
+                      ref={remoteVideoRef} 
+                      autoPlay 
+                      playsInline 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-gradient-to-b from-slate-900 to-black">
+                      <Target className="w-6 h-6 text-[#ef4444] mb-1 animate-pulse" />
+                      <span className="text-[10px] font-bold text-slate-300">{p2Display}</span>
+                      <span className="text-[9px] text-slate-500">En espera de cámara...</span>
+                    </div>
+                  )
+                )}
+
+                {/* Overlays informativos sobre la Diana 2 */}
+                <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between pointer-events-none">
+                  <div className="bg-black/85 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] font-black text-white truncate max-w-[110px] border border-white/10">
+                    {p2Display} {localPlayerIdx === 1 ? '(Tú)' : ''}
+                  </div>
+                  {currentTurn === 1 && (
+                    <span className="bg-[#00e676] text-black text-[8px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-0.5 shadow">
+                      <Target className="w-2.5 h-2.5" /> Tirando
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      ) : showMobileCamera ? (
-        <div className="bg-[#0f1422] border-2 border-[#ffe600]/50 rounded-2xl p-3 space-y-2.5 animate-in fade-in">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5 font-black text-amber-400">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-              <span>Diana de Rival en Vivo</span>
-            </div>
-            <button
-              onClick={() => setShowMobileCamera(false)}
-              className="px-2.5 py-1 rounded-lg bg-[#00e676] text-black text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm"
-            >
-              <span>⌨️ Ver Teclado</span>
-            </button>
+      )}
+
+      {/* AVISO ELEGANTE CUANDO ES TURNO DEL RIVAL */}
+      {isOnline && !isMyTurn ? (
+        <div className="bg-[#0f1422] border-2 border-[#0284c7]/40 rounded-2xl p-4 text-center space-y-2 shadow-xl animate-in fade-in">
+          <div className="flex items-center justify-center gap-2 text-sm font-black text-[#38bdf8]">
+            <span className="w-2 h-2 rounded-full bg-[#38bdf8] animate-ping" />
+            <span>Turno de {currentTurn === 0 ? p1Display : p2Display} en su Diana</span>
           </div>
-
-          <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-slate-800 flex items-center justify-center">
-            <video
-              ref={mobileVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-contain"
-            />
-            <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] font-bold text-slate-300">
-              Tirador: {getCurrentShooterName()}
-            </div>
-            {/* Indicador de voz activo sobre el video */}
-            <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-2 py-1 rounded-lg border border-slate-700 text-[10px]">
-              {isMicMuted ? (
-                <span className="text-red-400 font-bold flex items-center gap-1">
-                  <MicOff className="w-3 h-3" /> Silenciado
-                </span>
-              ) : isSpeaking ? (
-                <span className="text-[#00e676] font-bold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-ping" />
-                  <Mic className="w-3 h-3 text-[#00e676]" /> Hablando
-                </span>
-              ) : (
-                <span className="text-slate-400 font-medium flex items-center gap-1">
-                  <Mic className="w-3 h-3" /> Micrófono ON
-                </span>
-              )}
-            </div>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Observa sus 3 lanzamientos en la pantalla de arriba. Cuando anote, el marcador y Russ Bray se actualizarán automáticamente.
+          </p>
+          <div className="pt-1 flex items-center justify-center gap-2">
+            <span className="text-[11px] text-slate-500 font-mono">Sincronización P2P Online • {config.onlineRoomCode}</span>
           </div>
-
-          {/* Panel de Control de Cámara & Micrófono con el Contrincante */}
-          <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-black/70 border border-slate-800 text-xs">
-            {/* Botón Alternar Cámara Trasera (Diana) / Delantera */}
-            <button
-              type="button"
-              onClick={handleToggleCameraFacing}
-              className="px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all bg-[#111622] hover:bg-[#1a2234] border border-amber-500/40 text-amber-400 shadow-sm"
-              title="Alternar entre cámara trasera (apuntando a la diana) y cámara delantera"
-            >
-              <SwitchCamera className="w-3.5 h-3.5" />
-              <span>{cameraFacingMode === 'environment' ? '📷 Trasera (Diana)' : '🤳 Delantera'}</span>
-            </button>
-
-            {/* Botón Silenciar/Activar Micrófono */}
-            <button
-              type="button"
-              onClick={() => {
-                const next = !isMicMuted;
-                setIsMicMuted(next);
-                showFeedback(next ? 'Micrófono silenciado' : 'Micrófono activo para hablar con el rival', next ? '#ef4444' : '#00e676');
-              }}
-              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm ${
-                isMicMuted 
-                  ? 'bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30' 
-                  : isSpeaking 
-                    ? 'bg-[#00e676]/30 text-[#00e676] border border-[#00e676] ring-2 ring-[#00e676]/50 animate-pulse' 
-                    : 'bg-[#111622] text-[#00e676] border border-[#00e676]/40 hover:bg-[#1a2234]'
-              }`}
-            >
-              {isMicMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-              <span>{isMicMuted ? 'Micrófono OFF' : isSpeaking ? 'Hablando' : 'Micrófono ON'}</span>
-            </button>
-          </div>
-
-          <button
-            onClick={() => setShowMobileCamera(false)}
-            className="w-full py-2.5 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-transform active:scale-95 shadow-md shadow-[#00e676]/20"
-          >
-            <span>Ir al Teclado para Anotar Tiro</span>
-          </button>
         </div>
       ) : (
         /* TECLADO ERGONÓMICO DE 5 COLUMNAS IDÉNTICO A LA CAPTURA */

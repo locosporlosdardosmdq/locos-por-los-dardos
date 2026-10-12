@@ -480,3 +480,30 @@
      - Se incorporó el botón `[📷 Trasera (Diana) / 🤳 Delantera]` (`SwitchCamera`) con reinicio suave de tracks para conmutar en caliente.
 - **Motivo:** Flujo de juego online ininterrumpido sin bloqueos de turno y ergonomía visual óptima para enfocar tableros físicos desde celulares.
 
+---
+
+## ADR-029: Doble Diana Split-Screen en Vivo (Estilo Nakka N01), Servidores TURN OpenRelay TCP 443 y Locución Sincronizada de Russ Bray
+
+- **Fecha:** 2026-10-11
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. Durante pruebas en salas online entre un celular en red móvil 4G+ (CGNAT) y una PC en red Wi-Fi hogareña, la conexión WebRTC P2P con solo servidores STUN de Google era bloqueada por el NAT simétrico de las compañías de telefonía celular argentinas.
+  2. La vista de cámara anterior únicamente mostraba la webcam local en lugar de recibir la cámara del rival, impidiendo ver ambas dianas en vivo como en Nakka N01 Darts (`n01darts.com`).
+  3. Los puntos cantados por el referee (Russ Bray) deben sonar en el parlante del contrincante en vivo para enterarse de la puntuación incluso si no se dispone de cámara.
+  4. La tarjeta comunitaria principal de la landing page requería la foto de la comunidad de `Darderos Mar del Plata` de fondo con cuadros interiores 90% transparentes con `backdrop-blur`.
+- **Decisión:**
+  1. **Configuración WebRTC con Servidores TURN Públicos (OpenRelay TCP 443):**
+     - Se incorporaron en `PEER_CONFIG` los servidores TURN de `relay.metered.ca` con transporte TCP en puertos 80 y 443. Esto permite atravesar cualquier firewall y NAT simétrico de operadoras móviles (Claro, Personal, Movistar).
+  2. **Streaming P2P Bidireccional de Cámaras & Doble Diana (Split-Screen estilo Nakka N01):**
+     - En `webrtc-room.ts` se integró el método `sendMediaStream(stream)` y la gestión de llamadas `peer.call` / `peer.on('call')` para transmitir el video de la diana local y recibir el stream remoto del contrincante.
+     - En `X01Board.tsx` se diseñó el panel simétrico de Doble Diana:
+       * Panel Izquierdo: Diana del Jugador 1 con badge de estado y halo luminoso cuando es su turno.
+       * Panel Derecho: Diana del Jugador 2 con badge de estado y halo luminoso cuando es su turno.
+       * Controles en caliente de alternancia de cámara (Trasera/Frontal) y micrófono con indicador de habla.
+  3. **Locución Inmediata de Russ Bray para Ambos Jugadores:**
+     - En el listener de tiradas P2P, al impactar los dardos del rival, se dispara de inmediato el audio oficial de Russ Bray (`VoiceCaller.speakScore(score)` y `SoundEngine.play180()` si es 180), asegurando que el contrincante escuche el puntaje por sus parlantes en tiempo real.
+  4. **Fondo de la Comunidad Darderos MDQ en Landing Page:**
+     - Se copió `Darderos.jpeg` a `public/images/darderos.jpeg` y se aplicó como fondo de la sección 2 de `src/app/page.tsx` con overlay oscuro y cuadros interiores al 90% de transparencia (`bg-black/10 backdrop-blur-md`).
+- **Motivo:** Replicar la ergonomía profesional de Nakka N01 Darts con latencia mínima (< 25ms), máxima robustez en redes móviles 4G y homenaje visual a la comunidad de Darderos Mar del Plata.
+
+

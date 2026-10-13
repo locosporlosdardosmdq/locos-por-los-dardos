@@ -32,6 +32,8 @@ import {
   ExternalLink, 
   Sparkles, 
   ArrowLeft,
+  PauseCircle,
+  UserX,
   Building2, 
   Landmark, 
   Award,
@@ -171,6 +173,7 @@ export default function SuperadminPage() {
       club: 'Darderos Mar del Plata',
       photoUrl: '/images/iceman-perfil.png',
       category: 'INTERMEDIA',
+      status: 'ACTIVE',
       estimatedAvg: 48.0,
       email: 'marianodeux@gmail.com'
     });
@@ -193,6 +196,7 @@ export default function SuperadminPage() {
           club: p.club || 'Darderos Mar del Plata',
           photoUrl: cleanPhoto || cleanAvatar || undefined,
           category: p.category || 'INTERMEDIA',
+          status: p.status || 'ACTIVE',
           estimatedAvg: p.estimatedAvg || (p.stats?.overallAvg ? Number(p.stats.overallAvg) : 45.0),
           email: p.email
         });
@@ -329,6 +333,42 @@ export default function SuperadminPage() {
     }
   };
 
+  // Modificar estado de jugador (Activo, Suspendido, Dado de Baja) sin perder métricas
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+  const handleUpdatePlayerStatusFromAdmin = async (player: any, newStatus: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE') => {
+    const isIceman = player.nickname?.toUpperCase() === 'ICEMAN' || player.email?.toLowerCase() === 'marianodeux@gmail.com';
+    if (isIceman) {
+      alert('El perfil de Super Administrador (ICEMAN) no puede ser suspendido ni dado de baja.');
+      return;
+    }
+
+    const actionName = newStatus === 'ACTIVE' ? 'reactivar' : newStatus === 'SUSPENDED' ? 'suspender' : 'dar de baja';
+    const confirmMsg = `¿Confirmas ${actionName} a "${player.nickname || player.name}"?\n\nSus partidas jugadas, promedios y estadísticas históricas se mantendrán 100% intactas en la base de datos.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setIsUpdatingStatus(player.id);
+      const res = await fetch('/api/jugadores', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: player.id, status: newStatus })
+      });
+      if (res.ok) {
+        const label = newStatus === 'ACTIVE' ? 'reactivado' : newStatus === 'SUSPENDED' ? 'suspendido' : 'dado de baja';
+        setSaveSuccessMsg(`¡Jugador ${player.nickname || player.name} ${label} con éxito! Historial preservado.`);
+        await loadRegisteredPlayers();
+      } else {
+        alert('Error al actualizar el estado del jugador en el servidor.');
+      }
+    } catch (err) {
+      console.error('Error updating player status:', err);
+      alert('Error de red al actualizar el estado del jugador.');
+    } finally {
+      setIsUpdatingStatus(null);
+      setTimeout(() => setSaveSuccessMsg(null), 3500);
+    }
+  };
+
   // Manejador de Login de Administrador
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -348,26 +388,52 @@ export default function SuperadminPage() {
     }
   };
 
-  // Sincronizar Google Forms para el Torneo
-  const handleSyncGoogleForms = () => {
+  // Sincronizar Google Forms / Sheets para el Torneo
+  const handleSyncGoogleForms = async () => {
     setIsSyncingGoogleForm(true);
     setGoogleSyncMsg(null);
-    setTimeout(() => {
-      // Simulación de lectura exitosa del webhook/formulario de Google
-      const newCount = Math.floor(Math.random() * 8) + 38;
-      const updated = {
-        ...showcases,
-        heroTournament: {
-          ...showcases.heroTournament,
-          registeredCount: newCount,
-          lastSyncedAt: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' hs'
+    try {
+      const url = showcases.heroTournament.googleFormUrl?.trim();
+      if (!url) {
+        setGoogleSyncMsg('Ingresa un enlace de Google Form o Google Sheets para sincronizar.');
+        setIsSyncingGoogleForm(false);
+        return;
+      }
+
+      const res = await fetch('/api/sync/google-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        let updatedCount = showcases.heroTournament.registeredCount;
+        if (typeof data.count === 'number') {
+          updatedCount = data.count;
         }
-      };
-      setShowcases(updated);
-      saveStoredLandingShowcases(updated);
+
+        const now = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' hs';
+        const updated = {
+          ...showcases,
+          heroTournament: {
+            ...showcases.heroTournament,
+            registeredCount: updatedCount,
+            lastSyncedAt: now
+          }
+        };
+        setShowcases(updated);
+        saveStoredLandingShowcases(updated);
+        setGoogleSyncMsg(data.message || `Sincronización procesada correctamente (${updatedCount} inscriptos).`);
+      } else {
+        setGoogleSyncMsg(data.error || 'No se pudo conectar con el enlace de Google.');
+      }
+    } catch (err: any) {
+      console.error('Error syncing Google Form:', err);
+      setGoogleSyncMsg('Error de conexión al sincronizar con Google.');
+    } finally {
       setIsSyncingGoogleForm(false);
-      setGoogleSyncMsg(`¡Sincronización Exitosa! Se detectaron ${newCount} inscriptos registrados en el Formulario de Google.`);
-    }, 1200);
+    }
   };
 
   // Guardar cambios en las vitrinas
@@ -1095,12 +1161,17 @@ export default function SuperadminPage() {
                       <th className="py-3 px-3">Ubicación</th>
                       <th className="py-3 px-3">AVG 501</th>
                       <th className="py-3 px-3">Categoría Oficial</th>
+                      <th className="py-3 px-3">Estado</th>
                       <th className="py-3 px-3 text-right">Acción</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1e2a40]/60">
                     {availablePlayers.map((player) => {
                       const currentCat = player.category || 'INTERMEDIA';
+                      const currentStatus = player.status || 'ACTIVE';
+                      const isIceman = player.id === 'user-iceman-admin' || player.nickname?.toUpperCase() === 'ICEMAN';
+                      const isUpdatingThisPlayer = isUpdatingStatus === player.id || isUpdatingCategory === player.id;
+
                       return (
                         <tr key={player.id} className="hover:bg-[#141a29]/50 transition-colors">
                           <td className="py-3 px-3">
@@ -1140,7 +1211,7 @@ export default function SuperadminPage() {
                             <select
                               value={currentCat}
                               onChange={(e) => handleUpdatePlayerCategoryFromAdmin(player, e.target.value)}
-                              disabled={isUpdatingCategory === player.id}
+                              disabled={isUpdatingThisPlayer}
                               className="bg-[#07090e] border border-slate-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:border-[#00e676] cursor-pointer"
                             >
                               <option value="PRINCIPIANTE">PRINCIPIANTE (&lt; 40 AVG)</option>
@@ -1150,11 +1221,105 @@ export default function SuperadminPage() {
                             </select>
                           </td>
 
+                          <td className="py-3 px-3">
+                            {currentStatus === 'ACTIVE' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500/15 text-[#00e676] border border-emerald-500/30">
+                                <CheckCircle2 className="w-3 h-3 text-[#00e676]" />
+                                <span>Activo</span>
+                              </span>
+                            )}
+                            {currentStatus === 'SUSPENDED' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                <AlertTriangle className="w-3 h-3 text-amber-400" />
+                                <span>Suspendido</span>
+                              </span>
+                            )}
+                            {currentStatus === 'INACTIVE' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-red-500/15 text-red-400 border border-red-500/30">
+                                <UserX className="w-3 h-3 text-red-400" />
+                                <span>Dado de Baja</span>
+                              </span>
+                            )}
+                          </td>
+
                           <td className="py-3 px-3 text-right">
-                            {isUpdatingCategory === player.id ? (
+                            {isUpdatingThisPlayer ? (
                               <span className="text-[11px] text-[#00e676] font-bold animate-pulse">Guardando...</span>
+                            ) : isIceman ? (
+                              <span className="text-[10px] text-emerald-400 font-bold px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 font-mono">
+                                Admin Inmutable
+                              </span>
                             ) : (
-                              <span className="text-[10px] text-slate-400 font-mono">Sincronizado</span>
+                              <div className="flex items-center justify-end gap-1.5">
+                                {currentStatus === 'ACTIVE' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdatePlayerStatusFromAdmin(player, 'SUSPENDED')}
+                                      className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1 transition-all"
+                                      title="Suspender temporalmente al jugador (mantiene historial y estadísticas intactas)"
+                                    >
+                                      <PauseCircle className="w-3 h-3" />
+                                      <span>Suspender</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdatePlayerStatusFromAdmin(player, 'INACTIVE')}
+                                      className="px-2.5 py-1 rounded-lg bg-red-500/15 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-[10px] font-bold flex items-center gap-1 transition-all"
+                                      title="Dar de baja al jugador (mantiene historial y estadísticas intactas)"
+                                    >
+                                      <UserX className="w-3 h-3" />
+                                      <span>Dar de Baja</span>
+                                    </button>
+                                  </>
+                                )}
+
+                                {currentStatus === 'SUSPENDED' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdatePlayerStatusFromAdmin(player, 'ACTIVE')}
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 text-[#00e676] border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 transition-all"
+                                      title="Reactivar y habilitar al jugador"
+                                    >
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      <span>Reactivar</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdatePlayerStatusFromAdmin(player, 'INACTIVE')}
+                                      className="px-2.5 py-1 rounded-lg bg-red-500/15 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-[10px] font-bold flex items-center gap-1 transition-all"
+                                      title="Dar de baja del padrón"
+                                    >
+                                      <UserX className="w-3 h-3" />
+                                      <span>Dar de Baja</span>
+                                    </button>
+                                  </>
+                                )}
+
+                                {currentStatus === 'INACTIVE' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdatePlayerStatusFromAdmin(player, 'ACTIVE')}
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 text-[#00e676] border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 transition-all"
+                                      title="Reactivar y dar de alta nuevamente al jugador"
+                                    >
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      <span>Reactivar</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdatePlayerStatusFromAdmin(player, 'SUSPENDED')}
+                                      className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1 transition-all"
+                                      title="Pasar a suspendido"
+                                    >
+                                      <PauseCircle className="w-3 h-3" />
+                                      <span>Suspender</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -1356,6 +1521,24 @@ export default function SuperadminPage() {
                   </div>
 
                   <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-300">Inscriptos Confirmados (Real)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={showcases.heroTournament.registeredCount}
+                      onChange={(e) => setShowcases({
+                        ...showcases,
+                        heroTournament: {
+                          ...showcases.heroTournament,
+                          registeredCount: Math.max(0, parseInt(e.target.value, 10) || 0)
+                        }
+                      })}
+                      placeholder="ej: 0"
+                      className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-[#ef4444] focus:outline-none font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-300">Cupo Máximo</label>
                     <input
                       type="number"
@@ -1365,6 +1548,34 @@ export default function SuperadminPage() {
                         heroTournament: { ...showcases.heroTournament, maxParticipants: Number(e.target.value) }
                       })}
                       className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-[#ef4444] focus:outline-none font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-300">Texto Botón Secundario</label>
+                    <input
+                      type="text"
+                      value={showcases.heroTournament.secondaryButtonText || 'Ver Cuadro y Reglamento'}
+                      onChange={(e) => setShowcases({
+                        ...showcases,
+                        heroTournament: { ...showcases.heroTournament, secondaryButtonText: e.target.value }
+                      })}
+                      placeholder="Ver Cuadro y Reglamento"
+                      className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-[#00e676] focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-300">Enlace Botón Secundario (URL o Ruta)</label>
+                    <input
+                      type="text"
+                      value={showcases.heroTournament.secondaryButtonUrl || '/torneos'}
+                      onChange={(e) => setShowcases({
+                        ...showcases,
+                        heroTournament: { ...showcases.heroTournament, secondaryButtonUrl: e.target.value }
+                      })}
+                      placeholder="ej: /torneos o https://..."
+                      className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-[#00e676] focus:outline-none"
                     />
                   </div>
                 </div>

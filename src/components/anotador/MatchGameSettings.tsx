@@ -165,7 +165,7 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
   }, []);
 
   const registeredCommunityPlayers: PlayerProfile[] = cloudPlayers.filter(
-    (p) => p.id !== player1.id && p.fullName !== player1.name && p.nickname !== player1.nickname
+    (p) => p.id !== player1.id && p.fullName !== player1.name && p.nickname !== player1.nickname && p.status !== 'SUSPENDED' && p.status !== 'INACTIVE'
   );
 
   const handleSelectExistingPlayer = (profile: PlayerProfile) => {

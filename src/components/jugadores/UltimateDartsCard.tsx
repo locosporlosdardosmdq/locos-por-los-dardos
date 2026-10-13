@@ -62,6 +62,7 @@ export interface UltimateDartsCardData {
   lastTournamentTrophy?: 'GOLD' | 'SILVER' | 'BRONZE' | 'NONE';
   tournamentsWonList?: Array<{ id?: string; name: string; year: number; stage?: string }>;
   recentHistory?: RecentHistoryItem[];
+  status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
 }
 
 export type RankingMode = 'AVG' | 'LIGA_ARG' | 'LIGA_MDQ' | 'PRESENCIAL_MDQ';

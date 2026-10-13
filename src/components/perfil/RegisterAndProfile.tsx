@@ -37,7 +37,8 @@ import {
   Camera,
   Upload,
   Trash2,
-  MessageCircle
+  MessageCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 export const RegisterAndProfile: React.FC = () => {
@@ -324,6 +325,27 @@ export const RegisterAndProfile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ALERTA DE ESTADO FEDERATIVO: SUSPENSIÓN O BAJA */}
+      {profile.status === 'SUSPENDED' && (
+        <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/50 text-amber-200 text-xs flex items-center gap-3 shadow-lg">
+          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+          <div>
+            <strong className="block text-amber-300 font-black">Cuenta Temporalmente Suspendida</strong>
+            <span>Tu perfil deportivo se encuentra suspendido por la administración. Todas tus estadísticas, promedios y partidas históricas están 100% resguardadas.</span>
+          </div>
+        </div>
+      )}
+
+      {profile.status === 'INACTIVE' && (
+        <div className="p-4 rounded-2xl bg-red-950/40 border border-red-500/50 text-red-200 text-xs flex items-center gap-3 shadow-lg">
+          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <div>
+            <strong className="block text-red-300 font-black">Cuenta Dada de Baja</strong>
+            <span>Tu cuenta ha sido dada de baja del padrón federado activo. Tus métricas históricas se mantienen resguardadas sin modificaciones. Para reactivarte, comunícate con la comisión directiva.</span>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'PROFILE' ? (
         /* VISTA DE PERFIL & ESTADÍSTICAS */

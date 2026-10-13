@@ -43,7 +43,8 @@ export function mapDbRowToCard(row: any): UltimateDartsCardData {
     presentialPoints: parseInt(row.presential_points || '0', 10),
     presentialRank: row.presential_rank ? parseInt(row.presential_rank, 10) : undefined,
     tournamentsWonList: [],
-    recentHistory: []
+    recentHistory: [],
+    status: row.status || 'ACTIVE'
   };
 }
 
@@ -67,6 +68,7 @@ export async function getRegisteredPlayersServer(): Promise<UltimateDartsCardDat
         p.country_code,
         p.initial_estimated_avg,
         p.category,
+        p.status,
         p.is_verified,
         p.bio,
         p.preferred_dart_weight_g,

@@ -123,6 +123,16 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
               <span className="px-2 py-0.5 rounded-lg text-[11px] font-black uppercase bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/30">
                 {player.category}
               </span>
+              {player.status === 'SUSPENDED' && (
+                <span className="px-2 py-0.5 rounded-lg text-[11px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                  Suspendido
+                </span>
+              )}
+              {player.status === 'INACTIVE' && (
+                <span className="px-2 py-0.5 rounded-lg text-[11px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/40">
+                  Dado de Baja
+                </span>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-400">

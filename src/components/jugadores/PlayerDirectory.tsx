@@ -58,7 +58,8 @@ function mapPlayerToCard(p: any): UltimateDartsCardData {
     presentialPoints: p.presentialPoints ?? 0,
     presentialRank: p.presentialRank ?? undefined,
     tournamentsWonList: p.tournamentsWonList || [],
-    recentHistory: p.recentHistory || []
+    recentHistory: p.recentHistory || [],
+    status: p.status || 'ACTIVE'
   };
 }
 

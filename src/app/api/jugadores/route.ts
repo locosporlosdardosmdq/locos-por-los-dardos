@@ -27,6 +27,7 @@ export async function GET() {
         p.country_code,
         p.initial_estimated_avg,
         p.category,
+        p.status,
         p.is_verified,
         p.bio,
         p.preferred_dart_weight_g,
@@ -82,6 +83,7 @@ export async function GET() {
         logoUrl: row.logo_url || (isIcemanRow ? '/logos/logo-iceman-card.png' : undefined),
         estimatedAvg: parseFloat(row.initial_estimated_avg || '45.0'),
         category: row.category || 'INTERMEDIA',
+        status: row.status || 'ACTIVE',
         isVerified: !!row.is_verified,
         bio: row.bio || '',
         preferredDartWeight: row.preferred_dart_weight_g ? parseFloat(row.preferred_dart_weight_g) : 24,
@@ -134,6 +136,7 @@ export async function GET() {
         logoUrl: '/logos/logo-iceman-card.png',
         estimatedAvg: 48.0,
         category: 'INTERMEDIA',
+        status: 'ACTIVE',
         isVerified: true,
         bio: 'Fundador y Presidente de Darderos Mar del Plata y Locos por los Dardos Argentina.',
         club: 'Darderos Mar del Plata',
@@ -381,11 +384,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH: Actualización quirúrgica de campos específicos (categoría, rol, club) sin sobreescribir el resto del perfil
+// PATCH: Actualización quirúrgica de campos específicos (categoría, rol, club, estado) sin sobreescribir el resto del perfil
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, category, nickname, associationRole, isVerified, club } = body;
+    const { id, category, nickname, associationRole, isVerified, club, status } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID de jugador requerido para actualización parcial.' }, { status: 400 });
@@ -399,9 +402,10 @@ export async function PATCH(request: NextRequest) {
         association_role = COALESCE($3, association_role),
         is_verified = COALESCE($4, is_verified),
         club = COALESCE($5, club),
+        status = COALESCE($6, status),
         updated_at = NOW()
-      WHERE id = $6 OR user_id = $6;`,
-      [category || null, nickname || null, associationRole || null, isVerified ?? null, club || null, id]
+      WHERE id = $7 OR user_id = $7;`,
+      [category || null, nickname || null, associationRole || null, isVerified ?? null, club || null, status || null, id]
     );
 
     return NextResponse.json({ success: true, message: 'Perfil actualizado exitosamente' });

@@ -751,4 +751,38 @@
      - Erradicados los fallbacks invasivos a `/images/iceman-perfil.png` reemplazándolos por `/logos/logo-mdq.png` y renderizado seguro con `<img />` para soportar imágenes en base64 de competidoras sin errores de Next.js Image.
 - **Motivo:** Asegura fidelidad total de datos entre la base de datos de producción y la interfaz de usuario, respeta la identidad individual de cada jugador federado y eleva la nitidez visual al estándar profesional.
 
+---
+
+## ADR-039: Arquitectura de Estados Federativos (Suspensión y Baja con Preservación Histórica), Conteo Real de Google Forms y Flexibilidad en Vitrina Hero
+
+- **Fecha:** 2026-10-13
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Cuadro de Sede truncado en Vitrina Hero:* La sede oficial ("Sociedad de Fomento...") aparecía cortada con elipsis en la tarjeta del Gran Torneo por estar constreñida en una grilla fija de 4 columnas iguales, a pesar de que el resto de las tarjetas (Fecha, Bolsa, Inscriptos) ocupaban poco espacio y sobraba ancho horizontal.
+  2. *Enlace rígido de Reglamento:* El botón "Ver Cuadro y Reglamento" estaba cableado estáticamente a `/torneos`, sin permitir a la administración redirigir a `/reglamento` o a documentos externos (PDF de reglamento, Google Drive, Challonge).
+  3. *Inscriptos simulados con números aleatorios:* El panel de Superadmin utilizaba una simulación `Math.floor(Math.random() * 8) + 38` y carecía de un campo editable para que Mariano pueda reflejar la cantidad real de jugadores que se van anotando en el formulario de Google.
+  4. *Gestión disciplinaria y administrativa de jugadores:* Se requería la capacidad de suspender o dar de baja a un jugador federado desde el Superadmin, con la premisa innegociable de no afectar ni destruir sus métricas, AVG, legs disputados o historial en torneos previos.
+- **Decisión:**
+  1. **Flexibilidad Horizontal en Vitrina Hero (`TournamentHeroBanner.tsx`):**
+     - Se reemplazó la grilla rígida por un contenedor flex responsivo (`flex-[2.5]` para Sede, `flex-none` con anchos justos para Fecha, Bolsa e Inscriptos, y `w-full` en smartphones).
+     - Se removió la clase `truncate` y se expandió el contenedor general a `max-w-3xl`, otorgándole a Sede más de 250-320px de espacio para mostrar la denominación completa de clubes e instituciones sin cortes.
+  2. **Configurabilidad Dinámica del Botón Secundario:**
+     - Se incorporaron `secondaryButtonText` y `secondaryButtonUrl` a `LandingShowcaseSettings.heroTournament`.
+     - En `TournamentHeroBanner.tsx`, se detecta automáticamente si el enlace es interno (`<Link href="...">`) o externo (`<a target="_blank" ...>` con icono `ExternalLink`).
+     - Se agregaron campos de edición directa en Superadmin (Vitrina 1).
+  3. **Conteo Real y Sincronización sin Mocks (`/api/sync/google-form` & Superadmin):**
+     - Se erradicó el generador de números aleatorios.
+     - Se añadió un input numérico editable `Inscriptos Confirmados (Real)` en Superadmin para control manual instantáneo.
+     - Se creó el endpoint `POST /api/sync/google-form`: al vincular una planilla de Google Sheets de respuestas (formato público o export CSV), el servidor descarga y cuenta las filas en tiempo real descontando la cabecera.
+  4. **Patrón de Suspensión Suave (Soft Suspension) y Preservación de Datos:**
+     - Se añadió la columna `status VARCHAR(30) DEFAULT 'ACTIVE'` a la tabla `profiles` en PostgreSQL de Supabase.
+     - Estados admitidos: `'ACTIVE'` (Activo/Habilitado), `'SUSPENDED'` (Suspendido/Sancionado temporalmente), `'INACTIVE'` (Dado de baja del padrón).
+     - Endpoint `PATCH /api/jugadores` actualizado para soportar modificaciones quirúrgicas del campo `status`.
+     - Ninguna acción realiza `DELETE` ni borra datos de `player_stats`, partidos ni historial.
+     - En la tabla de Superadmin, se añadió la columna "Estado" con badges visuales (`Activo`, `Suspendido`, `Dado de Baja`) y botones de acción rápida de 1-click con confirmación defensiva.
+     - Se blindó la cuenta de ICEMAN (`user-iceman-admin`) contra autosuspensión/desactivación accidental.
+     - En `MatchGameSettings.tsx`, se filtran los jugadores suspendidos/inactivos para que no puedan ser elegidos en nuevas partidas.
+     - En `RegisterAndProfile.tsx` y `PlayerDetailModal.tsx`, se exhiben avisos respetuosos de estado garantizando que todas las métricas históricas permanecen resguardadas.
+- **Motivo:** Cumple a rajatabla con el requerimiento de integridad de datos deportivos (cero pérdida de métricas), brinda control institucional a la administración y transparenta la portada de la plataforma con datos 100% fidedignos.
+
 

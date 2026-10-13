@@ -461,6 +461,8 @@ export const DEFAULT_LANDING_SHOWCASES: LandingShowcaseSettings = {
     autoSyncGoogleForm: true,
     lastSyncedAt: 'Hoy, 10:45 hs',
     ctaButtonText: 'Inscripción Rápida',
+    secondaryButtonText: 'Ver Cuadro y Reglamento',
+    secondaryButtonUrl: '/torneos',
     bannerDesktopUrl: '',
     bannerMobileUrl: ''
   },

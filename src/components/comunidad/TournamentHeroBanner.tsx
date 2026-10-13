@@ -42,7 +42,7 @@ export const TournamentHeroBanner: React.FC = () => {
 
       <div className="relative flex flex-col lg:flex-row items-center justify-between gap-8">
         {/* Contenido Informativo y Promocional */}
-        <div className="space-y-4 max-w-2xl text-center lg:text-left">
+        <div className="space-y-4 flex-1 max-w-3xl text-center lg:text-left">
           {/* Tag de Evento Oficial en Rojo y Verde Diana */}
           <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
             <span className="bg-[#e52521] text-white text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-red-500/30">
@@ -63,39 +63,39 @@ export const TournamentHeroBanner: React.FC = () => {
           </p>
 
           {/* Metadata Rápida: Fecha, Lugar, Premio en Marfil Sisal y Verde Diana */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-            <div className="bg-[#14161f] border border-[#313647] rounded-2xl p-3 text-center lg:text-left">
+          <div className="flex flex-wrap sm:flex-nowrap items-stretch gap-3 pt-2">
+            <div className="bg-[#14161f] border border-[#313647] rounded-2xl p-3 text-center lg:text-left flex-1 sm:flex-none sm:min-w-[110px]">
               <span className="text-[10px] uppercase font-black text-[#b8ad98] block flex items-center justify-center lg:justify-start gap-1">
                 <Calendar className="w-3 h-3 text-[#00b853]" /> Fecha
               </span>
-              <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5">
+              <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5 whitespace-nowrap">
                 {heroSettings.date}
               </strong>
             </div>
 
-            <div className="bg-[#14161f] border border-[#313647] rounded-2xl p-3 text-center lg:text-left">
+            <div className="bg-[#14161f] border border-[#313647] rounded-2xl p-3 text-center lg:text-left w-full sm:w-auto sm:flex-[2.5] sm:min-w-[220px]">
               <span className="text-[10px] uppercase font-black text-[#b8ad98] block flex items-center justify-center lg:justify-start gap-1">
                 <MapPin className="w-3 h-3 text-[#e52521]" /> Sede
               </span>
-              <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5 truncate" title={heroSettings.venue}>
+              <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5 break-words" title={heroSettings.venue}>
                 {heroSettings.venue}
               </strong>
             </div>
 
-            <div className="bg-[#14161f] border border-[#313647] rounded-2xl p-3 text-center lg:text-left">
+            <div className="bg-[#14161f] border border-[#313647] rounded-2xl p-3 text-center lg:text-left flex-1 sm:flex-none sm:min-w-[105px]">
               <span className="text-[10px] uppercase font-black text-[#b8ad98] block flex items-center justify-center lg:justify-start gap-1">
                 <DollarSign className="w-3 h-3 text-[#00b853]" /> Bolsa
               </span>
-              <strong className="text-xs sm:text-sm text-[#00b853] font-black block mt-0.5 font-mono">
+              <strong className="text-xs sm:text-sm text-[#00b853] font-black block mt-0.5 font-mono whitespace-nowrap">
                 {heroSettings.prizePool}
               </strong>
             </div>
 
-            <div className="bg-[#14161f] border border-[#313647] rounded-2xl p-3 text-center lg:text-left">
+            <div className="bg-[#14161f] border border-[#313647] rounded-2xl p-3 text-center lg:text-left flex-1 sm:flex-none sm:min-w-[105px]">
               <span className="text-[10px] uppercase font-black text-[#b8ad98] block flex items-center justify-center lg:justify-start gap-1">
                 <Users className="w-3 h-3 text-[#1d68ed]" /> Inscriptos
               </span>
-              <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5">
+              <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5 whitespace-nowrap">
                 {heroSettings.registeredCount} / {heroSettings.maxParticipants}
               </strong>
             </div>
@@ -124,13 +124,31 @@ export const TournamentHeroBanner: React.FC = () => {
               </Link>
             )}
 
-            <Link
-              href="/torneos"
-              className="px-6 py-3.5 bg-[#242836] hover:bg-[#2b3040] text-[#efe7d8] font-bold text-sm rounded-2xl border border-[#313647] transition-all flex items-center gap-1.5"
-            >
-              <span>Ver Cuadro y Reglamento</span>
-              <ChevronRight className="w-4 h-4 text-[#00b853]" />
-            </Link>
+            {(() => {
+              const secondaryUrl = heroSettings.secondaryButtonUrl || '/torneos';
+              const secondaryText = heroSettings.secondaryButtonText || 'Ver Cuadro y Reglamento';
+              const isExternal = secondaryUrl.startsWith('http://') || secondaryUrl.startsWith('https://');
+
+              return isExternal ? (
+                <a
+                  href={secondaryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3.5 bg-[#242836] hover:bg-[#2b3040] text-[#efe7d8] font-bold text-sm rounded-2xl border border-[#313647] transition-all flex items-center gap-1.5"
+                >
+                  <span>{secondaryText}</span>
+                  <ExternalLink className="w-4 h-4 text-[#00b853]" />
+                </a>
+              ) : (
+                <Link
+                  href={secondaryUrl}
+                  className="px-6 py-3.5 bg-[#242836] hover:bg-[#2b3040] text-[#efe7d8] font-bold text-sm rounded-2xl border border-[#313647] transition-all flex items-center gap-1.5"
+                >
+                  <span>{secondaryText}</span>
+                  <ChevronRight className="w-4 h-4 text-[#00b853]" />
+                </Link>
+              );
+            })()}
           </div>
         </div>
 

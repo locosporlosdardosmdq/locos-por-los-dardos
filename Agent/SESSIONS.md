@@ -1,5 +1,39 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 29] - 2026-10-13
+- **Objetivo:** Ampliación y flexibilización del cuadro de Sede en la vitrina del Gran Torneo oficial, configurabilidad total del botón secundario ("Ver Cuadro y Reglamento") hacia cualquier URL o ruta desde Superadmin, sincronización fidedigna de inscriptos desde Google Forms/Sheets sin simulaciones ficticias, y sistema de suspensión/baja disciplinaria de jugadores federados con preservación estricta del 100% de métricas, AVG y partidas disputadas.
+- **Diagnóstico de Causa Raíz:**
+  1. *Sede truncada:* `TournamentHeroBanner.tsx` utilizaba una grilla rígida de 4 columnas iguales (`sm:grid-cols-4`) con `truncate`, ahogando nombres de sede extensos (ej. "Sociedad de Fomento...") mientras Fecha, Bolsa y Cupos tenían espacio sobrante.
+  2. *Enlace rígido de Cuadro y Reglamento:* El botón secundario del banner apuntaba estáticamente a `/torneos` sin soporte de configuración en Superadmin para derivar a `/reglamento` o documentos externos (PDF de reglamento, Drive o Challonge).
+  3. *Inscriptos ficticios en Superadmin:* Al pulsar "Sincronizar Ahora" en la vitrina, el sistema generaba un número aleatorio `Math.floor(Math.random() * 8) + 38` y no ofrecía un campo numérico para que Mariano ingresara o editara la cantidad real de jugadores anotados en el Formulario de Google.
+  4. *Falta de gestión de estados federativos:* El padrón de Superadmin solo permitía modificar categorías y mostraba un texto estático "Sincronizado" sin opción para suspender o dar de baja a un jugador, arriesgando la pérdida de datos si se aplicaba un borrado duro (`DELETE`).
+- **Realizado:**
+  - **Ampliación del Cuadro de Sede en Vitrina Hero (`TournamentHeroBanner.tsx`):**
+    * Contenedor flex responsivo con `sm:flex-[2.5]` y `min-w-[220px]` para Sede, anchos ajustados (`min-w-[105px]`) para Fecha, Bolsa e Inscriptos, y `w-full` en móviles.
+    * Eliminada la clase `truncate` y ampliado el ancho máximo del Hero a `max-w-3xl`, desplegando el nombre completo de cualquier sede sin cortes.
+  - **Configurabilidad del Botón Secundario:**
+    * Incorporados campos `secondaryButtonText` y `secondaryButtonUrl` en `LandingShowcaseSettings.heroTournament` (`types.ts` y `storage.ts`).
+    * Detección inteligente de enlaces internos (`<Link>`) y externos (`<a>` con `target="_blank"` y `ExternalLink`).
+    * Campos de edición incluidos en la Vitrina 1 de `/superadmin`.
+  - **Reflejo Real de Inscriptos y Sincronización Google Forms/Sheets:**
+    * Campo numérico editable `Inscriptos Confirmados (Real)` incorporado en Superadmin.
+    * Erradicada la generación ficticia de números aleatorios.
+    * Creado endpoint `POST /api/sync/google-form` que analiza enlaces de Google Sheets y cuenta en vivo las filas de respuestas (CSV) descontando la cabecera.
+  - **Arquitectura de Suspensión y Baja de Jugadores con Preservación Histórica:**
+    * Añadida columna `status VARCHAR(30) DEFAULT 'ACTIVE'` a la tabla `profiles` en PostgreSQL de Supabase sin romper foreign keys ni dependencias.
+    * Mapeo de `status` ('ACTIVE' | 'SUSPENDED' | 'INACTIVE') en `types.ts`, `server-players.ts`, `api/jugadores/route.ts` (GET, POST y PATCH).
+    * Nueva columna **Estado** en el Padrón de Jugadores de Superadmin con badges visuales (Activo, Suspendido, Dado de Baja).
+    * Botones de acción rápida (Suspender, Dar de Baja, Reactivar) con advertencia y confirmación defensiva.
+    * Blindaje absoluto de la cuenta de ICEMAN contra autosuspensión/desactivación.
+    * Exclusión de jugadores suspendidos/inactivos en `MatchGameSettings.tsx` para nuevas partidas.
+    * Alertas informativas en `RegisterAndProfile.tsx` y badges en `PlayerDetailModal.tsx`.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado exitosamente (código 0).
+    * `npm run build` completado exitosamente con 18 páginas estáticas y 6 rutas dinámicas (código 0).
+- **Estado del Proyecto:** Portada con Sede amplia y legible, vitrinas 100% configurables, inscriptos fieles a la realidad de Google Forms y padrón federal con gestión de sanciones y bajas preservando la totalidad del historial deportivo.
+
+---
+
 ## [Sesión 28] - 2026-10-12
 - **Objetivo:** Corrección y desacoplamiento de fichas deportivas en `/jugadores` (modal directo in-place en vez de redirigir a `/perfil` de ICEMAN), estandarización de etiquetas de Campeón y Jugador Federado Temporada 2026, tipografía nítida y reemplazo de "PROMEDIO 501" por "AVG 501", erradicación de datos mock en Superadmin Demografía (1240 usuarios -> cálculo reactivo sobre los 5 jugadores reales), podios condicionales en `/ranking` y sincronización fotográfica con preview de autoridades en `/asociacion` y `/superadmin`.
 - **Diagnóstico de Causa Raíz:**

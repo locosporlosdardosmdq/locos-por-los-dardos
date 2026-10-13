@@ -1,5 +1,12 @@
 # Tareas del Proyecto (TODO) • Locos por los Dardos
 
+- [x] **Optimización de Vitrina Hero, Conexión Real de Google Forms & Gestión de Suspensión de Jugadores:**
+  * **Ampliación del cuadro de Sede en Vitrina Hero:** Contenedor responsivo `flex-[2.5]` con ancho expandido en desktop y ancho completo en mobile, eliminando el corte del texto (`truncate`) para mostrar íntegramente sedes largas (ej: "Sociedad de Fomento...").
+  * **Configurabilidad total de "Ver Cuadro y Reglamento":** Parámetros editables en Superadmin (Vitrina 1) para el texto y la URL de destino (`secondaryButtonText` y `secondaryButtonUrl`), con soporte transparente para enlaces internos (`/torneos`, `/reglamento`) y externos (PDF, Google Drive, Challonge).
+  * **Reflejo real de inscriptos sin simulaciones ficticias:** Incorporado campo numérico editable de inscriptos confirmados en Superadmin y erradicado el generador aleatorio. Nuevo endpoint `POST /api/sync/google-form` con conteo en vivo de filas desde planillas Google Sheets (CSV).
+  * **Gestión de Estados Federativos (Activo, Suspendido, Baja):** Columna `status` en PostgreSQL (`profiles`) y controles de acción rápida en el Padrón de Superadmin para suspender o dar de baja competidores, garantizando preservación del 100% de métricas, historial, partidos y AVG acumulado.
+  * **Blindaje y Restricciones:** Protección de cuenta maestra de ICEMAN contra autosuspensión, exclusión de jugadores inactivos/sancionados de los selectores de partidas y banner informativo en su perfil.
+
 - [x] **Sincronización Total de Fichas Deportivas, Demografía Real sin Mocks y Podios Dinámicos:**
   * Desacoplamiento del botón "Ficha ↗" en `UltimateDartsCard.tsx`: apertura directa del modal `PlayerDetailModal` con el historial del jugador seleccionado en lugar de redirigir a `/perfil` (que abría la cuenta de ICEMAN).
   * Condición estricta de Campeón: solo los jugadores con títulos oficiales ganados lucen "CAMPEÓN", mientras que los demás muestran "JUGADOR FEDERADO" y "TEMPORADA 2026" (año en curso dinámico).

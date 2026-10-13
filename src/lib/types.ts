@@ -71,6 +71,7 @@ export interface PlayerProfile {
   preferredDartWeight?: number;
   dartBrand?: string;
   role?: 'ADMIN' | 'PLAYER';
+  status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
   stats: PlayerStats;
   tournamentsWonList?: PlayerTournamentWin[];
   lastTournamentRank?: number;
@@ -370,6 +371,8 @@ export interface LandingShowcaseSettings {
     autoSyncGoogleForm: boolean;
     lastSyncedAt?: string;
     ctaButtonText: string;
+    secondaryButtonText?: string;
+    secondaryButtonUrl?: string;
     bannerDesktopUrl?: string;
     bannerMobileUrl?: string;
   };

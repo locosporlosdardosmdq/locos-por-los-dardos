@@ -32,6 +32,14 @@ export const NationalRankings: React.FC = () => {
 
   const top3 = filteredRankings.slice(0, 3);
 
+  const hasOfficialCompetitiveData = players.some(
+    (p) =>
+      (p.stats?.matchesPlayed || 0) > 0 ||
+      (p.stats?.matchesWon || 0) > 0 ||
+      (p.tournamentsWonList && p.tournamentsWonList.length > 0) ||
+      Boolean(p.lastTournamentRank)
+  );
+
   return (
     <div className="w-full space-y-6">
       {/* Controles de Filtros con Estilo Diana */}
@@ -88,8 +96,31 @@ export const NationalRankings: React.FC = () => {
         </div>
       </div>
 
-      {/* PODIO TOP 3 DESTACADO CON COLORES DE LA DIANA */}
-      {top3.length >= 3 && selectedProvince === 'ALL' && selectedCategory === 'ALL' && (
+      {/* ESTADO LIMPIO: AÚN NO HAY PODIOS DISPUTADOS */}
+      {!hasOfficialCompetitiveData && selectedProvince === 'ALL' && selectedCategory === 'ALL' && (
+        <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-6 sm:p-8 text-center space-y-3 shadow-xl">
+          <div className="w-14 h-14 rounded-2xl bg-[#00b853]/15 border border-[#00b853]/30 flex items-center justify-center mx-auto text-[#00b853] shadow-lg shadow-[#00b853]/20">
+            <Trophy className="w-7 h-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
+              Podio Oficial de la Temporada {new Date().getFullYear()}
+            </h3>
+            <p className="text-xs text-[#b8ad98] leading-relaxed">
+              Aún no se registran podios oficiales en la temporada actual. Los podios de <strong>Oro</strong>, <strong>Plata</strong> y <strong>Bronce</strong> se coronarán y habilitarán automáticamente con los resultados del primer torneo oficial disputado.
+            </p>
+          </div>
+          <div className="pt-1">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#14161f] border border-[#313647] text-[11px] font-bold text-slate-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+              Padrón oficial federado ordenado por AVG en la tabla inferior
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* PODIO TOP 3 DESTACADO SI HAY COMPETENCIAS DISPUTADAS */}
+      {hasOfficialCompetitiveData && top3.length >= 3 && selectedProvince === 'ALL' && selectedCategory === 'ALL' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
           {/* Segundo Lugar (Plata / Marfil Sisal) */}
           <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-5 text-center flex flex-col justify-between order-2 md:order-1 relative shadow-xl">

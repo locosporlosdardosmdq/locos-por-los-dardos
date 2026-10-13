@@ -71,6 +71,7 @@ interface UltimateDartsCardProps {
   showActions?: boolean;
   rankingMode?: RankingMode;
   displayRank?: number;
+  onViewFicha?: (player: UltimateDartsCardData) => void;
 }
 
 const TIER_THEMES = {
@@ -211,18 +212,22 @@ function getPlayerPerformance(player: UltimateDartsCardData) {
     leagueScopeLabel = 'DARDEROS MDQ';
   }
 
+  const currentYear = new Date().getFullYear();
+  const hasOfficialTitle = (player.tournamentsWonList && player.tournamentsWonList.length > 0) || (player.lastTournamentRank === 1);
+
   // CASO 1: TIENE DATOS EN LIGA
-  if (bestLeagueRank !== null) {
+  if (bestLeagueRank !== null && (player.matchesTotal || 0) > 0) {
     const isTop6 = bestLeagueRank <= 6;
     let rankLabel = `PUESTO #${bestLeagueRank}`;
-    if (bestLeagueRank === 1) rankLabel = 'CAMPEÓN';
+    if (bestLeagueRank === 1 && hasOfficialTitle) rankLabel = 'CAMPEÓN';
     else if (bestLeagueRank === 2) rankLabel = 'SUBCAMPEÓN';
     else if (bestLeagueRank === 3) rankLabel = '3ER PUESTO';
     else if (bestLeagueRank === 4) rankLabel = '4TO PUESTO';
     else if (bestLeagueRank === 5) rankLabel = '5TO PUESTO';
     else if (bestLeagueRank === 6) rankLabel = '6TO PUESTO';
+    else rankLabel = 'JUGADOR FEDERADO';
 
-    const trophyIcon = bestLeagueRank === 1 ? '🏆' : bestLeagueRank === 2 ? '🥈' : bestLeagueRank === 3 ? '🥉' : '⭐';
+    const trophyIcon = (bestLeagueRank === 1 && hasOfficialTitle) ? '🏆' : bestLeagueRank === 2 ? '🥈' : bestLeagueRank === 3 ? '🥉' : '🎯';
 
     return {
       number: `#${bestLeagueRank}`,
@@ -232,8 +237,12 @@ function getPlayerPerformance(player: UltimateDartsCardData) {
       cornerLine1: 'LIGA',
       cornerLine2: leagueScopeLabel,
       competitionName: bestLeagueName,
-      badgeTitle: isTop6 ? `${trophyIcon} #${bestLeagueRank} ${rankLabel}` : `PUESTO #${bestLeagueRank}`,
-      badgeSubtitle: bestLeagueName,
+      badgeTitle: (bestLeagueRank === 1 && !hasOfficialTitle) 
+        ? 'JUGADOR FEDERADO' 
+        : (isTop6 ? `${trophyIcon} #${bestLeagueRank} ${rankLabel}` : `PUESTO #${bestLeagueRank}`),
+      badgeSubtitle: (bestLeagueRank === 1 && !hasOfficialTitle)
+        ? `TEMPORADA ${currentYear}`
+        : bestLeagueName,
       isTop6,
       source: 'LEAGUE'
     };
@@ -245,20 +254,21 @@ function getPlayerPerformance(player: UltimateDartsCardData) {
     : (player.presentialRank && player.presentialRank > 0 ? player.presentialRank : null);
 
   const rawTourneyName = player.lastTournamentName 
-    || (player.presentialPodiums ? 'GRAN OPEN MAR DEL PLATA 2026' : 'COPA COSTA ATLÁNTICA 2026');
+    || (player.presentialPodiums ? 'GRAN OPEN MAR DEL PLATA 2026' : `COPA COSTA ATLÁNTICA ${currentYear}`);
   const tourneyName = rawTourneyName.split('•')[0].trim().toUpperCase();
 
-  if (tourneyRank !== null) {
+  if (tourneyRank !== null && (player.matchesTotal || 0) > 0) {
     const isTop6 = tourneyRank <= 6;
     let rankLabel = `PUESTO #${tourneyRank}`;
-    if (tourneyRank === 1) rankLabel = 'CAMPEÓN';
+    if (tourneyRank === 1 && hasOfficialTitle) rankLabel = 'CAMPEÓN';
     else if (tourneyRank === 2) rankLabel = 'SUBCAMPEÓN';
     else if (tourneyRank === 3) rankLabel = '3ER PUESTO';
     else if (tourneyRank === 4) rankLabel = '4TO PUESTO';
     else if (tourneyRank === 5) rankLabel = '5TO PUESTO';
     else if (tourneyRank === 6) rankLabel = '6TO PUESTO';
+    else rankLabel = 'JUGADOR FEDERADO';
 
-    const trophyIcon = tourneyRank === 1 ? '🏆' : tourneyRank === 2 ? '🥈' : tourneyRank === 3 ? '🥉' : '⭐';
+    const trophyIcon = (tourneyRank === 1 && hasOfficialTitle) ? '🏆' : tourneyRank === 2 ? '🥈' : tourneyRank === 3 ? '🥉' : '🎯';
 
     return {
       number: `#${tourneyRank}`,
@@ -268,8 +278,12 @@ function getPlayerPerformance(player: UltimateDartsCardData) {
       cornerLine1: 'TORNEO',
       cornerLine2: 'OFICIAL',
       competitionName: tourneyName,
-      badgeTitle: isTop6 ? `${trophyIcon} #${tourneyRank} ${rankLabel}` : `PUESTO #${tourneyRank}`,
-      badgeSubtitle: tourneyName,
+      badgeTitle: (tourneyRank === 1 && !hasOfficialTitle)
+        ? 'JUGADOR FEDERADO'
+        : (isTop6 ? `${trophyIcon} #${tourneyRank} ${rankLabel}` : `PUESTO #${tourneyRank}`),
+      badgeSubtitle: (tourneyRank === 1 && !hasOfficialTitle)
+        ? `TEMPORADA ${currentYear}`
+        : tourneyName,
       isTop6,
       source: 'TOURNAMENT'
     };
@@ -278,33 +292,50 @@ function getPlayerPerformance(player: UltimateDartsCardData) {
   // CASO 3: CIRCUITO FEDERADO GENERAL O JUGADOR EN LIMPIO
   const isIceman = player.nickname === 'ICEMAN' || player.id === 'user-iceman-admin' || (player.name && player.name.includes('Mariano Deux'));
   
-  if ((!player.matchesTotal || player.matchesTotal === 0) && !tourneyRank && !bestLeagueRank) {
+  if (isIceman) {
     return {
-      number: isIceman ? '48' : '#1',
+      number: '48',
       rank: 1,
-      rankLabel: isIceman ? 'SUPERADMIN' : 'OFICIAL',
-      trophyIcon: isIceman ? '👑' : '🎯',
-      cornerLine1: isIceman ? '48.0 AVG' : 'JUGADOR',
-      cornerLine2: isIceman ? 'OFICIAL' : 'FEDERADO',
-      competitionName: 'CIRCUITO OFICIAL 2026',
-      badgeTitle: isIceman ? '👑 SUPERADMINISTRADOR' : '🎯 JUGADOR OFICIAL',
+      rankLabel: 'SUPERADMIN',
+      trophyIcon: '👑',
+      cornerLine1: '48.0 AVG',
+      cornerLine2: 'OFICIAL',
+      competitionName: `TEMPORADA ${currentYear}`,
+      badgeTitle: '👑 SUPERADMINISTRADOR',
       badgeSubtitle: 'ASOCIACIÓN DARDEROS MDQ',
       isTop6: true,
       source: 'CIRCUIT'
     };
   }
 
+  if (hasOfficialTitle) {
+    const titleName = player.tournamentsWonList?.[0]?.name?.toUpperCase() || `CAMPEONATO ${currentYear}`;
+    return {
+      number: '#1',
+      rank: 1,
+      rankLabel: 'CAMPEÓN',
+      trophyIcon: '🏆',
+      cornerLine1: 'CAMPEÓN',
+      cornerLine2: 'OFICIAL',
+      competitionName: titleName,
+      badgeTitle: '🏆 #1 CAMPEÓN OFICIAL',
+      badgeSubtitle: titleName,
+      isTop6: true,
+      source: 'CIRCUIT'
+    };
+  }
+
   return {
-    number: '#1',
-    rank: 1,
-    rankLabel: 'CAMPEÓN',
-    trophyIcon: '🏆',
-    cornerLine1: 'CIRCUITO',
+    number: player.nationalRank ? `#${player.nationalRank}` : 'FED',
+    rank: player.nationalRank || 1,
+    rankLabel: 'JUGADOR FEDERADO',
+    trophyIcon: '🎯',
+    cornerLine1: 'JUGADOR',
     cornerLine2: 'FEDERADO',
-    competitionName: 'CIRCUITO NACIONAL 2026',
-    badgeTitle: '🏆 #1 CAMPEÓN OFICIAL',
-    badgeSubtitle: 'CIRCUITO NACIONAL 2026',
-    isTop6: true,
+    competitionName: `TEMPORADA ${currentYear}`,
+    badgeTitle: 'JUGADOR FEDERADO',
+    badgeSubtitle: `TEMPORADA ${currentYear}`,
+    isTop6: false,
     source: 'CIRCUIT'
   };
 }
@@ -361,7 +392,8 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
   player,
   showActions = true,
   rankingMode,
-  displayRank
+  displayRank,
+  onViewFicha
 }) => {
   const theme = TIER_THEMES[player.category] || TIER_THEMES.ELITE;
   const cardId = `card-${player.id}`;
@@ -382,10 +414,11 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
   let titleText = bestPerformance.cornerLine1;
   let subtitleText = bestPerformance.cornerLine2;
 
+  const currentYear = new Date().getFullYear();
   if (rankingMode === 'AVG') {
-    titleNumber = `#${displayRank || 1}`;
+    titleNumber = `#${displayRank || player.nationalRank || 1}`;
     titleText = `${player.avg.toFixed(1)} AVG`;
-    subtitleText = 'APP 501';
+    subtitleText = `TEMPORADA ${currentYear}`;
   } else if (rankingMode === 'LIGA_ARG') {
     titleNumber = `#${player.nationalRank || displayRank || 1}`;
     titleText = 'LIGA';
@@ -528,11 +561,10 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                 x="0" 
                 y="34" 
                 fill={theme.accentColor} 
-                fontSize={titleNumber.length > 3 ? "32" : "38"} 
+                fontSize={titleNumber.length > 3 ? "28" : "34"} 
                 fontWeight="900" 
-                fontFamily="'Impact', 'Arial Black', sans-serif"
-                letterSpacing="-1"
-                filter={`url(#text-shadow-${cardId})`}
+                fontFamily="ui-sans-serif, system-ui, -apple-system, sans-serif"
+                letterSpacing="-0.5"
               >
                 {titleNumber}
               </text>
@@ -543,7 +575,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                 fill={theme.accentColor} 
                 fontSize="8" 
                 fontWeight="800" 
-                fontFamily="system-ui, -apple-system, sans-serif"
+                fontFamily="ui-sans-serif, system-ui, -apple-system, sans-serif"
                 letterSpacing="0.4"
               >
                 {titleText}
@@ -554,7 +586,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                 fill={theme.subColor} 
                 fontSize="7" 
                 fontWeight="700" 
-                fontFamily="system-ui, -apple-system, sans-serif"
+                fontFamily="ui-sans-serif, system-ui, -apple-system, sans-serif"
                 letterSpacing="0.4"
               >
                 {subtitleText}
@@ -572,10 +604,9 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                   x="0" 
                   y="20" 
                   fill={theme.accentColor} 
-                  fontSize="25" 
+                  fontSize="24" 
                   fontWeight="900" 
-                  fontFamily="'Impact', 'Arial Black', sans-serif"
-                  filter={`url(#text-shadow-${cardId})`}
+                  fontFamily="ui-sans-serif, system-ui, -apple-system, sans-serif"
                 >
                   {player.count180s}
                 </text>
@@ -730,21 +761,21 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
               </text>
             </g>
 
-            {/* Fila 3: PROMEDIO 501 | MAYOR CIERRE */}
+            {/* Fila 3: AVG 501 | MAYOR CIERRE */}
             <g transform="translate(0, 412)">
               {/* Columna Izquierda */}
-              <text x="105" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
-                PROMEDIO 501
+              <text x="105" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="ui-sans-serif, system-ui, sans-serif" letterSpacing="0.8">
+                AVG 501
               </text>
-              <text x="105" y="16" textAnchor="middle" fill="#ffffff" fontSize="13" fontWeight="900" fontFamily="'Impact', 'Arial Black', sans-serif" letterSpacing="0.5">
-                {player.avg.toFixed(1)} AVG
+              <text x="105" y="16" textAnchor="middle" fill="#ffffff" fontSize="13" fontWeight="900" fontFamily="ui-sans-serif, system-ui, sans-serif" letterSpacing="0.5">
+                {player.avg.toFixed(1)}
               </text>
 
               {/* Columna Derecha */}
-              <text x="235" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
+              <text x="235" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="ui-sans-serif, system-ui, sans-serif" letterSpacing="0.8">
                 MAYOR CIERRE
               </text>
-              <text x="235" y="16" textAnchor="middle" fill={theme.accentColor} fontSize="13" fontWeight="900" fontFamily="'Impact', 'Arial Black', sans-serif" letterSpacing="0.5">
+              <text x="235" y="16" textAnchor="middle" fill={theme.accentColor} fontSize="13" fontWeight="900" fontFamily="ui-sans-serif, system-ui, sans-serif" letterSpacing="0.5">
                 {player.highestCheckout} PTS
               </text>
             </g>
@@ -839,13 +870,19 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
             <span>Desafiar</span>
           </Link>
 
-          <Link
-            href="/perfil"
-            className="py-2 px-4 rounded-xl bg-[#111622] hover:bg-[#1a2234] text-slate-300 hover:text-white font-bold text-xs border border-slate-700 transition-all flex items-center gap-1 active:scale-95"
+          <button
+            type="button"
+            onClick={() => {
+              if (onViewFicha) {
+                onViewFicha(player);
+              }
+            }}
+            className="py-2 px-4 rounded-xl bg-[#111622] hover:bg-[#1a2234] text-slate-300 hover:text-white font-bold text-xs border border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+            title={`Ver ficha completa de ${player.name}`}
           >
             <span>Ficha</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
+          </button>
         </div>
       )}
     </div>

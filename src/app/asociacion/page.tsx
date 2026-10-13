@@ -134,16 +134,16 @@ export default function AsociacionPage() {
         phone: currentUser.phone
       },
       ...registeredPlayers
-        .filter((p) => p.id !== currentUser.id)
+        .filter((p) => p.id !== currentUser.id && (!currentUser.email || p.email?.toLowerCase() !== currentUser.email.toLowerCase()))
         .map((p) => ({
           id: p.id,
-          fullName: p.fullName,
+          fullName: p.fullName || p.nickname || 'Jugador',
           nickname: p.nickname,
           photoUrl: p.photoUrl || p.avatarUrl,
           club: p.club || (p.province === 'Buenos Aires' ? 'Darderos Mar del Plata' : `Club ${p.province}`),
-          city: p.city,
-          province: p.province,
-          email: p.email,
+          city: p.city || 'Mar del Plata',
+          province: p.province || 'Buenos Aires',
+          email: p.email || '',
           phone: p.phone || ''
         }))
     ];
@@ -157,7 +157,7 @@ export default function AsociacionPage() {
       .sort((a, b) => a.orderIndex - b.orderIndex)
       .map((auth) => {
         // Si la autoridad está vinculada al usuario activo actual, sincronizar su foto en caliente
-        if (auth.playerId === currentUser.id) {
+        if (auth.playerId === currentUser.id || auth.playerId === 'user-iceman-admin') {
           return {
             ...auth,
             photoUrl: currentUser.photoUrl || currentUser.avatarUrl || auth.photoUrl,
@@ -171,7 +171,10 @@ export default function AsociacionPage() {
         if (matched) {
           return {
             ...auth,
-            photoUrl: matched.photoUrl || matched.avatarUrl || auth.photoUrl
+            photoUrl: matched.photoUrl || matched.avatarUrl || auth.photoUrl,
+            avatarUrl: matched.avatarUrl || matched.photoUrl || auth.avatarUrl,
+            name: matched.fullName || matched.nickname || auth.name,
+            nickname: matched.nickname || auth.nickname
           };
         }
         return auth;
@@ -802,15 +805,27 @@ export default function AsociacionPage() {
                   </div>
                   <div>
                     <label className="text-slate-300 font-bold block mb-1 text-xs">
-                      URL de la Foto Oficial
+                      Foto Oficial de la Autoridad
                     </label>
-                    <input
-                      type="text"
-                      value={authPhotoUrl}
-                      onChange={(e) => setAuthPhotoUrl(e.target.value)}
-                      placeholder="/logos/logo-mdq.png o URL externa"
-                      className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-bold focus:border-[#00e676]"
-                    />
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#07090e] border border-slate-700 flex-shrink-0">
+                        <img
+                          src={authPhotoUrl || '/logos/logo-mdq.png'}
+                          alt="Previsualización"
+                          className="w-full h-full object-cover object-top"
+                          onError={(e: any) => {
+                            e.target.src = '/logos/logo-mdq.png';
+                          }}
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        value={authPhotoUrl}
+                        onChange={(e) => setAuthPhotoUrl(e.target.value)}
+                        placeholder="/logos/logo-mdq.png o foto vinculada"
+                        className="flex-1 bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-bold focus:border-[#00e676]"
+                      />
+                    </div>
                   </div>
                 </div>
 

@@ -25,6 +25,8 @@ import {
 
 import { getCurrentPlayerProfile } from '@/lib/storage';
 
+import { PlayerDetailModal } from './PlayerDetailModal';
+
 function mapPlayerToCard(p: any): UltimateDartsCardData {
   return {
     id: p.id,
@@ -50,11 +52,11 @@ function mapPlayerToCard(p: any): UltimateDartsCardData {
     dartWeight: p.preferredDartWeight || p.dartWeight || 24,
     bestLeg: p.stats?.bestLegDarts ?? p.bestLeg ?? 0,
     nationalPoints: p.nationalPoints ?? 0,
-    nationalRank: p.nationalRank ?? 1,
+    nationalRank: p.nationalRank ?? undefined,
     mdqLeaguePoints: p.mdqLeaguePoints ?? 0,
-    mdqLeagueRank: p.mdqLeagueRank ?? 1,
+    mdqLeagueRank: p.mdqLeagueRank ?? undefined,
     presentialPoints: p.presentialPoints ?? 0,
-    presentialRank: p.presentialRank ?? 1,
+    presentialRank: p.presentialRank ?? undefined,
     tournamentsWonList: p.tournamentsWonList || [],
     recentHistory: p.recentHistory || []
   };
@@ -81,6 +83,7 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
   const [selectedCategory, setSelectedCategory] = useState<string>('TODAS');
   const [rankingMode, setRankingMode] = useState<RankingMode>('AVG');
   const [onlyMdqLeague, setOnlyMdqLeague] = useState(false);
+  const [selectedPlayerForDetail, setSelectedPlayerForDetail] = useState<UltimateDartsCardData | null>(null);
 
   // Cargar jugadores desde /api/jugadores
   const loadCloudPlayers = React.useCallback(async () => {
@@ -381,9 +384,17 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
             player={player} 
             rankingMode={rankingMode}
             displayRank={index + 1}
+            onViewFicha={(p) => setSelectedPlayerForDetail(p)}
           />
         ))}
       </div>
+
+      {/* MODAL FICHA DEPORTIVA COMPLETA DEL JUGADOR */}
+      <PlayerDetailModal
+        player={selectedPlayerForDetail}
+        isOpen={!!selectedPlayerForDetail}
+        onClose={() => setSelectedPlayerForDetail(null)}
+      />
     </div>
   );
 };

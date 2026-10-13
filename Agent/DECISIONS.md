@@ -716,3 +716,39 @@
      - El HTML viaja desde el servidor ya cargado con los 5 jugadores oficiales (**ZEUS, GonDizz, ICEMAN, CARPO y Prueba/Juli**), eliminando de raíz cualquier congelamiento en una sola carta.
 - **Motivo:** Alinea la plataforma al estándar mundial de competiciones online de dardos (Nakka n01), garantiza ergonomía total en PCs con doble monitor o pantalla dividida, apaga el hardware del celular al salir y asegura la visualización inmediata de toda la comunidad federada.
 
+---
+
+## ADR-038: Fichas Deportivas Desacopladas, Erradicación de Mocks Demográficos, Podios Condicionales y Sincronización Fotográfica de Autoridades
+
+- **Fecha:** 2026-10-12
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Ficha deportiva desviada:* Al hacer click en "Ficha ↗" en cualquier carta del directorio de jugadores (`/jugadores`), el botón navegaba mediante `<Link href="/perfil">` hacia la cuenta de sesión activa (el perfil editable de ICEMAN), impidiendo ver el historial del jugador seleccionado.
+  2. *Etiquetas de "Campeón" indiscriminadas:* Todas las cartas coleccionables mostraban la etiqueta "CAMPEÓN" aunque los jugadores no hubieran ganado ningún certamen oficial.
+  3. *Tipografía difusa en cartas:* La fuente `'Impact'` y los filtros SVG `filter="url(#text-shadow-...)"` generaban un renderizado borroso e ilegible en números de AVG y estadísticas en pantallas de alta densidad. Además, la etiqueta decía "PROMEDIO 501" en vez del estándar deportivo "AVG 501".
+  4. *Demografía inflada ficticia en Superadmin:* La Pestaña 2 de `/superadmin` consumía una constante estática (`COMMUNITY_DEMOGRAPHICS` con 1240 usuarios, 24 provincias, etc.), desconectada de la realidad deportiva de la plataforma (exactamente 5 competidores registrados: ICEMAN, ZEUS, GonDizz, CARPO, Prueba/Juli).
+  5. *Podios ficticios en `/ranking`:* El ranking nacional mostraba un podio permanente con medallas de oro, plata y bronce simuladas, cuando la temporada oficial aún no ha disputado su primer torneo.
+  6. *Autoridades institucionales y fotos de perfil:* Al asignar cargos a jugadores registrados en la Comisión Directiva (`/asociacion` y `/superadmin`), perfiles con fotos propias en base64 (ej. Juli / Prueba) no se previsualizaban o heredaban la foto de perfil de ICEMAN.
+- **Decisión:**
+  1. **Desacoplamiento de Fichas Deportivas (`UltimateDartsCard.tsx`, `PlayerDirectory.tsx`, `PlayerDetailModal.tsx`):**
+     - Añadido prop `onViewFicha?: (player: UltimateDartsCardData) => void` a `UltimateDartsCardProps`.
+     - El botón "Ficha ↗" invoca `onViewFicha(player)`, abriendo in-place el modal `PlayerDetailModal` con el palmarés, estadísticas avanzadas y 4 pestañas de historial (Individuales, Torneos de un Día, Ligas Locales, Liga Nacional x2) del competidor seleccionado.
+     - Añadido estado limpio informativo si el jugador aún no registra torneos oficiales jugados.
+  2. **Jerarquía Condicional de Títulos:**
+     - La etiqueta "CAMPEÓN" queda estrictamente condicionada a títulos oficiales comprobados (`tournamentsWonList.length > 0` o `lastTournamentRank === 1`).
+     - Para los competidores federados regulares, se muestra "JUGADOR FEDERADO" y "TEMPORADA 2026" (año en curso dinámico).
+  3. **Tipografía Nítida y Estandarización AVG:**
+     - Reemplazado `'Impact'` y erradicados los filtros SVG con sombras borrosas por la pila tipográfica nativa de alto contraste `ui-sans-serif, system-ui, -apple-system, sans-serif`.
+     - Reemplazada la etiqueta "PROMEDIO 501" por "AVG 501".
+  4. **Demografía 100% Reactiva en Superadmin (`src/app/superadmin/page.tsx`):**
+     - Cálculo reactivo mediante `useMemo` sobre el array real de `availablePlayers` (los 5 perfiles de Supabase).
+     - Las 4 tarjetas KPI (Total: 5 jugadores, Edad promedio con manejo de pendientes, 1 provincia: Buenos Aires, 1 localidad: Mar del Plata) y gráficos de distribución reflejan en tiempo real el padrón federado auténtico.
+  5. **Podios Condicionales en Ranking (`NationalRankings.tsx`):**
+     - Verificación `hasOfficialCompetitiveData`: si ningún jugador ha disputado partidos o sumado puntos de torneo, se oculta el podio ficticio de Oro/Plata/Bronce y se despliega un banner institucional explicando que los podios oficiales de la Temporada 2026 se coronarán con el primer certamen oficial disputado.
+  6. **Sincronización y Previsualización Fotográfica de Autoridades (`/asociacion` & `/superadmin`):**
+     - Al seleccionar un jugador en el desplegable de autoridades, se asigna su foto real (`photoUrl || avatarUrl`).
+     - Añadida caja de previsualización en miniatura en los formularios de edición de autoridad.
+     - Erradicados los fallbacks invasivos a `/images/iceman-perfil.png` reemplazándolos por `/logos/logo-mdq.png` y renderizado seguro con `<img />` para soportar imágenes en base64 de competidoras sin errores de Next.js Image.
+- **Motivo:** Asegura fidelidad total de datos entre la base de datos de producción y la interfaz de usuario, respeta la identidad individual de cada jugador federado y eleva la nitidez visual al estándar profesional.
+
+

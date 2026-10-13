@@ -55,9 +55,10 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   };
 
   const wonTournaments = player.tournamentsWonList || [];
+  const hasPlayedTournament = Boolean(player.lastTournamentName || ((player.matchesTotal || 0) > 0 && player.lastTournamentRank));
   const lastRank = player.lastTournamentRank;
-  const lastTourneyName = player.lastTournamentName || 'Torneo Apertura Verano 2026 • Copa Mar del Plata';
-  const lastTourneyDate = player.lastTournamentDate || '15/02/2026';
+  const lastTourneyName = player.lastTournamentName || `Circuito Oficial ${new Date().getFullYear()}`;
+  const lastTourneyDate = player.lastTournamentDate || `Temporada ${new Date().getFullYear()}`;
   const lastTrophy = player.lastTournamentTrophy || (lastRank === 1 ? 'GOLD' : lastRank === 2 ? 'SILVER' : lastRank === 3 ? 'BRONZE' : 'NONE');
 
   const allHistory = player.recentHistory || [];
@@ -157,51 +158,57 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
             <span className="text-[11px] text-slate-400 font-bold">{lastTourneyDate}</span>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-[#07090e] border border-slate-800">
-            <div>
-              <h4 className="text-sm font-black text-white">{lastTourneyName}</h4>
-              <p className="text-xs text-slate-400 mt-0.5">Torneo Oficial del Circuito • 501 Doble Out</p>
+          {!hasPlayedTournament ? (
+            <div className="p-4 rounded-xl bg-[#07090e] border border-slate-800 text-center text-xs text-slate-500">
+              Aún no registra torneos oficiales disputados en la temporada {new Date().getFullYear()}. Los resultados de los próximos certámenes se sincronizarán aquí en vivo.
             </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-[#07090e] border border-slate-800">
+              <div>
+                <h4 className="text-sm font-black text-white">{lastTourneyName}</h4>
+                <p className="text-xs text-slate-400 mt-0.5">Torneo Oficial del Circuito • 501 Doble Out</p>
+              </div>
 
-            {/* PUESTO OCUPADO CON ÍCONO DE TROFEO / MEDALLA SEGÚN CORRESPONDA */}
-            <div className="flex-shrink-0">
-              {lastTrophy === 'GOLD' || lastRank === 1 ? (
-                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-amber-500/10 border-2 border-amber-400 text-amber-300 font-black shadow-lg shadow-amber-500/20">
-                  <div className="relative flex items-center justify-center text-xl">
-                    🏆
+              {/* PUESTO OCUPADO CON ÍCONO DE TROFEO / MEDALLA SEGÚN CORRESPONDA */}
+              <div className="flex-shrink-0">
+                {lastTrophy === 'GOLD' || lastRank === 1 ? (
+                  <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-amber-500/10 border-2 border-amber-400 text-amber-300 font-black shadow-lg shadow-amber-500/20">
+                    <div className="relative flex items-center justify-center text-xl">
+                      🏆
+                    </div>
+                    <div className="leading-tight">
+                      <span className="text-sm font-black block text-amber-300">#1 CAMPEÓN</span>
+                      <span className="text-[10px] text-amber-400/90 font-bold">Copa de Oro</span>
+                    </div>
                   </div>
-                  <div className="leading-tight">
-                    <span className="text-sm font-black block text-amber-300">#1 CAMPEÓN</span>
-                    <span className="text-[10px] text-amber-400/90 font-bold">Copa de Oro</span>
+                ) : lastTrophy === 'SILVER' || lastRank === 2 ? (
+                  <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-slate-300/25 to-slate-400/10 border-2 border-slate-300 text-slate-200 font-black shadow-lg shadow-slate-300/15">
+                    <div className="relative flex items-center justify-center text-xl">
+                      🥈
+                    </div>
+                    <div className="leading-tight">
+                      <span className="text-sm font-black block text-white">#2 SUBCAMPEÓN</span>
+                      <span className="text-[10px] text-slate-300 font-bold">Copa de Plata</span>
+                    </div>
                   </div>
-                </div>
-              ) : lastTrophy === 'SILVER' || lastRank === 2 ? (
-                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-slate-300/25 to-slate-400/10 border-2 border-slate-300 text-slate-200 font-black shadow-lg shadow-slate-300/15">
-                  <div className="relative flex items-center justify-center text-xl">
-                    🥈
+                ) : lastTrophy === 'BRONZE' || lastRank === 3 ? (
+                  <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-700/30 to-amber-800/10 border-2 border-amber-600 text-amber-300 font-black shadow-lg shadow-amber-700/20">
+                    <div className="relative flex items-center justify-center text-xl">
+                      🥉
+                    </div>
+                    <div className="leading-tight">
+                      <span className="text-sm font-black block text-amber-200">#3 TERCER PUESTO</span>
+                      <span className="text-[10px] text-amber-400/90 font-bold">Copa de Bronce (Podio)</span>
+                    </div>
                   </div>
-                  <div className="leading-tight">
-                    <span className="text-sm font-black block text-white">#2 SUBCAMPEÓN</span>
-                    <span className="text-[10px] text-slate-300 font-bold">Copa de Plata</span>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-black text-xs">
+                    <span>Puesto #{lastRank || 4}</span>
                   </div>
-                </div>
-              ) : lastTrophy === 'BRONZE' || lastRank === 3 ? (
-                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-700/30 to-amber-800/10 border-2 border-amber-600 text-amber-300 font-black shadow-lg shadow-amber-700/20">
-                  <div className="relative flex items-center justify-center text-xl">
-                    🥉
-                  </div>
-                  <div className="leading-tight">
-                    <span className="text-sm font-black block text-amber-200">#3 TERCER PUESTO</span>
-                    <span className="text-[10px] text-amber-400/90 font-bold">Copa de Bronce (Podio)</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-black text-xs">
-                  <span>Puesto #{lastRank || 4}</span>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ======================================================== */}

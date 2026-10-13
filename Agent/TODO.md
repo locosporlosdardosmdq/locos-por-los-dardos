@@ -1,6 +1,12 @@
 # Tareas del Proyecto (TODO) • Locos por los Dardos
 
-- [x] **Arquitectura Nakka n01 de Partidas Online (Turn-based Camera, Split-Screen en PC, Pop-out Desacoplado y SSR de Jugadores):**
+- [x] **Sincronización Total de Fichas Deportivas, Demografía Real sin Mocks y Podios Dinámicos:**
+  * Desacoplamiento del botón "Ficha ↗" en `UltimateDartsCard.tsx`: apertura directa del modal `PlayerDetailModal` con el historial del jugador seleccionado en lugar de redirigir a `/perfil` (que abría la cuenta de ICEMAN).
+  * Condición estricta de Campeón: solo los jugadores con títulos oficiales ganados lucen "CAMPEÓN", mientras que los demás muestran "JUGADOR FEDERADO" y "TEMPORADA 2026" (año en curso dinámico).
+  * Reemplazo de "PROMEDIO 501" por "AVG 501", eliminación de la fuente `'Impact'` y filtros con blur/shadow en SVG para garantizar tipografía 100% nítida y legible.
+  * Erradicación de datos mock en Superadmin Demografía (Pestaña 2): cálculo reactivo en vivo sobre los 5 jugadores reales del padrón (Total: 5, Provincias: 1, Localidades: 1, edad promedio con estado para pendientes).
+  * Podio dinámico en `/ranking`: ocultamiento de podios ficticios mientras no haya torneos disputados y despliegue de banner institucional que se corona automáticamente con el primer torneo jugado.
+  * Sincronización y preview visual de fotos de perfil en autoridades (`/asociacion` y `/superadmin`), preservando fotos en base64 de jugadoras (Juli) y eliminando fallbacks invasivos a la foto de ICEMAN.
   * Apagado estricto del hardware de cámara (`stream.getTracks().forEach(t => t.stop())`) al salir de la partida en `X01Board.tsx`, liberando inmediatamente la luz física del celular.
   * Señalización `{ type: 'LEAVE' }` y destrucción limpia de WebRTC P2P (`webrtc.destroy()`) que resetea la diana en la pantalla del rival.
   * Modo Dividido Split-Screen en PC (Desktop `lg:`): Columna izquierda con Anotador 501 completo y Columna derecha con Visor de Diana en Vivo HD fija y sincronizada (sin modales invasivos superpuestos).

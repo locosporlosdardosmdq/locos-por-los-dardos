@@ -1,5 +1,41 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 28] - 2026-10-12
+- **Objetivo:** Corrección y desacoplamiento de fichas deportivas en `/jugadores` (modal directo in-place en vez de redirigir a `/perfil` de ICEMAN), estandarización de etiquetas de Campeón y Jugador Federado Temporada 2026, tipografía nítida y reemplazo de "PROMEDIO 501" por "AVG 501", erradicación de datos mock en Superadmin Demografía (1240 usuarios -> cálculo reactivo sobre los 5 jugadores reales), podios condicionales en `/ranking` y sincronización fotográfica con preview de autoridades en `/asociacion` y `/superadmin`.
+- **Diagnóstico de Causa Raíz:**
+  1. *Desvío de fichas a perfil de ICEMAN:* En `UltimateDartsCard.tsx`, el botón "Ficha ↗" renderizaba `<Link href="/perfil">`, lo que forzaba a cualquier usuario a abrir el formulario de edición de su propia sesión activa en vez del historial del jugador clickeado.
+  2. *Etiqueta de "Campeón" universal:* La función `getPlayerPerformance()` asignaba "CAMPEÓN" por defecto a cualquier jugador que no tuviera torneo registrado, falseando el palmarés deportivo.
+  3. *Tipografía difusa en cartas:* El uso de la fuente `'Impact'` y filtros SVG con sombras borrosas (`filter="url(#text-shadow-...)"`) generaba degradación visual en pantallas de alta densidad y móviles.
+  4. *Demografía inflada en Superadmin:* La Pestaña 2 consumía la constante `COMMUNITY_DEMOGRAPHICS` (1240 jugadores, 1170 en Argentina, 24 provincias), ignorando la base de datos real de Supabase que cuenta con exactamente 5 jugadores federados (**ICEMAN, ZEUS, GonDizz, CARPO, Prueba/Juli**).
+  5. *Podios ficticios:* `NationalRankings.tsx` desplegaba un podio estático simulado de Oro/Plata/Bronce antes de haberse jugado el primer torneo oficial de la temporada.
+  6. *Fotos de autoridades cruzadas:* Jugadores con fotos subidas en base64 (Juli) o sin foto asignada heredaban la foto de Mariano Deux (`/images/iceman-perfil.png`) al vincular autoridades o listar la directiva.
+- **Realizado:**
+  - **Ficha Deportiva Desacoplada (`UltimateDartsCard.tsx` & `PlayerDirectory.tsx`):**
+    * Añadido prop `onViewFicha?: (player: UltimateDartsCardData) => void` a `UltimateDartsCardProps`.
+    * El botón "Ficha ↗" ejecuta `onViewFicha(player)`, abriendo in-place el modal `PlayerDetailModal` con el palmarés, estadísticas y 4 pestañas de participación (Individuales, Torneos de un Día, Ligas Locales, Liga Nacional x2).
+    * En `PlayerDetailModal.tsx`, se añadió estado limpio si el jugador aún no registra torneos jugados en la temporada.
+  - **Condición Estricta de Campeón y Temporada Dinámica:**
+    * Solo los jugadores con títulos oficiales comprobados (`tournamentsWonList.length > 0` o `lastTournamentRank === 1`) reciben la insignia "CAMPEÓN".
+    * Los demás competidores reciben "JUGADOR FEDERADO" y "TEMPORADA [Año Actual]" dinámico.
+  - **Estandarización AVG 501 y Tipografía Nítida:**
+    * Reemplazado "PROMEDIO 501" por "AVG 501".
+    * Eliminada la fuente `'Impact'` y los filtros con blur/shadow en SVG, reemplazándolos por tipografía del sistema nítida (`ui-sans-serif, system-ui, -apple-system, sans-serif`).
+  - **Demografía 100% Reactiva en Superadmin (`src/app/superadmin/page.tsx`):**
+    * Erradicada la importación de `COMMUNITY_DEMOGRAPHICS`.
+    * Cálculo reactivo con `useMemo` sobre `availablePlayers`: Total 5 jugadores registrados, edad promedio con estado para pendientes, 1 provincia (Buenos Aires, 100%), 1 localidad (Mar del Plata, 100%) y desglose de categorías en vivo.
+  - **Podios Dinámicos en `/ranking` (`NationalRankings.tsx`):**
+    * Añadida validación `hasOfficialCompetitiveData`: oculta el podio estático y muestra banner institucional hasta que se dispute la primera competencia oficial de la temporada.
+  - **Sincronización y Preview de Fotos de Autoridades (`/asociacion` & `/superadmin`):**
+    * Al seleccionar un jugador en el desplegable, se toma dinámicamente su foto oficial real (`photoUrl || avatarUrl`).
+    * Previsualización visual en miniatura en el formulario de edición de autoridades.
+    * Eliminados los fallbacks a la foto de ICEMAN para otros jugadores, reemplazándolos por `/logos/logo-mdq.png` y renderizado seguro con `<img />` para soportar imágenes en base64 sin errores de Next.js.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores (código 0).
+    * `npm run build` completado exitosamente con 18/18 páginas generadas limpias (código 0).
+- **Estado del Proyecto:** Fichas deportivas individuales interactivas y desacopladas de ICEMAN, títulos estrictos por mérito competitivo, demografía en vivo fiel a los 5 jugadores reales de Supabase y visualización fotográfica institucional impecable.
+
+---
+
 ## [Sesión 27] - 2026-10-12
 - **Objetivo:** Implementación de la arquitectura de competiciones online de Nakka n01: apagado estricto del hardware de cámara al salir del match, alternancia automática de video por turno de tiro, modo Split-Screen 50/50 en PC, ventana Pop-out desacoplada para setups multi-monitor/TV y Server-Side Rendering (SSR) garantizado para los 5 jugadores federados en el padrón.
 - **Diagnóstico de Causa Raíz:**

@@ -154,7 +154,7 @@ export default function SuperadminPage() {
     loadRegisteredPlayers();
   }, [loadRegisteredPlayers]);
 
-  // Lista de jugadores disponibles para asignar a la comisión
+  // Lista de jugadores disponibles para asignar a la comisión y padrón federal
   const availablePlayers = useMemo(() => {
     const map = new Map<string, any>();
     
@@ -164,24 +164,36 @@ export default function SuperadminPage() {
       name: 'Mariano Deux (ICEMAN)',
       nickname: 'ICEMAN',
       city: 'Mar del Plata',
+      province: 'Buenos Aires',
+      nationality: 'Argentina',
+      countryCode: 'AR',
+      age: undefined,
       club: 'Darderos Mar del Plata',
       photoUrl: '/images/iceman-perfil.png',
       category: 'INTERMEDIA',
-      estimatedAvg: 48.0
+      estimatedAvg: 48.0,
+      email: 'marianodeux@gmail.com'
     });
 
     // Agregar jugadores registrados en Supabase
     cloudPlayers.forEach(p => {
-      if (p.nickname?.toUpperCase() !== 'ICEMAN') {
+      const isIceman = p.nickname?.toUpperCase() === 'ICEMAN' || p.email?.toLowerCase() === 'marianodeux@gmail.com';
+      if (!isIceman) {
+        const cleanPhoto = p.photoUrl && !p.photoUrl.includes('iceman') ? p.photoUrl : undefined;
+        const cleanAvatar = p.avatarUrl && !p.avatarUrl.includes('iceman') ? p.avatarUrl : undefined;
         map.set(p.id, {
           id: p.id,
-          name: p.fullName || p.nickname || 'Jugador',
+          name: p.fullName || p.name || p.nickname || 'Jugador',
           nickname: p.nickname || '',
           city: p.city || 'Mar del Plata',
+          province: p.province || 'Buenos Aires',
+          nationality: p.nationality || 'Argentina',
+          countryCode: p.countryCode || 'AR',
+          age: p.age,
           club: p.club || 'Darderos Mar del Plata',
-          photoUrl: p.photoUrl || p.avatarUrl || '/images/iceman-perfil.png',
+          photoUrl: cleanPhoto || cleanAvatar || undefined,
           category: p.category || 'INTERMEDIA',
-          estimatedAvg: p.estimatedAvg || 45.0,
+          estimatedAvg: p.estimatedAvg || (p.stats?.overallAvg ? Number(p.stats.overallAvg) : 45.0),
           email: p.email
         });
       }
@@ -189,6 +201,105 @@ export default function SuperadminPage() {
 
     return Array.from(map.values());
   }, [cloudPlayers]);
+
+  // Métricas demográficas 100% dinámicas calculadas desde los jugadores registrados reales
+  const demographics = useMemo(() => {
+    const list = availablePlayers;
+    const total = list.length;
+
+    // Edades registradas
+    const validAges = list
+      .map(p => Number(p.age))
+      .filter(a => !isNaN(a) && a > 0);
+    const avgAge = validAges.length > 0 
+      ? (validAges.reduce((acc, val) => acc + val, 0) / validAges.length).toFixed(1)
+      : null;
+
+    // Provincias únicas
+    const provincesMap = new Map<string, number>();
+    list.forEach(p => {
+      const prov = p.province || 'Buenos Aires';
+      provincesMap.set(prov, (provincesMap.get(prov) || 0) + 1);
+    });
+    const provincesDistribution = Array.from(provincesMap.entries()).map(([name, count]) => ({
+      name,
+      count,
+      percentage: total > 0 ? Math.round((count / total) * 100) : 0
+    })).sort((a, b) => b.count - a.count);
+
+    // Ciudades / Localidades únicas
+    const localitiesMap = new Map<string, number>();
+    list.forEach(p => {
+      const city = p.city || 'Mar del Plata';
+      localitiesMap.set(city, (localitiesMap.get(city) || 0) + 1);
+    });
+    const localitiesDistribution = Array.from(localitiesMap.entries()).map(([name, count]) => ({
+      name,
+      count,
+      percentage: total > 0 ? Math.round((count / total) * 100) : 0
+    })).sort((a, b) => b.count - a.count);
+
+    // Países / Nacionalidades
+    const countriesMap = new Map<string, number>();
+    list.forEach(p => {
+      const nat = p.nationality || 'Argentina';
+      countriesMap.set(nat, (countriesMap.get(nat) || 0) + 1);
+    });
+    const countriesDistribution = Array.from(countriesMap.entries()).map(([name, count]) => {
+      const flag = name.toLowerCase().includes('arg') ? '🇦🇷' : '🌐';
+      return {
+        name,
+        count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+        flag
+      };
+    }).sort((a, b) => b.count - a.count);
+
+    // Rango de Edades
+    const ageRanges = [
+      { range: '18 a 25 años', min: 18, max: 25, color: '#38bdf8' },
+      { range: '26 a 35 años (Núcleo Competitivo)', min: 26, max: 35, color: '#00e676' },
+      { range: '36 a 45 años', min: 36, max: 45, color: '#ffe600' },
+      { range: '46 a 65+ años (Veteranos)', min: 46, max: 120, color: '#ef4444' }
+    ];
+    const ageDistribution = ageRanges.map(r => {
+      const count = validAges.filter(a => a >= r.min && a <= r.max).length;
+      return {
+        range: r.range,
+        count,
+        percentage: validAges.length > 0 ? Math.round((count / validAges.length) * 100) : 0,
+        color: r.color
+      };
+    });
+
+    // Categorías Oficiales
+    const catCounts = {
+      PRINCIPIANTE: list.filter(p => p.category === 'PRINCIPIANTE').length,
+      INTERMEDIA: list.filter(p => p.category === 'INTERMEDIA').length,
+      AVANZADA: list.filter(p => p.category === 'AVANZADA').length,
+      ELITE: list.filter(p => p.category === 'ELITE').length,
+    };
+
+    // AVG Promedio General
+    const avgs = list.map(p => Number(p.estimatedAvg || 45)).filter(a => !isNaN(a) && a > 0);
+    const overallAvg = avgs.length > 0
+      ? (avgs.reduce((acc, v) => acc + v, 0) / avgs.length).toFixed(1)
+      : '45.0';
+
+    return {
+      totalRegisteredPlayers: total,
+      averageAge: avgAge,
+      hasAgeData: validAges.length > 0,
+      totalProvincesRepresented: provincesMap.size,
+      totalLocalitiesRepresented: localitiesMap.size,
+      countriesDistribution,
+      provincesDistribution,
+      localitiesDistribution,
+      ageDistribution,
+      categoryCounts: catCounts,
+      overallAvg
+    };
+  }, [availablePlayers]);
 
   // Modificar categoría de jugador directamente desde el Superadmin
   const handleUpdatePlayerCategoryFromAdmin = async (player: any, newCategory: string) => {
@@ -292,11 +403,14 @@ export default function SuperadminPage() {
         setAuthNickname(found.nickname || '');
         setAuthClub(found.club || 'Darderos Mar del Plata');
         setAuthCity(found.city || 'Mar del Plata');
-        setAuthProvince('Buenos Aires');
-        setAuthPhotoUrl(found.photoUrl || '/images/iceman-perfil.png');
-        if (found.id === 'user-iceman-admin') {
+        setAuthProvince(found.province || 'Buenos Aires');
+        setAuthPhotoUrl(found.photoUrl || '/logos/logo-mdq.png');
+        if (found.id === 'user-iceman-admin' || found.email === 'marianodeux@gmail.com') {
           setAuthEmail('marianodeux@gmail.com');
           setAuthPhone('5492235218765');
+        } else {
+          setAuthEmail(found.email || '');
+          setAuthPhone(found.phone || '');
         }
       }
     }
@@ -324,8 +438,8 @@ export default function SuperadminPage() {
             name: authName.trim(),
             nickname: authNickname.trim(),
             roleTitle: authRoleTitle.trim(),
-            photoUrl: authPhotoUrl.trim() || '/images/iceman-perfil.png',
-            avatarUrl: authPhotoUrl.trim() || '/images/iceman-perfil.png',
+            photoUrl: authPhotoUrl.trim() || '/logos/logo-mdq.png',
+            avatarUrl: authPhotoUrl.trim() || '/logos/logo-mdq.png',
             club: authClub.trim(),
             city: authCity.trim(),
             province: authProvince.trim() || 'Buenos Aires',
@@ -343,8 +457,8 @@ export default function SuperadminPage() {
         name: authName.trim(),
         nickname: authNickname.trim(),
         roleTitle: authRoleTitle.trim(),
-        photoUrl: authPhotoUrl.trim() || '/images/iceman-perfil.png',
-        avatarUrl: authPhotoUrl.trim() || '/images/iceman-perfil.png',
+        photoUrl: authPhotoUrl.trim() || '/logos/logo-mdq.png',
+        avatarUrl: authPhotoUrl.trim() || '/logos/logo-mdq.png',
         club: authClub.trim() || 'Darderos Mar del Plata',
         city: authCity.trim() || 'Mar del Plata',
         province: authProvince.trim() || 'Buenos Aires',
@@ -782,7 +896,9 @@ export default function SuperadminPage() {
               <div className="flex items-center gap-2">
                 <div className="px-3.5 py-1.5 rounded-xl bg-[#0f1422] border border-[#1e2a40] text-right">
                   <span className="text-[10px] font-bold text-slate-400 block">Edad Promedio Nacional</span>
-                  <span className="text-sm font-black text-[#00e676] font-mono">{COMMUNITY_DEMOGRAPHICS.averageAge} años</span>
+                  <span className="text-sm font-black text-[#00e676] font-mono">
+                    {demographics.hasAgeData ? `${demographics.averageAge} años` : 'Sin registrar'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -790,19 +906,21 @@ export default function SuperadminPage() {
             {/* 4 CARDS DE RESUMEN KPI */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-[#0f1422] border border-[#1e2a40] p-4 rounded-2xl text-center">
-                <span className="text-2xl sm:text-3xl font-black text-white font-mono">{COMMUNITY_DEMOGRAPHICS.totalRegisteredPlayers}</span>
+                <span className="text-2xl sm:text-3xl font-black text-white font-mono">{demographics.totalRegisteredPlayers}</span>
                 <span className="text-xs font-bold text-slate-400 block mt-1">Jugadores Registrados</span>
               </div>
               <div className="bg-[#0f1422] border border-[#1e2a40] p-4 rounded-2xl text-center">
-                <span className="text-2xl sm:text-3xl font-black text-[#00e676] font-mono">{COMMUNITY_DEMOGRAPHICS.averageAge}</span>
+                <span className="text-2xl sm:text-3xl font-black text-[#00e676] font-mono">
+                  {demographics.hasAgeData ? demographics.averageAge : '—'}
+                </span>
                 <span className="text-xs font-bold text-slate-400 block mt-1">Años (Edad Promedio)</span>
               </div>
               <div className="bg-[#0f1422] border border-[#1e2a40] p-4 rounded-2xl text-center">
-                <span className="text-2xl sm:text-3xl font-black text-[#38bdf8] font-mono">{COMMUNITY_DEMOGRAPHICS.totalProvincesRepresented}</span>
+                <span className="text-2xl sm:text-3xl font-black text-[#38bdf8] font-mono">{demographics.totalProvincesRepresented}</span>
                 <span className="text-xs font-bold text-slate-400 block mt-1">Provincias Activas</span>
               </div>
               <div className="bg-[#0f1422] border border-[#1e2a40] p-4 rounded-2xl text-center">
-                <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono">{COMMUNITY_DEMOGRAPHICS.totalLocalitiesRepresented}</span>
+                <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono">{demographics.totalLocalitiesRepresented}</span>
                 <span className="text-xs font-bold text-slate-400 block mt-1">Ciudades y Localidades</span>
               </div>
             </div>
@@ -816,11 +934,11 @@ export default function SuperadminPage() {
                     <Globe className="w-5 h-5 text-sky-400" />
                     <h3 className="text-sm font-black text-white uppercase tracking-wider">Distribución por País</h3>
                   </div>
-                  <span className="text-xs text-slate-400">Total: {COMMUNITY_DEMOGRAPHICS.totalRegisteredPlayers}</span>
+                  <span className="text-xs text-slate-400">Total: {demographics.totalRegisteredPlayers}</span>
                 </div>
 
                 <div className="space-y-3">
-                  {COMMUNITY_DEMOGRAPHICS.countriesDistribution.map((item, i) => (
+                  {demographics.countriesDistribution.map((item, i) => (
                     <div key={i} className="space-y-1">
                       <div className="flex items-center justify-between text-xs font-bold">
                         <span className="flex items-center gap-2 text-white">
@@ -828,7 +946,7 @@ export default function SuperadminPage() {
                           <span>{item.name}</span>
                         </span>
                         <span className="font-mono text-slate-300">
-                          {item.count} jugadores ({item.percentage}%)
+                          {item.count} {item.count === 1 ? 'jugador' : 'jugadores'} ({item.percentage}%)
                         </span>
                       </div>
                       <div className="w-full bg-[#07090e] h-2 rounded-full overflow-hidden">
@@ -849,27 +967,38 @@ export default function SuperadminPage() {
                     <PieChart className="w-5 h-5 text-emerald-400" />
                     <h3 className="text-sm font-black text-white uppercase tracking-wider">Rango de Edades de Jugadores</h3>
                   </div>
-                  <span className="text-xs font-mono font-bold text-[#00e676]">Promedio: {COMMUNITY_DEMOGRAPHICS.averageAge} años</span>
+                  <span className="text-xs font-mono font-bold text-[#00e676]">
+                    {demographics.hasAgeData ? `Promedio: ${demographics.averageAge} años` : 'Sin datos cargados'}
+                  </span>
                 </div>
 
-                <div className="space-y-3">
-                  {COMMUNITY_DEMOGRAPHICS.ageDistribution.map((item, i) => (
-                    <div key={i} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-white">{item.range}</span>
-                        <span className="font-mono text-slate-300">
-                          {item.count} ({item.percentage}%)
-                        </span>
+                {demographics.hasAgeData ? (
+                  <div className="space-y-3">
+                    {demographics.ageDistribution.map((item, i) => (
+                      <div key={i} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="text-white">{item.range}</span>
+                          <span className="font-mono text-slate-300">
+                            {item.count} ({item.percentage}%)
+                          </span>
+                        </div>
+                        <div className="w-full bg-[#07090e] h-2 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${item.percentage}%`, backgroundColor: item.color }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full bg-[#07090e] h-2 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${item.percentage}%`, backgroundColor: item.color }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-[#07090e] border border-slate-800 text-center space-y-1">
+                    <span className="text-xs font-bold text-slate-300 block">Edad pendiente de completar en los perfiles</span>
+                    <span className="text-[11px] text-slate-500 block">
+                      Los {demographics.totalRegisteredPlayers} jugadores federados aún no han configurado su edad en la ficha deportiva.
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* DISTRIBUCIÓN POR PROVINCIAS */}
@@ -883,7 +1012,7 @@ export default function SuperadminPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {COMMUNITY_DEMOGRAPHICS.provincesDistribution.map((prov, i) => (
+                  {demographics.provincesDistribution.map((prov, i) => (
                     <div key={i} className="space-y-1">
                       <div className="flex items-center justify-between text-xs font-bold">
                         <span className="text-white">{prov.name}</span>
@@ -911,13 +1040,13 @@ export default function SuperadminPage() {
                 </div>
 
                 <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                  {COMMUNITY_DEMOGRAPHICS.localitiesDistribution.map((loc, i) => (
+                  {demographics.localitiesDistribution.map((loc, i) => (
                     <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-[#07090e] border border-slate-800 text-xs">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-[#00e676] font-bold">#{i + 1}</span>
                         <span className="font-bold text-white">{loc.name}</span>
                       </div>
-                      <span className="font-mono text-slate-300">{loc.count} jugadores</span>
+                      <span className="font-mono text-slate-300">{loc.count} {loc.count === 1 ? 'jugador' : 'jugadores'}</span>
                     </div>
                   ))}
                 </div>
@@ -1807,6 +1936,30 @@ export default function SuperadminPage() {
                       className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-slate-500 focus:outline-none"
                     />
                   </div>
+
+                  {/* FOTO OFICIAL CON PREVIEW EN VIVO */}
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-300">Foto Oficial / Avatar Vinculado</label>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#07090e] border border-slate-700 flex-shrink-0">
+                        <img
+                          src={authPhotoUrl || '/logos/logo-mdq.png'}
+                          alt="Foto"
+                          className="w-full h-full object-cover object-top"
+                          onError={(e: any) => {
+                            e.target.src = '/logos/logo-mdq.png';
+                          }}
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        value={authPhotoUrl}
+                        onChange={(e) => setAuthPhotoUrl(e.target.value)}
+                        placeholder="/logos/logo-mdq.png o foto vinculada"
+                        className="flex-1 px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-slate-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-end gap-3 pt-2">
@@ -1835,52 +1988,58 @@ export default function SuperadminPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {authorities
                   .filter(a => a.scope === authoritiesScope)
-                  .map((auth) => (
-                    <div
-                      key={auth.id}
-                      className="p-4 rounded-2xl bg-[#07090e] border border-slate-800 space-y-3 relative group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-[#00e676] bg-black flex-shrink-0">
-                          <Image
-                            src={auth.photoUrl || '/images/iceman-perfil.png'}
-                            alt={auth.name}
-                            fill
-                            className="object-cover"
-                          />
+                  .map((auth) => {
+                    const matchedPlayer = availablePlayers.find(p => p.id === auth.playerId);
+                    const displayPhoto = matchedPlayer?.photoUrl || auth.photoUrl || '/logos/logo-mdq.png';
+                    return (
+                      <div
+                        key={auth.id}
+                        className="p-4 rounded-2xl bg-[#07090e] border border-slate-800 space-y-3 relative group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-[#00e676] bg-black flex-shrink-0">
+                            <img
+                              src={displayPhoto}
+                              alt={auth.name}
+                              className="w-full h-full object-cover object-top"
+                              onError={(e: any) => {
+                                e.target.src = '/logos/logo-mdq.png';
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[10px] font-black uppercase text-[#00e676] px-2 py-0.5 rounded-md bg-[#00e676]/10 border border-[#00e676]/20 inline-block mb-1">
+                              {auth.roleTitle}
+                            </span>
+                            <h4 className="text-xs font-black text-white truncate">{auth.name}</h4>
+                            <p className="text-[10px] text-slate-400 truncate">{auth.club} • {auth.city}</p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[10px] font-black uppercase text-[#00e676] px-2 py-0.5 rounded-md bg-[#00e676]/10 border border-[#00e676]/20 inline-block mb-1">
-                            {auth.roleTitle}
-                          </span>
-                          <h4 className="text-xs font-black text-white truncate">{auth.name}</h4>
-                          <p className="text-[10px] text-slate-400 truncate">{auth.club} • {auth.city}</p>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[10px] text-slate-400">
-                        <span>{auth.nickname ? `@${auth.nickname}` : 'Sin apodo'}</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleEditAuthorityClick(auth)}
-                            className="text-slate-400 hover:text-amber-400 transition-colors p-1"
-                            title="Editar autoridad"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteAuthority(auth.id)}
-                            className="text-slate-400 hover:text-red-400 transition-colors p-1"
-                            title="Eliminar"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[10px] text-slate-400">
+                          <span>{auth.nickname ? `@${auth.nickname}` : 'Sin apodo'}</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEditAuthorityClick(auth)}
+                              className="text-slate-400 hover:text-amber-400 transition-colors p-1"
+                              title="Editar autoridad"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAuthority(auth.id)}
+                              className="text-slate-400 hover:text-red-400 transition-colors p-1"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             </div>
           </div>

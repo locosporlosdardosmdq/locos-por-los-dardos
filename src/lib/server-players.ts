@@ -36,12 +36,12 @@ export function mapDbRowToCard(row: any): UltimateDartsCardData {
     dartBrand: row.dart_brand || 'TARGET 90%',
     dartWeight: row.preferred_dart_weight_g ? parseFloat(row.preferred_dart_weight_g) : 24,
     bestLeg: parseInt(row.best_leg_darts || '0', 10),
-    nationalPoints: 0,
-    nationalRank: 1,
-    mdqLeaguePoints: 0,
-    mdqLeagueRank: 1,
-    presentialPoints: 0,
-    presentialRank: 1,
+    nationalPoints: parseInt(row.national_points || '0', 10),
+    nationalRank: row.national_rank ? parseInt(row.national_rank, 10) : undefined,
+    mdqLeaguePoints: parseInt(row.mdq_league_points || '0', 10),
+    mdqLeagueRank: row.mdq_league_rank ? parseInt(row.mdq_league_rank, 10) : undefined,
+    presentialPoints: parseInt(row.presential_points || '0', 10),
+    presentialRank: row.presential_rank ? parseInt(row.presential_rank, 10) : undefined,
     tournamentsWonList: [],
     recentHistory: []
   };

@@ -1306,6 +1306,12 @@ export const X01Board: React.FC<X01BoardProps> = ({
   // Sugerencia de Checkout oficial (2 a 170)
   const currentCheckout = getSuggestedCheckout(scores[currentTurn]);
 
+  // Últimos tantos anotados por cada jugador para visualización en el display central
+  const lastThrowP1 = turnHistory.find((t) => t.playerIndex === 0);
+  const lastThrowP2 = turnHistory.find((t) => t.playerIndex === 1);
+  const p1Short = p1Display.split(' ')[0] || 'P1';
+  const p2Short = p2Display.split(' ')[0] || 'P2';
+
   // En PC / Desktop el diseño siempre mantiene la Diana/Cámara a la izquierda y el Anotador a la derecha
   const isSplitActive = isDesktopSplitEnabled;
 
@@ -2099,32 +2105,53 @@ export const X01Board: React.FC<X01BoardProps> = ({
           <span>switch Starter</span>
         </button>
 
-        {/* Display central con borde diana y cierre sugerido oficial en reposo */}
+        {/* Display central con borde diana: muestra el puntaje tipeado o los últimos tantos de cada jugador */}
         <div
           onClick={handleConfirmTyped}
-          className={`h-11 rounded-xl bg-black border-2 flex items-center justify-center font-black transition-all cursor-pointer ${
+          className={`h-11 rounded-xl bg-black border-2 flex items-center justify-center font-black transition-all cursor-pointer overflow-hidden ${
             typedInput
               ? 'border-[#00e676] text-[#00e676] bg-[#00e676]/10 shadow-md shadow-[#00e676]/20 text-xl'
               : 'border-[#ef4444]/40 text-[#00e676]'
           }`}
+          title={typedInput ? 'Confirmar puntaje ingresado' : 'Últimos tantos anotados por cada jugador'}
         >
           {typedInput ? (
-            typedInput
+            <div className="flex items-center justify-center gap-1.5">
+              <span className="text-xl font-black text-[#00e676] tracking-wider">{typedInput}</span>
+              <span className="text-[9px] px-1 py-0.5 rounded bg-[#00e676]/20 text-[#00e676] font-bold uppercase">OK</span>
+            </div>
           ) : isRemainingInputMode ? (
-            <span className="text-xs text-slate-400 font-bold uppercase">Restante</span>
+            <span className="text-xs text-amber-400 font-bold uppercase tracking-wider">Queda: {typedInput || '...'}</span>
           ) : currentCheckout ? (
-            <div className="flex flex-col items-center justify-center leading-tight py-0.5 px-1">
-              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                Cierre ({scores[currentTurn]})
+            <div className="flex flex-col items-center justify-center leading-tight py-0.5 px-1 w-full">
+              <span className="text-[8px] text-amber-400 font-bold uppercase tracking-wider truncate max-w-[150px]">
+                Cierre ({scores[currentTurn]}): {currentCheckout}
               </span>
-              <span className="text-xs sm:text-sm font-black text-[#00e676] tracking-wider truncate max-w-[140px]">
-                {currentCheckout}
-              </span>
+              <div className="flex items-center justify-around w-full text-[10px] font-black mt-0.5">
+                <span className="text-slate-300 truncate max-w-[70px]">
+                  {p1Short}: <span className={lastThrowP1?.isBust ? 'text-[#ef4444]' : (lastThrowP1?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}>{lastThrowP1 ? (lastThrowP1.isBust ? 'B' : lastThrowP1.score) : '-'}</span>
+                </span>
+                <span className="text-slate-600 font-normal">|</span>
+                <span className="text-slate-300 truncate max-w-[70px]">
+                  {p2Short}: <span className={lastThrowP2?.isBust ? 'text-[#ef4444]' : (lastThrowP2?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}>{lastThrowP2 ? (lastThrowP2.isBust ? 'B' : lastThrowP2.score) : '-'}</span>
+                </span>
+              </div>
             </div>
           ) : (
-            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">
-              {scores[currentTurn] <= 170 ? 'Sin Opción' : 'Tirada'}
-            </span>
+            <div className="flex flex-col items-center justify-center w-full px-1 py-0.5 leading-none">
+              <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
+                Últimos Tantos
+              </span>
+              <div className="flex items-center justify-around w-full text-xs font-black">
+                <span className="text-slate-300 truncate max-w-[70px]">
+                  {p1Short}: <span className={lastThrowP1?.isBust ? 'text-[#ef4444]' : (lastThrowP1?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}>{lastThrowP1 ? (lastThrowP1.isBust ? 'BUST' : lastThrowP1.score) : '-'}</span>
+                </span>
+                <span className="text-slate-600 font-normal">|</span>
+                <span className="text-slate-300 truncate max-w-[70px]">
+                  {p2Short}: <span className={lastThrowP2?.isBust ? 'text-[#ef4444]' : (lastThrowP2?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}>{lastThrowP2 ? (lastThrowP2.isBust ? 'BUST' : lastThrowP2.score) : '-'}</span>
+                </span>
+              </div>
+            </div>
           )}
         </div>
 
@@ -2137,6 +2164,174 @@ export const X01Board: React.FC<X01BoardProps> = ({
           }`}
         >
           REMAINING
+        </button>
+      </div>
+
+      {/* AVISO ELEGANTE CUANDO ES TURNO DEL RIVAL */}
+      {isOnline && !isMyTurn ? (
+        <div className="bg-[#0f1422] border-2 border-[#0284c7]/40 rounded-2xl p-4 text-center space-y-2 shadow-xl animate-in fade-in">
+          <div className="flex items-center justify-center gap-2 text-sm font-black text-[#38bdf8]">
+            <span className="w-2 h-2 rounded-full bg-[#38bdf8] animate-ping" />
+            <span>Turno de {currentTurn === 0 ? p1Display : p2Display} en su Diana</span>
+          </div>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Observa sus 3 lanzamientos en vivo. Cuando anote, el marcador y Russ Bray se actualizarán automáticamente.
+          </p>
+          <div className="pt-1 flex items-center justify-center gap-2">
+            <span className="text-[11px] text-slate-500 font-mono">Sincronización P2P Online • {config.onlineRoomCode}</span>
+          </div>
+        </div>
+      ) : (
+        /* TECLADO ERGONÓMICO DE 5 COLUMNAS IDÉNTICO A LA CAPTURA */
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+          {/* FILA 1 */}
+          <button
+            onClick={() => submitScore(26)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            26
+          </button>
+          <button
+            onClick={() => handleKeypress('1')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            1
+          </button>
+          <button
+            onClick={() => handleKeypress('2')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            2
+          </button>
+          <button
+            onClick={() => handleKeypress('3')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            3
+          </button>
+          <button
+            onClick={() => submitScore(60)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            60
+          </button>
+
+          {/* FILA 2 */}
+          <button
+            onClick={() => submitScore(41)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            41
+          </button>
+          <button
+            onClick={() => handleKeypress('4')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            4
+          </button>
+          <button
+            onClick={() => handleKeypress('5')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            5
+          </button>
+          <button
+            onClick={() => handleKeypress('6')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            6
+          </button>
+          <button
+            onClick={() => submitScore(85)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            85
+          </button>
+
+          {/* FILA 3 */}
+          <button
+            onClick={() => submitScore(45)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            45
+          </button>
+          <button
+            onClick={() => handleKeypress('7')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            7
+          </button>
+          <button
+            onClick={() => handleKeypress('8')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            8
+          </button>
+          <button
+            onClick={() => handleKeypress('9')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            9
+          </button>
+          <button
+            onClick={() => submitScore(100)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
+          >
+            100
+          </button>
+
+          {/* FILA 4 (CLR en Rojo Diana, 0, no Score en Carmesí) */}
+          <button
+            onClick={handleClear}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-[#ef4444] font-black text-sm border border-[#ef4444]/50 flex items-center justify-center gap-1"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>CLR</span>
+          </button>
+          <button
+            onClick={handleConfirmTyped}
+            disabled={!typedInput}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black text-sm border border-[#00e676] disabled:opacity-30 disabled:bg-[#111622] disabled:text-slate-600 disabled:border-slate-800"
+          >
+            OK
+          </button>
+          <button
+            onClick={() => handleKeypress('0')}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
+          >
+            0
+          </button>
+          <button
+            onClick={() => {
+              if (typedInput.length > 0) {
+                setTypedInput(typedInput.slice(0, -1));
+              }
+            }}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-slate-400 font-black text-base border border-slate-800"
+          >
+            ←
+          </button>
+          <button
+            onClick={() => submitScore(0)}
+            className="py-3 sm:py-3.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-[#ef4444] font-black text-xs border border-[#ef4444]/40 leading-tight"
+          >
+            no Score
+          </button>
+        </div>
+      )}
+
+      {/* Indicador de tirador activo al pie y enlace a visitas */}
+      <div className="flex items-center justify-between pt-1 text-xs text-slate-400 border-t border-slate-800/60">
+        <span>
+          Turno de tiro en la diana: <strong className="font-black text-[#00e676]">{getCurrentShooterName()}</strong>
+        </span>
+        <button
+          onClick={scrollToHistory}
+          className="flex items-center gap-1 text-[11px] font-bold text-slate-300 hover:text-white bg-[#111622] hover:bg-[#182030] px-2.5 py-1 rounded-lg border border-slate-700 transition-colors"
+        >
+          <History className="w-3.5 h-3.5 text-[#00e676]" />
+          <span>Ver Visitas ({turnHistory.length})</span>
+          <ChevronDown className="w-3.5 h-3.5" />
         </button>
       </div>
 
@@ -2486,174 +2681,6 @@ export const X01Board: React.FC<X01BoardProps> = ({
             )}
           </div>
         )}
-      </div>
-
-      {/* AVISO ELEGANTE CUANDO ES TURNO DEL RIVAL */}
-      {isOnline && !isMyTurn ? (
-        <div className="bg-[#0f1422] border-2 border-[#0284c7]/40 rounded-2xl p-4 text-center space-y-2 shadow-xl animate-in fade-in">
-          <div className="flex items-center justify-center gap-2 text-sm font-black text-[#38bdf8]">
-            <span className="w-2 h-2 rounded-full bg-[#38bdf8] animate-ping" />
-            <span>Turno de {currentTurn === 0 ? p1Display : p2Display} en su Diana</span>
-          </div>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            Observa sus 3 lanzamientos en la pantalla de arriba. Cuando anote, el marcador y Russ Bray se actualizarán automáticamente.
-          </p>
-          <div className="pt-1 flex items-center justify-center gap-2">
-            <span className="text-[11px] text-slate-500 font-mono">Sincronización P2P Online • {config.onlineRoomCode}</span>
-          </div>
-        </div>
-      ) : (
-        /* TECLADO ERGONÓMICO DE 5 COLUMNAS IDÉNTICO A LA CAPTURA */
-        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-          {/* FILA 1 */}
-          <button
-            onClick={() => submitScore(26)}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-          >
-            26
-          </button>
-          <button
-            onClick={() => handleKeypress('1')}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-          >
-            1
-          </button>
-          <button
-            onClick={() => handleKeypress('2')}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-          >
-            2
-          </button>
-          <button
-            onClick={() => handleKeypress('3')}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-          >
-            3
-          </button>
-          <button
-            onClick={() => submitScore(60)}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-          >
-            60
-          </button>
-
-          {/* FILA 2 */}
-          <button
-            onClick={() => submitScore(41)}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-          >
-            41
-          </button>
-          <button
-            onClick={() => handleKeypress('4')}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-          >
-            4
-          </button>
-          <button
-            onClick={() => handleKeypress('5')}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-          >
-            5
-          </button>
-          <button
-            onClick={() => handleKeypress('6')}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-          >
-            6
-          </button>
-          <button
-            onClick={() => submitScore(85)}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-          >
-            85
-          </button>
-
-          {/* FILA 3 */}
-          <button
-            onClick={() => submitScore(45)}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-          >
-            45
-          </button>
-          <button
-            onClick={() => handleKeypress('7')}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-          >
-            7
-          </button>
-          <button
-            onClick={() => handleKeypress('8')}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-          >
-            8
-          </button>
-          <button
-            onClick={() => handleKeypress('9')}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-          >
-            9
-          </button>
-          <button
-            onClick={() => submitScore(100)}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#111622] hover:bg-[#182030] text-white font-black text-base border border-[#00e676]/40 shadow-sm"
-          >
-            100
-          </button>
-
-          {/* FILA 4 (CLR en Rojo Diana, 0, no Score en Carmesí) */}
-          <button
-            onClick={handleClear}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-[#ef4444] font-black text-sm border border-[#ef4444]/50 flex items-center justify-center gap-1"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>CLR</span>
-          </button>
-          <button
-            onClick={handleConfirmTyped}
-            disabled={!typedInput}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black text-sm border border-[#00e676] disabled:opacity-30 disabled:bg-[#111622] disabled:text-slate-600 disabled:border-slate-800"
-          >
-            OK
-          </button>
-          <button
-            onClick={() => handleKeypress('0')}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-white font-black text-lg border border-slate-800"
-          >
-            0
-          </button>
-          <button
-            onClick={() => {
-              if (typedInput.length > 0) {
-                setTypedInput(typedInput.slice(0, -1));
-              }
-            }}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#0f1422] hover:bg-[#182030] text-slate-400 font-black text-base border border-slate-800"
-          >
-            ←
-          </button>
-          <button
-            onClick={() => submitScore(0)}
-            className="py-3 sm:py-3.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-[#ef4444] font-black text-xs border border-[#ef4444]/40 leading-tight"
-          >
-            no Score
-          </button>
-        </div>
-      )}
-
-      {/* Indicador de tirador activo al pie y enlace a visitas */}
-      <div className="flex items-center justify-between pt-1 text-xs text-slate-400 border-t border-slate-800/60">
-        <span>
-          Turno de tiro en la diana: <strong className="font-black text-[#00e676]">{getCurrentShooterName()}</strong>
-        </span>
-        <button
-          onClick={scrollToHistory}
-          className="flex items-center gap-1 text-[11px] font-bold text-slate-300 hover:text-white bg-[#111622] hover:bg-[#182030] px-2.5 py-1 rounded-lg border border-slate-700 transition-colors"
-        >
-          <History className="w-3.5 h-3.5 text-[#00e676]" />
-          <span>Ver Visitas ({turnHistory.length})</span>
-          <ChevronDown className="w-3.5 h-3.5" />
-        </button>
       </div>
     </div>
 

@@ -10,9 +10,9 @@ function AnotadorContent() {
   const salaCode = searchParams.get('sala') || searchParams.get('room') || undefined;
 
   return (
-    <div className="w-full max-w-[1700px] mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4">
-      {/* Encabezado Rápido Oficial */}
-      <div className="flex items-center justify-between bg-[#0f1422] border border-[#ef4444]/30 rounded-2xl px-4 py-3 shadow-lg">
+    <div className="w-full max-w-[1700px] mx-auto px-1 sm:px-4 lg:px-6 py-1 sm:py-6 space-y-2 sm:space-y-4">
+      {/* Encabezado Rápido Oficial (Oculto en móviles para priorizar espacio vertical para el juego) */}
+      <div className="hidden lg:flex items-center justify-between bg-[#0f1422] border border-[#ef4444]/30 rounded-2xl px-4 py-3 shadow-lg">
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/40 rounded-xl">
             <Target className="w-5 h-5" />

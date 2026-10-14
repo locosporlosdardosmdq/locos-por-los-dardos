@@ -869,3 +869,29 @@
      - Se eliminó el `<audio ref={remoteAudioRef}>` duplicado de la sección móvil, dejando únicamente el elemento montado en la raíz de `return (...)`.
      - Se integraron botones reactivos con iconos `Volume2` (verde) / `VolumeX` (rojo) y `Video` (azul) / `VideoOff` (ámbar) en la barra de control de PC, en el modal emergente y en la barra de dianas móvil.
 - **Motivo:** Soluciona de raíz los cortes de audio y video al respetar el límite de ancho de banda residencial, otorga control ergonómico completo al jugador sobre ambas cámaras y proporciona botones funcionales de silenciado y ocultamiento.
+
+
+---
+
+## [ADR-043] Optimización Ergonómica de Interfaz Móvil: Anotador Superior, Ocultamiento de Cabecera y Visualización de Últimos Tantos en Display Central
+
+- **Fecha:** 2026-10-14
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Desperdicio de espacio vertical en smartphones:* El banner de sala online ocupaba ~100px verticales en pantallas móviles repitiendo información ya visible en la barra de navegación y en la cabecera del match.
+  2. *Scroll forzado para anotar dardo a dardo:* En pantallas celulares, el panel de cámaras ocupaba la zona media empujando el teclado de 5 columnas fuera del viewport. Los competidores debían scrollear tras cada tiro para ingresar sus puntos y volver a scrollear arriba para ver el puntaje restante actualizado.
+  3. *Inutilidad percibida del botón "TIRADA":* El botón central del marcador mostraba la palabra estática "Tirada" en grisáceo cuando no se estaban tipeando números. En realidad funciona como display numérico de lo que se escribe en el teclado y botón táctil para confirmar la tirada.
+- **Decisión:**
+  1. **Ocultamiento de Cabecera Redundante en Móviles (`src/app/anotador/page.tsx`):**
+     - Se añadió `hidden lg:flex` al banner de sala, liberando ~100px verticales en móviles sin alterar su presencia en computadoras.
+     - Se redujo el padding perimetral de la página en dispositivos móviles a `px-1 py-1`.
+  2. **Reubicación del Anotador por Encima de las Cámaras en Móviles (`X01Board.tsx`):**
+     - Se reubicó el bloque `<div className="lg:hidden">` inmediatamente después del teclado numérico y del indicador de turno activo.
+     - En teléfonos, toda la botonera de anotación (tarjetas de puntajes, barra S/L, botones de acción y teclado táctil de 5 columnas) queda visible de forma natural en el primer viewport ("above the fold") sin necesidad de realizar scroll alguno.
+     - Las cámaras en vivo quedan inmediatamente accesibles debajo como referencia de tiro del oponente.
+     - En PC / Desktop (`lg:`), el diseño permanece 100% inalterado (Diana y cámaras a la izquierda, Anotador oficial a la derecha).
+  3. **Display Central con Últimos Tantos Anotados (`X01Board.tsx`):**
+     - En estado de reposo, el botón central exhibe los últimos tantos registrados por cada competidor (`Mariano: 41 | Juan: 55`), con colores semánticos (`BUST` en rojo, `>= 100` en verde).
+     - Si el jugador activo está en zona de cierre (<= 170 pts), exhibe la guía oficial de checkout en la parte superior y los últimos tantos en la inferior.
+     - Al tipear números en el teclado, conmuta instantáneamente al visor numérico en verde neón con indicador `[OK]` y click para confirmar.
+- **Motivo:** Brinda la máxima velocidad y comodidad de anotación táctil al pie del tablero (oche) en smartphones, sin sacrificar la visión del contrincante ni modificar el flujo de escritorio.

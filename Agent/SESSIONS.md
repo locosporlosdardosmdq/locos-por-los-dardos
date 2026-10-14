@@ -1,6 +1,34 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
-## [Sesión 32] - 2026-10-14
+## [Sesión 33] - 2026-10-14
+- **Objetivo:** Optimización de la experiencia móvil en el Anotador Oficial (`/anotador` y `X01Board.tsx`): erradicación de scrolls innecesarios en celulares, ocultamiento del banner redundante de sala en pantallas móviles, reorganización de la interfaz para situar el teclado ergonómico de 5 columnas por encima de las cámaras, y reemplazo del cuadro estático "TIRADA" por un visualizador en reposo de los últimos tantos anotados por cada jugador.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Pérdida de espacio vertical en smartphones:* El banner superior que detalla el nombre de la sala ("Sala Online: DART-SLVU...") consumía entre 90px y 100px de altura en pantallas táctiles, empujando la interfaz de tiro hacia abajo. En móviles, el código de sala ya se encuentra visible en la barra superior compacta y en los badges de la partida.
+  2. *Desplazamiento forzado (scroll) para anotar:* El panel de cámaras móviles (`Doble Diana en Vivo`) estaba ubicado antes del teclado de 5 columnas, obligando al jugador a scrollear 250-300px hacia abajo tras cada tiro para ingresar su puntaje, perdiendo de vista los marcadores gigantes.
+  3. *Incomprensión del cuadro central "TIRADA":* En reposo, el botón/display central mostraba el texto estático y grisáceo "Tirada" (o "Sin Opción" si no había checkout), confundiéndose con un botón muerto. Su función nativa es servir de visor numérico (`typedInput`) y botón de confirmación (`OK`) al tipear.
+- **Realizado:**
+  - **Ocultamiento de Cabecera Redundante en Móviles (`src/app/anotador/page.tsx`):**
+    * Se aplicó `hidden lg:flex` al banner informativo superior de la sala en `/anotador`. En escritorio (PC) se preserva íntegramente y en móviles se ahorran ~100px verticales.
+    * Se compactaron los paddings del contenedor en pantallas pequeñas (`px-1 sm:px-4 py-1 sm:py-6`) para aprovechar al máximo la pantalla del teléfono.
+  - **Reubicación Ergonómica del Anotador sobre las Cámaras (`X01Board.tsx`):**
+    * Se trasladó el bloque de cámaras de móvil (`<div className="lg:hidden">`) para que quede situado debajo del teclado numérico de 5 columnas y de la barra del tirador activo.
+    * En smartphones, el jugador tiene en la parte superior y sin scrollear:
+      1. Mini cabecera oficial con controles de audio/mic.
+      2. Tarjetas de puntajes gigantes de ambos jugadores con promedios y dardos lanzados.
+      3. Barra de Sets y Legs (`0 S/L 0`).
+      4. Fila de acción: `switch Starter` + Display Central + `REMAINING`.
+      5. Teclado ergonómico de 5 columnas (o aviso elegante de turno del rival).
+      6. Estado del turno y botón directo a visitas.
+      7. Directamente abajo: panel de Doble Diana en Vivo (cámaras en tiempo real con selector de cámara trasera/delantera, mute y reconexión).
+    * El layout de escritorio en PC (`lg:`) permanece 100% inalterado (Diana fija a la izquierda y Anotador a la derecha).
+  - **Display Central con Últimos Tantos Anotados (`X01Board.tsx`):**
+    * Cuando el jugador presiona dígitos en el teclado, el display muestra el número ingresado en verde brillante junto a un indicador `[OK]`.
+    * Cuando está en reposo (sin dígitos tipeados):
+      - Muestra de forma destacada y balanceada los últimos tantos anotados por cada competidor: `Mariano: 41 | Juan: 55`, con detección de `BUST` en rojo y scores >= 100 en verde.
+      - Si el jugador en turno está en zona de cierre (<= 170 pts), exhibe en la línea superior la ruta de checkout sugerida (ej. `Cierre (40): D20`) y en la inferior los últimos tantos de ambos jugadores.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores (código 0).
+- **Estado del Proyecto:** Anotador oficial en celulares con ergonomía táctil perfecta: marcadores y teclado inmediatamente visibles al abrir la app sin scrollear, visualización clara de los últimos tantos en el display central y cámaras situadas estratégicamente como apoyo visual en vivo debajo del tablero.
 - **Objetivo:** Resolver los cortes intermitentes de video y audio en salas online 1 vs 1, asegurar la visibilidad de la cámara propia del jugador local (tanto en modo PiP como en vista lado a lado "DUAL"), y habilitar controles completamente funcionales para silenciar el audio del rival y ocultar su video sin alterar el teclado de 5 columnas.
 - **Diagnóstico de Causa Raíz:**
   1. *Video y audio entrecortados:* El streaming WebRTC transmitía video sin límite de ancho de banda (uplink ilimitado a 30fps), saturando la velocidad de subida en conexiones residenciales y 4G, lo que provocaba degradación, retraso y corte del canal de audio.

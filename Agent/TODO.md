@@ -1,6 +1,19 @@
 # Tareas del Proyecto (TODO) • Locos por los Dardos
 
-- [x] **Optimización de Bitrate WebRTC (500 kbps), Modo DUAL (Ambas Dianas) en PC, Visibilidad de Cámara Local y Controles Funcionales de Silenciar/Ocultar Rival:**
+- [x] **Optimización de UI Móvil en Anotador Oficial: Anotador Superior, Eliminación de Scroll y Display de Últimos Tantos:**
+  * **Ocultamiento de Cabecera Redundante en Móviles (`src/app/anotador/page.tsx`):**
+    - Banner informativo de sala en `/anotador` condicionado con `hidden lg:flex`, recuperando entre 90px y 100px de espacio vertical crítico en celulares.
+    - Paddings perimetrales optimizados (`px-1 sm:px-4 py-1 sm:py-6`) para aprovechar todo el ancho y alto del smartphone.
+  * **Reorganización Ergonómica de Pantalla en Celulares (`X01Board.tsx`):**
+    - Panel de cámaras (`Doble Diana en Vivo` móvil `lg:hidden`) trasladado por debajo del teclado de 5 columnas y de la barra de tirador activo.
+    - Se elimina el scroll necesario para anotar: el jugador tiene marcadores, barra S/L, botones de acción y teclado táctil siempre a la vista al pie del tablero.
+    - Las cámaras en vivo permanecen inmediatamente debajo como referencia visual del rival.
+    - El layout de escritorio en PC (`lg:`) permanece 100% inalterado (Diana a la izquierda, Anotador a la derecha).
+  * **Display Central Inteligente con Últimos Tantos (`X01Board.tsx`):**
+    - Reemplazo del texto estático "TIRADA" en reposo por un visor dinámico de los últimos tantos anotados por cada jugador (`Mariano: 41 | Juan: 55`), con detección de `BUST` en rojo y tiradas mayores a 100 en verde.
+    - En caso de estar en zona de cierre (<= 170 pts), exhibe la sugerencia oficial de Checkout arriba y los últimos tantos abajo.
+    - Al ingresar números por el teclado, muestra el valor tipeado en verde brillante con indicador `[OK]` para confirmación rápida.
+
   * **Optimización de Bitrate y Fluidez WebRTC (`webrtc-room.ts`):**
     - Implementación de `optimizePeerConnectionBitrate` sobre `RTCRtpSender`: límite de bitrate de video a `500000` bps (500 kbps) y audio a `40000` bps (40 kbps Opus) con `degradationPreference: 'maintain-framerate'`.
     - Eliminación de la saturación de subida residencial/4G que provocaba congelamientos y cortes de voz.

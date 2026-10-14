@@ -1,5 +1,15 @@
 # Tareas del Proyecto (TODO) • Locos por los Dardos
 
+- [x] **Fecha de Nacimiento, Cálculo Dinámico de Edad, RBAC Jerárquico (Superadmin vs Admin de Torneos) y Análisis Consultivo de Reconocimiento de Voz:**
+  * **Fecha de Nacimiento y Demografía Real:** Columna `birth_date` en PostgreSQL (`profiles`), función determinista y libre de desfases de huso horario `calculateAgeFromBirthDate`, input interactivo `type="date"` en `/perfil` con previsualización en tiempo real de edad y rango etario, y actualización reactiva de la tarjeta "Edad Promedio" en `/superadmin`.
+  * **RBAC Jerárquico de 3 Niveles:**
+    - `SUPERADMIN`: Acceso exclusivo a `/superadmin` (Mariano Deux / ICEMAN), control integral de cuotas, servidores, vitrinas, comisiones, sanciones federativas y designación de roles a competidores.
+    - `ADMIN`: Administrador de torneos y ligas federadas. Puede crear, editar partidos de llaves/brackets (W.O., reseteo seguro en cascada, resultados) y eliminar torneos o ligas desde `TournamentManager` y `LeagueManager`, pero tiene **acceso estrictamente denegado a `/superadmin`**.
+    - `PLAYER`: Jugador federado estándar sin privilegios de edición estructural.
+  * **Ampliación de Enum de Roles en Base de Datos:** `ALTER TYPE user_role ADD VALUE 'SUPERADMIN'`, sincronización de columna `profiles.role VARCHAR(30)` con `users.role`, y selector interactivo de "Rol & Permisos" en la tabla del Padrón de Superadmin conectado a `PATCH /api/jugadores`.
+  * **Eliminación y Gestión de Ligas para Administradores:** Control condicional `isAdmin` y botón `Trash2` para eliminar ligas del circuito en `LeagueManager.tsx` con confirmación defensiva.
+  * **Evaluación Consultiva de Reconocimiento de Voz:** Análisis técnico exhaustivo de viabilidad, Web Speech API, desafíos acústicos en bares/clubes ruidosos, arquitectura Push-to-Talk y validación de reglas de dardos (0 a 180).
+
 - [x] **Optimización de Vitrina Hero, Conexión Real de Google Forms & Gestión de Suspensión de Jugadores:**
   * **Ampliación del cuadro de Sede en Vitrina Hero:** Contenedor responsivo `flex-[2.5]` con ancho expandido en desktop y ancho completo en mobile, eliminando el corte del texto (`truncate`) para mostrar íntegramente sedes largas (ej: "Sociedad de Fomento...").
   * **Configurabilidad total de "Ver Cuadro y Reglamento":** Parámetros editables en Superadmin (Vitrina 1) para el texto y la URL de destino (`secondaryButtonText` y `secondaryButtonUrl`), con soporte transparente para enlaces internos (`/torneos`, `/reglamento`) y externos (PDF, Google Drive, Challonge).

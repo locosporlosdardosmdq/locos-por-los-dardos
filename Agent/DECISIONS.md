@@ -785,4 +785,35 @@
      - En `RegisterAndProfile.tsx` y `PlayerDetailModal.tsx`, se exhiben avisos respetuosos de estado garantizando que todas las métricas históricas permanecen resguardadas.
 - **Motivo:** Cumple a rajatabla con el requerimiento de integridad de datos deportivos (cero pérdida de métricas), brinda control institucional a la administración y transparenta la portada de la plataforma con datos 100% fidedignos.
 
+---
+
+## ADR-040: Fecha de Nacimiento con Cálculo Dinámico de Edad, RBAC Jerárquico de 3 Niveles (Superadmin vs Admin de Torneos) y Evaluación de Voice Scoring
+
+- **Fecha:** 2026-10-14
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Fecha de Nacimiento y Demografía Real:* En la ficha del jugador no existía campo para registrar la fecha de nacimiento, lo que impedía computar la edad real de los competidores y dejaba la tarjeta de "Edad Promedio" de Superadmin sin datos fidedignos.
+  2. *Roles y Privilegios Diferenciados (RBAC):* Se requería que ciertos jugadores registrados puedan ser designados por Mariano Deux desde `/superadmin` como administradores con facultades para editar llaves/brackets de torneos, avanzar partidos por W.O., resetearlos de forma segura y eliminar torneos o ligas, pero con una **frontera de aislamiento estricta**: dichos administradores no deben tener acceso al panel de Superadmin, el cual se mantiene exclusivo para Mariano Deux (`SUPERADMIN`), reservando la potestad de designar otros Superadmins a futuro.
+  3. *Reconocimiento de voz:* El usuario solicitó evaluar la factibilidad técnica y operativa de implementar reconocimiento de voz para anotar los tantos durante el juego.
+- **Decisión:**
+  1. **Modelo de Datos y Demografía (`profiles.birth_date` y `age`):**
+     - Añadida columna `birth_date DATE` a la tabla `profiles` en PostgreSQL de Supabase.
+     - Implementada función determinista `calculateAgeFromBirthDate(birthDateStr)` en `src/lib/constants.ts` (cálculo de edad exacto considerando año, mes y día actual sin desfasajes de zona horaria).
+     - Añadido input `type="date"` en `RegisterAndProfile.tsx` con preview reactivo de la edad calculada y rango etario oficial.
+     - Sincronización en `src/app/api/jugadores/route.ts` (GET, POST y PATCH) y `src/lib/server-players.ts`.
+     - En `/superadmin`, la tarjeta de Edad Promedio calcula dinámicamente la media en vivo sobre todos los jugadores registrados con fecha de nacimiento cargada.
+  2. **RBAC Jerárquico de 3 Niveles:**
+     - **`SUPERADMIN`:** Rol máximo en la plataforma. Acceso irrestricto al panel `/superadmin`, control de infraestructura y base de datos, configuración de vitrinas, finanzas institucionales, sanciones y designación de roles para cualquier competidor. Actualmente exclusivo de Mariano Deux (`marianodeux@gmail.com`).
+     - **`ADMIN`:** Administrador de competiciones. Acceso a `TournamentManager` y `LeagueManager`: puede crear certámenes, editar llaves eliminatorias en vivo, declarar W.O., resetear matches en cascada y eliminar torneos o ligas. **Acceso bloqueado a `/superadmin`** (el guard de autenticación redirige o rechaza el ingreso).
+     - **`PLAYER`:** Competidor estándar. Puede registrarse, desafiar, ingresar a torneos y anotar sus partidas.
+  3. **Ampliación de Enum de Roles en Base de Datos:**
+     - Ejecutado `ALTER TYPE user_role ADD VALUE 'SUPERADMIN'` en PostgreSQL de Supabase.
+     - Añadida columna `profiles.role VARCHAR(30)` sincronizada bidireccionalmente con `users.role`.
+     - En la tabla de Superadmin, se agregó la columna "Rol & Permisos" con un selector interactivo (`PLAYER`, `ADMIN`, `SUPERADMIN`) que invoca `PATCH /api/jugadores` de forma inmediata.
+  4. **Gestión de Ligas para Administradores:**
+     - En `LeagueManager.tsx`, los botones "Crear Nueva Liga" y "Eliminar Liga" (`Trash2`) quedan condicionados al permiso `isAdmin = canUserManageTournaments(currentUser)`.
+  5. **Evaluación de Reconocimiento de Voz:**
+     - Análisis consultivo elaborado: factibilidad técnica alta mediante la Web Speech API (`SpeechRecognition`), pero se aconseja implementación mediante **Push-to-Talk** (mantener presionado botón o barra espaciadora) para evitar falsos positivos por el ruido ambiente característico de bares, pubs y clubes de dardos (música, charlas, gritos de "180"), combinado con gramática estricta de validación (rango 0 a 180 y dobles de checkout).
+- **Motivo:** Otorga autonomía organizativa a delegados de torneo sin comprometer la seguridad ni la administración global de la plataforma, garantiza datos demográficos reales y sienta las bases arquitectónicas para el anotador por voz.
+
 

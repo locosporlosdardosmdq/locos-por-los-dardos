@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDbPool } from '@/lib/db';
 import { PlayerProfile } from '@/lib/types';
 import { ICEMAN_CARD_DATA } from '@/lib/players-data';
+import { calculateAgeFromBirthDate } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -36,6 +37,8 @@ export async function GET() {
         p.club,
         p.association_role,
         p.age,
+        p.birth_date,
+        COALESCE(p.role, u.role::text, 'PLAYER') as role,
         s.overall_avg,
         s.first_9_avg,
         s.matches_played,
@@ -68,6 +71,11 @@ export async function GET() {
       const cleanAvatar = row.avatar_url && !row.avatar_url.includes('iceman') ? row.avatar_url : undefined;
       const cleanPhoto = row.photo_url && !row.photo_url.includes('iceman') ? row.photo_url : undefined;
 
+      const birthDateStr = row.birth_date
+        ? (row.birth_date instanceof Date ? row.birth_date.toISOString().split('T')[0] : String(row.birth_date).split('T')[0])
+        : (isIcemanRow ? '1982-05-15' : undefined);
+      const computedAge = row.age || (birthDateStr ? calculateAgeFromBirthDate(birthDateStr) : (isIcemanRow ? 44 : undefined));
+
       return {
         id: row.id || row.user_id,
         email: row.email || '',
@@ -90,7 +98,9 @@ export async function GET() {
         dartBrand: row.dart_brand || 'TARGET 90%',
         majorTitle: row.major_title || '',
         associationRole: row.association_role || '',
-        age: row.age || undefined,
+        birthDate: birthDateStr,
+        age: computedAge,
+        role: isIcemanRow ? 'SUPERADMIN' : (row.role || 'PLAYER'),
         club: row.club || 'Darderos Mar del Plata',
         isProfileComplete: true,
         stats: {
@@ -142,7 +152,9 @@ export async function GET() {
         club: 'Darderos Mar del Plata',
         majorTitle: 'ADMINISTRADOR OFICIAL',
         associationRole: 'Presidente • Asociación Mar del Plata',
+        birthDate: '1982-05-15',
         age: 44,
+        role: 'SUPERADMIN',
         preferredDartWeight: 24,
         dartBrand: 'TARGET 90%',
         isProfileComplete: true,
@@ -226,6 +238,8 @@ export async function POST(request: NextRequest) {
 
     const category = profile.category || 'INTERMEDIA';
     const estimatedAvg = profile.estimatedAvg || (profile.stats?.overallAvg) || 45.0;
+    const birthDate = profile.birthDate || null;
+    const computedAge = profile.age || (birthDate ? calculateAgeFromBirthDate(birthDate) : null);
 
     let profileId: string;
     if (profileRes.rows.length > 0) {
@@ -253,8 +267,9 @@ export async function POST(request: NextRequest) {
           club = COALESCE($18, club),
           association_role = COALESCE($19, association_role),
           age = COALESCE($20, age),
+          birth_date = COALESCE($21, birth_date),
           updated_at = NOW()
-        WHERE id = $21;`,
+        WHERE id = $22;`,
         [
           nickname || null,
           fullName || null,
@@ -275,7 +290,8 @@ export async function POST(request: NextRequest) {
           profile.majorTitle || null,
           (profile as any).club || null,
           profile.associationRole || null,
-          profile.age || null,
+          computedAge || null,
+          birthDate || null,
           profileId
         ]
       );
@@ -286,9 +302,9 @@ export async function POST(request: NextRequest) {
           avatar_url, photo_url, logo_url, nationality, country_code,
           initial_estimated_avg, category, is_verified, bio, 
           preferred_dart_weight_g, dart_brand, major_title, club,
-          association_role, age
+          association_role, age, birth_date
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
         ) RETURNING id;`,
         [
           userId,
@@ -311,7 +327,8 @@ export async function POST(request: NextRequest) {
           profile.majorTitle || null,
           (profile as any).club || 'Darderos Mar del Plata',
           profile.associationRole || null,
-          profile.age || null
+          computedAge || null,
+          birthDate || null
         ]
       );
       profileId = newProf.rows[0].id;
@@ -372,6 +389,8 @@ export async function POST(request: NextRequest) {
       email,
       nickname,
       fullName,
+      birthDate: birthDate || undefined,
+      age: computedAge || undefined,
       category,
       estimatedAvg,
       isProfileComplete: true
@@ -384,16 +403,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH: Actualización quirúrgica de campos específicos (categoría, rol, club, estado) sin sobreescribir el resto del perfil
+// PATCH: Actualización quirúrgica de campos específicos (categoría, rol, club, estado, fecha de nacimiento, rol del sistema) sin sobreescribir el resto del perfil
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, category, nickname, associationRole, isVerified, club, status } = body;
+    const { id, category, nickname, associationRole, isVerified, club, status, birthDate, age, role } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID de jugador requerido para actualización parcial.' }, { status: 400 });
     }
 
+    const computedPatchAge = age || (birthDate ? calculateAgeFromBirthDate(birthDate) : null);
     const pool = getDbPool();
     await pool.query(
       `UPDATE profiles SET
@@ -403,10 +423,32 @@ export async function PATCH(request: NextRequest) {
         is_verified = COALESCE($4, is_verified),
         club = COALESCE($5, club),
         status = COALESCE($6, status),
+        birth_date = COALESCE($7, birth_date),
+        age = COALESCE($8, age),
+        role = COALESCE($9, role),
         updated_at = NOW()
-      WHERE id = $7 OR user_id = $7;`,
-      [category || null, nickname || null, associationRole || null, isVerified ?? null, club || null, status || null, id]
+      WHERE id = $10 OR user_id = $10;`,
+      [
+        category || null,
+        nickname || null,
+        associationRole || null,
+        isVerified ?? null,
+        club || null,
+        status || null,
+        birthDate || null,
+        computedPatchAge || null,
+        role || null,
+        id
+      ]
     );
+
+    // Si se actualizó el rol, sincronizar también en users
+    if (role && (role === 'PLAYER' || role === 'ORGANIZER' || role === 'ADMIN' || role === 'SUPERADMIN')) {
+      await pool.query(
+        `UPDATE users SET role = $1::user_role WHERE id = $2 OR id = (SELECT user_id FROM profiles WHERE id = $2);`,
+        [role, id]
+      );
+    }
 
     return NextResponse.json({ success: true, message: 'Perfil actualizado exitosamente' });
   } catch (err: any) {

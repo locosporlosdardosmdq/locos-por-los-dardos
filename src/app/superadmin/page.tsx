@@ -51,11 +51,14 @@ import {
   ADMIN_MASTER_PASSWORD, 
   validateAdminCredentials, 
   isUserAdmin,
+  isUserSuperAdmin,
+  canUserManageTournaments,
   MOCK_CURRENT_USER,
   COUNTRIES,
   PROVINCIAS_ARGENTINA,
   DEFAULT_ASSOCIATION_AUTHORITIES,
-  DEFAULT_ASSOCIATION_BANK_ACCOUNT
+  DEFAULT_ASSOCIATION_BANK_ACCOUNT,
+  calculateAgeFromBirthDate
 } from '@/lib/constants';
 import { 
   getCurrentPlayerProfile, 
@@ -89,7 +92,7 @@ export default function SuperadminPage() {
     return getCurrentPlayerProfile(MOCK_CURRENT_USER);
   });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return isUserAdmin(currentUser.email) || currentUser.role === 'ADMIN';
+    return isUserSuperAdmin(currentUser);
   });
 
   // Credenciales para login si no está autenticado
@@ -169,7 +172,8 @@ export default function SuperadminPage() {
       province: 'Buenos Aires',
       nationality: 'Argentina',
       countryCode: 'AR',
-      age: undefined,
+      birthDate: '1982-05-15',
+      age: 44,
       club: 'Darderos Mar del Plata',
       photoUrl: '/images/iceman-perfil.png',
       category: 'INTERMEDIA',
@@ -184,6 +188,7 @@ export default function SuperadminPage() {
       if (!isIceman) {
         const cleanPhoto = p.photoUrl && !p.photoUrl.includes('iceman') ? p.photoUrl : undefined;
         const cleanAvatar = p.avatarUrl && !p.avatarUrl.includes('iceman') ? p.avatarUrl : undefined;
+        const playerAge = p.age || (p.birthDate ? calculateAgeFromBirthDate(p.birthDate) : undefined);
         map.set(p.id, {
           id: p.id,
           name: p.fullName || p.name || p.nickname || 'Jugador',
@@ -192,7 +197,8 @@ export default function SuperadminPage() {
           province: p.province || 'Buenos Aires',
           nationality: p.nationality || 'Argentina',
           countryCode: p.countryCode || 'AR',
-          age: p.age,
+          birthDate: p.birthDate,
+          age: playerAge,
           club: p.club || 'Darderos Mar del Plata',
           photoUrl: cleanPhoto || cleanAvatar || undefined,
           category: p.category || 'INTERMEDIA',
@@ -369,6 +375,42 @@ export default function SuperadminPage() {
     }
   };
 
+  // Modificar rol de plataforma (PLAYER, ADMIN, SUPERADMIN)
+  const [isUpdatingRole, setIsUpdatingRole] = useState<string | null>(null);
+  const handleUpdatePlayerRoleFromAdmin = async (player: any, newRole: string) => {
+    const isIceman = player.id === 'user-iceman-admin' || player.nickname?.toUpperCase() === 'ICEMAN' || player.email?.toLowerCase() === 'marianodeux@gmail.com';
+    if (isIceman && newRole !== 'SUPERADMIN') {
+      alert('El perfil de Mariano Deux (ICEMAN) es el Superadministrador Root inmutable de la plataforma.');
+      return;
+    }
+
+    try {
+      setIsUpdatingRole(player.id);
+      const res = await fetch('/api/jugadores', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: player.id, role: newRole })
+      });
+      if (res.ok) {
+        const roleLabel = newRole === 'SUPERADMIN' 
+          ? 'Superadministrador Full' 
+          : newRole === 'ADMIN' 
+          ? 'Administrador de Torneos (Edición y Borrado de Llaves)' 
+          : 'Jugador Estándar';
+        setSaveSuccessMsg(`¡Rol actualizado para ${player.nickname || player.name}: ${roleLabel}!`);
+        await loadRegisteredPlayers();
+      } else {
+        alert('Error al actualizar el rol en el servidor.');
+      }
+    } catch (err) {
+      console.error('Error updating player role:', err);
+      alert('Error de red al actualizar el rol.');
+    } finally {
+      setIsUpdatingRole(null);
+      setTimeout(() => setSaveSuccessMsg(null), 3500);
+    }
+  };
+
   // Manejador de Login de Administrador
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -377,7 +419,7 @@ export default function SuperadminPage() {
       const updatedProfile = {
         ...currentUser,
         email: loginEmail.trim().toLowerCase(),
-        role: 'ADMIN' as const,
+        role: 'SUPERADMIN' as const,
         nickname: 'ICEMAN'
       };
       setCurrentUser(updatedProfile);
@@ -1161,6 +1203,7 @@ export default function SuperadminPage() {
                       <th className="py-3 px-3">Ubicación</th>
                       <th className="py-3 px-3">AVG 501</th>
                       <th className="py-3 px-3">Categoría Oficial</th>
+                      <th className="py-3 px-3">Rol & Permisos</th>
                       <th className="py-3 px-3">Estado</th>
                       <th className="py-3 px-3 text-right">Acción</th>
                     </tr>
@@ -1170,7 +1213,7 @@ export default function SuperadminPage() {
                       const currentCat = player.category || 'INTERMEDIA';
                       const currentStatus = player.status || 'ACTIVE';
                       const isIceman = player.id === 'user-iceman-admin' || player.nickname?.toUpperCase() === 'ICEMAN';
-                      const isUpdatingThisPlayer = isUpdatingStatus === player.id || isUpdatingCategory === player.id;
+                      const isUpdatingThisPlayer = isUpdatingStatus === player.id || isUpdatingCategory === player.id || isUpdatingRole === player.id;
 
                       return (
                         <tr key={player.id} className="hover:bg-[#141a29]/50 transition-colors">
@@ -1186,7 +1229,10 @@ export default function SuperadminPage() {
                               </div>
                               <div>
                                 <span className="font-bold text-white block">{player.name}</span>
-                                <span className="text-[10px] text-slate-400">{player.email || 'Sin email público'}</span>
+                                <span className="text-[10px] text-slate-400">
+                                  {player.email || 'Sin email público'}
+                                  {player.age ? ` • 🎂 ${player.age} años` : ''}
+                                </span>
                               </div>
                             </div>
                           </td>
@@ -1219,6 +1265,32 @@ export default function SuperadminPage() {
                               <option value="AVANZADA">AVANZADA (55 - 70 AVG)</option>
                               <option value="ELITE">ELITE PRO (70+ AVG)</option>
                             </select>
+                          </td>
+
+                          <td className="py-3 px-3">
+                            {isIceman ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                                <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+                                <span>Superadmin (Root)</span>
+                              </span>
+                            ) : (
+                              <select
+                                value={player.role || 'PLAYER'}
+                                onChange={(e) => handleUpdatePlayerRoleFromAdmin(player, e.target.value)}
+                                disabled={isUpdatingThisPlayer}
+                                className={`rounded-xl px-2 py-1.5 text-xs font-bold border focus:outline-none cursor-pointer ${
+                                  player.role === 'SUPERADMIN'
+                                    ? 'bg-purple-950/60 border-purple-500/50 text-purple-300'
+                                    : player.role === 'ADMIN'
+                                    ? 'bg-amber-950/60 border-amber-500/50 text-amber-300'
+                                    : 'bg-[#07090e] border-slate-700 text-slate-300'
+                                }`}
+                              >
+                                <option value="PLAYER">👤 Jugador (Estándar)</option>
+                                <option value="ADMIN">🛡️ Admin Torneos (Edita/Borra Llaves)</option>
+                                <option value="SUPERADMIN">👑 Superadmin (Root)</option>
+                              </select>
+                            )}
                           </td>
 
                           <td className="py-3 px-3">

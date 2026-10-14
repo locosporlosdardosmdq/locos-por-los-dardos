@@ -65,12 +65,13 @@ export interface PlayerProfile {
   isVerified?: boolean;
   isProfileComplete?: boolean;
   bio?: string;
+  birthDate?: string; // Formato YYYY-MM-DD
   age?: number;
   associationRole?: string; // ej: 'Tesorero • Asociación Mar del Plata'
   majorTitle?: string;
   preferredDartWeight?: number;
   dartBrand?: string;
-  role?: 'ADMIN' | 'PLAYER';
+  role?: 'SUPERADMIN' | 'ADMIN' | 'ORGANIZER' | 'PLAYER';
   status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
   stats: PlayerStats;
   tournamentsWonList?: PlayerTournamentWin[];

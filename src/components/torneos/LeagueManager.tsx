@@ -18,7 +18,8 @@ import {
   ChevronRight,
   TrendingUp,
   Target,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 
 interface LeagueManagerProps {
@@ -26,13 +27,17 @@ interface LeagueManagerProps {
   onOpenCreateLeague: () => void;
   onSelectLeague?: (leagueId: string) => void;
   onSelectPlayer?: (playerId: string, playerName?: string) => void;
+  isAdmin?: boolean;
+  onDeleteLeague?: (leagueId: string, leagueName: string) => void;
 }
 
 export const LeagueManager: React.FC<LeagueManagerProps> = ({
   leagues,
   onOpenCreateLeague,
   onSelectLeague,
-  onSelectPlayer
+  onSelectPlayer,
+  isAdmin = false,
+  onDeleteLeague
 }) => {
   const [selectedLeagueId, setSelectedLeagueId] = useState<string>(
     leagues[0]?.id || 'league-national-argentina'
@@ -93,14 +98,16 @@ export const LeagueManager: React.FC<LeagueManagerProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onOpenCreateLeague}
-            className="px-4 py-2.5 rounded-2xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-[#00e676]/20 transition-all active:scale-95 flex-shrink-0"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Crear Nueva Liga</span>
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={onOpenCreateLeague}
+              className="px-4 py-2.5 rounded-2xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-[#00e676]/20 transition-all active:scale-95 flex-shrink-0"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Crear Nueva Liga</span>
+            </button>
+          )}
         </div>
 
         {/* BUSCADOR POR AÑO Y DESPLEGABLE DEPENDIENTE CON LOS NOMBRES DE LAS LIGAS */}
@@ -267,18 +274,33 @@ export const LeagueManager: React.FC<LeagueManagerProps> = ({
               </div>
             </div>
 
-            {/* Aviso especial de Clasificatorio Internacional si es Nacional */}
-            {selectedLeague.scope === 'NATIONAL' && (
-              <div className="p-3.5 rounded-2xl bg-[#38bdf8]/10 border border-[#38bdf8]/30 max-w-sm text-xs space-y-1">
-                <span className="font-black text-[#38bdf8] flex items-center gap-1.5">
-                  <Globe className="w-4 h-4" />
-                  <span>Clasificatorio a Torneos Internacionales</span>
-                </span>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  Los mejores jugadores de esta tabla clasificarán directamente para representar a Argentina en certámenes internacionales de la PDC y WDF. Las fechas presenciales en Mar del Plata otorgan puntuación doble obligatoria.
-                </p>
-              </div>
-            )}
+            <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-2.5">
+              {/* Botón de eliminación exclusivo para administradores de torneo */}
+              {isAdmin && onDeleteLeague && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteLeague(selectedLeague.id, selectedLeague.name)}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#ef4444]/15 hover:bg-[#ef4444] text-[#ef4444] hover:text-white font-bold text-xs border border-[#ef4444]/30 flex items-center gap-1.5 transition-all shadow-sm"
+                  title="Eliminar esta liga del circuito"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar Liga</span>
+                </button>
+              )}
+
+              {/* Aviso especial de Clasificatorio Internacional si es Nacional */}
+              {selectedLeague.scope === 'NATIONAL' && (
+                <div className="p-3.5 rounded-2xl bg-[#38bdf8]/10 border border-[#38bdf8]/30 max-w-sm text-xs space-y-1">
+                  <span className="font-black text-[#38bdf8] flex items-center gap-1.5">
+                    <Globe className="w-4 h-4" />
+                    <span>Clasificatorio a Torneos Internacionales</span>
+                  </span>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Los mejores jugadores de esta tabla clasificarán directamente para representar a Argentina en certámenes internacionales de la PDC y WDF. Las fechas presenciales en Mar del Plata otorgan puntuación doble obligatoria.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Tabla Oficial de Posiciones con Interacción de Ficha de Jugador */}

@@ -63,6 +63,9 @@ export interface UltimateDartsCardData {
   tournamentsWonList?: Array<{ id?: string; name: string; year: number; stage?: string }>;
   recentHistory?: RecentHistoryItem[];
   status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
+  birthDate?: string;
+  age?: number;
+  role?: 'SUPERADMIN' | 'ADMIN' | 'ORGANIZER' | 'PLAYER';
 }
 
 export type RankingMode = 'AVG' | 'LIGA_ARG' | 'LIGA_MDQ' | 'PRESENCIAL_MDQ';

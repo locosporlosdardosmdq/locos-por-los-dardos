@@ -36,6 +36,29 @@ export function calculateCategory(avg: number): PlayerCategory {
   return 'PRINCIPIANTE';
 }
 
+/**
+ * Calcula la edad exacta de un jugador a partir de su fecha de nacimiento (YYYY-MM-DD)
+ * Evita problemas de desfase horario separando año, mes y día de forma determinista.
+ */
+export function calculateAgeFromBirthDate(birthDateStr: string | null | undefined): number | undefined {
+  if (!birthDateStr) return undefined;
+  const clean = birthDateStr.split('T')[0];
+  const parts = clean.split('-');
+  if (parts.length < 3) return undefined;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const m = today.getMonth() - month;
+  if (m < 0 || (m === 0 && today.getDate() < day)) {
+    age--;
+  }
+  return (age >= 0 && age <= 120) ? age : undefined;
+}
+
 export const CATEGORY_DETAILS: Record<PlayerCategory, { label: string; minAvg: number; color: string; badgeClass: string; desc: string }> = {
   PRINCIPIANTE: {
     label: 'Principiante',
@@ -303,11 +326,31 @@ export function validateAdminCredentials(email: string, pass: string): boolean {
   return isEmailValid && isPassValid;
 }
 
-export function isUserAdmin(emailOrUser?: string | PlayerProfile | null): boolean {
+// Comprueba si un usuario tiene rol de SUPERADMIN (acceso a /superadmin y control total de servidores/sistema)
+export function isUserSuperAdmin(emailOrUser?: string | PlayerProfile | null): boolean {
   if (!emailOrUser) return false;
-  const email = typeof emailOrUser === 'string' ? emailOrUser : emailOrUser.email;
-  if (!email) return false;
-  return ADMIN_EMAILS.some((adm) => adm.toLowerCase() === email.toLowerCase());
+  if (typeof emailOrUser === 'string') {
+    return ADMIN_EMAILS.some((adm) => adm.toLowerCase() === emailOrUser.trim().toLowerCase());
+  }
+  if (emailOrUser.email && ADMIN_EMAILS.some((adm) => adm.toLowerCase() === emailOrUser.email.trim().toLowerCase())) {
+    return true;
+  }
+  return emailOrUser.role === 'SUPERADMIN';
+}
+
+// Comprueba si un usuario tiene permisos de Administración de Torneos, Ligas y Llaves (SUPERADMIN o ADMIN)
+export function canUserManageTournaments(emailOrUser?: string | PlayerProfile | null): boolean {
+  if (!emailOrUser) return false;
+  if (isUserSuperAdmin(emailOrUser)) return true;
+  if (typeof emailOrUser !== 'string' && (emailOrUser.role === 'ADMIN' || emailOrUser.role === 'ORGANIZER')) {
+    return true;
+  }
+  return false;
+}
+
+// Mantener compatibilidad con llamadas existentes a isUserAdmin (superadmins y administradores de torneos)
+export function isUserAdmin(emailOrUser?: string | PlayerProfile | null): boolean {
+  return canUserManageTournaments(emailOrUser);
 }
 
 // Lista de torneos: Inicialmente limpia sin torneos mock no deseados
@@ -421,7 +464,9 @@ export const USER_ICEMAN: PlayerProfile = {
   category: 'INTERMEDIA',
   isVerified: true,
   isProfileComplete: true,
-  role: 'ADMIN',
+  role: 'SUPERADMIN',
+  birthDate: '1982-05-15',
+  age: 44,
   bio: 'Presidente y Administrador Oficial • Asociación de Dardos Mar del Plata & Dardos Argentina.',
   preferredDartWeight: 24.0,
   dartBrand: 'TARGET 90%',

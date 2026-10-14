@@ -1,6 +1,7 @@
 import { getDbPool } from '@/lib/db';
 import { UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
 import { CANONICAL_PLAYERS } from '@/lib/players-data';
+import { calculateAgeFromBirthDate } from '@/lib/constants';
 
 export function mapDbRowToCard(row: any): UltimateDartsCardData {
   const isIcemanRow =
@@ -12,6 +13,11 @@ export function mapDbRowToCard(row: any): UltimateDartsCardData {
   const cleanPhoto = row.photo_url && !row.photo_url.includes('iceman') ? row.photo_url : undefined;
 
   const avg = parseFloat(row.overall_avg || row.initial_estimated_avg || '40.0');
+
+  const birthDateStr = row.birth_date
+    ? (row.birth_date instanceof Date ? row.birth_date.toISOString().split('T')[0] : String(row.birth_date).split('T')[0])
+    : (isIcemanRow ? '1982-05-15' : undefined);
+  const age = row.age || (birthDateStr ? calculateAgeFromBirthDate(birthDateStr) : (isIcemanRow ? 44 : undefined));
 
   return {
     id: row.id || row.user_id || `player-${Math.random()}`,
@@ -44,7 +50,10 @@ export function mapDbRowToCard(row: any): UltimateDartsCardData {
     presentialRank: row.presential_rank ? parseInt(row.presential_rank, 10) : undefined,
     tournamentsWonList: [],
     recentHistory: [],
-    status: row.status || 'ACTIVE'
+    status: row.status || 'ACTIVE',
+    birthDate: birthDateStr,
+    age: age,
+    role: isIcemanRow ? 'SUPERADMIN' : (row.role || 'PLAYER')
   };
 }
 
@@ -77,6 +86,8 @@ export async function getRegisteredPlayersServer(): Promise<UltimateDartsCardDat
         p.club,
         p.association_role,
         p.age,
+        p.birth_date,
+        COALESCE(p.role, u.role::text, 'PLAYER') as role,
         s.overall_avg,
         s.first_9_avg,
         s.matches_played,

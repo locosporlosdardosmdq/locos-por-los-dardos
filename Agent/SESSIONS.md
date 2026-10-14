@@ -1,5 +1,32 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 30] - 2026-10-14
+- **Objetivo:** Registro de fecha de nacimiento y cálculo dinámico de edad en la ficha del jugador (`RegisterAndProfile.tsx`) para la tarjeta demográfica de Superadmin, RBAC jerárquico de 3 niveles (`SUPERADMIN`, `ADMIN`, `PLAYER`) con delegación de administración de llaves eliminatorias y eliminación de torneos/ligas sin acceso al panel `/superadmin`, y evaluación consultiva de reconocimiento de voz para anotación de tantos.
+- **Diagnóstico de Causa Raíz:**
+  1. *Ausencia de fecha de nacimiento:* La base de datos carecía de `birth_date` en `profiles`, lo que obligaba a la tarjeta de "Edad Promedio" de Superadmin a computar sobre valores inexistentes.
+  2. *Falta de diferenciación de roles:* Todos los privilegios de administración estaban acoplados a la cuenta de ICEMAN. No existía distinción entre un administrador de torneos (capaz de resolver llaves, declarar W.O. y crear/eliminar torneos o ligas) y un Superadministrador global con acceso a cuotas, vitrinas, comisiones y finanzas.
+- **Realizado:**
+  - **Fecha de Nacimiento y Cálculo Dinámico de Edad:**
+    * Columna `birth_date DATE` añadida a la tabla `profiles` en PostgreSQL de Supabase.
+    * Función `calculateAgeFromBirthDate(birthDateStr)` determinista, libre de desfasajes de huso horario y con soporte para fechas ISO.
+    * Input `type="date"` en `RegisterAndProfile.tsx` con preview reactivo del cálculo de edad y rango etario oficial.
+    * Inclusión de `birth_date` y `age` en `types.ts`, `server-players.ts` y endpoints `GET, POST & PATCH /api/jugadores`.
+    * Cálculo dinámico de edad promedio en `/superadmin` sobre los registros con fecha válida.
+  - **RBAC Jerárquico de 3 Niveles (`SUPERADMIN`, `ADMIN`, `PLAYER`):**
+    * `ALTER TYPE user_role ADD VALUE 'SUPERADMIN'` ejecutado en PostgreSQL de Supabase.
+    * Columna `profiles.role VARCHAR(30)` sincronizada con `users.role`.
+    * Funciones de autorización en `src/lib/constants.ts`: `isUserSuperAdmin` (Mariano Deux / `SUPERADMIN`) y `canUserManageTournaments` (`SUPERADMIN`, `ADMIN`, `ORGANIZER`).
+    * Guard estricto en `/superadmin`: acceso denegado a usuarios con rol `ADMIN`; el panel maestro es de uso exclusivo para `SUPERADMIN`.
+    * Selector interactivo de "Rol & Permisos" (`PLAYER`, `ADMIN`, `SUPERADMIN`) en la tabla del Padrón de Superadmin para que Mariano pueda promover o degradar administradores con 1 click llamando a `PATCH /api/jugadores`.
+    * `TournamentManager.tsx` y `LeagueManager.tsx`: los administradores (`ADMIN`) pueden editar llaves eliminatorias, declarar W.O., resetear matches en cascada, crear ligas y eliminar certámenes o ligas con confirmación defensiva (`Trash2`).
+  - **Evaluación Consultiva de Reconocimiento de Voz:**
+    * Análisis arquitectónico elaborado sobre viabilidad con Web Speech API, desafíos de ruido ambiente en bares y pubs (música, voces superpuestas), arquitectura Push-to-Talk y validación de gramática cerrada de dardos (0-180 y checkouts).
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores (código 0).
+- **Estado del Proyecto:** Fichas de jugadores con fecha de nacimiento y edad real, métricas demográficas de Superadmin fidedignas, RBAC de 3 niveles con aislamiento blindado entre Superadmin y Administradores de Torneo, y documentación institucional actualizada.
+
+---
+
 ## [Sesión 29] - 2026-10-13
 - **Objetivo:** Ampliación y flexibilización del cuadro de Sede en la vitrina del Gran Torneo oficial, configurabilidad total del botón secundario ("Ver Cuadro y Reglamento") hacia cualquier URL o ruta desde Superadmin, sincronización fidedigna de inscriptos desde Google Forms/Sheets sin simulaciones ficticias, y sistema de suspensión/baja disciplinaria de jugadores federados con preservación estricta del 100% de métricas, AVG y partidas disputadas.
 - **Diagnóstico de Causa Raíz:**

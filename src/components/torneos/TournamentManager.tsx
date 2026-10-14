@@ -23,7 +23,8 @@ import {
   COUNTRIES, 
   DEFAULT_LEAGUES,
   getCountryFlag, 
-  isUserAdmin 
+  isUserAdmin,
+  canUserManageTournaments
 } from '@/lib/constants';
 import { 
   getCurrentPlayerProfile, 
@@ -218,7 +219,7 @@ export const TournamentManager: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<PlayerProfile>(() => {
     return getCurrentPlayerProfile(MOCK_CURRENT_USER);
   });
-  const isAdmin = isUserAdmin(currentUser.email) || currentUser.role === 'ADMIN';
+  const isAdmin = canUserManageTournaments(currentUser);
 
   // Transmisión en vivo de pista
   const [liveMatch, setLiveMatch] = useState<BroadcastMatchPayload | null>(null);
@@ -425,7 +426,7 @@ export const TournamentManager: React.FC = () => {
   // Administrador: Eliminar Torneo Activo
   const handleDeleteTournament = (tourneyId: string, tourneyTitle: string) => {
     if (!isAdmin) {
-      alert('Solo el administrador oficial (ICEMAN) puede eliminar torneos.');
+      alert('Solo un administrador designado o Superadmin puede eliminar torneos.');
       return;
     }
 
@@ -439,6 +440,22 @@ export const TournamentManager: React.FC = () => {
         setSelectedTournamentId(null);
         setActiveViewMode('TABLE');
       }
+    }
+  };
+
+  // Administrador: Eliminar Liga Oficial o Local
+  const handleDeleteLeague = (leagueId: string, leagueTitle: string) => {
+    if (!isAdmin) {
+      alert('Solo un administrador designado o Superadmin puede eliminar ligas.');
+      return;
+    }
+
+    if (confirm(`¿Estás seguro de eliminar la liga "${leagueTitle}"? Esta acción no se puede deshacer.`)) {
+      setLeagues((prev) => {
+        const filtered = prev.filter((l) => l.id !== leagueId);
+        saveStoredLeagues(filtered);
+        return filtered;
+      });
     }
   };
 
@@ -1347,6 +1364,8 @@ export const TournamentManager: React.FC = () => {
               leagues={leagues}
               onOpenCreateLeague={() => setShowCreateLeagueModal(true)}
               onSelectPlayer={handleOpenPlayerDetail}
+              isAdmin={isAdmin}
+              onDeleteLeague={handleDeleteLeague}
             />
           )}
 

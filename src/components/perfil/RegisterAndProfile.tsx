@@ -11,7 +11,8 @@ import {
   USER_ICEMAN,
   COUNTRIES, 
   getCountryFlag, 
-  isUserAdmin 
+  isUserAdmin,
+  calculateAgeFromBirthDate
 } from '@/lib/constants';
 import { getCurrentPlayerProfile, saveCurrentPlayerProfile, clearCurrentPlayerSession } from '@/lib/storage';
 import { UltimateDartsCard, UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
@@ -38,7 +39,8 @@ import {
   Upload,
   Trash2,
   MessageCircle,
-  AlertTriangle
+  AlertTriangle,
+  Calendar
 } from 'lucide-react';
 
 export const RegisterAndProfile: React.FC = () => {
@@ -54,6 +56,7 @@ export const RegisterAndProfile: React.FC = () => {
   const [nickname, setNickname] = useState(profile.nickname);
   const [email, setEmail] = useState(profile.email);
   const [phone, setPhone] = useState(profile.phone || '');
+  const [birthDate, setBirthDate] = useState(profile.birthDate || '');
   const [nationality, setNationality] = useState(profile.nationality || 'Argentina');
   const [countryCode, setCountryCode] = useState(profile.countryCode || 'AR');
   const [province, setProvince] = useState(profile.province);
@@ -66,6 +69,8 @@ export const RegisterAndProfile: React.FC = () => {
   const [dartBrand, setDartBrand] = useState<string>(profile.dartBrand || 'TARGET 90%');
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const calculatedAge = calculateAgeFromBirthDate(birthDate);
+
   // Sincronizar estado cuando se actualiza el perfil en storage
   useEffect(() => {
     const handleProfileUpdate = (e: any) => {
@@ -74,6 +79,7 @@ export const RegisterAndProfile: React.FC = () => {
         setFullName(e.detail.fullName);
         setNickname(e.detail.nickname);
         setEmail(e.detail.email);
+        if (e.detail.birthDate) setBirthDate(e.detail.birthDate);
         setNationality(e.detail.nationality || 'Argentina');
         setCountryCode(e.detail.countryCode || 'AR');
         setProvince(e.detail.province);
@@ -183,12 +189,15 @@ export const RegisterAndProfile: React.FC = () => {
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     const isAdmin = isUserAdmin(email);
+    const finalAge = calculateAgeFromBirthDate(birthDate);
     const updated: PlayerProfile = {
       ...profile,
       fullName,
       nickname,
       email,
       phone,
+      birthDate: birthDate || undefined,
+      age: finalAge || profile.age || undefined,
       nationality,
       countryCode,
       province,
@@ -216,6 +225,7 @@ export const RegisterAndProfile: React.FC = () => {
     setNickname(USER_ICEMAN.nickname);
     setEmail(USER_ICEMAN.email);
     setPhone(USER_ICEMAN.phone || '');
+    setBirthDate(USER_ICEMAN.birthDate || '1982-05-15');
     setNationality(USER_ICEMAN.nationality || 'Argentina');
     setCountryCode(USER_ICEMAN.countryCode || 'AR');
     setProvince(USER_ICEMAN.province);
@@ -260,7 +270,9 @@ export const RegisterAndProfile: React.FC = () => {
     mdqLeaguePoints: 0,
     dartBrand: 'TARGET 90%',
     dartWeight: profile.preferredDartWeight || 24,
-    bestLeg: profile.stats.bestLegDarts || 0
+    bestLeg: profile.stats.bestLegDarts || 0,
+    birthDate: profile.birthDate || birthDate || undefined,
+    age: profile.age || calculatedAge || undefined
   };
 
   return (
@@ -428,6 +440,14 @@ export const RegisterAndProfile: React.FC = () => {
                       <MapPin className="w-3.5 h-3.5 text-[#00b853]" />
                       {profile.city}{profile.province ? `, ${profile.province}` : ''}
                     </span>
+                    {(profile.age || calculatedAge) && (
+                      <>
+                        <span className="text-[#313647]">•</span>
+                        <span className="flex items-center gap-1 text-[#00b853] text-xs font-bold bg-[#00b853]/10 border border-[#00b853]/20 px-2 py-0.5 rounded-lg">
+                          🎂 {profile.age || calculatedAge} años
+                        </span>
+                      </>
+                    )}
                   </p>
 
                   <p className="text-xs text-[#b8ad98] max-w-xl leading-relaxed pt-1">
@@ -778,6 +798,53 @@ export const RegisterAndProfile: React.FC = () => {
                   className="w-full bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00b853]"
                   placeholder="+54 9 223 555-0192"
                 />
+              </div>
+
+              {/* Fecha de Nacimiento */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-[#efe7d8] uppercase flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#00b853]" />
+                    <span>Fecha de Nacimiento</span>
+                  </label>
+                  {calculatedAge !== undefined && (
+                    <span className="text-[11px] font-black text-[#00b853] bg-[#00b853]/15 border border-[#00b853]/30 px-2 py-0.5 rounded-full">
+                      🎂 {calculatedAge} años
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  max={new Date().toISOString().split('T')[0]}
+                  min="1920-01-01"
+                  className="w-full bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00b853]"
+                />
+              </div>
+
+              {/* Rango Etario y Categorización Oficial en Vivo */}
+              <div>
+                <label className="text-xs font-bold text-[#efe7d8] block mb-1 uppercase">
+                  Grupo Etario & Censo Oficial
+                </label>
+                <div className="w-full bg-[#14161f] border border-[#313647] rounded-xl px-4 py-2.5 text-xs text-white flex items-center justify-between min-h-[42px]">
+                  {calculatedAge !== undefined ? (
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-white text-sm font-mono">{calculatedAge} años</span>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-[#00b853]/15 text-[#00b853] border border-[#00b853]/30">
+                        {calculatedAge < 26 ? '18 a 25 años (Juvenil / Promesa)' :
+                         calculatedAge <= 35 ? '26 a 35 años (Núcleo Competitivo)' :
+                         calculatedAge <= 45 ? '36 a 45 años (Senior / Master)' :
+                         '46+ años (Veterano de Honor)'}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-slate-500 italic text-[11px]">
+                      Ingresa tu fecha para calcular tu edad y rango
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Nacionalidad y Bandera Oficial */}

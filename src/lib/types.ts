@@ -97,7 +97,9 @@ export interface ParticipantPlayer {
   avatarUrl?: string;
   teammateId?: string;
   teammateName?: string;
+  teammateNickname?: string;
   isBot?: boolean;
+  botAvg?: number;
 }
 
 export interface MatchConfig {

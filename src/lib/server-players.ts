@@ -100,6 +100,7 @@ export async function getRegisteredPlayersServer(): Promise<UltimateDartsCardDat
       FROM profiles p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN player_stats s ON p.user_id = s.user_id
+      WHERE (p.status IS NULL OR p.status = 'ACTIVE')
       ORDER BY COALESCE(s.overall_avg, p.initial_estimated_avg) DESC;
     `;
 

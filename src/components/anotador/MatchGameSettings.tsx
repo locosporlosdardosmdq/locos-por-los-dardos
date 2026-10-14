@@ -6,7 +6,8 @@ import {
   CricketMode, 
   MatchConfig, 
   ParticipantPlayer,
-  PlayerProfile 
+  PlayerProfile,
+  CpuDifficulty 
 } from '@/lib/types';
 import { DEFAULT_NEW_PLAYER, USER_ICEMAN } from '@/lib/constants';
 import { getCurrentPlayerProfile, fetchRegisteredPlayersFromCloud } from '@/lib/storage';
@@ -191,7 +192,8 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
       name: `CPU DartBot (${difficultyName})`,
       nickname: `Bot ${difficultyName}`,
       avatarUrl: '/logos/logo-mdq.png',
-      isBot: true
+      isBot: true,
+      botAvg: avgScore
     };
     if (pickingSlot === 'p2') setPlayer2(botPlayer);
     if (pickingSlot === 'p1Team') setP1Teammate(botPlayer);
@@ -218,12 +220,21 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
 
   const handleStart = () => {
     const finalP1: ParticipantPlayer = isDoubles
-      ? { ...player1, teammateId: p1Teammate.id, teammateName: p1Teammate.name }
+      ? { ...player1, teammateId: p1Teammate.id, teammateName: p1Teammate.name, teammateNickname: p1Teammate.nickname }
       : player1;
 
     const finalP2: ParticipantPlayer = isDoubles
-      ? { ...player2, teammateId: p2Teammate.id, teammateName: p2Teammate.name }
+      ? { ...player2, teammateId: p2Teammate.id, teammateName: p2Teammate.name, teammateNickname: p2Teammate.nickname }
       : player2;
+
+    const isBotP2 = !!(finalP2.isBot || finalP2.id?.startsWith('bot-'));
+    const botDiff = finalP2.id?.includes('fácil')
+      ? 'BEGINNER'
+      : finalP2.id?.includes('avanzado')
+        ? 'ADVANCED'
+        : finalP2.id?.includes('pro')
+          ? 'PRO'
+          : 'MEDIUM';
 
     const config: MatchConfig = {
       gameType,
@@ -237,12 +248,12 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
       doubleIn,
       twoClearLegs,
       isDoubles,
-      isVsCpu: false,
-      cpuDifficulty: 'MEDIUM',
+      isVsCpu: isBotP2,
+      cpuDifficulty: botDiff as CpuDifficulty,
       player1: finalP1,
       player2: finalP2,
-      player1Name: isDoubles ? `${player1.name} / ${p1Teammate.name}` : player1.name,
-      player2Name: isDoubles ? `${player2.name} / ${p2Teammate.name}` : player2.name
+      player1Name: isDoubles ? `${player1.nickname || player1.name} / ${p1Teammate.nickname || p1Teammate.name}` : (player1.nickname || player1.name),
+      player2Name: isDoubles ? `${player2.nickname || player2.name} / ${p2Teammate.nickname || p2Teammate.name}` : (player2.nickname || player2.name)
     };
 
     onStartMatch(config);

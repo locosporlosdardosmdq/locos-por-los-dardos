@@ -147,9 +147,9 @@ export const CricketBoard: React.FC<CricketBoardProps> = ({
     }
   };
 
-  // Nombres
-  const p1Display = config.player1.name;
-  const p2Display = config.player2.name;
+  // Nombres (Priorizar Nicknames / Apodos)
+  const p1Display = (config.player1.nickname && config.player1.nickname.trim()) || config.player1.name;
+  const p2Display = (config.player2.nickname && config.player2.nickname.trim()) || config.player2.name;
 
   // Marcas abiertas pendientes (sobre 21 en total: 7 sectores x 3 marcas)
   const getOpenMarks = (pIdx: 0 | 1) => {

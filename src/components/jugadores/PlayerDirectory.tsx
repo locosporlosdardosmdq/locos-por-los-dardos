@@ -144,7 +144,10 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
         player.city === 'Mar del Plata' || 
         (player.mdqLeaguePoints && player.mdqLeaguePoints > 0);
 
-      return matchesSearch && matchesProvince && matchesCategory && matchesMdqExclusive;
+      // Excluir jugadores suspendidos o dados de baja
+      const isActive = !player.status || player.status === 'ACTIVE';
+
+      return isActive && matchesSearch && matchesProvince && matchesCategory && matchesMdqExclusive;
     });
 
     // Ordenamiento estricto según la competencia seleccionada

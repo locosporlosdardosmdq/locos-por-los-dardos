@@ -1,5 +1,27 @@
 # Tareas del Proyecto (TODO) • Locos por los Dardos
 
+- [x] **Motor de Rival BOT CPU (Estilo My Dart Training), Ocultamiento de Cámara en Partidas Locales, Priorización de Nicks y Limpieza del Display Central:**
+  * **Exclusión de Jugadores Suspendidos del Padrón Público (`/jugadores`):**
+    - `src/lib/server-players.ts`: Filtro SSR `WHERE (p.status IS NULL OR p.status = 'ACTIVE')` para que perfiles suspendidos o inactivos no aparezcan públicamente.
+    - `src/app/api/jugadores/route.ts`: Por defecto entrega únicamente jugadores activos. Soporte de parámetro `?all=true` para el Padrón General de Superadmin.
+    - `src/components/jugadores/PlayerDirectory.tsx`: Doble filtro defensivo en cliente (`player.status === 'ACTIVE'`).
+  * **Motor de Simulación de Bot CPU Inteligente (`X01Board.tsx` & `MatchGameSettings.tsx`):**
+    - Resuelta la congelación de partida vs Bot: `MatchGameSettings` ahora propaga correctamente `isVsCpu: true`, `cpuDifficulty` y `botAvg`.
+    - Algoritmo de tiro de 3 dardos inspirado en *My Dart Training*:
+      * Variación gaussiana (Box-Muller) alrededor del AVG objetivo con clustering realista de dardos (26, 41, 45, 60, 81, 85, 100, 140, 180).
+      * Detección de números de cierre posibles e imposibles en 3 dardos con Double Out (169, 168, 166, etc.).
+      * Curva de probabilidad de checkout por nivel (Fácil ~12%, Medio ~25%, Avanzado ~42%, Pro ~65%) con bonificación en dobles directos (<= 40 pts).
+      * Manejo de fallos realistas: tiros afuera, setup a dobles ideales (40, 32, 36, 16) y bust ocasional.
+      * Temporizador de tiro natural de 1.5s con banner visual de CPU y voz de árbitro oficial Russ Bray anunciando cada visita y cierre (*"Game Shot!"*).
+  * **Ocultamiento de Cuadro de Cámara en Partidas Presenciales Locales:**
+    - `isSplitActive` condicionado estrictamente a `isDesktopSplitEnabled && (config.isOnlineRoom || showMobileCamera || !!localStream)`.
+    - En partidas locales presenciales (1 vs 1 local o vs BOT), el panel lateral de cámara ("Tu Cámara está apagada") NO se monta, y el anotador se centra elegantemente en la pantalla sin elementos superfluos.
+  * **Priorización de Nicks / Apodos en el Anotador Oficial:**
+    - Función determinista `getPlayerDisplayNick` que extrae el Nick o apodo oficial (ej: "ICEMAN", "CARPO", "Rubio.jr") por encima del nombre civil, tanto en tarjetas de juego como en el indicador de turno de tiro.
+  * **Limpieza y Ampliación de Números en Display Central ("Últimos Tantos"):**
+    - Removidos los prefijos de nombre (`Mariano:` / `Rival:`) que saturaban el cuadro e impedían ver los números.
+    - Formato limpio y legible: `- | 100` o `41 | 100` con separación clara y colores de estado (verde para >=100, rojo para BUST, blanco estándar).
+
 - [x] **Optimización de UI Móvil en Anotador Oficial: Anotador Superior, Eliminación de Scroll y Display de Últimos Tantos:**
   * **Ocultamiento de Cabecera Redundante en Móviles (`src/app/anotador/page.tsx`):**
     - Banner informativo de sala en `/anotador` condicionado con `hidden lg:flex`, recuperando entre 90px y 100px de espacio vertical crítico en celulares.

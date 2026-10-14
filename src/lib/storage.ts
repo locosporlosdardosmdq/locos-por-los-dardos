@@ -228,9 +228,10 @@ export function clearCurrentPlayerSession(): void {
   }
 }
 
-export async function fetchRegisteredPlayersFromCloud(): Promise<any[]> {
+export async function fetchRegisteredPlayersFromCloud(includeAll = false): Promise<any[]> {
   try {
-    const res = await fetch('/api/jugadores');
+    const url = includeAll ? '/api/jugadores?all=true' : '/api/jugadores';
+    const res = await fetch(url);
     if (!res.ok) throw new Error('Error al consultar /api/jugadores');
     const data = await res.json();
     if (data.success && Array.isArray(data.players)) {

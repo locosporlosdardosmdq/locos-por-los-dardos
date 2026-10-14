@@ -1,5 +1,29 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 34] - 2026-10-14
+- **Objetivo:** Resolver el avance del Bot CPU como rival en partidas individuales incorporando un motor de simulación inspirado en *My Dart Training*, ocultar el panel de cámara en partidas locales presenciales (1 vs 1 local y vs CPU), priorizar apodos o Nicks oficiales en el marcador y eliminar los nombres del visor central de últimos tantos para dejar únicamente números legibles y de gran tamaño.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *El Bot no jugaba:* En `MatchGameSettings.tsx` el arranque de partida fijaba `isVsCpu: false` por omisión y `X01Board.tsx` carecía por completo de un hook o ciclo de turno para el rival CPU; el turno quedaba en el bot pero esperaba una entrada táctil del usuario humano.
+  2. *Cámara innecesaria en partidas locales:* En partidas presenciales no online el estado `isSplitActive` se mantenía activo en pantallas de PC, mostrando una tarjeta vacía de "Tu Cámara está apagada" que empujaba el anotador a la derecha.
+  3. *Nombres civil vs Nicks:* Las tarjetas llamaban a `formatCardPlayerName` que recortaba los apodos entre paréntesis (ej: "Mariano Deux (ICEMAN)" -> "Mariano Deux"), impidiendo que se lucieran los apodos identitarios de los darderos.
+  4. *Cuadro de Últimos Tantos saturado:* La inclusión de nombres como `Mariano: ... | Rival: 100` en un contenedor de 1.4fr colapsaba el espacio, recortando los números con puntos suspensivos.
+- **Realizado:**
+  - **Motor de Simulación Bot CPU (My Dart Training Engine):**
+    * Función `calculateBotTurnScore(currentScore, targetAvg, outMode)` con distribución gaussiana (Box-Muller) alrededor del AVG del nivel seleccionado (Fácil: 40, Medio: 55, Avanzado: 70, Pro: 85).
+    * Probabilidades realistas de checkout (12% a 65%) respetando números imposibles de cerrar en 3 dardos con Double Out (169, 168, etc.).
+    * Simulación de fallos realistas (tiros fuera, setup a dobles de 40, 32, 16 y bust ocasional).
+    * `useEffect` con retardo natural de 1.5s, banner visual `🤖 Turno de ${p2Display}` mientras tira y voz de Russ Bray cantando el puntaje o *Game Shot*.
+  - **Ocultamiento de Cámaras en Partidas Locales Presenciales:**
+    * Condición `isSplitActive = isDesktopSplitEnabled && (config.isOnlineRoom || showMobileCamera || !!localStream)`.
+    * En partidas locales presenciales el anotador se presenta centrado en pantalla sin paneles laterales de webcam.
+  - **Priorización de Nicks en el Anotador:**
+    * Función `getPlayerDisplayNick` que extrae el apodo oficial de forma determinista para tarjetas, turnos y registros.
+  - **Display Central Limpio y Legible:**
+    * Eliminados prefijos de texto. Ahora exhibe exclusivamente `- | 100` o `41 | 100` en tamaño destacado con separación clara y colores semánticos.
+  - **Exclusión de Jugadores Suspendidos:**
+    * Perfiles suspendidos excluidos del padrón público (`/jugadores`) tanto en SSR como en endpoints REST, preservados en el panel de Superadmin (`?all=true`).
+- **Estado del Proyecto:** Motor de CPU funcional y desafiante estilo My Dart Training, visualización presencial limpia sin cámaras forzadas, Nicks visibles en el marcador y display central numérico de alta legibilidad.
+
 ## [Sesión 33] - 2026-10-14
 - **Objetivo:** Optimización de la experiencia móvil en el Anotador Oficial (`/anotador` y `X01Board.tsx`): erradicación de scrolls innecesarios en celulares, ocultamiento del banner redundante de sala en pantallas móviles, reorganización de la interfaz para situar el teclado ergonómico de 5 columnas por encima de las cámaras, y reemplazo del cuadro estático "TIRADA" por un visualizador en reposo de los últimos tantos anotados por cada jugador.
 - **Diagnóstico y Análisis Consultivo:**

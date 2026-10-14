@@ -41,7 +41,8 @@ import {
   VideoOff,
   Eye,
   EyeOff,
-  X
+  X,
+  Bot
 } from 'lucide-react';
 import { matchBroadcast } from '@/lib/broadcast';
 import { normalizeRoomCode } from '@/lib/online-rooms';
@@ -67,6 +68,114 @@ export interface TurnRecord {
   isBust: boolean;
   timeStr: string;
   timestamp?: number;
+}
+
+/**
+ * Extrae y formatea el apodo o Nick oficial del jugador para el Anotador
+ */
+function getPlayerDisplayNick(player: { name: string; nickname?: string; isBot?: boolean }): string {
+  if (player.nickname && player.nickname.trim()) {
+    return player.nickname.trim();
+  }
+  const matchParen = player.name.match(/\(([^)]+)\)/);
+  if (matchParen && matchParen[1].trim()) {
+    return matchParen[1].trim();
+  }
+  const matchQuotes = player.name.match(/["'«]([^"'»]+)["'»]/);
+  if (matchQuotes && matchQuotes[1].trim()) {
+    return matchQuotes[1].trim();
+  }
+  return formatCardPlayerName(player.name);
+}
+
+/**
+ * Motor de Inteligencia Artificial para rivales CPU (Inspirado en My Dart Training)
+ * Simula de forma realista visitas de 3 dardos según el AVG objetivo y probabilidades de cierre
+ */
+function calculateBotTurnScore(
+  currentScore: number,
+  targetAvg: number,
+  outMode: 'SINGLE_OUT' | 'DOUBLE_OUT' | 'MASTER_OUT'
+): number {
+  const impossibleDoubleOutCheckouts = new Set([169, 168, 166, 165, 163, 162, 159]);
+  const canCheckout = currentScore <= 170 && !impossibleDoubleOutCheckouts.has(currentScore) && currentScore > 1;
+
+  if (canCheckout) {
+    // Curva de checkout según nivel de AVG objetivo (estilo My Dart Training)
+    const checkoutChance = Math.min(0.65, Math.max(0.10, (targetAvg - 20) / 100));
+    const directDoubleBonus = currentScore <= 40 && currentScore % 2 === 0 ? 0.08 : 0;
+    const finalCheckoutChance = Math.min(0.85, checkoutChance + directDoubleBonus);
+
+    if (Math.random() < finalCheckoutChance) {
+      return currentScore; // ¡Game Shot! Cierre exitoso
+    }
+
+    if (currentScore <= 40) {
+      const roll = Math.random();
+      if (roll < 0.08) {
+        return currentScore + 1 > 180 ? 0 : currentScore - 1; // Bust accidental
+      } else if (roll < 0.45) {
+        return 0; // Dardos afuera de la diana
+      } else {
+        const half = Math.floor(currentScore / 2);
+        if (half >= 2 && (currentScore - half) >= 2) {
+          return half;
+        }
+        return 0;
+      }
+    }
+
+    // Intento de setup a un doble cómodo (40, 32, 36, 24, 16)
+    const desirableLeaves = [40, 32, 36, 24, 16];
+    for (const leave of desirableLeaves) {
+      const neededScore = currentScore - leave;
+      if (neededScore > 0 && neededScore <= 140) {
+        if (Math.random() < 0.45) {
+          return neededScore;
+        }
+      }
+    }
+  }
+
+  // Puntuación regular (Scoring phase) con distribución de diana real
+  const commonScores = [26, 41, 45, 60, 60, 81, 85, 100, 100, 120, 140];
+  const u1 = Math.random() || 0.001;
+  const u2 = Math.random() || 0.001;
+  const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+  const jitter = z0 * 16;
+  let rawScore = Math.round(targetAvg + jitter);
+
+  // Atracción a puntajes comunes de 3 dardos en sector 20
+  if (Math.random() < 0.35) {
+    const closest = commonScores.reduce((prev, curr) => 
+      Math.abs(curr - rawScore) < Math.abs(prev - rawScore) ? curr : prev
+    );
+    if (Math.abs(closest - rawScore) < 18) {
+      rawScore = closest;
+    }
+  }
+
+  rawScore = Math.max(0, Math.min(180, rawScore));
+  const impossible3DartScores = new Set([179, 178, 176, 175, 173, 172, 169, 166, 163]);
+  if (impossible3DartScores.has(rawScore)) {
+    rawScore -= 1;
+  }
+
+  const remainingAfter = currentScore - rawScore;
+  if (remainingAfter < 0 || remainingAfter === 1) {
+    if (currentScore > 60) {
+      rawScore = Math.max(0, currentScore - 40);
+    } else if (currentScore > 2) {
+      if (Math.random() < 0.10) {
+        return currentScore + 1; // bust
+      }
+      return 0;
+    } else {
+      return 0;
+    }
+  }
+
+  return rawScore;
 }
 
 interface X01BoardProps {
@@ -180,7 +289,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
   // 'RIVAL': fija la diana del rival
   // 'LOCAL': fija la diana propia
   const [cameraFocusMode, setCameraFocusMode] = useState<'AUTO' | 'DUAL' | 'RIVAL' | 'LOCAL'>('AUTO');
-  const [isDesktopSplitEnabled, setIsDesktopSplitEnabled] = useState<boolean>(true);
+  const [isDesktopSplitEnabled, setIsDesktopSplitEnabled] = useState<boolean>(() => !!config.isOnlineRoom);
   const splitScreenVideoRef = useRef<HTMLVideoElement>(null);
 
   // Modal Emergente de Diana del Rival (Optimizado para PC y móviles)
@@ -713,9 +822,9 @@ export const X01Board: React.FC<X01BoardProps> = ({
     return ((first9Points[playerIdx] / darts) * 3).toFixed(2);
   };
 
-  // Nombres de los jugadores en pantalla
-  const p1Display = config.player1.name;
-  const p2Display = config.player2.name;
+  // Nombres de los jugadores en pantalla (Priorizar Nicknames / Apodos oficiales)
+  const p1Display = getPlayerDisplayNick(config.player1);
+  const p2Display = getPlayerDisplayNick(config.player2);
 
   // Quién tira específicamente si es parejas
   const getCurrentShooterName = () => {
@@ -724,12 +833,12 @@ export const X01Board: React.FC<X01BoardProps> = ({
     }
     if (currentTurn === 0) {
       return p1TeammateTurn === 0
-        ? config.player1.name
-        : config.player1.teammateName || 'Compañero 1';
+        ? (config.player1.nickname || config.player1.name)
+        : (config.player1.teammateNickname || config.player1.teammateName || 'Compañero 1');
     } else {
       return p2TeammateTurn === 0
-        ? config.player2.name
-        : config.player2.teammateName || 'Compañero 2';
+        ? (config.player2.nickname || config.player2.name)
+        : (config.player2.teammateNickname || config.player2.teammateName || 'Compañero 2');
     }
   };
 
@@ -1249,6 +1358,32 @@ export const X01Board: React.FC<X01BoardProps> = ({
     showFeedback(`Saque cambiado a ${nextTurn === 0 ? p1Display : p2Display}`, '#ef4444');
   };
 
+  // Detección de Bot CPU rival (My Dart Training Style)
+  const isBotRival = !!(config.isVsCpu || config.player2.isBot || config.player2.id?.startsWith('bot-'));
+  const botTargetAvg = config.player2.botAvg || (
+    config.cpuDifficulty === 'BEGINNER' ? 40 :
+    config.cpuDifficulty === 'MEDIUM' ? 55 :
+    config.cpuDifficulty === 'ADVANCED' ? 70 :
+    config.cpuDifficulty === 'PRO' ? 85 : 50
+  );
+  const isBotTurn = isBotRival && currentTurn === 1 && !isMatchFinished;
+
+  // Turno automático del Bot CPU (Inspirado en My Dart Training)
+  useEffect(() => {
+    if (!isBotTurn) return;
+
+    const timer = setTimeout(() => {
+      const botScore = calculateBotTurnScore(
+        scores[1],
+        botTargetAvg,
+        config.outMode
+      );
+      submitScore(botScore);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [isBotTurn, scores, currentTurn, botTargetAvg, config.outMode]);
+
   // Botón Deshacer
   const handleUndo = () => {
     if (history.length === 0) return;
@@ -1312,8 +1447,8 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const p1Short = p1Display.split(' ')[0] || 'P1';
   const p2Short = p2Display.split(' ')[0] || 'P2';
 
-  // En PC / Desktop el diseño siempre mantiene la Diana/Cámara a la izquierda y el Anotador a la derecha
-  const isSplitActive = isDesktopSplitEnabled;
+  // En PC / Desktop el diseño con Diana/Cámara a la izquierda se activa SOLO en salas Online o si el usuario enciende explícitamente la cámara
+  const isSplitActive = isDesktopSplitEnabled && (config.isOnlineRoom || showMobileCamera || !!localStream);
 
   // Compartir stream activo con ventana pop-out desacoplada (2º monitor / TV)
   useEffect(() => {
@@ -1327,7 +1462,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
     <div className={`w-full mx-auto transition-all ${
       isSplitActive
         ? 'max-w-[1650px] grid grid-cols-1 lg:grid-cols-12 gap-5 items-start'
-        : 'max-w-lg space-y-4'
+        : 'max-w-xl space-y-4'
     }`}>
       {/* Audio dedicado remoto para WebRTC (siempre montado para garantizar reproducción en Desktop y Móvil) */}
       <audio 
@@ -2038,12 +2173,12 @@ export const X01Board: React.FC<X01BoardProps> = ({
           <div className="flex items-center justify-center gap-1.5 mb-0.5">
             {currentTurn === 0 && <span className="text-[#00e676] text-xs font-black">▶</span>}
             <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate max-w-[130px]">
-              {formatCardPlayerName(p1Display)}
+              {p1Display}
             </span>
           </div>
           {config.isDoubles && (
             <div className="text-[10px] text-[#00e676] font-semibold mb-1 truncate">
-              {p1TeammateTurn === 0 ? config.player1.name : config.player1.teammateName}
+              {p1TeammateTurn === 0 ? p1Display : (config.player1.teammateNickname || config.player1.teammateName)}
             </div>
           )}
 
@@ -2068,12 +2203,12 @@ export const X01Board: React.FC<X01BoardProps> = ({
           <div className="flex items-center justify-center gap-1.5 mb-0.5">
             {currentTurn === 1 && <span className="text-[#00e676] text-xs font-black">▶</span>}
             <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate max-w-[130px]">
-              {formatCardPlayerName(p2Display)}
+              {p2Display}
             </span>
           </div>
           {config.isDoubles && (
             <div className="text-[10px] text-[#00e676] font-semibold mb-1 truncate">
-              {p2TeammateTurn === 0 ? config.player2.name : config.player2.teammateName}
+              {p2TeammateTurn === 0 ? p2Display : (config.player2.teammateNickname || config.player2.teammateName)}
             </div>
           )}
 
@@ -2124,16 +2259,16 @@ export const X01Board: React.FC<X01BoardProps> = ({
             <span className="text-xs text-amber-400 font-bold uppercase tracking-wider">Queda: {typedInput || '...'}</span>
           ) : currentCheckout ? (
             <div className="flex flex-col items-center justify-center leading-tight py-0.5 px-1 w-full">
-              <span className="text-[8px] text-amber-400 font-bold uppercase tracking-wider truncate max-w-[150px]">
+              <span className="text-[8px] text-amber-400 font-bold uppercase tracking-wider truncate max-w-[160px]">
                 Cierre ({scores[currentTurn]}): {currentCheckout}
               </span>
-              <div className="flex items-center justify-around w-full text-[10px] font-black mt-0.5">
-                <span className="text-slate-300 truncate max-w-[70px]">
-                  {p1Short}: <span className={lastThrowP1?.isBust ? 'text-[#ef4444]' : (lastThrowP1?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}>{lastThrowP1 ? (lastThrowP1.isBust ? 'B' : lastThrowP1.score) : '-'}</span>
+              <div className="flex items-center justify-center gap-3 w-full font-black mt-0.5">
+                <span className={`text-xs ${lastThrowP1?.isBust ? 'text-[#ef4444]' : (lastThrowP1?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}`}>
+                  {lastThrowP1 ? (lastThrowP1.isBust ? 'B' : lastThrowP1.score) : '-'}
                 </span>
-                <span className="text-slate-600 font-normal">|</span>
-                <span className="text-slate-300 truncate max-w-[70px]">
-                  {p2Short}: <span className={lastThrowP2?.isBust ? 'text-[#ef4444]' : (lastThrowP2?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}>{lastThrowP2 ? (lastThrowP2.isBust ? 'B' : lastThrowP2.score) : '-'}</span>
+                <span className="text-slate-600 font-normal text-[10px]">|</span>
+                <span className={`text-xs ${lastThrowP2?.isBust ? 'text-[#ef4444]' : (lastThrowP2?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}`}>
+                  {lastThrowP2 ? (lastThrowP2.isBust ? 'B' : lastThrowP2.score) : '-'}
                 </span>
               </div>
             </div>
@@ -2142,13 +2277,13 @@ export const X01Board: React.FC<X01BoardProps> = ({
               <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
                 Últimos Tantos
               </span>
-              <div className="flex items-center justify-around w-full text-xs font-black">
-                <span className="text-slate-300 truncate max-w-[70px]">
-                  {p1Short}: <span className={lastThrowP1?.isBust ? 'text-[#ef4444]' : (lastThrowP1?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}>{lastThrowP1 ? (lastThrowP1.isBust ? 'BUST' : lastThrowP1.score) : '-'}</span>
+              <div className="flex items-center justify-center gap-4 w-full font-black">
+                <span className={`text-base tracking-wide ${lastThrowP1?.isBust ? 'text-[#ef4444]' : (lastThrowP1?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}`}>
+                  {lastThrowP1 ? (lastThrowP1.isBust ? 'BUST' : lastThrowP1.score) : '-'}
                 </span>
-                <span className="text-slate-600 font-normal">|</span>
-                <span className="text-slate-300 truncate max-w-[70px]">
-                  {p2Short}: <span className={lastThrowP2?.isBust ? 'text-[#ef4444]' : (lastThrowP2?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}>{lastThrowP2 ? (lastThrowP2.isBust ? 'BUST' : lastThrowP2.score) : '-'}</span>
+                <span className="text-slate-600 font-light text-sm">|</span>
+                <span className={`text-base tracking-wide ${lastThrowP2?.isBust ? 'text-[#ef4444]' : (lastThrowP2?.score ?? 0) >= 100 ? 'text-[#00e676]' : 'text-white'}`}>
+                  {lastThrowP2 ? (lastThrowP2.isBust ? 'BUST' : lastThrowP2.score) : '-'}
                 </span>
               </div>
             </div>
@@ -2179,6 +2314,21 @@ export const X01Board: React.FC<X01BoardProps> = ({
           </p>
           <div className="pt-1 flex items-center justify-center gap-2">
             <span className="text-[11px] text-slate-500 font-mono">Sincronización P2P Online • {config.onlineRoomCode}</span>
+          </div>
+        </div>
+      ) : isBotTurn ? (
+        <div className="bg-[#0f1422] border-2 border-amber-500/40 rounded-2xl p-4 text-center space-y-2 shadow-xl animate-in fade-in">
+          <div className="flex items-center justify-center gap-2 text-sm font-black text-amber-400">
+            <Bot className="w-5 h-5 text-amber-400 animate-pulse" />
+            <span>Turno de {p2Display} • Tirando dardos...</span>
+          </div>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            El rival CPU está jugando sus 3 lanzamientos en su diana según su nivel de dificultad.
+          </p>
+          <div className="pt-1 flex items-center justify-center gap-2">
+            <span className="text-[11px] text-amber-400/90 font-mono font-bold">
+              Nivel: {config.cpuDifficulty || 'MEDIUM'} • Objetivo AVG: {botTargetAvg}
+            </span>
           </div>
         </div>
       ) : (

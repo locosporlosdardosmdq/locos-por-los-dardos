@@ -146,7 +146,7 @@ export default function SuperadminPage() {
 
   const loadRegisteredPlayers = React.useCallback(async () => {
     try {
-      const list = await fetchRegisteredPlayersFromCloud();
+      const list = await fetchRegisteredPlayersFromCloud(true);
       if (list && list.length > 0) {
         setCloudPlayers(list);
       }

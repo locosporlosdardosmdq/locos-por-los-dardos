@@ -8,8 +8,11 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 // Mapeo de perfiles desde la base de datos PostgreSQL de Supabase
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const includeAll = searchParams.get('all') === 'true';
+
     const pool = getDbPool();
     const query = `
       SELECT 
@@ -58,6 +61,7 @@ export async function GET() {
       FROM profiles p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN player_stats s ON p.user_id = s.user_id
+      ${includeAll ? '' : "WHERE (p.status IS NULL OR p.status = 'ACTIVE')"}
       ORDER BY COALESCE(s.overall_avg, p.initial_estimated_avg) DESC;
     `;
 

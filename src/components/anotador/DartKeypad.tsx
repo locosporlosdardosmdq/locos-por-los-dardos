@@ -49,10 +49,21 @@ export const DartKeypad: React.FC<DartKeypadProps> = ({
     }
   };
 
+  const IMPOSSIBLE_SCORES_3_DARTS = [163, 166, 169, 172, 173, 175, 176, 178, 179];
+
   const handleConfirmTotal = () => {
     const score = parseInt(totalInput, 10);
-    if (isNaN(score)) {
+    if (isNaN(score) || score < 0) {
       onConfirmVisit(0);
+    } else if (score > 180 || IMPOSSIBLE_SCORES_3_DARTS.includes(score)) {
+      // Bloquear puntajes físicamente imposibles
+      alert(`El puntaje ${score} es matemáticamente imposible en 3 dardos.`);
+      setTotalInput('');
+      return;
+    } else if (isDoubleOutRequired && remainingScore - score === 0 && (score > 170 || [159, 162, 163, 165, 166, 168, 169].includes(score))) {
+      alert(`No es posible cerrar con ${score} en Doble Out.`);
+      setTotalInput('');
+      return;
     } else {
       onConfirmVisit(score);
     }

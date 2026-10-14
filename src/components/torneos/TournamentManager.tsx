@@ -34,7 +34,10 @@ import {
   saveStoredTournamentHistory,
   getStoredLeagues,
   saveStoredLeagues,
-  fetchRegisteredPlayersFromCloud
+  fetchRegisteredPlayersFromCloud,
+  fetchTournamentsFromCloud,
+  saveTournamentToCloud,
+  deleteTournamentFromCloud
 } from '@/lib/storage';
 import { matchBroadcast, BroadcastMatchPayload } from '@/lib/broadcast';
 import { findCanonicalPlayer } from '@/lib/players-data';
@@ -57,7 +60,7 @@ import {
   DollarSign, 
   Shuffle, 
   Radio, 
-  Globe,
+  Globe, 
   Shield, 
   Flame, 
   Target, 
@@ -75,7 +78,11 @@ import {
   Zap,
   Clock,
   Eye,
-  ChevronRight
+  ChevronRight,
+  Share2,
+  Link2,
+  MessageCircle,
+  Check
 } from 'lucide-react';
 
 import { 
@@ -174,7 +181,16 @@ function generateDoubleEliminationBracket(
 // Torneos históricos en limpio para producción
 const SAMPLE_HISTORY_TOURNAMENTS: Tournament[] = [];
 
-export const TournamentManager: React.FC = () => {
+// Interfaz de props para soporte de deep linking y auto-inscripción
+export interface TournamentManagerProps {
+  initialTournamentId?: string | null;
+  initialEnroll?: boolean;
+}
+
+export const TournamentManager: React.FC<TournamentManagerProps> = ({
+  initialTournamentId,
+  initialEnroll
+}) => {
   // Pestaña principal: Torneos Activos vs Ligas & Posiciones vs Historial
   const [mainTab, setMainTab] = useState<'ACTIVE_TAB' | 'LEAGUES_TAB' | 'HISTORY_TAB'>('ACTIVE_TAB');
 
@@ -192,6 +208,9 @@ export const TournamentManager: React.FC = () => {
   // Vista dentro de activos: Tabla General ('TABLE') o Detalle del Torneo ('DETAIL')
   const [activeViewMode, setActiveViewMode] = useState<'TABLE' | 'DETAIL'>('TABLE');
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
+
+  // Estado de feedback al copiar enlaces de inscripción
+  const [copiedTournamentId, setCopiedTournamentId] = useState<string | null>(null);
 
   // Subpestañas del torneo en detalle
   const [tournamentSubTab, setTournamentSubTab] = useState<'BRACKET' | 'GROUPS' | 'PLAYERS' | 'LIVE_BOARD'>('BRACKET');
@@ -220,6 +239,62 @@ export const TournamentManager: React.FC = () => {
     return getCurrentPlayerProfile(MOCK_CURRENT_USER);
   });
   const isAdmin = canUserManageTournaments(currentUser);
+
+  // Sincronización bidireccional con Supabase PostgreSQL en la nube
+  useEffect(() => {
+    let isMounted = true;
+    fetchTournamentsFromCloud().then((cloudTourneys) => {
+      if (!isMounted) return;
+      if (cloudTourneys && cloudTourneys.length > 0) {
+        setTournaments(cloudTourneys);
+        saveStoredTournaments(cloudTourneys);
+      } else {
+        // Si la nube aún no tiene torneos, migrar automáticamente los locales a Supabase
+        const local = getStoredTournaments(MOCK_TOURNAMENTS);
+        if (local && local.length > 0) {
+          local.forEach((t) => saveTournamentToCloud(t));
+        }
+      }
+    }).catch((err) => console.warn('[TournamentManager] Error sincronizando torneos desde la nube:', err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Soporte de enlace directo para ver torneo o auto-abrir inscripción
+  useEffect(() => {
+    if (!initialTournamentId) return;
+    const target = tournaments.find((t) => t.id === initialTournamentId || t.slug === initialTournamentId);
+    if (target) {
+      setSelectedTournamentId(target.id);
+      setActiveViewMode('DETAIL');
+      if (initialEnroll) {
+        setShowEnrollModal(true);
+      }
+    }
+  }, [initialTournamentId, initialEnroll, tournaments]);
+
+  // Copiar link directo de inscripción al portapapeles
+  const handleCopyEnrollLink = (tourney: Tournament, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://locosporlosdardos.com.ar';
+    const link = `${origin}/torneos?inscribir=${tourney.id}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(link).then(() => {
+        setCopiedTournamentId(tourney.id);
+        setTimeout(() => setCopiedTournamentId(null), 3000);
+      }).catch(() => {});
+    }
+  };
+
+  // Generar URL de WhatsApp para invitar e inscribirse directamente
+  const getWhatsAppShareUrl = (tourney: Tournament) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://locosporlosdardos.com.ar';
+    const link = `${origin}/torneos?inscribir=${tourney.id}`;
+    const text = `🎯 *¡Inscripción Abierta para ${tourney.title}!* 🎯\nModalidad: ${tourney.format === 'DOUBLE_ELIMINATION' ? 'Doble Eliminación' : 'Eliminación Simple'}\n${tourney.isPaid ? `Premio: $${tourney.prizePoolArs?.toLocaleString('es-AR')} ARS` : 'Torneo Gratuito'}\n\n👉 *Inscríbete directamente aquí:* ${link}`;
+    return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  };
 
   // Transmisión en vivo de pista
   const [liveMatch, setLiveMatch] = useState<BroadcastMatchPayload | null>(null);
@@ -381,6 +456,8 @@ export const TournamentManager: React.FC = () => {
       });
 
       saveStoredTournaments(updated);
+      const updatedTourney = updated.find(t => t.id === selectedTournamentId);
+      if (updatedTourney) saveTournamentToCloud(updatedTourney);
       return updated;
     });
   };
@@ -419,6 +496,8 @@ export const TournamentManager: React.FC = () => {
       });
 
       saveStoredTournaments(updated);
+      const updatedTourney = updated.find(t => t.id === selectedTournamentId);
+      if (updatedTourney) saveTournamentToCloud(updatedTourney);
       return updated;
     });
   };
@@ -434,6 +513,7 @@ export const TournamentManager: React.FC = () => {
       setTournaments((prev) => {
         const filtered = prev.filter((t) => t.id !== tourneyId);
         saveStoredTournaments(filtered);
+        deleteTournamentFromCloud(tourneyId);
         return filtered;
       });
       if (selectedTournamentId === tourneyId) {
@@ -593,16 +673,32 @@ export const TournamentManager: React.FC = () => {
 
   // Inscribir nuevo jugador
   const handleEnrollPlayer = (pData: { name: string; pin: string; useWebcam: boolean }) => {
-    setEnrolledPlayers((prev) => [
-      {
-        id: `player-${Date.now()}`,
-        name: pData.name,
-        nickname: pData.name.split(' ')[0].toLowerCase(),
-        avg: 55.0,
-        hasWebcam: pData.useWebcam
-      },
-      ...prev
-    ]);
+    const newPlayer = {
+      id: `player-${Date.now()}`,
+      name: pData.name,
+      nickname: pData.name.split(' ')[0].toLowerCase(),
+      avg: 55.0,
+      hasWebcam: pData.useWebcam
+    };
+
+    setEnrolledPlayers((prev) => [newPlayer, ...prev]);
+
+    // Si hay un torneo activo seleccionado, actualizar su conteo de inscriptos y persistir a la nube
+    if (selectedTournamentId) {
+      setTournaments((prev) => {
+        const updated = prev.map((t) => {
+          if (t.id !== selectedTournamentId) return t;
+          const updatedTourney = {
+            ...t,
+            registeredCount: Math.min(t.maxParticipants, (t.registeredCount || 0) + 1)
+          };
+          saveTournamentToCloud(updatedTourney);
+          return updatedTourney;
+        });
+        saveStoredTournaments(updated);
+        return updated;
+      });
+    }
   };
 
   // Crear nueva Liga Oficial
@@ -690,6 +786,7 @@ export const TournamentManager: React.FC = () => {
     const updated = [newTourney, ...tournaments];
     setTournaments(updated);
     saveStoredTournaments(updated);
+    saveTournamentToCloud(newTourney);
 
     setSelectedTournamentId(newTourney.id);
     setActiveViewMode('DETAIL');
@@ -1011,7 +1108,43 @@ export const TournamentManager: React.FC = () => {
                               </td>
 
                               <td className="py-4 px-4 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
+                                <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                  {/* Botón Copiar Link Directo de Inscripción */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleCopyEnrollLink(t, e)}
+                                    className={`px-2.5 py-1.5 rounded-xl border font-black text-xs flex items-center gap-1 transition-all ${
+                                      copiedTournamentId === t.id
+                                        ? 'bg-[#00e676] text-black border-[#00e676] shadow-md shadow-[#00e676]/30'
+                                        : 'bg-[#111622] hover:bg-[#1a2234] text-slate-200 border-slate-700 hover:border-[#00e676]'
+                                    }`}
+                                    title="Copiar enlace directo de inscripción para compartir"
+                                  >
+                                    {copiedTournamentId === t.id ? (
+                                      <>
+                                        <Check className="w-3.5 h-3.5" />
+                                        <span>¡Copiado!</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Share2 className="w-3.5 h-3.5 text-[#00e676]" />
+                                        <span className="hidden sm:inline">Compartir</span>
+                                      </>
+                                    )}
+                                  </button>
+
+                                  {/* Botón WhatsApp Directo */}
+                                  <a
+                                    href={getWhatsAppShareUrl(t)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/40 transition-colors flex items-center justify-center shadow-sm"
+                                    title="Invitar por WhatsApp con enlace directo a inscripción"
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                  </a>
+
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1124,6 +1257,42 @@ export const TournamentManager: React.FC = () => {
 
                     {/* Selector rápido y Acciones */}
                     <div className="flex flex-wrap items-center gap-2">
+                      {/* Botón Compartir Link Directo */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyEnrollLink(currentTournament, e)}
+                        className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1.5 transition-all ${
+                          copiedTournamentId === currentTournament.id
+                            ? 'bg-[#00e676] text-black border-[#00e676] shadow-md shadow-[#00e676]/30'
+                            : 'bg-[#111622] hover:bg-[#1a2234] text-slate-200 border-slate-700 hover:border-[#00e676]'
+                        }`}
+                        title="Copiar enlace para invitar a otros jugadores"
+                      >
+                        {copiedTournamentId === currentTournament.id ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>¡Link Copiado!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Share2 className="w-4 h-4 text-[#00e676]" />
+                            <span>Compartir Link</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Botón WhatsApp */}
+                      <a
+                        href={getWhatsAppShareUrl(currentTournament)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all"
+                        title="Enviar invitación por WhatsApp"
+                      >
+                        <MessageCircle className="w-4 h-4 text-emerald-400" />
+                        <span>WhatsApp</span>
+                      </a>
+
                       <button
                         type="button"
                         onClick={() => setShowEnrollModal(true)}

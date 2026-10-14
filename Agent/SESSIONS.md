@@ -1,5 +1,30 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 35] - 2026-10-14
+- **Objetivo:** Resolver la inversión de cámaras en salas online WebRTC (permitiendo que el competidor ubique su cámara en el lado izquierdo o derecho a voluntad), federalizar y sincronizar torneos en la nube (PostgreSQL Supabase) permitiendo compartir enlaces directos de inscripción vía portapapeles y WhatsApp, e implementar la validación rigurosa de puntuaciones de dardos en el anotador (bloqueando > 180, puntajes matemáticamente imposibles con 3 dardos y checkouts inválidos mayores a 170 o bogey).
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Cámaras invertidas en salas online:* Al unirse desde el celular a una sala online, el dispositivo tomó el rol secundario (`localPlayerIndex: 1`), mostrando su cámara en la diana derecha mientras su perfil correspondía al jugador de la izquierda ("ICEMAN").
+  2. *Torneos locales e invisibles:* `TournamentManager` persistía en `localStorage`. Si Mariano u otro administrador creaba un torneo en su dispositivo, ningún otro usuario podía verlo ni inscribirse, ni existía enlace directo para convocar jugadores.
+  3. *Anotación de tantos irreales:* El anotador permitía tipear cualquier número arbitrario (ej. 179, 185, 200, 999) y en modalidad Double Out declaraba Game Shot con checkouts mayores a 170 o números Bogey (169, 168, etc.), violando el reglamento oficial WDF/PDC.
+- **Realizado:**
+  - **Validación Estricta de Puntajes de Dardos (`X01Board.tsx` & `DartKeypad.tsx`):**
+    * Máximo 180 puntos en 3 dardos (bloqueo en teclado numérico y en submit).
+    * Bloqueo de puntajes físicamente imposibles en 3 dardos: `[163, 166, 169, 172, 173, 175, 176, 178, 179]`.
+    * En Double Out: bloqueo de cualquier cierre superior a 170 (Big Fish) y de números Bogey (`[159, 162, 163, 165, 166, 168, 169]`).
+    * Detección precisa de BUST para puntuaciones negativas o que dejen 1 punto.
+  - **Botón de Inversión Instantánea de Cámaras (`X01Board.tsx`):**
+    * Estado reactivo `isCamerasSwapped` con botón interactivo `[🔄 Invertir]` / `[🔄 Invertir Cámaras]` tanto en móvil como en modo Desktop DUAL.
+    * Reordena inmediatamente la visualización izquierda/derecha de las dianas con CSS Flex/Grid (`order-1` / `order-2`).
+  - **Sincronización Cloud de Torneos y Deep Linking (`/api/torneos`, `storage.ts`, `TournamentManager.tsx`, `app/torneos/page.tsx`):**
+    * Esquema de Supabase actualizado: `tournaments.id` como `VARCHAR(100)` y columna `data JSONB`.
+    * Endpoint REST `GET, POST & DELETE /api/torneos` con persistencia en PostgreSQL Supabase y fallback local.
+    * Migración automática de torneos existentes a la nube en el primer montaje.
+    * Botón de 1-click para copiar enlace de inscripción directo (`/torneos?inscribir={id}`) con feedback visual.
+    * Botón directo con template para compartir la invitación por WhatsApp.
+    * Soporte de deep link: si el usuario ingresa con `?inscribir={id}`, la vista carga el torneo y abre inmediatamente el modal `PlayerEnrollModal`.
+- **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código 0).
+- **Estado del Proyecto:** Anotador 100% blindado reglamentariamente, salas online con control ergonómico de cámaras, y gestor de torneos federado en la nube con enlaces directos para convocatoria e inscripción.
+
 ## [Sesión 34] - 2026-10-14
 - **Objetivo:** Resolver el avance del Bot CPU como rival en partidas individuales incorporando un motor de simulación inspirado en *My Dart Training*, ocultar el panel de cámara en partidas locales presenciales (1 vs 1 local y vs CPU), priorizar apodos o Nicks oficiales en el marcador y eliminar los nombres del visor central de últimos tantos para dejar únicamente números legibles y de gran tamaño.
 - **Diagnóstico y Análisis Consultivo:**

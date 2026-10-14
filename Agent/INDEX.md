@@ -30,6 +30,7 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
 * **`GET, POST & PATCH /api/jugadores`:** Lectura federada, persistencia y actualización quirúrgica de perfiles (categoría, rol `SUPERADMIN | ADMIN | ORGANIZER | PLAYER`, `birth_date`, `age`, club, estado 'ACTIVE' | 'SUSPENDED' | 'INACTIVE') en PostgreSQL de Supabase. Conecta las tablas `profiles`, `users` y `player_stats`.
 * **`POST /api/sync/google-form`:** Sincronización en vivo y conteo automático de inscriptos mediante lectura directa de planillas Google Sheets (CSV) y verificación de Google Forms.
 * **`POST /api/auth`:** Endpoint de autenticación y recuperación de cuenta para inicio de sesión inmediato con 1-click por email o nickname.
+* **`GET, POST & DELETE /api/torneos`:** Sincronización en vivo y persistencia de torneos oficiales en Supabase PostgreSQL (`tournaments` table con payload íntegro en `data JSONB`). Permite consultar todos los torneos activos, crear/actualizar torneos y eliminarlos en tiempo real.
 * **`POST & GET /api/salas`:** Motor de gestión y sincronización en tiempo real de Salas Online 1 vs 1. Soporta acciones de creación (`CREATE`), unión (`JOIN`), envío de tiradas dardo a dardo (`THROW`) y sondeo periódico de estado con purga automática.
 * **`POST /api/checkout/mercadopago`:** Generación de preferencias de pago en ARS para Checkout Pro con soporte para entorno de producción o simulación segura.
 * **`POST /api/webhook/mercadopago`:** Handler de notificaciones IPN para actualización de estado de pagos de pedidos.

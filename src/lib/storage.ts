@@ -272,6 +272,46 @@ export function saveStoredTournaments(tournaments: any[]): void {
   }
 }
 
+export async function fetchTournamentsFromCloud(): Promise<any[]> {
+  try {
+    const res = await fetch('/api/torneos', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Error al consultar /api/torneos');
+    const data = await res.json();
+    if (data.success && Array.isArray(data.tournaments)) {
+      return data.tournaments;
+    }
+  } catch (err) {
+    console.warn('[Storage] Error fetching tournaments from cloud:', err);
+  }
+  return [];
+}
+
+export async function saveTournamentToCloud(tournament: any): Promise<boolean> {
+  try {
+    const res = await fetch('/api/torneos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tournament })
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[Storage] Error saving tournament to cloud:', err);
+    return false;
+  }
+}
+
+export async function deleteTournamentFromCloud(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/torneos?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[Storage] Error deleting tournament from cloud:', err);
+    return false;
+  }
+}
+
 export function getStoredTournamentHistory(fallback: any[] = []): any[] {
   if (typeof window === 'undefined') return fallback;
   try {

@@ -296,6 +296,9 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const [showRivalModal, setShowRivalModal] = useState<boolean>(false);
   const modalRemoteVideoRef = useRef<HTMLVideoElement>(null);
 
+  // Inversión manual de orden de cámaras (Izquierda / Derecha) para vista Dual y Móvil
+  const [isCamerasSwapped, setIsCamerasSwapped] = useState<boolean>(false);
+
   // Función Central de Apagado de Hardware y Desconexión WebRTC
   const cleanupHardwareAndWebRtc = useCallback(() => {
     console.log('[X01Board] Apagando hardware de cámara y cerrando sesión WebRTC...');
@@ -1065,15 +1068,44 @@ export const X01Board: React.FC<X01BoardProps> = ({
     return () => clearInterval(interval);
   }, [config.isOnlineRoom, isMatchFinished, config.onlineRoomCode, localPlayerIdx, remoteStream]);
 
-  // Procesar entrada de puntuación
+  // Puntajes matemáticamente imposibles de lograr con 3 dardos en el tablero oficial
+  const IMPOSSIBLE_SCORES_3_DARTS = [163, 166, 169, 172, 173, 175, 176, 178, 179];
+  // Números Bogey: imposibles de cerrar con 3 dardos en Double Out
+  const BOGEY_CHECKOUTS = [159, 162, 163, 165, 166, 168, 169];
+
+  // Procesar entrada de puntuación con validación estricta del reglamento oficial
   const submitScore = (score: number, fromRemoteSync: boolean = false) => {
+    // 1. Rango físico de 3 dardos (el máximo posible es 180: T20 + T20 + T20)
     if (isNaN(score) || score < 0 || score > 180) {
-      showFeedback('Puntuación inválida (máx 180)', '#ef4444');
+      showFeedback('Puntuación inválida (máximo 180 en 3 dardos)', '#ef4444');
+      setTypedInput('');
+      return;
+    }
+
+    // 2. Puntajes matemáticamente imposibles en 3 dardos
+    if (IMPOSSIBLE_SCORES_3_DARTS.includes(score)) {
+      showFeedback(`¡Puntaje imposible en 3 dardos (${score})!`, '#ef4444');
+      setTypedInput('');
       return;
     }
 
     const currentScore = scores[currentTurn];
     const newRemaining = currentScore - score;
+
+    // 3. Reglas de Cierre (Checkout) en Double Out:
+    // El cierre máximo posible en dardos es 170 (T20 + T20 + Bull). No existe checkout > 170.
+    if (newRemaining === 0 && config.outMode === 'DOUBLE_OUT') {
+      if (score > 170) {
+        showFeedback('No es posible cerrar con más de 170 en Doble Out (Máx 170)', '#ef4444');
+        setTypedInput('');
+        return;
+      }
+      if (BOGEY_CHECKOUTS.includes(score)) {
+        showFeedback(`El ${score} es un número Bogey (imposible de cerrar en Doble Out)`, '#ef4444');
+        setTypedInput('');
+        return;
+      }
+    }
 
     // Si es una partida online y el tiro es del usuario local, sincronizar con el servidor y WebRTC
     if (!fromRemoteSync && config.isOnlineRoom && config.onlineRoomCode) {
@@ -1127,12 +1159,17 @@ export const X01Board: React.FC<X01BoardProps> = ({
     const isBust = 
       newRemaining < 0 || 
       newRemaining === 1 || 
-      (newRemaining === 0 && config.outMode === 'DOUBLE_OUT' && score === 1); // Cierre debe ser par/doble
+      (newRemaining === 0 && config.outMode === 'DOUBLE_OUT' && (score === 1 || score > 170 || BOGEY_CHECKOUTS.includes(score)));
 
     if (isBust) {
       if (soundFxEnabled) SoundEngine.playBust();
       if (voiceCallerEnabled) VoiceCaller.speakBust();
-      showFeedback('¡BUST! (Pasado)', '#ef4444');
+      const bustMsg = newRemaining === 1 
+        ? '¡BUST! (Queda 1 punto, imposible doble)' 
+        : newRemaining < 0 
+          ? '¡BUST! (Puntos excedidos)' 
+          : '¡BUST! (Cierre no válido)';
+      showFeedback(bustMsg, '#ef4444');
 
       // Actualizar solo dardos tirados (3 dardos de visita fallida)
       const newDartsLeg = [...dartsThrownLeg] as [number, number];
@@ -1416,10 +1453,17 @@ export const X01Board: React.FC<X01BoardProps> = ({
     showFeedback('Última visita deshecha', '#ef4444');
   };
 
-  // Entrada por teclado numérico
+  // Entrada por teclado numérico con prevención de puntajes > 180
   const handleKeypress = (val: string) => {
     if (typedInput.length >= 3) return;
-    setTypedInput((prev) => prev + val);
+    const nextVal = typedInput + val;
+    const num = parseInt(nextVal, 10);
+    // En modo de puntaje de visita directa (no remaining): máximo 180 en 3 dardos
+    if (!isRemainingInputMode && num > 180) {
+      showFeedback('El puntaje máximo en 3 dardos es 180', '#ef4444');
+      return;
+    }
+    setTypedInput(nextVal);
   };
 
   const handleClear = () => {
@@ -1591,6 +1635,23 @@ export const X01Board: React.FC<X01BoardProps> = ({
                 >
                   Mi Diana
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isCamerasSwapped;
+                    setIsCamerasSwapped(next);
+                    showFeedback(next ? 'Cámaras invertidas (Izquierda / Derecha)' : 'Posición de cámaras normal', '#00e676');
+                  }}
+                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                    isCamerasSwapped
+                      ? 'bg-amber-500 text-black font-black shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Invertir posición izquierda/derecha de las cámaras"
+                >
+                  <RefreshCw className="w-2.5 h-2.5" />
+                  <span>{isCamerasSwapped ? 'Invertidas' : 'Invertir'}</span>
+                </button>
               </div>
             </div>
 
@@ -1599,6 +1660,8 @@ export const X01Board: React.FC<X01BoardProps> = ({
               <div className="grid grid-cols-2 gap-3 aspect-video rounded-2xl overflow-hidden bg-black border-2 border-slate-800 p-2 shadow-inner">
                 {/* Diana Rival */}
                 <div className={`relative rounded-xl overflow-hidden bg-black border-2 transition-all flex items-center justify-center ${
+                  isCamerasSwapped ? 'order-2' : 'order-1'
+                } ${
                   isRivalTurn
                     ? 'border-[#00e676] ring-2 ring-[#00e676]/40 shadow-lg shadow-[#00e676]/20'
                     : 'border-slate-800 opacity-90'
@@ -1661,6 +1724,8 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
                 {/* Tu Diana (Local) */}
                 <div className={`relative rounded-xl overflow-hidden bg-black border-2 transition-all flex items-center justify-center ${
+                  isCamerasSwapped ? 'order-1' : 'order-2'
+                } ${
                   isMyTurn
                     ? 'border-[#00e676] ring-2 ring-[#00e676]/40 shadow-lg shadow-[#00e676]/20'
                     : 'border-slate-800 opacity-90'
@@ -2604,6 +2669,25 @@ export const X01Board: React.FC<X01BoardProps> = ({
                   <span className="hidden sm:inline">Diana Rival</span>
                 </button>
 
+                {/* Botón Invertir Posición de Cámaras (Izquierda / Derecha) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isCamerasSwapped;
+                    setIsCamerasSwapped(next);
+                    showFeedback(next ? 'Cámaras invertidas (Izquierda / Derecha)' : 'Posición de cámaras normal', '#00e676');
+                  }}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-all ${
+                    isCamerasSwapped
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                      : 'bg-[#111622] text-slate-300 border-slate-700 hover:text-white'
+                  }`}
+                  title="Invertir posición de las cámaras (Diana 1 y Diana 2)"
+                >
+                  <RefreshCw className="w-3 h-3 text-amber-400" />
+                  <span>{isCamerasSwapped ? 'Invertidas' : 'Invertir'}</span>
+                </button>
+
                 {/* Toggle de Visualización de Cámaras */}
                 <button
                   type="button"
@@ -2624,6 +2708,8 @@ export const X01Board: React.FC<X01BoardProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 {/* DIANA 1 (Jugador 1) */}
                 <div className={`relative aspect-square sm:aspect-video rounded-xl overflow-hidden bg-black border-2 transition-all ${
+                  isCamerasSwapped ? 'order-2' : 'order-1'
+                } ${
                   currentTurn === 0 
                     ? 'border-[#00e676] ring-2 ring-[#00e676]/50 shadow-lg shadow-[#00e676]/20' 
                     : 'border-slate-800 opacity-85'
@@ -2727,6 +2813,8 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
                 {/* DIANA 2 (Jugador 2) */}
                 <div className={`relative aspect-square sm:aspect-video rounded-xl overflow-hidden bg-black border-2 transition-all ${
+                  isCamerasSwapped ? 'order-1' : 'order-2'
+                } ${
                   currentTurn === 1 
                     ? 'border-[#00e676] ring-2 ring-[#00e676]/50 shadow-lg shadow-[#00e676]/20' 
                     : 'border-slate-800 opacity-85'

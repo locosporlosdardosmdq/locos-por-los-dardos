@@ -895,3 +895,29 @@
      - Si el jugador activo está en zona de cierre (<= 170 pts), exhibe la guía oficial de checkout en la parte superior y los últimos tantos en la inferior.
      - Al tipear números en el teclado, conmuta instantáneamente al visor numérico en verde neón con indicador `[OK]` y click para confirmar.
 - **Motivo:** Brinda la máxima velocidad y comodidad de anotación táctil al pie del tablero (oche) en smartphones, sin sacrificar la visión del contrincante ni modificar el flujo de escritorio.
+
+---
+
+## [ADR-044] Validación de Puntajes Reales de Dardos, Inversión de Cámaras y Persistencia Cloud de Torneos con Deep Linking
+
+- **Fecha:** 2026-10-14
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Puntuaciones que no se condicen con la realidad:* El anotador permitía ingresar puntajes matemáticamente imposibles con 3 dardos (ej: >180, 179, 178, 176, etc.) e incluso permitía checkouts imposibles en Double Out mayores a 170 o en números Bogey (169, 168, 166, etc.).
+  2. *Cámaras invertidas en salas online:* Al conectarse desde celulares o como invitado, el jugador local tomaba el slot derecho de la pantalla ("Diana 2"), pero su cámara quedaba a la derecha mientras su perfil correspondía al Jugador 1 o requería verse a la izquierda.
+  3. *Torneos solo locales e invisibles para el resto de los jugadores:* `TournamentManager` persistía exclusivamente en `localStorage`. Otros competidores no podían ver los torneos creados ni existía una forma de compartir un enlace directo para inscripción vía WhatsApp.
+- **Decisión:**
+  1. **Validación Canónica de Dardos WDF/PDC (`X01Board.tsx` & `DartKeypad.tsx`):**
+     - Bloqueo de cualquier score > 180 (el máximo absoluto en 3 dardos es 180: T20 x 3).
+     - Validación de lista de puntajes imposibles en 3 dardos: `[163, 166, 169, 172, 173, 175, 176, 178, 179]`.
+     - En `DOUBLE_OUT`, el máximo checkout legal es 170 (Big Fish: T20, T20, Bull). Bloqueado cualquier cierre > 170 y cualquier cierre en números Bogey (`[159, 162, 163, 165, 166, 168, 169]`).
+  2. **Inversión Instantánea de Cámaras (`isCamerasSwapped`):**
+     - Agregado el botón `[🔄 Invertir]` en la barra de controles móviles y en el selector DUAL de PC.
+     - Aplica alternancia visual de flex/grid (`order-1` / `order-2`) para conmutar las dianas a voluntad del usuario.
+  3. **Persistencia en la Nube y Deep Linking (`/api/torneos` & `storage.ts`):**
+     - Modificación del esquema de Supabase (`tournaments` con columna `data JSONB` e `id VARCHAR(100)`).
+     - Endpoint REST `GET, POST & DELETE /api/torneos` y sincronización bidireccional en `TournamentManager`.
+     - Generación de enlaces `/torneos?inscribir={id}` con copiado en 1-click y botón de WhatsApp pre-formateado.
+     - Auto-detección del parámetro `inscribir` en la página con apertura automática del modal `PlayerEnrollModal`.
+- **Motivo:** Garantiza estricta fidelidad reglamentaria del juego de dardos, ergonomía total en transmisiones con cámaras y federalización real de torneos para toda la comunidad.
+

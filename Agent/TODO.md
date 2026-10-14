@@ -1,6 +1,21 @@
-# Tareas del Proyecto (TODO) • Locos por los Dardos
+- [x] **Validación de Puntajes Reales de Dardos (Máx 180 e Imposibles), Inversión de Cámaras WebRTC y Sincronización de Torneos en Supabase con Enlace Directo e Invitación WhatsApp:**
+  * **Validación Rigurosa de Puntajes de Dardos (`X01Board.tsx` & `DartKeypad.tsx`):**
+    - **Límite Físico de 3 Dardos:** Bloqueo de ingresos mayores a 180 puntos (3 x T20). Prevención interactiva en el teclado táctil para impedir tipear valores superiores a 180.
+    - **Puntajes Matemáticamente Imposibles con 3 Dardos:** Detección y bloqueo automático de puntajes imposibles en cualquier visita (`163, 166, 169, 172, 173, 175, 176, 178, 179`) con feedback visual rojo explicativo.
+    - **Reglas Oficiales de Cierre (Double Out):**
+      * El cierre máximo posible en el reglamento mundial de dardos es 170 (T20 + T20 + Bull). Bloqueado cualquier checkout mayor a 170 (ej: 171, 174, 177, 180).
+      * Detección de números Bogey imposibles de cerrar con 3 dardos (`159, 162, 163, 165, 166, 168, 169`).
+      * Manejo correcto de BUST cuando resta 1 punto o cuando la tirada deja puntos negativos.
+  * **Inversión Ergonómica de Cámaras en Salas Online (`X01Board.tsx`):**
+    - Agregado el botón `[🔄 Invertir]` / `[🔄 Invertir Cámaras]` tanto en el panel móvil de Doble Diana como en el modo DUAL de escritorio (PC).
+    - Permite alternar instantáneamente la posición izquierda/derecha de las dianas mediante clases dinámicas de flex/grid ordering (`order-1` y `order-2`), resolviendo el desfasaje de roles locales/remotos con un solo toque.
+  * **Sincronización de Torneos en Supabase PostgreSQL & Enlace Compartible Directo:**
+    - **Persistencia en la Nube:** Creación del endpoint `GET, POST & DELETE /api/torneos` conectado a la tabla `tournaments` de Supabase (con columna `data JSONB`), permitiendo que cualquier torneo creado sea inmediatamente visible para todos los jugadores de la comunidad en tiempo real.
+    - **Migración Automática:** Al abrir la pestaña de torneos, el sistema sincroniza con Supabase y migra torneos locales preexistentes a la nube para no perder historial ni torneos creados previamente.
+    - **Enlace Directo de Inscripción:** Cada torneo genera un link único compartible (`/torneos?inscribir={id}`) con botón de 1-click al portapapeles y botón de invitación pre-armada por WhatsApp.
+    - **Auto-Apertura de Inscripción:** Al ingresar al enlace con `?inscribir={id}`, la plataforma localiza el torneo, cambia a vista de detalle y abre automáticamente el modal `PlayerEnrollModal`.
 
-- [x] **Motor de Rival BOT CPU (Estilo My Dart Training), Ocultamiento de Cámara en Partidas Locales, Priorización de Nicks y Limpieza del Display Central:**
+
   * **Exclusión de Jugadores Suspendidos del Padrón Público (`/jugadores`):**
     - `src/lib/server-players.ts`: Filtro SSR `WHERE (p.status IS NULL OR p.status = 'ACTIVE')` para que perfiles suspendidos o inactivos no aparezcan públicamente.
     - `src/app/api/jugadores/route.ts`: Por defecto entrega únicamente jugadores activos. Soporte de parámetro `?all=true` para el Padrón General de Superadmin.

@@ -88,6 +88,31 @@ const PEER_CONFIG = {
   }
 };
 
+// Optimización de Bitrate WebRTC para evitar saturación de red y entrecortes de audio/video
+export function optimizePeerConnectionBitrate(pc: any) {
+  if (!pc || typeof pc.getSenders !== 'function') return;
+  try {
+    pc.getSenders().forEach((sender: any) => {
+      if (sender.track?.kind === 'video') {
+        try {
+          const params = sender.getParameters();
+          if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+          params.encodings[0].maxBitrate = 500000; // 500 kbps: diana nítida y fluida sin saturar subida
+          params.degradationPreference = 'maintain-framerate';
+          sender.setParameters(params).catch(() => {});
+        } catch (e) {}
+      } else if (sender.track?.kind === 'audio') {
+        try {
+          const params = sender.getParameters();
+          if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+          params.encodings[0].maxBitrate = 40000; // 40 kbps Opus voz
+          sender.setParameters(params).catch(() => {});
+        } catch (e) {}
+      }
+    });
+  } catch (e) {}
+}
+
 /**
  * HOST: Crea la sala P2P y queda a la espera del rival (DataChannel + Bidirectional Video/Audio Stream)
  */
@@ -151,9 +176,12 @@ export async function hostPeerRoom(
       } else {
         call.answer();
       }
+      optimizePeerConnectionBitrate(call.peerConnection);
+      setTimeout(() => optimizePeerConnectionBitrate(call.peerConnection), 800);
 
       call.on('stream', (remoteStream: MediaStream) => {
         console.log('[WebRTC Host] ¡Stream de video y audio del rival recibido!', remoteStream.id);
+        optimizePeerConnectionBitrate(call.peerConnection);
         activeRemoteStream = remoteStream;
         if (currentRemoteStreamListener) {
           currentRemoteStreamListener(remoteStream);
@@ -250,9 +278,12 @@ export async function hostPeerRoom(
       }
       const call = activePeerInstance?.call(targetGuestId, stream);
       outgoingCall = call;
+      optimizePeerConnectionBitrate(call?.peerConnection);
+      setTimeout(() => optimizePeerConnectionBitrate(call?.peerConnection), 800);
 
       call?.on('stream', (remoteStream: MediaStream) => {
         console.log('[WebRTC Host] Stream recibido en respuesta de llamada saliente:', remoteStream.id);
+        optimizePeerConnectionBitrate(call?.peerConnection);
         if (remoteStream && remoteStream.getTracks().length > 0) {
           activeRemoteStream = remoteStream;
           if (currentRemoteStreamListener) {
@@ -335,6 +366,7 @@ export async function hostPeerRoom(
       if (outgoingCall && outgoingCall.peerConnection) {
         try {
           const pc = outgoingCall.peerConnection;
+          optimizePeerConnectionBitrate(pc);
           const senders: any[] = pc?.getSenders?.() || [];
           const videoTrack = stream.getVideoTracks()[0];
           const audioTrack = stream.getAudioTracks()[0];
@@ -367,6 +399,7 @@ export async function hostPeerRoom(
       if (incomingCall && incomingCall.peerConnection) {
         try {
           const pc = incomingCall.peerConnection;
+          optimizePeerConnectionBitrate(pc);
           const senders: any[] = pc?.getSenders?.() || [];
           const videoTrack = stream.getVideoTracks()[0];
           const audioTrack = stream.getAudioTracks()[0];
@@ -455,9 +488,12 @@ export async function joinPeerRoom(
       }
       const call = peer.call(targetPeerId, stream);
       outgoingCall = call;
+      optimizePeerConnectionBitrate(call?.peerConnection);
+      setTimeout(() => optimizePeerConnectionBitrate(call?.peerConnection), 800);
 
       call.on('stream', (remoteStream: MediaStream) => {
         console.log('[WebRTC Guest] Stream recibido en respuesta de llamada saliente:', remoteStream.id);
+        optimizePeerConnectionBitrate(call?.peerConnection);
         if (remoteStream && remoteStream.getTracks().length > 0) {
           activeRemoteStream = remoteStream;
           if (currentRemoteStreamListener) {
@@ -566,9 +602,12 @@ export async function joinPeerRoom(
     } else {
       call.answer();
     }
+    optimizePeerConnectionBitrate(call.peerConnection);
+    setTimeout(() => optimizePeerConnectionBitrate(call.peerConnection), 800);
 
     call.on('stream', (remoteStream: MediaStream) => {
       console.log('[WebRTC Guest] ¡Stream de video y audio del Host recibido!', remoteStream.id);
+      optimizePeerConnectionBitrate(call.peerConnection);
       activeRemoteStream = remoteStream;
       if (currentRemoteStreamListener) {
         currentRemoteStreamListener(remoteStream);
@@ -626,6 +665,7 @@ export async function joinPeerRoom(
       if (outgoingCall && outgoingCall.peerConnection) {
         try {
           const pc = outgoingCall.peerConnection;
+          optimizePeerConnectionBitrate(pc);
           const senders: any[] = pc?.getSenders?.() || [];
           const videoTrack = stream.getVideoTracks()[0];
           const audioTrack = stream.getAudioTracks()[0];
@@ -658,6 +698,7 @@ export async function joinPeerRoom(
       if (incomingCall && incomingCall.peerConnection) {
         try {
           const pc = incomingCall.peerConnection;
+          optimizePeerConnectionBitrate(pc);
           const senders: any[] = pc?.getSenders?.() || [];
           const videoTrack = stream.getVideoTracks()[0];
           const audioTrack = stream.getAudioTracks()[0];

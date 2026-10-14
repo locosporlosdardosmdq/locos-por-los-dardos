@@ -1,5 +1,35 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 32] - 2026-10-14
+- **Objetivo:** Resolver los cortes intermitentes de video y audio en salas online 1 vs 1, asegurar la visibilidad de la cámara propia del jugador local (tanto en modo PiP como en vista lado a lado "DUAL"), y habilitar controles completamente funcionales para silenciar el audio del rival y ocultar su video sin alterar el teclado de 5 columnas.
+- **Diagnóstico de Causa Raíz:**
+  1. *Video y audio entrecortados:* El streaming WebRTC transmitía video sin límite de ancho de banda (uplink ilimitado a 30fps), saturando la velocidad de subida en conexiones residenciales y 4G, lo que provocaba degradación, retraso y corte del canal de audio.
+  2. *Cámara local no visible:* El stream local se guardaba en una referencia mutable (`mobileStreamRef.current`) sin un estado de React (`useState`), evitando que los componentes se enteraran de la activación de la cámara. Además, al alternar entre modos o al montar/desmontar componentes condicionales, los elementos `<video>` perdían su `srcObject`.
+  3. *Botones no funcionales de audio y video:* La función previa sólo intentaba llamar a `.play()` contra el bloqueo de autoplay pero no manipulaba la propiedad `muted`. Además, existía un `<audio ref={remoteAudioRef}>` duplicado en el panel móvil que colisionaba con el reproductor de audio raíz, y no existía botón para ocultar el video remoto.
+- **Realizado:**
+  - **Optimización de Bitrate WebRTC y Fluidez (`webrtc-room.ts`):**
+    * Función `optimizePeerConnectionBitrate(pc)` con `setParameters()` sobre `RTCRtpSender`:
+      - Video limitado a 500 kbps (`maxBitrate: 500000`) con `degradationPreference: 'maintain-framerate'`.
+      - Audio optimizado a 40 kbps Opus (`maxBitrate: 40000`).
+    * Aplicación automática e inmediata con reintento a 800ms en `hostPeerRoom`, `joinPeerRoom` y `sendMediaStream`.
+    * Calibración de `getUserMedia` a 854x480 / máx 720p a 20-24 fps en `X01Board.tsx` con fallback robusto a `{ video: true, audio: true }`.
+  - **Visibilidad de Cámara Local y Modo DUAL (`X01Board.tsx`):**
+    * Agregado estado reactivo `localStream` (`setLocalStream(stream)`).
+    * Incorporado modo `DUAL` en `cameraFocusMode` (`AUTO | DUAL | RIVAL | LOCAL`): despliega simultáneamente la Diana Rival y Tu Diana lado a lado en PC (`lg:`).
+    * Patrón de ref callbacks aplicado en todos los elementos `<video>` para adjuntar inmediatamente el `srcObject` al stream disponible sin depender de efectos asíncronos frágiles.
+    * Inset PiP interactivo en la esquina (`w-44 sm:w-52`) con botón táctil directo "Encender Mi Cámara" si está apagada, y click para alternar entre dianas.
+  - **Controles Reales de Audio y Video del Rival:**
+    * `handleToggleRemoteAudio`: conmuta `isRemoteAudioMuted` y `remoteAudioRef.current.muted` con feedback visual (`Volume2` verde / `VolumeX` rojo).
+    * `handleToggleRemoteVideo`: conmuta `isRemoteVideoHidden` con feedback visual (`Video` azul / `VideoOff` ámbar) y pantalla informativa elegante de reemplazo.
+    * Eliminado el tag duplicado `<audio ref={remoteAudioRef}>` del panel móvil para evitar colisiones de referencia.
+    * Controles integrados en barra de PC, modal emergente y barra de dianas móvil.
+  - **Validación de Compilación:**
+    * `npx tsc --noEmit` completado con 0 errores (código 0).
+    * `npm run build` completado con 0 errores (18 rutas estáticas y 6 dinámicas optimizadas).
+- **Estado del Proyecto:** Salas online 1 vs 1 con streaming ultra-estable a 500 kbps, audio continuo y sin caídas, ambas cámaras visibles simultáneamente (Modo DUAL y PiP) y controles interactivos completos de silenciamiento y privacidad.
+
+---
+
 ## [Sesión 31] - 2026-10-14
 - **Objetivo:** Corrección de desconexión WebRTC de audio y video ante F5 (refresh), fijación del layout en escritorio (PC) con Diana a la izquierda y Anotador Oficial a la derecha, y enriquecimiento del modal de cámara y la ventana emergente Pop-out (`/anotador/camara-popout`) preservando el 100% de la información de la partida tanto en PC como en celulares.
 - **Diagnóstico de Causa Raíz:**

@@ -1,6 +1,21 @@
 # Tareas del Proyecto (TODO) • Locos por los Dardos
 
-- [x] **Auto-Healing de Audio/Video ante F5 (Refresh), Layout Desktop con Anotador a la Derecha y Pop-up / Pop-out Enriquecido con Preservación Total de Información:**
+- [x] **Optimización de Bitrate WebRTC (500 kbps), Modo DUAL (Ambas Dianas) en PC, Visibilidad de Cámara Local y Controles Funcionales de Silenciar/Ocultar Rival:**
+  * **Optimización de Bitrate y Fluidez WebRTC (`webrtc-room.ts`):**
+    - Implementación de `optimizePeerConnectionBitrate` sobre `RTCRtpSender`: límite de bitrate de video a `500000` bps (500 kbps) y audio a `40000` bps (40 kbps Opus) con `degradationPreference: 'maintain-framerate'`.
+    - Eliminación de la saturación de subida residencial/4G que provocaba congelamientos y cortes de voz.
+    - `getUserMedia` optimizado a 854x480 / máx 720p a 20-24 fps con fallback seguro a `{ video: true, audio: true }`.
+  * **Visibilidad Garantizada de Cámara Local (`localStream` & Ref Callbacks):**
+    - Agregado estado reactivo `localStream` junto con `mobileStreamRef` para forzar re-render de React al encender la cámara.
+    - Ref callbacks `(el) => { if (el && stream && el.srcObject !== stream) { el.srcObject = stream; el.play(); } }` garantizando que al cambiar de vistas o montar componentes el stream local y remoto siempre se reproduzcan inmediatamente.
+    - Tarjeta Picture-in-Picture (PiP) destacada (`w-44 sm:w-52`) con botón táctil directo "Encender" si la webcam propia está apagada, y click para intercambiar el foco de la diana.
+  * **Modo de Visualización DUAL ("Ambas Dianas" lado a lado en PC):**
+    - Nuevo modo `DUAL` en selector de cámara (`AUTO | DUAL | RIVAL | LOCAL`) que exhibe simultáneamente la Diana del Rival y Tu Diana con badges de tirador activo y marcadores en tiempo real.
+  * **Controles Funcionales de Audio y Video del Rival:**
+    - Botón para silenciar/desmutear audio del rival (`handleToggleRemoteAudio` con `remoteAudioRef.current.muted` e iconos `Volume2` verde / `VolumeX` rojo) tanto en PC, modal emergente y móvil.
+    - Botón para ocultar/mostrar video del rival (`handleToggleRemoteVideo` e iconos `Video` azul / `VideoOff` ámbar).
+    - Eliminado el elemento duplicado `<audio ref={remoteAudioRef}>` del panel móvil que causaba colisión de referencias con el audio global.
+
   * **Reconexión Automática WebRTC ante Refresh (F5):**
     - `webrtc-room.ts`: Auto-recuperación de `unavailable-id` en PeerJS cuando un jugador recarga `/anotador?sala=CODE`. Generación de fallback ID, notificación vía `POST /api/salas` (`action: 'HEARTBEAT'`), y reconexión inmediata (`connectToPeer`, `initiateOutgoingCall`) entre Host y Guest sin quedarse trabados.
     - `online-rooms.ts` & `src/app/api/salas/route.ts`: Registro dinámico de `hostPeerId` y `guestPeerId` en sala online con heartbeats activos cada 2 segundos.

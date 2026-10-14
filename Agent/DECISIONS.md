@@ -843,5 +843,29 @@
      - Componente encapsulado con `<Suspense>` para cumplimiento con Next.js App Router.
 - **Motivo:** Garantiza resiliencia de red ante refrescos accidentales, ergonomía visual profesional en computadoras y visualización deportiva completa en cualquier pantalla auxiliar o celular sin perder el contexto de la partida.
 
+---
 
+## [ADR-042] Optimización de Bitrate WebRTC (500 kbps), Modo DUAL (Ambas Dianas) en PC, Visibilidad de Cámara Local y Toggles de Audio/Video Rival
 
+- **Fecha:** 2026-10-14
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Video y audio entrecortado/congelado:* Las cámaras enviaban feeds nativos sin límite de bitrate (1080p/720p 30fps sin restricciones de `RTCRtpSender`), saturando el ancho de banda de subida (uplink) en conexiones de internet residenciales y redes 4G de celulares, lo que provocaba pérdida masiva de paquetes RTP y hambruna de audio (stuttering).
+  2. *Cámara propia invisible:* Aunque la cámara del rival se visualizaba, el jugador local no podía ver su propio stream en pantalla grande ni en modo PiP. El stream local se almacenaba en un `useRef` (`mobileStreamRef.current`) sin un estado reactivo de React (`localStream`), de modo que la interfaz no se re-renderizaba al otorgar permisos de cámara. Además, si el elemento `<video>` se desmontaba al alternar modos, su `srcObject` quedaba en null al volver a montar.
+  3. *Botones de silenciar audio y video del rival no funcionaban:* La función previa (`handleUnlockRemoteAudio`) únicamente invocaba `remoteAudioRef.current.play()` para sortear políticas de Autoplay, pero no manipulaba la propiedad `.muted` ni existía un control de muteado real. Además, un `<audio ref={remoteAudioRef}>` duplicado dentro del bloque móvil (`lg:hidden`) colisionaba con el elemento de audio de escritorio. Tampoco existía botón para ocultar el video del rival.
+- **Decisión:**
+  1. **Control de Bitrate y Degradación (`webrtc-room.ts` & `X01Board.tsx`):**
+     - Se implementó `optimizePeerConnectionBitrate(pc)` que inspecciona los senders de la conexión `RTCPeerConnection`:
+       * Video: `maxBitrate: 500000` (500 kbps) con `degradationPreference: 'maintain-framerate'` para priorizar fluidez de movimiento dardo a dardo sin cortes ni congelamientos.
+       * Audio: `maxBitrate: 40000` (40 kbps Opus) para transmisión de voz cristalina e inmune al tráfico de video.
+     - En `X01Board.tsx`, se calibraron las constraints de `getUserMedia` a `ideal: 854x480 / 20fps` (máx 720p 24fps) con fallback a `{ video: true, audio: true }` para máxima compatibilidad con webcams genéricas.
+  2. **Modo DUAL (Ambas Dianas) y Visibilidad de Cámara Local:**
+     - Se incorporó el estado reactivo `localStream` (`useState<MediaStream | null>`) junto a `mobileStreamRef.current`.
+     - Se añadió el modo `'DUAL'` a `cameraFocusMode` (`AUTO | DUAL | RIVAL | LOCAL`): en PC permite ver lado a lado la Diana del Rival y Tu Diana de forma simultánea.
+     - Se utilizó el patrón de ref callback `ref={(el) => { if (el && stream && el.srcObject !== stream) { el.srcObject = stream; el.play(); } }}` en todos los visores de video para garantizar enlace inmediato y a prueba de remonte de componentes.
+     - En la vista individual se implementó un recuadro PiP interactivo (`w-44 sm:w-52`) con botón directo para encender la webcam propia si está apagada, y click para alternar entre dianas.
+  3. **Controles Reales de Audio y Video del Rival:**
+     - Se crearon `handleToggleRemoteAudio` (conmuta `remoteAudioRef.current.muted` y `isRemoteAudioMuted`) y `handleToggleRemoteVideo` (conmuta `isRemoteVideoHidden`).
+     - Se eliminó el `<audio ref={remoteAudioRef}>` duplicado de la sección móvil, dejando únicamente el elemento montado en la raíz de `return (...)`.
+     - Se integraron botones reactivos con iconos `Volume2` (verde) / `VolumeX` (rojo) y `Video` (azul) / `VideoOff` (ámbar) en la barra de control de PC, en el modal emergente y en la barra de dianas móvil.
+- **Motivo:** Soluciona de raíz los cortes de audio y video al respetar el límite de ancho de banda residencial, otorga control ergonómico completo al jugador sobre ambas cámaras y proporciona botones funcionales de silenciado y ocultamiento.

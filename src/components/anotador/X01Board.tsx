@@ -36,6 +36,11 @@ import {
   PictureInPicture2,
   RefreshCw,
   LayoutGrid,
+  Users,
+  Video,
+  VideoOff,
+  Eye,
+  EyeOff,
   X
 } from 'lucide-react';
 import { matchBroadcast } from '@/lib/broadcast';
@@ -155,6 +160,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const mobileVideoRef = useRef<HTMLVideoElement>(null);
   const mobileStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -163,14 +169,17 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
   // Stream remoto de la cámara y audio del contrincante vía WebRTC P2P
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(getActiveRemoteStream());
+  const [isRemoteAudioMuted, setIsRemoteAudioMuted] = useState<boolean>(false);
+  const [isRemoteVideoHidden, setIsRemoteVideoHidden] = useState<boolean>(false);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   // Modo de Alternancia de Cámara en Partidas Online (Nakka Style)
   // 'AUTO': conmuta automáticamente según el turno del tirador
+  // 'DUAL': muestra ambas dianas (rival y local) lado a lado
   // 'RIVAL': fija la diana del rival
   // 'LOCAL': fija la diana propia
-  const [cameraFocusMode, setCameraFocusMode] = useState<'AUTO' | 'RIVAL' | 'LOCAL'>('AUTO');
+  const [cameraFocusMode, setCameraFocusMode] = useState<'AUTO' | 'DUAL' | 'RIVAL' | 'LOCAL'>('AUTO');
   const [isDesktopSplitEnabled, setIsDesktopSplitEnabled] = useState<boolean>(true);
   const splitScreenVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -187,6 +196,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
       } catch (e) {}
       mobileStreamRef.current = null;
     }
+    setLocalStream(null);
     if (mobileVideoRef.current) {
       mobileVideoRef.current.srcObject = null;
     }
@@ -313,12 +323,17 @@ export const X01Board: React.FC<X01BoardProps> = ({
         remoteVideoRef.current.srcObject = remoteStream;
         remoteVideoRef.current.play().catch(() => {});
       }
+      if (splitScreenVideoRef.current) {
+        splitScreenVideoRef.current.srcObject = remoteStream;
+        splitScreenVideoRef.current.play().catch(() => {});
+      }
       if (modalRemoteVideoRef.current) {
         modalRemoteVideoRef.current.srcObject = remoteStream;
         modalRemoteVideoRef.current.play().catch(() => {});
       }
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.muted = isRemoteAudioMuted;
         remoteAudioRef.current.play().then(() => {
           setAudioAutoplayBlocked(false);
         }).catch((err) => {
@@ -327,7 +342,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
         });
       }
     }
-  }, [remoteStream, showRivalModal]);
+  }, [remoteStream, showRivalModal, isRemoteAudioMuted, cameraFocusMode]);
 
   // Alternar entre cámara trasera (diana) y delantera (jugador)
   const handleToggleCameraFacing = () => {
@@ -347,8 +362,30 @@ export const X01Board: React.FC<X01BoardProps> = ({
     showFeedback('Cámara seleccionada y activada', '#00e676');
   };
 
-  const handleUnlockRemoteAudio = () => {
+  const handleToggleRemoteAudio = () => {
+    const next = !isRemoteAudioMuted;
+    setIsRemoteAudioMuted(next);
     if (remoteAudioRef.current) {
+      remoteAudioRef.current.muted = next;
+      if (!next) {
+        remoteAudioRef.current.play().then(() => {
+          setAudioAutoplayBlocked(false);
+        }).catch((e) => console.warn('Remote audio play notice:', e));
+      }
+    }
+    showFeedback(next ? 'Audio del rival silenciado' : 'Audio del rival activado', next ? '#ef4444' : '#00e676');
+  };
+
+  const handleToggleRemoteVideo = () => {
+    const next = !isRemoteVideoHidden;
+    setIsRemoteVideoHidden(next);
+    showFeedback(next ? 'Video del rival ocultado' : 'Video del rival visible', next ? '#ef4444' : '#00e676');
+  };
+
+  const handleUnlockRemoteAudio = () => {
+    setIsRemoteAudioMuted(false);
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.muted = false;
       remoteAudioRef.current.play().then(() => {
         setAudioAutoplayBlocked(false);
         showFeedback('Audio del rival activado', '#00e676');
@@ -366,18 +403,52 @@ export const X01Board: React.FC<X01BoardProps> = ({
         mobileStreamRef.current = null;
       }
 
-      // Constraints de video: Si el usuario seleccionó una cámara específica por hardware (ej. USB o webcam de notebook)
+      // Constraints de video optimizados (480p / 720p 20fps) para evitar saturar subida en conexiones residenciales y 4G
       const videoConstraints: MediaTrackConstraints = selectedCameraDeviceId
         ? { 
             deviceId: { exact: selectedCameraDeviceId }, 
-            width: { ideal: 1280 }, 
-            height: { ideal: 720 } 
+            width: { ideal: 854, max: 1280 }, 
+            height: { ideal: 480, max: 720 },
+            frameRate: { ideal: 20, max: 24 }
           }
         : { 
             facingMode: { ideal: cameraFacingMode }, 
-            width: { ideal: 1280 }, 
-            height: { ideal: 720 } 
+            width: { ideal: 854, max: 1280 }, 
+            height: { ideal: 480, max: 720 },
+            frameRate: { ideal: 20, max: 24 }
           };
+
+      const initSpeechAnalyser = (stream: MediaStream) => {
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length > 0 && typeof AudioContext !== 'undefined') {
+          try {
+            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            audioContextRef.current = audioCtx;
+            const source = audioCtx.createMediaStreamSource(stream);
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+            analyserRef.current = analyser;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            const detectSpeech = () => {
+              if (analyserRef.current) {
+                analyserRef.current.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                  sum += dataArray[i];
+                }
+                const avg = sum / dataArray.length;
+                setIsSpeaking(avg > 18 && !isMicMuted);
+              }
+              animationFrameRef.current = requestAnimationFrame(detectSpeech);
+            };
+            detectSpeech();
+          } catch (e) {
+            console.warn('[Audio] No se pudo iniciar analizador de voz:', e);
+          }
+        }
+      };
 
       navigator.mediaDevices
         .getUserMedia({ 
@@ -390,6 +461,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
         })
         .then((stream) => {
           mobileStreamRef.current = stream;
+          setLocalStream(stream);
           if (mobileVideoRef.current) {
             mobileVideoRef.current.srcObject = stream;
           }
@@ -411,45 +483,40 @@ export const X01Board: React.FC<X01BoardProps> = ({
             }).catch(() => {});
           }
 
-          // Inicializar análisis de voz para vúmetro / feedback en tiempo real
-          const audioTracks = stream.getAudioTracks();
-          if (audioTracks.length > 0 && typeof AudioContext !== 'undefined') {
-            try {
-              const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-              audioContextRef.current = audioCtx;
-              const source = audioCtx.createMediaStreamSource(stream);
-              const analyser = audioCtx.createAnalyser();
-              analyser.fftSize = 256;
-              source.connect(analyser);
-              analyserRef.current = analyser;
-
-              const dataArray = new Uint8Array(analyser.frequencyBinCount);
-              const detectSpeech = () => {
-                if (analyserRef.current) {
-                  analyserRef.current.getByteFrequencyData(dataArray);
-                  let sum = 0;
-                  for (let i = 0; i < dataArray.length; i++) {
-                    sum += dataArray[i];
-                  }
-                  const avg = sum / dataArray.length;
-                  setIsSpeaking(avg > 18 && !isMicMuted);
-                }
-                animationFrameRef.current = requestAnimationFrame(detectSpeech);
-              };
-              detectSpeech();
-            } catch (e) {
-              console.warn('[Audio] No se pudo iniciar analizador de voz:', e);
-            }
-          }
+          initSpeechAnalyser(stream);
         })
         .catch((err) => {
-          console.warn('Cámara o micrófono no disponible:', err);
+          console.warn('Cámara con constraints optimizados falló, intentando fallback simple:', err);
+          // Fallback simple compatible con webcams de PC de escritorio y drivers genéricos
+          if (navigator.mediaDevices?.getUserMedia) {
+            navigator.mediaDevices
+              .getUserMedia({ 
+                video: true, 
+                audio: { echoCancellation: true, noiseSuppression: true } 
+              })
+              .then((fallbackStream) => {
+                mobileStreamRef.current = fallbackStream;
+                setLocalStream(fallbackStream);
+                if (mobileVideoRef.current) {
+                  mobileVideoRef.current.srcObject = fallbackStream;
+                }
+                try {
+                  const webrtc = getActiveWebRtcHandler();
+                  if (webrtc) webrtc.sendMediaStream(fallbackStream);
+                } catch (e) {}
+                initSpeechAnalyser(fallbackStream);
+              })
+              .catch((fallbackErr) => {
+                console.warn('Cámara o micrófono no disponible en fallback:', fallbackErr);
+              });
+          }
         });
     } else {
       if (mobileStreamRef.current) {
         mobileStreamRef.current.getTracks().forEach((t) => t.stop());
         mobileStreamRef.current = null;
       }
+      setLocalStream(null);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -729,6 +796,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
   // Determinar qué diana debe verse en grande (Nakka Style Turn-based Camera)
   const shouldShowRivalCamera = useMemo(() => {
+    if (cameraFocusMode === 'DUAL') return false; // El modo DUAL renderiza ambas dianas simultáneamente
     if (cameraFocusMode === 'RIVAL') return true;
     if (cameraFocusMode === 'LOCAL') return false;
     return isRivalTurn;
@@ -737,13 +805,13 @@ export const X01Board: React.FC<X01BoardProps> = ({
   // Conectar stream a splitScreenVideoRef en tiempo real
   useEffect(() => {
     if (splitScreenVideoRef.current) {
-      const targetStream = shouldShowRivalCamera ? remoteStream : mobileStreamRef.current;
+      const targetStream = shouldShowRivalCamera ? remoteStream : (localStream || mobileStreamRef.current);
       splitScreenVideoRef.current.srcObject = targetStream || null;
       if (targetStream) {
         splitScreenVideoRef.current.play().catch(() => {});
       }
     }
-  }, [shouldShowRivalCamera, remoteStream, showMobileCamera]);
+  }, [shouldShowRivalCamera, remoteStream, localStream, showMobileCamera]);
 
   // Auto-conexión / Auto-Healing de WebRTC si la sala es online y no hay handler activo
   useEffect(() => {
@@ -1245,9 +1313,9 @@ export const X01Board: React.FC<X01BoardProps> = ({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).__lpld_remote_stream = remoteStream;
-      (window as any).__lpld_local_stream = mobileStreamRef.current;
+      (window as any).__lpld_local_stream = localStream || mobileStreamRef.current;
     }
-  }, [remoteStream]);
+  }, [remoteStream, localStream]);
 
   return (
     <div className={`w-full mx-auto transition-all ${
@@ -1255,6 +1323,15 @@ export const X01Board: React.FC<X01BoardProps> = ({
         ? 'max-w-[1650px] grid grid-cols-1 lg:grid-cols-12 gap-5 items-start'
         : 'max-w-lg space-y-4'
     }`}>
+      {/* Audio dedicado remoto para WebRTC (siempre montado para garantizar reproducción en Desktop y Móvil) */}
+      <audio 
+        ref={remoteAudioRef} 
+        autoPlay 
+        playsInline 
+        muted={isRemoteAudioMuted}
+        style={{ position: 'fixed', top: -9999, left: -9999, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} 
+      />
+
       {/* COLUMNA 1 (IZQUIERDA EN DESKTOP / PC): VISOR DE DIANA EN VIVO HD & CÁMARAS */}
       {isSplitActive && (
         <div className="hidden lg:flex flex-col space-y-3 lg:col-span-7 xl:col-span-7 sticky top-4 animate-in fade-in">
@@ -1268,7 +1345,11 @@ export const X01Board: React.FC<X01BoardProps> = ({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-black text-white truncate">
-                      {shouldShowRivalCamera ? `Diana de ${rivalDisplay}` : `Tu Diana (${p1Display})`}
+                      {cameraFocusMode === 'DUAL'
+                        ? 'Doble Diana en Vivo (Ambas Cámaras)'
+                        : shouldShowRivalCamera 
+                          ? `Diana de ${rivalDisplay}` 
+                          : `Tu Diana (${p1Display})`}
                     </h3>
                     <span className="bg-[#00e676]/20 border border-[#00e676]/40 text-[#00e676] text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1 flex-shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-ping" />
@@ -1319,10 +1400,10 @@ export const X01Board: React.FC<X01BoardProps> = ({
               </div>
             </div>
 
-            {/* Selector de Alternancia de Foco (Nakka Style) */}
+            {/* Selector de Alternancia de Foco (Nakka Style con Ambas Dianas DUAL) */}
             <div className="flex items-center justify-between gap-1 p-1 bg-[#111622] rounded-xl border border-slate-800 text-[11px] font-bold">
               <span className="text-slate-400 pl-2 text-[10px] uppercase font-black">Cámara:</span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 flex-wrap">
                 <button
                   type="button"
                   onClick={() => setCameraFocusMode('AUTO')}
@@ -1334,6 +1415,18 @@ export const X01Board: React.FC<X01BoardProps> = ({
                   title="Alterna automáticamente mostrando la diana del que está tirando"
                 >
                   ⚡ Auto (Por Turno)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCameraFocusMode('DUAL')}
+                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
+                    cameraFocusMode === 'DUAL'
+                      ? 'bg-[#ffe600] text-black font-black shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Ver ambas dianas simultáneamente en pantalla dividida"
+                >
+                  👥 Ambas Dianas
                 </button>
                 <button
                   type="button"
@@ -1360,109 +1453,300 @@ export const X01Board: React.FC<X01BoardProps> = ({
               </div>
             </div>
 
-            {/* Visor de Video HD de la Diana Activa */}
-            <div className="relative aspect-video rounded-2xl overflow-hidden bg-black border-2 border-slate-800 flex items-center justify-center shadow-inner">
-              {shouldShowRivalCamera ? (
-                remoteStream ? (
-                  <video
-                    ref={splitScreenVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center p-6 text-center space-y-2 bg-gradient-to-b from-slate-900 to-black w-full h-full">
-                    <Target className="w-10 h-10 text-[#ef4444] animate-pulse mb-1" />
-                    <h4 className="text-sm font-black text-white">
-                      Esperando cámara de {rivalDisplay}...
-                    </h4>
-                    <p className="text-[11px] text-slate-400 max-w-xs">
-                      En cuanto {rivalDisplay} active su cámara en su celular o PC, la verás aquí en vivo.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleRetryWebRtc}
-                      className="mt-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-[#0284c7] text-slate-200 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <RefreshCw className="w-3 h-3" /> Reconectar WebRTC
-                    </button>
+            {/* Visor de Video HD: Modo DUAL (Ambas dianas) o Single con PiP */}
+            {cameraFocusMode === 'DUAL' ? (
+              <div className="grid grid-cols-2 gap-3 aspect-video rounded-2xl overflow-hidden bg-black border-2 border-slate-800 p-2 shadow-inner">
+                {/* Diana Rival */}
+                <div className={`relative rounded-xl overflow-hidden bg-black border-2 transition-all flex items-center justify-center ${
+                  isRivalTurn
+                    ? 'border-[#00e676] ring-2 ring-[#00e676]/40 shadow-lg shadow-[#00e676]/20'
+                    : 'border-slate-800 opacity-90'
+                }`}>
+                  {remoteStream && !isRemoteVideoHidden ? (
+                    <video
+                      ref={(el) => {
+                        if (el && el.srcObject !== remoteStream) {
+                          el.srcObject = remoteStream;
+                          el.play().catch(() => {});
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                  ) : isRemoteVideoHidden ? (
+                    <div className="flex flex-col items-center justify-center p-3 text-center space-y-1.5 bg-[#0a0d14] w-full h-full">
+                      <VideoOff className="w-8 h-8 text-amber-500 mb-0.5" />
+                      <span className="text-xs font-black text-slate-300">Video Rival Ocultado</span>
+                      <button
+                        type="button"
+                        onClick={handleToggleRemoteVideo}
+                        className="mt-1 px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-[10px] font-bold border border-amber-500/40 cursor-pointer"
+                      >
+                        Mostrar Video
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-3 text-center space-y-1.5 bg-gradient-to-b from-slate-900 to-black w-full h-full">
+                      <Target className="w-8 h-8 text-[#ef4444] animate-pulse mb-0.5" />
+                      <span className="text-xs font-black text-white">Esperando a {rivalDisplay}...</span>
+                      <button
+                        type="button"
+                        onClick={handleRetryWebRtc}
+                        className="mt-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-[#0284c7] text-slate-200 text-[10px] font-bold border border-slate-700 flex items-center gap-1 cursor-pointer"
+                      >
+                        <RefreshCw className="w-2.5 h-2.5" /> Reconectar
+                      </button>
+                    </div>
+                  )}
+                  {/* Header Badge */}
+                  <div className="absolute top-2 left-2 pointer-events-none">
+                    <div className="bg-black/85 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0284c7] animate-ping" />
+                      <span className="text-[11px] font-black text-white">{rivalDisplay}</span>
+                      <span className="text-[11px] font-bold text-[#38bdf8] font-mono">{scores[rivalPlayerIdx]} pts</span>
+                    </div>
                   </div>
-                )
-              ) : (
-                mobileStreamRef.current ? (
-                  <video
-                    ref={mobileVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center p-6 text-center space-y-2 bg-gradient-to-b from-slate-900 to-black w-full h-full">
-                    <Camera className="w-10 h-10 text-slate-500 mb-1" />
-                    <h4 className="text-sm font-black text-white">Tu Cámara está apagada</h4>
-                    <p className="text-[11px] text-slate-400">
-                      Encendé tu webcam o apuntá tu celular a la diana física.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setShowMobileCamera(true)}
-                      className="mt-2 px-4 py-1.5 rounded-xl bg-[#00e676] text-black font-black text-xs shadow-lg shadow-[#00e676]/20 cursor-pointer"
-                    >
-                      Encender Mi Cámara
-                    </button>
-                  </div>
-                )
-              )}
-
-              {/* Inset PiP en la esquina */}
-              {shouldShowRivalCamera && mobileStreamRef.current && (
-                <div className="absolute top-3 right-3 w-32 aspect-video rounded-lg overflow-hidden border-2 border-slate-700 shadow-xl bg-black">
-                  <video
-                    ref={(el) => {
-                      if (el && mobileStreamRef.current && el.srcObject !== mobileStreamRef.current) {
-                        el.srcObject = mobileStreamRef.current;
-                        el.play().catch(() => {});
-                      }
-                    }}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute bottom-0 inset-x-0 bg-black/80 px-1 py-0.5 text-[8px] font-bold text-center text-slate-300">
-                    Tu Diana
-                  </div>
+                  {isRivalTurn && (
+                    <div className="absolute bottom-2 left-2 right-2 pointer-events-none flex justify-center">
+                      <div className="bg-[#00e676] text-black px-2.5 py-0.5 rounded-full font-black text-[10px] flex items-center gap-1 shadow-lg animate-bounce">
+                        <Target className="w-3 h-3" />
+                        <span>TIRANDO</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {/* Badge flotante de tiro */}
-              <div className="absolute top-2.5 left-2.5 pointer-events-none">
-                <div className="bg-black/85 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#00e676] animate-ping" />
-                  <span className="text-xs font-black text-white">
-                    {shouldShowRivalCamera ? rivalDisplay : p1Display}
-                  </span>
-                  <span className="text-xs font-bold text-[#38bdf8] font-mono">
-                    {scores[shouldShowRivalCamera ? rivalPlayerIdx : localPlayerIdx]} pts
-                  </span>
+                {/* Tu Diana (Local) */}
+                <div className={`relative rounded-xl overflow-hidden bg-black border-2 transition-all flex items-center justify-center ${
+                  isMyTurn
+                    ? 'border-[#00e676] ring-2 ring-[#00e676]/40 shadow-lg shadow-[#00e676]/20'
+                    : 'border-slate-800 opacity-90'
+                }`}>
+                  {localStream || mobileStreamRef.current ? (
+                    <video
+                      ref={(el) => {
+                        const stream = localStream || mobileStreamRef.current;
+                        if (el && stream && el.srcObject !== stream) {
+                          el.srcObject = stream;
+                          el.play().catch(() => {});
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-3 text-center space-y-1.5 bg-gradient-to-b from-slate-900 to-black w-full h-full">
+                      <Camera className="w-8 h-8 text-slate-500 mb-0.5" />
+                      <span className="text-xs font-black text-white">Tu Cámara está apagada</span>
+                      <p className="text-[10px] text-slate-400">Encendé tu webcam física</p>
+                      <button
+                        type="button"
+                        onClick={() => setShowMobileCamera(true)}
+                        className="mt-1 px-3 py-1 rounded-lg bg-[#00e676] text-black font-black text-[10px] shadow cursor-pointer"
+                      >
+                        Encender Mi Cámara
+                      </button>
+                    </div>
+                  )}
+                  {/* Header Badge */}
+                  <div className="absolute top-2 left-2 pointer-events-none">
+                    <div className="bg-black/85 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-ping" />
+                      <span className="text-[11px] font-black text-white">{p1Display} (Tú)</span>
+                      <span className="text-[11px] font-bold text-[#38bdf8] font-mono">{scores[localPlayerIdx]} pts</span>
+                    </div>
+                  </div>
+                  {isMyTurn && (
+                    <div className="absolute bottom-2 left-2 right-2 pointer-events-none flex justify-center">
+                      <div className="bg-[#00e676] text-black px-2.5 py-0.5 rounded-full font-black text-[10px] flex items-center gap-1 shadow-lg animate-bounce">
+                        <Target className="w-3 h-3" />
+                        <span>TU TURNO</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+            ) : (
+              /* Visor de Video HD de la Diana Activa (Modos Auto, Rival o Mi Diana) */
+              <div className="relative aspect-video rounded-2xl overflow-hidden bg-black border-2 border-slate-800 flex items-center justify-center shadow-inner">
+                {shouldShowRivalCamera ? (
+                  isRemoteVideoHidden ? (
+                    <div className="flex flex-col items-center justify-center p-6 text-center space-y-2 bg-[#090d14] w-full h-full">
+                      <VideoOff className="w-10 h-10 text-amber-500 mb-1" />
+                      <h4 className="text-sm font-black text-white">Video del Rival Ocultado</h4>
+                      <p className="text-xs text-slate-400">Podés reactivarlo en cualquier momento con el botón inferior.</p>
+                      <button
+                        type="button"
+                        onClick={handleToggleRemoteVideo}
+                        className="mt-2 px-3.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-bold cursor-pointer"
+                      >
+                        Mostrar Video del Rival
+                      </button>
+                    </div>
+                  ) : remoteStream ? (
+                    <video
+                      ref={(el) => {
+                        splitScreenVideoRef.current = el;
+                        if (el && remoteStream && el.srcObject !== remoteStream) {
+                          el.srcObject = remoteStream;
+                          el.play().catch(() => {});
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-6 text-center space-y-2 bg-gradient-to-b from-slate-900 to-black w-full h-full">
+                      <Target className="w-10 h-10 text-[#ef4444] animate-pulse mb-1" />
+                      <h4 className="text-sm font-black text-white">
+                        Esperando cámara de {rivalDisplay}...
+                      </h4>
+                      <p className="text-[11px] text-slate-400 max-w-xs">
+                        En cuanto {rivalDisplay} active su cámara en su celular o PC, la verás aquí en vivo.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleRetryWebRtc}
+                        className="mt-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-[#0284c7] text-slate-200 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Reconectar WebRTC
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  localStream || mobileStreamRef.current ? (
+                    <video
+                      ref={(el) => {
+                        const stream = localStream || mobileStreamRef.current;
+                        if (el && stream && el.srcObject !== stream) {
+                          el.srcObject = stream;
+                          el.play().catch(() => {});
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-6 text-center space-y-2 bg-gradient-to-b from-slate-900 to-black w-full h-full">
+                      <Camera className="w-10 h-10 text-slate-500 mb-1" />
+                      <h4 className="text-sm font-black text-white">Tu Cámara está apagada</h4>
+                      <p className="text-[11px] text-slate-400">
+                        Encendé tu webcam o apuntá tu celular a la diana física.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowMobileCamera(true)}
+                        className="mt-2 px-4 py-1.5 rounded-xl bg-[#00e676] text-black font-black text-xs shadow-lg shadow-[#00e676]/20 cursor-pointer"
+                      >
+                        Encender Mi Cámara
+                      </button>
+                    </div>
+                  )
+                )}
 
-              {isRivalTurn && shouldShowRivalCamera && (
-                <div className="absolute bottom-3 left-3 right-3 pointer-events-none flex justify-center">
-                  <div className="bg-[#00e676] text-black px-3.5 py-1 rounded-full font-black text-xs flex items-center gap-1.5 shadow-xl animate-bounce">
-                    <Target className="w-3.5 h-3.5" />
-                    <span>TIRANDO EN SU DIANA</span>
+                {/* Inset PiP de Tu Diana en la esquina (visible si la pantalla principal muestra al rival) */}
+                {shouldShowRivalCamera && (
+                  <div 
+                    onClick={() => setCameraFocusMode('LOCAL')}
+                    className="absolute top-3 right-3 w-44 sm:w-52 aspect-video rounded-xl overflow-hidden border-2 border-amber-500/70 shadow-2xl bg-black cursor-pointer group transition-transform hover:scale-105"
+                    title="Click para enfocar tu diana en grande"
+                  >
+                    {localStream || mobileStreamRef.current ? (
+                      <video
+                        ref={(el) => {
+                          const stream = localStream || mobileStreamRef.current;
+                          if (el && stream && el.srcObject !== stream) {
+                            el.srcObject = stream;
+                            el.play().catch(() => {});
+                          }
+                        }}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-[#090d14]">
+                        <Camera className="w-5 h-5 text-slate-400 mb-1" />
+                        <span className="text-[10px] font-bold text-slate-300">Tu Cámara OFF</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowMobileCamera(true);
+                          }}
+                          className="mt-1 px-2 py-0.5 rounded bg-[#00e676] text-black font-black text-[9px] shadow"
+                        >
+                          Encender
+                        </button>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 inset-x-0 bg-black/80 px-1 py-0.5 text-[9px] font-bold text-center text-slate-200 group-hover:text-amber-400">
+                      Tu Diana (Click ↗)
+                    </div>
+                  </div>
+                )}
+
+                {/* Inset PiP del Rival en la esquina (visible si la pantalla principal muestra tu diana) */}
+                {!shouldShowRivalCamera && remoteStream && !isRemoteVideoHidden && (
+                  <div 
+                    onClick={() => setCameraFocusMode('RIVAL')}
+                    className="absolute top-3 right-3 w-44 sm:w-52 aspect-video rounded-xl overflow-hidden border-2 border-[#0284c7]/70 shadow-2xl bg-black cursor-pointer group transition-transform hover:scale-105"
+                    title="Click para enfocar la diana del rival en grande"
+                  >
+                    <video
+                      ref={(el) => {
+                        if (el && el.srcObject !== remoteStream) {
+                          el.srcObject = remoteStream;
+                          el.play().catch(() => {});
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-0 inset-x-0 bg-black/80 px-1 py-0.5 text-[9px] font-bold text-center text-slate-200 group-hover:text-[#38bdf8]">
+                      Diana Rival (Click ↗)
+                    </div>
+                  </div>
+                )}
+
+                {/* Badge flotante de tiro */}
+                <div className="absolute top-2.5 left-2.5 pointer-events-none">
+                  <div className="bg-black/85 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#00e676] animate-ping" />
+                    <span className="text-xs font-black text-white">
+                      {shouldShowRivalCamera ? rivalDisplay : p1Display}
+                    </span>
+                    <span className="text-xs font-bold text-[#38bdf8] font-mono">
+                      {scores[shouldShowRivalCamera ? rivalPlayerIdx : localPlayerIdx]} pts
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
+
+                {isRivalTurn && shouldShowRivalCamera && (
+                  <div className="absolute bottom-3 left-3 right-3 pointer-events-none flex justify-center">
+                    <div className="bg-[#00e676] text-black px-3.5 py-1 rounded-full font-black text-xs flex items-center gap-1.5 shadow-xl animate-bounce">
+                      <Target className="w-3.5 h-3.5" />
+                      <span>TIRANDO EN SU DIANA</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Ajustes y Controles Inferiores */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800 text-xs">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {availableCameras.length > 0 && (
                   <select
                     value={selectedCameraDeviceId}
@@ -1481,7 +1765,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
                 <button
                   type="button"
                   onClick={handleToggleCameraFacing}
-                  className="px-2 py-1 rounded-lg bg-[#111622] hover:bg-[#1a2234] border border-amber-500/40 text-amber-400 text-[10px] font-bold flex items-center gap-1 transition-colors"
+                  className="px-2 py-1 rounded-lg bg-[#111622] hover:bg-[#1a2234] border border-amber-500/40 text-amber-400 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                   title="Alternar entre cámara trasera (diana) y delantera"
                 >
                   <SwitchCamera className="w-3 h-3" />
@@ -1489,12 +1773,42 @@ export const X01Board: React.FC<X01BoardProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={handleUnlockRemoteAudio}
-                  className="px-2 py-1 rounded-lg bg-[#111622] hover:bg-[#1a2234] border border-slate-700 text-slate-300 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                  title="Activar voz del rival"
+                  onClick={handleToggleRemoteAudio}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
+                    isRemoteAudioMuted
+                      ? 'bg-red-500/20 text-red-400 border-red-500/40 hover:bg-red-500/30'
+                      : 'bg-[#111622] hover:bg-[#1a2234] border-slate-700 text-slate-200'
+                  }`}
+                  title={isRemoteAudioMuted ? 'Activar audio del rival' : 'Silenciar audio del rival'}
                 >
-                  <Volume2 className="w-3 h-3 text-[#00e676]" />
-                  <span>Sonido Rival</span>
+                  {isRemoteAudioMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-[#00e676]" />}
+                  <span>{isRemoteAudioMuted ? 'Rival Muteado' : 'Audio Rival'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleToggleRemoteVideo}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
+                    isRemoteVideoHidden
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
+                      : 'bg-[#111622] hover:bg-[#1a2234] border-slate-700 text-slate-200'
+                  }`}
+                  title={isRemoteVideoHidden ? 'Mostrar video del rival' : 'Ocultar video del rival'}
+                >
+                  {isRemoteVideoHidden ? <VideoOff className="w-3.5 h-3.5 text-amber-400" /> : <Video className="w-3.5 h-3.5 text-[#38bdf8]" />}
+                  <span>{isRemoteVideoHidden ? 'Video Oculto' : 'Video Rival'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMobileCamera(!showMobileCamera)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
+                    showMobileCamera && (localStream || mobileStreamRef.current)
+                      ? 'bg-[#00e676]/20 text-[#00e676] border-[#00e676]/50'
+                      : 'bg-black text-slate-400 border-slate-800 hover:text-white'
+                  }`}
+                  title={showMobileCamera ? 'Apagar mi cámara' : 'Encender mi cámara'}
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>{showMobileCamera && (localStream || mobileStreamRef.current) ? 'Mi Cámara ON' : 'Encender Mi Cámara'}</span>
                 </button>
               </div>
 
@@ -1830,14 +2144,6 @@ export const X01Board: React.FC<X01BoardProps> = ({
       <div className="lg:hidden">
         {(isOnline || showMobileCamera) && (
           <div className="bg-[#0b0e14] border border-slate-800 rounded-2xl p-2.5 sm:p-3 space-y-2.5 shadow-2xl">
-            {/* Audio dedicado remoto para WebRTC (posicionado fuera de pantalla sin display:none para evitar suspensión en móviles) */}
-            <audio 
-              ref={remoteAudioRef} 
-              autoPlay 
-              playsInline 
-              style={{ position: 'fixed', top: -9999, left: -9999, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} 
-            />
-
             {/* Banner de Desbloqueo de Audio para Celulares */}
             {audioAutoplayBlocked && (
               <button
@@ -1891,7 +2197,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
                   <span className="hidden sm:inline">{cameraFacingMode === 'environment' ? 'Trasera (Diana)' : 'Delantera'}</span>
                 </button>
 
-                {/* Botón Silenciar/Activar Micrófono */}
+                {/* Botón Silenciar/Activar Micrófono Propio */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1910,6 +2216,36 @@ export const X01Board: React.FC<X01BoardProps> = ({
                 >
                   {isMicMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
                   <span>{isMicMuted ? 'Mute' : isSpeaking ? 'Voz ON' : 'Mic'}</span>
+                </button>
+
+                {/* Botón Silenciar/Activar Audio del Rival */}
+                <button
+                  type="button"
+                  onClick={handleToggleRemoteAudio}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-all ${
+                    isRemoteAudioMuted
+                      ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                      : 'bg-[#111622] text-[#00e676] border-slate-700'
+                  }`}
+                  title={isRemoteAudioMuted ? 'Activar audio del rival' : 'Silenciar audio del rival'}
+                >
+                  {isRemoteAudioMuted ? <VolumeX className="w-3 h-3 text-red-400" /> : <Volume2 className="w-3 h-3 text-[#00e676]" />}
+                  <span className="hidden sm:inline">{isRemoteAudioMuted ? 'Audio OFF' : 'Audio ON'}</span>
+                </button>
+
+                {/* Botón Ocultar/Ver Video del Rival */}
+                <button
+                  type="button"
+                  onClick={handleToggleRemoteVideo}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-all ${
+                    isRemoteVideoHidden
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                      : 'bg-[#111622] text-[#38bdf8] border-slate-700'
+                  }`}
+                  title={isRemoteVideoHidden ? 'Mostrar video del rival' : 'Ocultar video del rival'}
+                >
+                  {isRemoteVideoHidden ? <VideoOff className="w-3 h-3 text-amber-400" /> : <Video className="w-3 h-3 text-[#38bdf8]" />}
+                  <span className="hidden sm:inline">{isRemoteVideoHidden ? 'Video OFF' : 'Video ON'}</span>
                 </button>
 
                 {/* Botón Modal Emergente Diana del Contrincante (PC) */}
@@ -1948,9 +2284,16 @@ export const X01Board: React.FC<X01BoardProps> = ({
                     : 'border-slate-800 opacity-85'
                 }`}>
                   {localPlayerIdx === 0 ? (
-                    mobileStreamRef.current ? (
+                    localStream || mobileStreamRef.current ? (
                       <video 
-                        ref={mobileVideoRef} 
+                        ref={(el) => {
+                          mobileVideoRef.current = el;
+                          const stream = localStream || mobileStreamRef.current;
+                          if (el && stream && el.srcObject !== stream) {
+                            el.srcObject = stream;
+                            el.play().catch(() => {});
+                          }
+                        }} 
                         autoPlay 
                         playsInline 
                         muted 
@@ -1961,22 +2304,41 @@ export const X01Board: React.FC<X01BoardProps> = ({
                         <Camera className="w-6 h-6 text-slate-500 mb-1" />
                         <span className="text-[10px] font-bold text-slate-300">Tu Diana</span>
                         <button
+                          type="button"
                           onClick={() => setShowMobileCamera(true)}
-                          className="mt-1 px-2 py-0.5 rounded bg-[#00e676] text-black text-[9px] font-black"
+                          className="mt-1 px-2 py-0.5 rounded bg-[#00e676] text-black text-[9px] font-black cursor-pointer"
                         >
                           Encender
                         </button>
                       </div>
                     )
                   ) : (
-                    remoteStream ? (
+                    remoteStream && !isRemoteVideoHidden ? (
                       <video 
-                        ref={remoteVideoRef} 
+                        ref={(el) => {
+                          remoteVideoRef.current = el;
+                          if (el && remoteStream && el.srcObject !== remoteStream) {
+                            el.srcObject = remoteStream;
+                            el.play().catch(() => {});
+                          }
+                        }} 
                         autoPlay 
                         playsInline 
                         muted 
                         className="w-full h-full object-cover" 
                       />
+                    ) : isRemoteVideoHidden ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-[#0a0d14]">
+                        <VideoOff className="w-5 h-5 text-amber-500 mb-1" />
+                        <span className="text-[9px] font-bold text-slate-300">Video Oculto</span>
+                        <button
+                          type="button"
+                          onClick={handleToggleRemoteVideo}
+                          className="mt-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[8px] font-bold cursor-pointer"
+                        >
+                          Mostrar
+                        </button>
+                      </div>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-gradient-to-b from-slate-900 to-black">
                         <Target className="w-6 h-6 text-[#ef4444] mb-1 animate-pulse" />
@@ -2025,9 +2387,16 @@ export const X01Board: React.FC<X01BoardProps> = ({
                     : 'border-slate-800 opacity-85'
                 }`}>
                   {localPlayerIdx === 1 ? (
-                    mobileStreamRef.current ? (
+                    localStream || mobileStreamRef.current ? (
                       <video 
-                        ref={mobileVideoRef} 
+                        ref={(el) => {
+                          mobileVideoRef.current = el;
+                          const stream = localStream || mobileStreamRef.current;
+                          if (el && stream && el.srcObject !== stream) {
+                            el.srcObject = stream;
+                            el.play().catch(() => {});
+                          }
+                        }} 
                         autoPlay 
                         playsInline 
                         muted 
@@ -2038,22 +2407,41 @@ export const X01Board: React.FC<X01BoardProps> = ({
                         <Camera className="w-6 h-6 text-slate-500 mb-1" />
                         <span className="text-[10px] font-bold text-slate-300">Tu Diana</span>
                         <button
+                          type="button"
                           onClick={() => setShowMobileCamera(true)}
-                          className="mt-1 px-2 py-0.5 rounded bg-[#00e676] text-black text-[9px] font-black"
+                          className="mt-1 px-2 py-0.5 rounded bg-[#00e676] text-black text-[9px] font-black cursor-pointer"
                         >
                           Encender
                         </button>
                       </div>
                     )
                   ) : (
-                    remoteStream ? (
+                    remoteStream && !isRemoteVideoHidden ? (
                       <video 
-                        ref={remoteVideoRef} 
+                        ref={(el) => {
+                          remoteVideoRef.current = el;
+                          if (el && remoteStream && el.srcObject !== remoteStream) {
+                            el.srcObject = remoteStream;
+                            el.play().catch(() => {});
+                          }
+                        }} 
                         autoPlay 
                         playsInline 
                         muted 
                         className="w-full h-full object-cover" 
                       />
+                    ) : isRemoteVideoHidden ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-[#0a0d14]">
+                        <VideoOff className="w-5 h-5 text-amber-500 mb-1" />
+                        <span className="text-[9px] font-bold text-slate-300">Video Oculto</span>
+                        <button
+                          type="button"
+                          onClick={handleToggleRemoteVideo}
+                          className="mt-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[8px] font-bold cursor-pointer"
+                        >
+                          Mostrar
+                        </button>
+                      </div>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-gradient-to-b from-slate-900 to-black">
                         <Target className="w-6 h-6 text-[#ef4444] mb-1 animate-pulse" />
@@ -2515,14 +2903,33 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
           {/* Cuerpo del Modal: Video en Vivo de la Diana */}
           <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden flex-1">
-            {remoteStream ? (
+            {remoteStream && !isRemoteVideoHidden ? (
               <video
-                ref={modalRemoteVideoRef}
+                ref={(el) => {
+                  modalRemoteVideoRef.current = el;
+                  if (el && remoteStream && el.srcObject !== remoteStream) {
+                    el.srcObject = remoteStream;
+                    el.play().catch(() => {});
+                  }
+                }}
                 autoPlay
                 playsInline
                 muted
                 className="w-full h-full object-cover"
               />
+            ) : isRemoteVideoHidden ? (
+              <div className="flex flex-col items-center justify-center p-6 text-center space-y-2 bg-[#090d14] w-full h-full">
+                <VideoOff className="w-12 h-12 text-amber-500 mb-2" />
+                <h4 className="text-base font-black text-white">Video del Rival Ocultado</h4>
+                <p className="text-xs text-slate-400">Podés activarlo nuevamente con el botón inferior.</p>
+                <button
+                  type="button"
+                  onClick={handleToggleRemoteVideo}
+                  className="mt-2 px-4 py-2 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-bold cursor-pointer"
+                >
+                  Mostrar Video del Rival
+                </button>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center p-6 text-center space-y-3 bg-gradient-to-b from-[#0b0e14] to-black w-full h-full">
                 <div className="w-14 h-14 rounded-full bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center animate-pulse">
@@ -2587,7 +2994,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
             </div>
           )}
 
-          {/* Pie del Modal con Audio y Cierre */}
+          {/* Pie del Modal con Audio, Video y Cierre */}
           <div className="p-3 bg-[#0a0d14] border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs flex-shrink-0">
             <div className="flex items-center gap-2 text-slate-400">
               <span className="text-[11px]">Sincronización P2P TURN: <strong className="text-white">TCP 443</strong></span>
@@ -2595,11 +3002,29 @@ export const X01Board: React.FC<X01BoardProps> = ({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleUnlockRemoteAudio}
-                className="px-2.5 py-1 rounded-lg bg-[#111622] hover:bg-[#1a2234] border border-slate-700 text-slate-200 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                onClick={handleToggleRemoteAudio}
+                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                  isRemoteAudioMuted
+                    ? 'bg-red-500/20 text-red-400 border-red-500/40 hover:bg-red-500/30'
+                    : 'bg-[#111622] hover:bg-[#1a2234] border-slate-700 text-slate-200'
+                }`}
+                title={isRemoteAudioMuted ? 'Activar audio del rival' : 'Silenciar audio del rival'}
               >
-                <Volume2 className="w-3.5 h-3.5 text-[#00e676]" />
-                <span>Activar Sonido Rival</span>
+                {isRemoteAudioMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-[#00e676]" />}
+                <span>{isRemoteAudioMuted ? 'Rival Muteado' : 'Audio Rival'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleToggleRemoteVideo}
+                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                  isRemoteVideoHidden
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
+                    : 'bg-[#111622] hover:bg-[#1a2234] border-slate-700 text-slate-200'
+                }`}
+                title={isRemoteVideoHidden ? 'Mostrar video del rival' : 'Ocultar video del rival'}
+              >
+                {isRemoteVideoHidden ? <VideoOff className="w-3.5 h-3.5 text-amber-400" /> : <Video className="w-3.5 h-3.5 text-[#38bdf8]" />}
+                <span>{isRemoteVideoHidden ? 'Video Oculto' : 'Video Rival'}</span>
               </button>
               <button
                 type="button"

@@ -1,5 +1,21 @@
 # Tareas del Proyecto (TODO) • Locos por los Dardos
 
+- [x] **Auto-Healing de Audio/Video ante F5 (Refresh), Layout Desktop con Anotador a la Derecha y Pop-up / Pop-out Enriquecido con Preservación Total de Información:**
+  * **Reconexión Automática WebRTC ante Refresh (F5):**
+    - `webrtc-room.ts`: Auto-recuperación de `unavailable-id` en PeerJS cuando un jugador recarga `/anotador?sala=CODE`. Generación de fallback ID, notificación vía `POST /api/salas` (`action: 'HEARTBEAT'`), y reconexión inmediata (`connectToPeer`, `initiateOutgoingCall`) entre Host y Guest sin quedarse trabados.
+    - `online-rooms.ts` & `src/app/api/salas/route.ts`: Registro dinámico de `hostPeerId` y `guestPeerId` en sala online con heartbeats activos cada 2 segundos.
+  * **Layout Oficial en Escritorio / PC (Diana a la Izquierda, Anotador a la Derecha):**
+    - En `X01Board.tsx`, el modo `isSplitActive` en pantallas de escritorio (`lg:`) permanece activo de forma permanente (`isDesktopSplitEnabled = true`), situando la Diana en Vivo / Cámaras P2P a la izquierda (`lg:col-span-7 xl:col-span-7`) y el Anotador Oficial con teclado de 5 columnas a la derecha (`lg:col-span-5 xl:col-span-5`).
+    - En `src/app/anotador/page.tsx`, se expandió el contenedor a `max-w-[1700px]` para que el layout en pantallas panorámicas de PC respire con comodidad.
+    - En celulares y pantallas pequeñas (< `lg`), la vista colapsa al formato táctil ergonómico con la Doble Diana móvil en acordeón.
+  * **Pop-up Modal y Ventana Pop-out (`/anotador/camara-popout`) con Preservación Total de Información:**
+    - Modal emergente `showRivalModal` en `X01Board.tsx`: conserva el 100% de la partida (cabecera con torneo/sala, tarjetas de ambos jugadores con promedios AVG, dardos tirados, puntuación gigante 501, indicador de tiro activo, barra de Sets / Legs (S/L), Cierre Sugerido en tiempo real y tira horizontal de los últimos 5 lanzamientos).
+    - Ventana Pop-out (`/anotador/camara-popout`):
+      * Reutilización de stream de `window.opener` para evitar colisiones de hardware en Chrome/Windows.
+      * Soporte de `?sala=` / `?room=` con polling de respaldo a `/api/salas`.
+      * Conmutador interactivo de modos de visualización: Banner TV (estilo PDC broadcast con lower third) y Split Screen TV (Lado a lado: cámara HD izquierda + marcador oficial derecho con histórico de visitas).
+      * Preservación milimétrica de todas las métricas de juego en PC y celulares.
+
 - [x] **Fecha de Nacimiento, Cálculo Dinámico de Edad, RBAC Jerárquico (Superadmin vs Admin de Torneos) y Análisis Consultivo de Reconocimiento de Voz:**
   * **Fecha de Nacimiento y Demografía Real:** Columna `birth_date` en PostgreSQL (`profiles`), función determinista y libre de desfases de huso horario `calculateAgeFromBirthDate`, input interactivo `type="date"` en `/perfil` con previsualización en tiempo real de edad y rango etario, y actualización reactiva de la tarjeta "Edad Promedio" en `/superadmin`.
   * **RBAC Jerárquico de 3 Niveles:**

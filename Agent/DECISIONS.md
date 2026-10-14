@@ -816,4 +816,32 @@
      - Análisis consultivo elaborado: factibilidad técnica alta mediante la Web Speech API (`SpeechRecognition`), pero se aconseja implementación mediante **Push-to-Talk** (mantener presionado botón o barra espaciadora) para evitar falsos positivos por el ruido ambiente característico de bares, pubs y clubes de dardos (música, charlas, gritos de "180"), combinado con gramática estricta de validación (rango 0 a 180 y dobles de checkout).
 - **Motivo:** Otorga autonomía organizativa a delegados de torneo sin comprometer la seguridad ni la administración global de la plataforma, garantiza datos demográficos reales y sienta las bases arquitectónicas para el anotador por voz.
 
+---
+
+## ADR-041: Auto-Healing de WebRTC ante Refresh (F5), Layout Fijo en Desktop (PC) y Ventana Pop-out / Pop-up con Preservación Total de Información
+
+- **Fecha:** 2026-10-14
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Desconexión de audio y video al refrescar la pantalla (F5):* En salas online 1 vs 1 (`/anotador?sala=CODE`), al presionar F5 la conexión se perdía por completo. La causa raíz radicaba en que los servidores cloud de PeerJS retienen el Peer ID base (`lpld-room-${code}-host`) durante 20 a 30 segundos, arrojando error `unavailable-id` e impidiendo que el Host se registre, lo que dejaba al Guest sin contraparte activa.
+  2. *Layout en Desktop / PC (Diana a la izquierda, Anotador a la derecha):* El modo dividido `isSplitActive` estaba restringido a `(isOnline || showMobileCamera) && isDesktopSplitEnabled`, lo que hacía que en partidas locales o previas a activar la webcam en PC, la pantalla colapsara a una sola columna estrecha (`max-w-lg`) centrada, en lugar de exhibir el layout acordado (Diana HD a la izquierda y Anotador Oficial con teclado de 5 columnas a la derecha). Además, el contenedor principal en `src/app/anotador/page.tsx` estaba acotado a `max-w-7xl` (1280px), comprimiendo el espacio en monitores panorámicos.
+  3. *Pérdida de datos al expandir popups de cámara:* El modal emergente y la ventana desacoplada (`/anotador/camara-popout`) no mostraban la totalidad de los datos del juego (faltaban barra S/L, promedios, lanzamientos recientes, o colisionaban con el hardware de la webcam de Chrome).
+- **Decisión:**
+  1. **Auto-Healing de WebRTC y Heartbeat Bidireccional (`webrtc-room.ts`, `online-rooms.ts`, `/api/salas`):**
+     - Detección de error `unavailable-id` en PeerJS con generación automática de ID alternativo de contingencia (`${peerId}-${random}`).
+     - Registro dinámico de `hostPeerId` y `guestPeerId` en memoria y polling bidireccional (`HEARTBEAT`) cada 2 segundos a través de `POST /api/salas`.
+     - Implementados `connectToPeer(targetId)` y `reconnectCall()` en `WebRtcRoomHandler` para reenganchar streams y llamadas salientes en caliente cuando el contrincante recarga su navegador.
+  2. **Layout de Escritorio / PC Permanente (`X01Board.tsx` & `page.tsx`):**
+     - En `X01Board.tsx`, `isSplitActive` queda gobernado por `isDesktopSplitEnabled` (activo por defecto en pantallas `lg:`), garantizando que en PC la Diana HD y Cámaras P2P se ubiquen siempre a la izquierda (`lg:col-span-7 xl:col-span-7`) y el Anotador Oficial a la derecha (`lg:col-span-5 xl:col-span-5`).
+     - Contenedor de `src/app/anotador/page.tsx` ampliado a `max-w-[1700px]` para aprovechar monitores Full HD y 4K.
+     - En smartphones y tablets (< `lg:`), la interfaz se mantiene 100% táctil y compacta con la Doble Diana en acordeón.
+  3. **Preservación Total de Información en Pop-ups y Pop-outs (`camara-popout/page.tsx` & `showRivalModal`):**
+     - Reutilización de stream de `window.opener` (`__lpld_remote_stream` / `__lpld_local_stream`) para evitar colisiones de hardware en Chrome/Windows al abrir ventanas emergentes.
+     - Soporte de parámetro `?sala=` o `?room=` con polling de respaldo a `/api/salas`.
+     - Despliegue del 100% de métricas del match: cabecera con torneo/sala, tarjetas completas de ambos jugadores (nombre, bandera, AVG, dardos tirados, puntuación gigante 501, indicador de tiro activo), barra de Sets y Legs (S/L), Cierre Sugerido en tiempo real y tira de los últimos lanzamientos de la partida.
+     - Conmutador interactivo entre modo Banner TV (estilo transmisión PDC con lower third) y modo Split Screen TV (Diana a la izquierda + Marcador a la derecha).
+     - Componente encapsulado con `<Suspense>` para cumplimiento con Next.js App Router.
+- **Motivo:** Garantiza resiliencia de red ante refrescos accidentales, ergonomía visual profesional en computadoras y visualización deportiva completa en cualquier pantalla auxiliar o celular sin perder el contexto de la partida.
+
+
 

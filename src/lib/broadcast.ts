@@ -33,6 +33,15 @@ export interface BroadcastMatchPayload {
   status: 'IN_PROGRESS' | 'FINISHED';
   winner?: string;
   checkoutSuggestion?: string;
+  starterTurnIndex?: number;
+  onlineRoomCode?: string;
+  turnHistory?: Array<{
+    playerName: string;
+    score: number;
+    remainingAfter: number;
+    isBust?: boolean;
+    timestamp?: number;
+  }>;
   timestamp: number;
 }
 

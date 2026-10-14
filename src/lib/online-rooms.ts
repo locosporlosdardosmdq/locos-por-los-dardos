@@ -26,6 +26,10 @@ export interface OnlineRoom {
     timestamp: number;
   };
   winnerIndex?: 0 | 1;
+  hostPeerId?: string;
+  guestPeerId?: string;
+  hostLastSeen?: number;
+  guestLastSeen?: number;
   lastUpdate: number;
 }
 
@@ -209,6 +213,32 @@ export function submitRoomThrow(
   }
 
   room.lastUpdate = Date.now();
+  store.set(normalizedCode, room);
+
+  return { success: true, room };
+}
+
+export function registerRoomHeartbeat(
+  code: string,
+  playerIndex: 0 | 1,
+  peerId?: string
+): { success: boolean; room?: OnlineRoom; error?: string } {
+  const store = getRoomsStore();
+  const normalizedCode = normalizeRoomCode(code);
+  const room = store.get(normalizedCode);
+  if (!room) {
+    return { success: false, error: 'Sala no encontrada.' };
+  }
+
+  const now = Date.now();
+  if (playerIndex === 0) {
+    if (peerId) room.hostPeerId = peerId;
+    room.hostLastSeen = now;
+  } else {
+    if (peerId) room.guestPeerId = peerId;
+    room.guestLastSeen = now;
+  }
+  room.lastUpdate = now;
   store.set(normalizedCode, room);
 
   return { success: true, room };

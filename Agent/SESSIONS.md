@@ -1,5 +1,37 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 31] - 2026-10-14
+- **Objetivo:** Corrección de desconexión WebRTC de audio y video ante F5 (refresh), fijación del layout en escritorio (PC) con Diana a la izquierda y Anotador Oficial a la derecha, y enriquecimiento del modal de cámara y la ventana emergente Pop-out (`/anotador/camara-popout`) preservando el 100% de la información de la partida tanto en PC como en celulares.
+- **Diagnóstico de Causa Raíz:**
+  1. *Desconexión por refresh F5:* Al recargar la página, el servidor cloud de PeerJS retiene el Peer ID anterior por 20-30 segundos arrojando error `unavailable-id`, lo cual abortaba la inicialización del Host y dejaba al Guest sin contraparte.
+  2. *Layout de escritorio condicional:* `isSplitActive` estaba condicionado a `(isOnline || showMobileCamera) && isDesktopSplitEnabled`, provocando que en partidas locales o previas a activar la cámara en PC, la pantalla colapsara a una única columna central (`max-w-lg`) en lugar de mostrar la Diana a la izquierda y el anotador a la derecha. Además, el contenedor en `src/app/anotador/page.tsx` estaba limitado a `max-w-7xl` reduciendo el espacio disponible en monitores 1080p.
+  3. *Pérdida de datos en popup:* La ventana emergente `/anotador/camara-popout` carecía de barra S/L, desglose de visitas previas, modo de layout Split y reintentaba capturar la webcam con `getUserMedia()` colisionando con el hardware ya ocupado por la ventana principal de Chrome.
+- **Realizado:**
+  - **Auto-Healing WebRTC y Heartbeat Bidireccional (`webrtc-room.ts`, `online-rooms.ts`, `/api/salas`):**
+    * Detección de error `unavailable-id` en PeerJS con generación instantánea de ID alternativo de contingencia (`${peerId}-${random}`).
+    * Notificación de Peer ID activo a través de `POST /api/salas` (`action: 'HEARTBEAT'`) ejecutado cada 2s en polling.
+    * Métodos `connectToPeer(targetId)` y `reconnectCall()` en `WebRtcRoomHandler` para reenganchar llamadas y DataChannel en tiempo real ante refrescos.
+  - **Layout de Escritorio / PC Permanente (`X01Board.tsx` & `/anotador/page.tsx`):**
+    * `isSplitActive` configurado con `isDesktopSplitEnabled` (activo por defecto en pantallas `lg:`).
+    * Diana en Vivo / Cámaras P2P fija a la izquierda (`lg:col-span-7 xl:col-span-7`).
+    * Anotador Oficial con marcadores gigantes, cierres sugeridos, teclado de 5 columnas e historial a la derecha (`lg:col-span-5 xl:col-span-5`).
+    * Ancho máximo del contenedor en `src/app/anotador/page.tsx` ampliado a `max-w-[1700px]`.
+    * En dispositivos móviles (< `lg:`), colapso limpio al teclado táctil con acordeón de Doble Diana.
+  - **Pop-up y Ventana Desacoplada con 100% de Información (`camara-popout/page.tsx` & `showRivalModal`):**
+    * Compartición de stream de video mediante `window.opener` (`__lpld_remote_stream` / `__lpld_local_stream`) para evitar colisiones de cámara en Windows.
+    * Soporte para parámetros `?sala=` o `?room=` con polling de respaldo a `/api/salas`.
+    * Tarjetas de ambos jugadores completas: Banderas de nacionalidad, nombres, AVG 3-darts, dardos tirados, Sets, Legs, puntuación 501 gigante e indicador pulsante de tirador activo.
+    * Barra oficial de Sets y Legs (S/L) y ruta de Cierre Sugerido en vivo.
+    * Tira de los últimos lanzamientos de la partida con jugador, score y restante.
+    * Selector interactivo de visualización: Banner TV (Lower Third) vs Split View (Cámara izquierda + Marcador derecho).
+    * `CamaraPopoutPage` protegido con `<Suspense>` conforme a las convenciones de Next.js App Router.
+  - **Validación de Compilación y Tipos:**
+    * `npx tsc --noEmit` completado exitosamente con 0 errores (código 0).
+    * `npm run build` completado exitosamente con 18 páginas estáticas y 6 rutas dinámicas (código 0).
+- **Estado del Proyecto:** Salas online 1 vs 1 con recuperación automática tras F5, layout de PC con anotador a la derecha y visor de diana a la izquierda garantizado, popouts con fidelidad total de datos de juego e interfaz optimizada tanto para escritorio como celulares.
+
+---
+
 ## [Sesión 30] - 2026-10-14
 - **Objetivo:** Registro de fecha de nacimiento y cálculo dinámico de edad en la ficha del jugador (`RegisterAndProfile.tsx`) para la tarjeta demográfica de Superadmin, RBAC jerárquico de 3 niveles (`SUPERADMIN`, `ADMIN`, `PLAYER`) con delegación de administración de llaves eliminatorias y eliminación de torneos/ligas sin acceso al panel `/superadmin`, y evaluación consultiva de reconocimiento de voz para anotación de tantos.
 - **Diagnóstico de Causa Raíz:**

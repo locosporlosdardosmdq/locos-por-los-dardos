@@ -3,7 +3,8 @@ import {
   createOnlineRoom, 
   getOnlineRoom, 
   joinOnlineRoom, 
-  submitRoomThrow 
+  submitRoomThrow,
+  registerRoomHeartbeat
 } from '@/lib/online-rooms';
 
 export async function GET(request: NextRequest) {
@@ -58,6 +59,20 @@ export async function POST(request: NextRequest) {
       }
 
       const res = submitRoomThrow(code, playerIndex, score, !!isCheckout);
+      if (!res.success) {
+        return NextResponse.json({ error: res.error }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, room: res.room });
+    }
+
+    if (action === 'HEARTBEAT') {
+      const { code, playerIndex, peerId } = body;
+      if (!code || playerIndex === undefined) {
+        return NextResponse.json({ error: 'Parámetros insuficientes.' }, { status: 400 });
+      }
+
+      const res = registerRoomHeartbeat(code, playerIndex, peerId);
       if (!res.success) {
         return NextResponse.json({ error: res.error }, { status: 400 });
       }

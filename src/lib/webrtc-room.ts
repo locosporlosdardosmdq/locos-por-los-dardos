@@ -19,6 +19,9 @@ export interface WebRtcRoomHandler {
   sendMediaStream: (stream: MediaStream) => void;
   sendLeave?: () => void;
   getRemoteStream: () => MediaStream | null;
+  getPeerId?: () => string;
+  connectToPeer?: (targetId: string) => void;
+  reconnectCall?: () => void;
   destroy: () => void;
 }
 
@@ -105,7 +108,168 @@ export async function hostPeerRoom(
   let localMediaStream: MediaStream | null = null;
   let connectedGuestPeerId: string | null = null;
 
-  const peer = new Peer(peerId, PEER_CONFIG);
+  let activePeerInstance: any = null;
+  let activePeerId: string = peerId;
+
+  const bindPeerEvents = (p: any) => {
+    p.on('open', (id: string) => {
+      console.log('[WebRTC Host] Sala P2P abierta con Peer ID:', id);
+      activePeerId = id;
+      if (typeof fetch !== 'undefined') {
+        fetch('/api/salas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'HEARTBEAT', code: normalizeRoomCode(roomCode), playerIndex: 0, peerId: id })
+        }).catch(() => {});
+      }
+    });
+
+    p.on('error', (err: any) => {
+      console.warn('[WebRTC Host Error]:', err);
+      if (err.type === 'unavailable-id') {
+        console.log('[WebRTC Host] ID base ocupado por refresh previo. Creando instancia con ID alternativo...');
+        try { p.destroy(); } catch (e) {}
+        const fallbackId = `${peerId}-${Math.random().toString(36).substring(2, 7)}`;
+        activePeerInstance = new Peer(fallbackId, PEER_CONFIG);
+        bindPeerEvents(activePeerInstance);
+      } else {
+        onError(`Error de conexión WebRTC: ${err.message || err.type}`);
+      }
+    });
+
+    // Escuchar llamadas entrantes de video del rival
+    p.on('call', (call: any) => {
+      console.log('[WebRTC Host] Recibida llamada entrante de cámara/audio del rival');
+      incomingCall = call;
+
+      if (!connectedGuestPeerId && (call as any).peer) {
+        connectedGuestPeerId = (call as any).peer;
+      }
+
+      if (localMediaStream) {
+        call.answer(localMediaStream);
+      } else {
+        call.answer();
+      }
+
+      call.on('stream', (remoteStream: MediaStream) => {
+        console.log('[WebRTC Host] ¡Stream de video y audio del rival recibido!', remoteStream.id);
+        activeRemoteStream = remoteStream;
+        if (currentRemoteStreamListener) {
+          currentRemoteStreamListener(remoteStream);
+        }
+      });
+
+      call.on('close', () => {
+        console.log('[WebRTC Host] Stream entrante del rival cerrado');
+        if (incomingCall === call) {
+          incomingCall = null;
+        }
+        activeRemoteStream = null;
+        if (currentRemoteStreamListener) {
+          currentRemoteStreamListener(null);
+        }
+      });
+    });
+
+    // Escuchar canal de datos (tiros, turnos, pings)
+    p.on('connection', (conn: any) => {
+      activeConnection = conn;
+
+      conn.on('open', () => {
+        console.log('[WebRTC Host] Conexión de datos P2P establecida con rival');
+      });
+
+      conn.on('data', (data: any) => {
+        const msg = data as PeerMessage;
+        if (!msg) return;
+
+        if (msg.type === 'JOIN_REQUEST') {
+          connectedGuestPeerId = msg.guestPeerId || null;
+          roomState.player2 = msg.player;
+          roomState.config.player2 = msg.player;
+          roomState.config.player2Name = msg.player.name;
+          roomState.status = 'PLAYING';
+          roomState.lastUpdate = Date.now();
+
+          // Responder con aceptación y estado completo
+          conn.send({
+            type: 'JOIN_ACCEPTED',
+            room: roomState,
+            hostPeerId: activePeerId
+          } as PeerMessage);
+
+          onGuestJoined(roomState);
+
+          // Si ya tenemos stream local disponible, llamar al rival inmediatamente
+          if (localMediaStream && connectedGuestPeerId) {
+            initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
+          }
+        } else if (msg.type === 'STREAM_READY') {
+          console.log('[WebRTC Host] El rival notificó STREAM_READY');
+          if (localMediaStream && connectedGuestPeerId) {
+            initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
+          }
+        } else if (msg.type === 'REQUEST_STREAM') {
+          if (localMediaStream && connectedGuestPeerId) {
+            initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
+          }
+        } else if (msg.type === 'LEAVE') {
+          console.log('[WebRTC Host] El rival salió de la partida (LEAVE)');
+          activeRemoteStream = null;
+          if (currentRemoteStreamListener) {
+            currentRemoteStreamListener(null);
+          }
+        } else if (msg.type === 'THROW') {
+          if (currentThrowListener) {
+            currentThrowListener(msg.score, msg.darts, msg.isCheckout);
+          }
+          if (onThrowReceived) {
+            onThrowReceived(msg.score, msg.darts, msg.isCheckout);
+          }
+        }
+      });
+
+      conn.on('close', () => {
+        console.log('[WebRTC Host] Rival desconectado del canal de datos');
+        activeRemoteStream = null;
+        if (currentRemoteStreamListener) {
+          currentRemoteStreamListener(null);
+        }
+      });
+    });
+  };
+
+  // Función para realizar llamada saliente hacia el rival
+  const initiateOutgoingCall = (targetGuestId: string, stream: MediaStream) => {
+    if (!targetGuestId || !stream) return;
+    console.log('[WebRTC Host] Realizando llamada saliente con cámara hacia:', targetGuestId);
+    try {
+      if (outgoingCall) {
+        try { outgoingCall.close(); } catch (e) {}
+      }
+      const call = activePeerInstance?.call(targetGuestId, stream);
+      outgoingCall = call;
+
+      call?.on('stream', (remoteStream: MediaStream) => {
+        console.log('[WebRTC Host] Stream recibido en respuesta de llamada saliente:', remoteStream.id);
+        if (remoteStream && remoteStream.getTracks().length > 0) {
+          activeRemoteStream = remoteStream;
+          if (currentRemoteStreamListener) {
+            currentRemoteStreamListener(remoteStream);
+          }
+        }
+      });
+
+      call?.on('error', (callErr: any) => {
+        console.warn('[WebRTC Host Outgoing Call Error]:', callErr);
+      });
+    } catch (err) {
+      console.warn('[WebRTC Host Call Exception]:', err);
+    }
+  };
+
+  activePeerInstance = new Peer(peerId, PEER_CONFIG);
 
   const startScore = initialConfig.startingScore || 501;
   const roomState: OnlineRoom = {
@@ -129,149 +293,14 @@ export async function hostPeerRoom(
     lastUpdate: Date.now()
   };
 
-  peer.on('open', (id) => {
-    console.log('[WebRTC Host] Sala P2P abierta con Peer ID:', id);
-  });
-
-  peer.on('error', (err: any) => {
-    console.warn('[WebRTC Host Error]:', err);
-    if (err.type === 'unavailable-id') {
-      onError('Ya existe una sala activa con este código. Intenta generar un nuevo código.');
-    } else {
-      onError(`Error de conexión WebRTC: ${err.message || err.type}`);
-    }
-  });
-
-  // Función para realizar llamada saliente hacia el rival
-  const initiateOutgoingCall = (targetGuestId: string, stream: MediaStream) => {
-    if (!targetGuestId || !stream) return;
-    console.log('[WebRTC Host] Realizando llamada saliente con cámara hacia:', targetGuestId);
-    try {
-      if (outgoingCall) {
-        try { outgoingCall.close(); } catch (e) {}
-      }
-      const call = peer.call(targetGuestId, stream);
-      outgoingCall = call;
-
-      call.on('stream', (remoteStream: MediaStream) => {
-        console.log('[WebRTC Host] Stream recibido en respuesta de llamada saliente:', remoteStream.id);
-        if (remoteStream && remoteStream.getTracks().length > 0) {
-          activeRemoteStream = remoteStream;
-          if (currentRemoteStreamListener) {
-            currentRemoteStreamListener(remoteStream);
-          }
-        }
-      });
-
-      call.on('error', (callErr: any) => {
-        console.warn('[WebRTC Host Outgoing Call Error]:', callErr);
-      });
-    } catch (err) {
-      console.warn('[WebRTC Host Call Exception]:', err);
-    }
+  const handleBeforeUnload = () => {
+    try { activePeerInstance?.destroy(); } catch (e) {}
   };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  }
 
-  // Escuchar llamadas entrantes de video del rival
-  peer.on('call', (call) => {
-    console.log('[WebRTC Host] Recibida llamada entrante de cámara/audio del rival');
-    incomingCall = call;
-
-    if (!connectedGuestPeerId && (call as any).peer) {
-      connectedGuestPeerId = (call as any).peer;
-    }
-
-    if (localMediaStream) {
-      call.answer(localMediaStream);
-    } else {
-      call.answer();
-    }
-
-    call.on('stream', (remoteStream: MediaStream) => {
-      console.log('[WebRTC Host] ¡Stream de video y audio del rival recibido!', remoteStream.id);
-      activeRemoteStream = remoteStream;
-      if (currentRemoteStreamListener) {
-        currentRemoteStreamListener(remoteStream);
-      }
-    });
-
-    call.on('close', () => {
-      console.log('[WebRTC Host] Stream entrante del rival cerrado');
-      if (incomingCall === call) {
-        incomingCall = null;
-      }
-      activeRemoteStream = null;
-      if (currentRemoteStreamListener) {
-        currentRemoteStreamListener(null);
-      }
-    });
-  });
-
-  // Escuchar canal de datos (tiros, turnos, pings)
-  peer.on('connection', (conn) => {
-    activeConnection = conn;
-
-    conn.on('open', () => {
-      console.log('[WebRTC Host] Conexión de datos P2P establecida con rival');
-    });
-
-    conn.on('data', (data: any) => {
-      const msg = data as PeerMessage;
-      if (!msg) return;
-
-      if (msg.type === 'JOIN_REQUEST') {
-        connectedGuestPeerId = msg.guestPeerId || null;
-        roomState.player2 = msg.player;
-        roomState.config.player2 = msg.player;
-        roomState.config.player2Name = msg.player.name;
-        roomState.status = 'PLAYING';
-        roomState.lastUpdate = Date.now();
-
-        // Responder con aceptación y estado completo
-        conn.send({
-          type: 'JOIN_ACCEPTED',
-          room: roomState,
-          hostPeerId: peerId
-        } as PeerMessage);
-
-        onGuestJoined(roomState);
-
-        // Si ya tenemos stream local disponible, llamar al rival inmediatamente
-        if (localMediaStream && connectedGuestPeerId) {
-          initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
-        }
-      } else if (msg.type === 'STREAM_READY') {
-        console.log('[WebRTC Host] El rival notificó STREAM_READY');
-        if (localMediaStream && connectedGuestPeerId) {
-          initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
-        }
-      } else if (msg.type === 'REQUEST_STREAM') {
-        if (localMediaStream && connectedGuestPeerId) {
-          initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
-        }
-      } else if (msg.type === 'LEAVE') {
-        console.log('[WebRTC Host] El rival salió de la partida (LEAVE)');
-        activeRemoteStream = null;
-        if (currentRemoteStreamListener) {
-          currentRemoteStreamListener(null);
-        }
-      } else if (msg.type === 'THROW') {
-        if (currentThrowListener) {
-          currentThrowListener(msg.score, msg.darts, msg.isCheckout);
-        }
-        if (onThrowReceived) {
-          onThrowReceived(msg.score, msg.darts, msg.isCheckout);
-        }
-      }
-    });
-
-    conn.on('close', () => {
-      console.log('[WebRTC Host] Rival desconectado del canal de datos');
-      activeRemoteStream = null;
-      if (currentRemoteStreamListener) {
-        currentRemoteStreamListener(null);
-      }
-    });
-  });
+  bindPeerEvents(activePeerInstance);
 
   return {
     sendThrow: (score: number, darts?: string[], isCheckout?: boolean) => {
@@ -363,13 +392,28 @@ export async function hostPeerRoom(
       }
     },
     getRemoteStream: () => activeRemoteStream,
+    getPeerId: () => activePeerId || peerId,
+    connectToPeer: (guestId: string) => {
+      connectedGuestPeerId = guestId;
+      if (localMediaStream) {
+        initiateOutgoingCall(guestId, localMediaStream);
+      }
+    },
+    reconnectCall: () => {
+      if (connectedGuestPeerId && localMediaStream) {
+        initiateOutgoingCall(connectedGuestPeerId, localMediaStream);
+      }
+    },
     destroy: () => {
       try {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+        }
         if (incomingCall) incomingCall.close();
         if (outgoingCall) outgoingCall.close();
         if (activeConnection) activeConnection.close();
         activeRemoteStream = null;
-        peer.destroy();
+        activePeerInstance?.destroy();
       } catch (e) {}
     }
   };
@@ -386,7 +430,7 @@ export async function joinPeerRoom(
   onError: (err: string) => void
 ): Promise<WebRtcRoomHandler> {
   const { Peer } = await import('peerjs');
-  const targetPeerId = getPeerIdFromRoomCode(roomCode);
+  let targetPeerId = getPeerIdFromRoomCode(roomCode);
 
   let activeConnection: any = null;
   let incomingCall: any = null;
@@ -430,8 +474,22 @@ export async function joinPeerRoom(
     }
   };
 
-  peer.on('open', () => {
-    console.log('[WebRTC Guest] Conectando a Host:', targetPeerId, 'con Guest ID:', guestPeerId);
+  const handleBeforeUnload = () => {
+    try { peer.destroy(); } catch (e) {}
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  }
+
+  peer.on('open', (id) => {
+    console.log('[WebRTC Guest] Conectando a Host:', targetPeerId, 'con Guest ID:', id);
+    if (typeof fetch !== 'undefined') {
+      fetch('/api/salas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'HEARTBEAT', code: normalizeRoomCode(roomCode), playerIndex: 1, peerId: id })
+      }).catch(() => {});
+    }
     const conn = peer.connect(targetPeerId, {
       reliable: true
     });
@@ -625,9 +683,60 @@ export async function joinPeerRoom(
       }
     },
     getRemoteStream: () => activeRemoteStream,
+    connectToPeer: (hostId: string) => {
+      targetPeerId = hostId;
+      if (!activeConnection || !activeConnection.open || (activeConnection.peer && activeConnection.peer !== hostId)) {
+        try {
+          if (activeConnection) activeConnection.close();
+        } catch (e) {}
+        try {
+          const conn = peer.connect(hostId, { reliable: true });
+          activeConnection = conn;
+          conn.on('open', () => {
+            console.log('[WebRTC Guest] Reconectado a Host:', hostId);
+            conn.send({
+              type: 'JOIN_REQUEST',
+              player: guestPlayer,
+              guestPeerId: peer.id || guestPeerId
+            } as PeerMessage);
+          });
+          conn.on('data', (data: any) => {
+            const msg = data as PeerMessage;
+            if (!msg) return;
+            if (msg.type === 'JOIN_ACCEPTED') {
+              onConnected(msg.room);
+              if (localMediaStream) initiateOutgoingCall(localMediaStream);
+            } else if (msg.type === 'STREAM_READY') {
+              if (localMediaStream) initiateOutgoingCall(localMediaStream);
+            } else if (msg.type === 'REQUEST_STREAM') {
+              if (localMediaStream) initiateOutgoingCall(localMediaStream);
+            } else if (msg.type === 'LEAVE') {
+              activeRemoteStream = null;
+              if (currentRemoteStreamListener) currentRemoteStreamListener(null);
+            } else if (msg.type === 'THROW') {
+              if (currentThrowListener) currentThrowListener(msg.score, msg.darts, msg.isCheckout);
+              if (onThrowReceived) onThrowReceived(msg.score, msg.darts, msg.isCheckout);
+            }
+          });
+        } catch (err) {
+          console.warn('[WebRTC Guest connectToPeer error]:', err);
+        }
+      }
+      if (localMediaStream) {
+        initiateOutgoingCall(localMediaStream);
+      }
+    },
+    reconnectCall: () => {
+      if (localMediaStream) {
+        initiateOutgoingCall(localMediaStream);
+      }
+    },
     destroy: () => {
       clearTimeout(connectionTimeout);
       try {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+        }
         if (incomingCall) incomingCall.close();
         if (outgoingCall) outgoingCall.close();
         if (activeConnection) activeConnection.close();

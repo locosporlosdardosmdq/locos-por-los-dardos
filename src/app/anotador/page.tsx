@@ -10,7 +10,7 @@ function AnotadorContent() {
   const salaCode = searchParams.get('sala') || searchParams.get('room') || undefined;
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-6 space-y-4">
+    <div className="w-full max-w-[1700px] mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4">
       {/* Encabezado Rápido Oficial */}
       <div className="flex items-center justify-between bg-[#0f1422] border border-[#ef4444]/30 rounded-2xl px-4 py-3 shadow-lg">
         <div className="flex items-center gap-2.5">

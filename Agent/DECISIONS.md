@@ -921,3 +921,33 @@
      - Auto-detección del parámetro `inscribir` en la página con apertura automática del modal `PlayerEnrollModal`.
 - **Motivo:** Garantiza estricta fidelidad reglamentaria del juego de dardos, ergonomía total en transmisiones con cámaras y federalización real de torneos para toda la comunidad.
 
+---
+
+## [ADR-045] Aislamiento de Estadísticas vs BOT, Preservación y Reconexión de Partidas Online, Badges en Español y Asignación de Llave Estilo Nakka N01
+
+- **Fecha:** 2026-10-15
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Estadísticas adulteradas por partidas contra la máquina:* Las partidas en modo Práctica contra el BOT computaban en las estadísticas competitivas del jugador (AVG oficial, partidos jugados, 180s, high checkout), distorsionando el ranking oficial de la comunidad.
+  2. *Pérdida de partidas online al navegar por el menú o sufrir micro-cortes:* Si un jugador salía del anotador para consultar otra sección (Torneos, Ranking, etc.), el ciclo de vida de React ejecutaba `cleanupHardwareAndWebRtc`, enviaba `webrtc.sendLeave()` y destruía la conexión PeerJS, dejándolo bloqueado y sin poder volver a la partida.
+  3. *Etiqueta "Registration Open" cortada y en inglés:* En la tabla de torneos activos y cabeceras, el badge de estado se mostraba en inglés y se partía en dos líneas ("REGISTRATION" / "OPEN") por falta de `whitespace-nowrap`.
+  4. *Falta de siembra automática y asignación manual de partidos estilo Nakka N01:* No existía mecanismo en la app para tomar a los jugadores inscriptos y sembrarlos en la llave de eliminación (aleatoria o por ranking), ni para asignar o cambiar manualmente un jugador slot a slot, declarar Byes directos o limpiar la llave.
+- **Decisión:**
+  1. **Aislamiento Estricto de Métricas de BOT (`storage.ts` & `RegisterAndProfile.tsx`):**
+     - Se crearon las claves `lpld_bot_matches` y `lpld_bot_stats` en `localStorage` totalmente separadas de las estadísticas oficiales competitivas.
+     - En `DartScorer.tsx`, si `isVsCpu === true`, `saveCompletedMatch` desvía el resultado exclusivamente al acumulador de práctica contra la máquina, sin impactar en el AVG competitivo ni enviar registros al ranking cloud.
+     - En `RegisterAndProfile.tsx`, se implementó el selector `[🏆 Oficial Competitivo]` vs `[🤖 Modo Práctica (vs Máquina)]` con banner explicativo (*"Estas métricas fueron conseguidas exclusivamente en el Modo Práctica jugando contra el BOT (la Máquina)..."*), 4 tarjetas de métricas dedicadas (Partidas vs CPU, Promedio vs Bot, Cierres y 180s) e historial completo de partidas con etiquetas de dificultad.
+  2. **Preservación y Reconexión de Partidas Online (`X01Board.tsx` & `AppShell.tsx`):**
+     - Diferenciación en `cleanupHardwareAndWebRtc`: solo envía `webrtc.sendLeave()` si el usuario hace click deliberado en "Abandonar Partida" tras confirmación modal. Al desmontarse por navegación, mantiene la sala viva y en estado `IN_PROGRESS`.
+     - Guardado reactivo inmediato de la sesión al montar la sala en el anotador (incluso antes del primer dardo), evitando que retroceder borre el código de sala o la configuración.
+     - Banner global sticky en `AppShell.tsx`: si hay una partida activa y el usuario navega a cualquier otra sección (`/torneos`, `/ranking`, `/jugadores`, etc.), se despliega en la parte superior el aviso: *"🎯 Partida en Curso: P1 vs P2 (Sala DART-XXXX) [Volver a la Partida ↗]"*, permitiendo retomar el juego dardo a dardo con 1 click.
+  3. **Badges de Torneo en Español y sin Cortes (`TournamentManager.tsx`):**
+     - Función `getTournamentStatusBadge(status)` con traducción completa: `Inscripción Abierta`, `En Juego`, `Finalizado`, `Cancelado`.
+     - Estilo reforzado con `whitespace-nowrap font-black text-xs uppercase px-3 py-1 rounded-full`, eliminando el salto de línea y otorgando un look profesional idéntico a las mejores plataformas deportivas.
+  4. **Gestión de Llave y Asignación Automática / Manual Estilo Nakka N01:**
+     - **Inscripción Real por Torneo:** Cada torneo mantiene su array `enrolledPlayers` con fecha, seed, avg y webcam, con persistencia sincronizada en Supabase PostgreSQL.
+     - **Barra de Herramientas Nakka (`TournamentBracket.tsx`):** Botones `[⚡ Asignación Automática]`, `[☑️ Aleatorio]` (toggle entre sorteo aleatorio o siembra por ranking/orden) y `[🗑️ Despejar Llave]` (limpieza a slots vacíos sin perder inscriptos).
+     - **Asignación Manual Slot a Slot (`SlotAssignModal.tsx`):** Cada slot de Ronda 1 dispone de gatillo táctil `+ Asignar` / `Cambiar` para que el administrador elija entre los inscriptos, asigne "⚡ Pase Libre (BYE)" (avanzando automáticamente al rival) o vacíe el slot.
+     - **Soporte de Bracket Size en Motor Puro (`bracket-engine.ts`):** `SingleEliminationOptions` y `DoubleEliminationOptions` ahora reciben `bracketSize?: 4 | 8 | 16 | 32 | 64`, permitiendo generar cuadros estándar aún cuando haya inscriptos impares o cupos pendientes.
+- **Motivo:** Cumple integralmente los estándares profesionales internacionales de torneos (Nakka / Challonge / PDC), protege la integridad del ranking competitivo y garantiza una experiencia de usuario fluida y libre de frustraciones en partidas online.
+

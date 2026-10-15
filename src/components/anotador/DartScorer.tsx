@@ -62,6 +62,12 @@ export const DartScorer: React.FC<DartScorerProps> = ({
     const session = getActiveMatchSession();
     if (session) {
       setStandbySession(session);
+      // Si la partida estaba en curso activo (ej: el usuario navegó a otra sección del menú o hubo reconexión),
+      // reanudar automáticamente en la Diana para que no pierda la pantalla de juego
+      if (session.status === 'IN_PROGRESS') {
+        setActiveConfig(session.config);
+        setViewState('PLAYING');
+      }
     }
   }, []);
 
@@ -168,23 +174,33 @@ export const DartScorer: React.FC<DartScorerProps> = ({
     try {
       saveCompletedMatch({
         gameType: (activeConfig.gameType === 'X01' ? 'X01' : 'CRICKET') as any,
+        isVsCpu: activeConfig.isVsCpu,
+        cpuDifficulty: activeConfig.cpuDifficulty,
         players: [
           {
             name: activeConfig.player1.name,
-            score: 0,
+            score: statsPayload.highFinishP1,
             avg: parseFloat(result.avgP1 || '0'),
             first9Avg: parseFloat(result.first9P1 || '0'),
             legsWon: statsPayload.legsP1,
-            dartsThrown: result.totalDartsMatch ? result.totalDartsMatch[0] : 0,
+            dartsThrown: statsPayload.bestLegP1,
+            highestCheckout: statsPayload.highFinishP1,
+            count180s: statsPayload.count180sP1,
+            count140Plus: statsPayload.count140sP1,
+            count100Plus: statsPayload.count100sP1,
             isWinner: isP1Winner
           },
           {
             name: activeConfig.player2.name,
-            score: 0,
+            score: statsPayload.highFinishP2,
             avg: parseFloat(result.avgP2 || '0'),
             first9Avg: parseFloat(result.first9P2 || '0'),
             legsWon: statsPayload.legsP2,
-            dartsThrown: result.totalDartsMatch ? result.totalDartsMatch[1] : 0,
+            dartsThrown: statsPayload.bestLegP2,
+            highestCheckout: statsPayload.highFinishP2,
+            count180s: statsPayload.count180sP2,
+            count140Plus: statsPayload.count140sP2,
+            count100Plus: statsPayload.count100sP2,
             isWinner: !isP1Winner
           }
         ],

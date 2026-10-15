@@ -9,6 +9,8 @@ export interface SavedMatch {
   id: string;
   gameType: 'X01' | 'CRICKET' | 'ROUND_THE_CLOCK';
   date: string;
+  isVsCpu?: boolean;
+  cpuDifficulty?: string;
   players: {
     name: string;
     score: number;
@@ -16,6 +18,10 @@ export interface SavedMatch {
     first9Avg?: number;
     legsWon: number;
     dartsThrown: number;
+    highestCheckout?: number;
+    count180s?: number;
+    count140Plus?: number;
+    count100Plus?: number;
     isWinner: boolean;
   }[];
   legsTotal: number;
@@ -25,6 +31,8 @@ export interface SavedMatch {
 
 const STORAGE_KEYS = {
   MATCHES: 'lpld_matches_history_v1',
+  BOT_MATCHES: 'lpld_bot_matches_history_v1',
+  BOT_STATS: 'lpld_bot_stats_v1',
   ACTIVE_SESSION: 'lpld_active_match_session_v1',
   CURRENT_PLAYER: 'lpld_player_profile_v1',
   LAST_PLAYER: 'lpld_last_player_v1',
@@ -44,11 +52,54 @@ export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'>): Save
   };
 
   try {
+    // Si la partida es contra el BOT (Modo Práctica), se guarda de forma aislada
+    // para no alterar el promedio oficial ni el ranking federado del jugador
+    if (newMatch.isVsCpu) {
+      const existingBot = getBotMatches();
+      const updatedBot = [newMatch, ...existingBot].slice(0, 50);
+      localStorage.setItem(STORAGE_KEYS.BOT_MATCHES, JSON.stringify(updatedBot));
+
+      // Actualizar estadísticas acumuladas de práctica vs Máquina
+      const p1 = newMatch.players[0];
+      const prevStats = getBotStats();
+      const isWinner = p1 ? p1.isWinner : false;
+      const p1Avg = p1 ? p1.avg : 0;
+      const p1First9 = p1?.first9Avg || p1Avg;
+
+      const newPlayed = prevStats.matchesPlayed + 1;
+      const newWon = prevStats.matchesWon + (isWinner ? 1 : 0);
+      const newAvg = Number(((prevStats.overallAvg * prevStats.matchesPlayed + p1Avg) / newPlayed).toFixed(2));
+      const newFirst9 = Number(((prevStats.first9Avg * prevStats.matchesPlayed + p1First9) / newPlayed).toFixed(2));
+
+      const p1Checkout = p1?.highestCheckout || p1?.score || 0;
+      const p1Darts = p1?.dartsThrown && p1.dartsThrown > 0 ? p1.dartsThrown : 0;
+
+      const updatedBotStats = {
+        matchesPlayed: newPlayed,
+        matchesWon: newWon,
+        overallAvg: newAvg,
+        first9Avg: newFirst9,
+        highestCheckout: Math.max(prevStats.highestCheckout || 0, p1Checkout),
+        count180s: (prevStats.count180s || 0) + (p1?.count180s || 0),
+        count140Plus: (prevStats.count140Plus || 0) + (p1?.count140Plus || 0),
+        count100Plus: (prevStats.count100Plus || 0) + (p1?.count100Plus || 0),
+        bestLegDarts: p1Darts > 0
+          ? (prevStats.bestLegDarts > 0 ? Math.min(prevStats.bestLegDarts, p1Darts) : p1Darts)
+          : (prevStats.bestLegDarts || 0),
+        lastPlayed: new Date().toISOString()
+      };
+
+      localStorage.setItem(STORAGE_KEYS.BOT_STATS, JSON.stringify(updatedBotStats));
+      window.dispatchEvent(new CustomEvent('lpld_bot_stats_updated', { detail: updatedBotStats }));
+      return newMatch;
+    }
+
+    // Partida Competitiva Oficial (PvP, Torneos, Ligas)
     const existing = getSavedMatches();
     const updated = [newMatch, ...existing].slice(0, 50); // Mantenemos las últimas 50 partidas en local
     localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(updated));
 
-    // Agregar a cola de sincronización si se requiere backend
+    // Agregar a cola de sincronización para backend oficial
     queueForSync('MATCH', newMatch);
   } catch (err) {
     console.warn('[Storage] Error al guardar partida offline:', err);
@@ -70,6 +121,49 @@ export function getSavedMatches(): SavedMatch[] {
 export function clearSavedMatches(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(STORAGE_KEYS.MATCHES);
+}
+
+// --- Estadísticas y Partidas en Modo Práctica vs BOT (Máquina) ---
+export function getBotMatches(): SavedMatch[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.BOT_MATCHES);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getBotStats(): {
+  matchesPlayed: number;
+  matchesWon: number;
+  overallAvg: number;
+  first9Avg: number;
+  highestCheckout: number;
+  count180s: number;
+  count140Plus: number;
+  count100Plus: number;
+  bestLegDarts: number;
+  lastPlayed?: string;
+} {
+  const fallback = {
+    matchesPlayed: 0,
+    matchesWon: 0,
+    overallAvg: 0,
+    first9Avg: 0,
+    highestCheckout: 0,
+    count180s: 0,
+    count140Plus: 0,
+    count100Plus: 0,
+    bestLegDarts: 0
+  };
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.BOT_STATS);
+    return data ? { ...fallback, ...JSON.parse(data) } : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 // --- Cola de Sincronización Remota (Offline-to-Online) ---

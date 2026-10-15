@@ -29,6 +29,7 @@ export type BracketFormat = 'SINGLE_ELIMINATION' | 'DOUBLE_ELIMINATION';
 export type SeedingMode = 'RANKED' | 'RANDOM' | 'MANUAL';
 
 export interface SingleEliminationOptions {
+  bracketSize?: 4 | 8 | 16 | 32 | 64;
   seeding?: SeedingMode;
   includeThirdPlace?: boolean;
   legTarget?: number;
@@ -37,6 +38,7 @@ export interface SingleEliminationOptions {
 }
 
 export interface DoubleEliminationOptions {
+  bracketSize?: 4 | 8 | 16 | 32 | 64;
   seeding?: SeedingMode;
   grandFinalReset?: boolean;
   legTarget?: number;
@@ -117,7 +119,7 @@ export function generateSingleElimination(
   participants: Participant[],
   options: SingleEliminationOptions = {}
 ): TournamentBracketMatch[] {
-  const bracketSize = getNextPowerOfTwo(participants.length);
+  const bracketSize = options.bracketSize || getNextPowerOfTwo(participants.length);
   const seeded = seedParticipants(participants, bracketSize, options.seeding || 'RANKED');
   const numRounds = Math.log2(bracketSize);
   const matches: TournamentBracketMatch[] = [];
@@ -241,7 +243,7 @@ export function generateDoubleElimination(
   participants: Participant[],
   options: DoubleEliminationOptions = {}
 ): TournamentBracketMatch[] {
-  const bracketSize = getNextPowerOfTwo(participants.length);
+  const bracketSize = options.bracketSize || getNextPowerOfTwo(participants.length);
   const seeded = seedParticipants(participants, bracketSize, options.seeding || 'RANKED');
   const numWinnersRounds = Math.log2(bracketSize);
   const legTarget = options.legTarget || 3;

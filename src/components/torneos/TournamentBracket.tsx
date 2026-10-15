@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { TournamentBracketMatch, TournamentPodium } from '@/lib/types';
 import { getCountryFlag } from '@/lib/constants';
 import { TournamentPodiumView } from './TournamentPodiumView';
-import { Trophy, Clock, CheckCircle2, Play, ShieldAlert, Zap, Repeat, Award } from 'lucide-react';
+import { Trophy, Clock, CheckCircle2, Play, ShieldAlert, Zap, Repeat, Award, Trash2, UserPlus, Users, Shuffle } from 'lucide-react';
 
 interface TournamentBracketProps {
   matches: TournamentBracketMatch[];
@@ -17,6 +17,10 @@ interface TournamentBracketProps {
   onSelectPlayer?: (player: any) => void;
   podium?: TournamentPodium;
   prizesBreakdown?: { first: number; second: number; third: number };
+  enrolledCount?: number;
+  onAutoAssign?: (isRandom: boolean) => void;
+  onClearBracket?: () => void;
+  onAssignSlot?: (match: TournamentBracketMatch, slotIndex: 1 | 2) => void;
 }
 
 export const TournamentBracket: React.FC<TournamentBracketProps> = ({
@@ -28,10 +32,15 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
   onAdminEditMatch,
   onSelectPlayer,
   podium,
-  prizesBreakdown
+  prizesBreakdown,
+  enrolledCount,
+  onAutoAssign,
+  onClearBracket,
+  onAssignSlot
 }) => {
   const isDoubleElim = matches.some((m) => m.bracketType === 'LOSERS');
   const [deTab, setDeTab] = useState<'ALL' | 'WINNERS' | 'LOSERS' | 'FINALS'>('ALL');
+  const [isRandomSeeding, setIsRandomSeeding] = useState<boolean>(true);
 
   // Separación dinámica para Eliminación Simple
   const singleMatches = matches.filter((m) => (!m.bracketType || m.bracketType === 'WINNERS' || m.bracketType === 'FINALS') && m.id !== 'se_third_place');
@@ -165,10 +174,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               if (m.player1 && onSelectPlayer) {
                 e.stopPropagation();
                 onSelectPlayer(m.player1.id || m.player1.name);
+              } else if (isAdmin && onAssignSlot && m.round === 1 && m.status === 'SCHEDULED') {
+                e.stopPropagation();
+                onAssignSlot(m, 1);
               }
             }}
-            title={m.player1 ? "Ver ficha y estadísticas del jugador" : undefined}
-            className={`flex items-center gap-2 truncate ${m.player1 ? 'cursor-pointer hover:text-[#00e676]' : ''}`}
+            title={m.player1 ? "Ver ficha y estadísticas del jugador" : isAdmin && onAssignSlot && m.round === 1 ? "Click para asignar jugador" : undefined}
+            className={`flex items-center gap-2 truncate ${m.player1 ? 'cursor-pointer hover:text-[#00e676]' : isAdmin && onAssignSlot && m.round === 1 ? 'cursor-pointer hover:text-blue-400' : ''}`}
           >
             <span className="text-sm select-none" title={m.player1?.nationality || 'Argentina'}>
               {getCountryFlag(m.player1?.countryCode || m.player1?.nationality || 'AR')}
@@ -183,11 +195,26 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               </div>
             )}
             <span className="text-xs truncate font-bold">
-              {m.player1 ? m.player1.name : 'Por definir'}
+              {m.player1 ? m.player1.name : (
+                <span className="text-slate-500 italic">Por definir</span>
+              )}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            {isAdmin && onAssignSlot && m.round === 1 && m.status === 'SCHEDULED' && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAssignSlot(m, 1);
+                }}
+                className="p-1 rounded-md bg-blue-500/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[9px] font-bold flex items-center gap-0.5"
+                title="Asignar / Cambiar Jugador en Slot 1"
+              >
+                <UserPlus className="w-3 h-3" />
+              </button>
+            )}
             {m.distanceMode === 'SETS' && (
               <span className="font-mono font-bold text-xs text-[#ffe600] px-1.5 py-0.5 rounded bg-[#ffe600]/10 border border-[#ffe600]/30" title="Sets ganados">
                 {m.scoreSetsP1 || 0}S
@@ -216,10 +243,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               if (m.player2 && onSelectPlayer) {
                 e.stopPropagation();
                 onSelectPlayer(m.player2.id || m.player2.name);
+              } else if (isAdmin && onAssignSlot && m.round === 1 && m.status === 'SCHEDULED') {
+                e.stopPropagation();
+                onAssignSlot(m, 2);
               }
             }}
-            title={m.player2 ? "Ver ficha y estadísticas del jugador" : undefined}
-            className={`flex items-center gap-2 truncate ${m.player2 ? 'cursor-pointer hover:text-[#00e676]' : ''}`}
+            title={m.player2 ? "Ver ficha y estadísticas del jugador" : isAdmin && onAssignSlot && m.round === 1 ? "Click para asignar jugador" : undefined}
+            className={`flex items-center gap-2 truncate ${m.player2 ? 'cursor-pointer hover:text-[#00e676]' : isAdmin && onAssignSlot && m.round === 1 ? 'cursor-pointer hover:text-blue-400' : ''}`}
           >
             <span className="text-sm select-none" title={m.player2?.nationality || 'Argentina'}>
               {getCountryFlag(m.player2?.countryCode || m.player2?.nationality || 'AR')}
@@ -234,11 +264,26 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               </div>
             )}
             <span className="text-xs truncate font-bold">
-              {m.player2 ? m.player2.name : 'Por definir'}
+              {m.player2 ? m.player2.name : (
+                <span className="text-slate-500 italic">Por definir</span>
+              )}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            {isAdmin && onAssignSlot && m.round === 1 && m.status === 'SCHEDULED' && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAssignSlot(m, 2);
+                }}
+                className="p-1 rounded-md bg-blue-500/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[9px] font-bold flex items-center gap-0.5"
+                title="Asignar / Cambiar Jugador en Slot 2"
+              >
+                <UserPlus className="w-3 h-3" />
+              </button>
+            )}
             {m.distanceMode === 'SETS' && (
               <span className="font-mono font-bold text-xs text-[#ffe600] px-1.5 py-0.5 rounded bg-[#ffe600]/10 border border-[#ffe600]/30" title="Sets ganados">
                 {m.scoreSetsP2 || 0}S
@@ -276,6 +321,76 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
           prizesBreakdown={prizesBreakdown}
           onSelectPlayer={onSelectPlayer ? (id, name) => onSelectPlayer({ id, name }) : undefined}
         />
+      )}
+
+      {/* BARRA DE HERRAMIENTAS DE GESTIÓN DE LLAVE ESTILO NAKKA N01 */}
+      {isAdmin && (onAutoAssign || onClearBracket) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#090d16] border border-blue-500/30 shadow-lg shadow-black/40">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/40">
+              <Zap className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-black text-white flex items-center gap-2">
+                <span>Gestión de Llave (Estilo Nakka N01)</span>
+                {enrolledCount !== undefined && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                    {enrolledCount} inscriptos
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Siembra automática o asignación manual slot a slot para la primera ronda
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Checkbox Modo Aleatorio */}
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#111622] border border-slate-700 text-xs text-slate-200 cursor-pointer hover:border-slate-500 transition-colors select-none">
+              <input
+                type="checkbox"
+                checked={isRandomSeeding}
+                onChange={(e) => setIsRandomSeeding(e.target.checked)}
+                className="rounded border-slate-700 text-[#00e676] focus:ring-0"
+              />
+              <span className="font-bold flex items-center gap-1">
+                <Shuffle className="w-3 h-3 text-slate-400" />
+                Aleatorio
+              </span>
+            </label>
+
+            {/* Botón Asignación Automática */}
+            {onAutoAssign && (
+              <button
+                type="button"
+                onClick={() => onAutoAssign(isRandomSeeding)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs shadow-md transition-all active:scale-95"
+                title="Sembrar automáticamente los inscriptos en los partidos de la primera ronda"
+              >
+                <Zap className="w-3.5 h-3.5 fill-current" />
+                <span>Asignación Automática</span>
+              </button>
+            )}
+
+            {/* Botón Despejar Llave */}
+            {onClearBracket && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('¿Seguro que deseas despejar los emparejamientos de la llave? Los jugadores inscriptos no se borrarán del torneo.')) {
+                    onClearBracket();
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444] text-[#ef4444] hover:text-white border border-[#ef4444]/40 font-black text-xs transition-all active:scale-95"
+                title="Limpiar emparejamientos y dejar los slots vacíos"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Despejar Llave</span>
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {/* PESTAÑAS DE DOBLE ELIMINACIÓN (SI APLICA) */}

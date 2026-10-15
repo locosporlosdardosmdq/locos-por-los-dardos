@@ -1,3 +1,20 @@
+- [x] **Aislamiento de Estadísticas de Bot vs Humano, Preservación y Reconexión de Partidas Online, Badges en Español y Asignación de Llave Estilo Nakka N01:**
+  * **Aislamiento Total de Métricas de Bot (`storage.ts`, `DartScorer.tsx`, `RegisterAndProfile.tsx`):**
+    - Desvío de partidas vs Bot/CPU a `lpld_bot_matches` y `lpld_bot_stats` independientes. No alteran el AVG federativo ni se sincronizan al ranking competitivo de Supabase.
+    - Pestaña dedicada en perfil: `[🏆 Oficial Competitivo]` vs `[🤖 Modo Práctica (vs Máquina)]` con banner explicativo, 4 tarjetas de métricas (PJ, AVG vs Bot, Checkout, 180s) e historial de matches con etiqueta de dificultad.
+  * **Preservación de Partidas Online y Reconexión Rápida (`X01Board.tsx` & `AppShell.tsx`):**
+    - La desconexión accidental o navegación por el menú ya no destruye la sala ni envía `sendLeave()`.
+    - Sesión persistida inmediatamente en estado `IN_PROGRESS` desde el montaje del tablero.
+    - Banner global sticky en `AppShell.tsx`: *"🎯 Partida en Curso: P1 vs P2 (Sala DART-XXXX) [Volver a la Partida ↗]"*.
+  * **Traducción y Estilo de Badges de Torneo (`TournamentManager.tsx`):**
+    - `getTournamentStatusBadge`: `Inscripción Abierta`, `En Juego`, `Finalizado`, `Cancelado`.
+    - Eliminado el corte a 2 líneas con `whitespace-nowrap font-black text-xs uppercase px-3 py-1 rounded-full`.
+  * **Siembra Automática y Asignación Manual Estilo Nakka N01 (`TournamentBracket.tsx`, `SlotAssignModal.tsx`, `TournamentManager.tsx`, `bracket-engine.ts`):**
+    - Estructura `enrolledPlayers` en `types.ts` y en `Tournament` sincronizada en PostgreSQL de Supabase.
+    - Integración de `PlayerEnrollModal` para acreditación de competidores.
+    - Barra de herramientas Nakka: `[⚡ Asignación Automática]`, `[☑️ Aleatorio]` (sorteo vs ranking) y `[🗑️ Despejar Llave]`.
+    - Modal `SlotAssignModal.tsx` para asignación manual slot a slot en Ronda 1, con soporte para Byes automáticos y vaciado de slots.
+
 - [x] **Validación de Puntajes Reales de Dardos (Máx 180 e Imposibles), Inversión de Cámaras WebRTC y Sincronización de Torneos en Supabase con Enlace Directo e Invitación WhatsApp:**
   * **Validación Rigurosa de Puntajes de Dardos (`X01Board.tsx` & `DartKeypad.tsx`):**
     - **Límite Físico de 3 Dardos:** Bloqueo de ingresos mayores a 180 puntos (3 x T20). Prevención interactiva en el teclado táctil para impedir tipear valores superiores a 180.

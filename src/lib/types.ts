@@ -297,6 +297,19 @@ export interface Tournament {
   matches?: TournamentBracketMatch[];
   stats?: TournamentStats;
   podium?: TournamentPodium;
+  enrolledPlayers?: Array<{
+    id: string;
+    name: string;
+    nickname?: string;
+    avatarUrl?: string;
+    seed?: number;
+    nationality?: string;
+    countryCode?: string;
+    avg?: number;
+    hasWebcam?: boolean;
+    isBye?: boolean;
+    enrolledAt?: string;
+  }>;
 }
 
 export type AssociationScope = 'MDQ' | 'ARGENTINA';

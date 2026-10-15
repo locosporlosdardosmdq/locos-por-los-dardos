@@ -49,6 +49,7 @@ import { MatchDispatcherModal } from './MatchDispatcherModal';
 import { PlayerEnrollModal } from './PlayerEnrollModal';
 import { WebcamSetupModal } from './WebcamSetupModal';
 import { AdminMatchModal } from './AdminMatchModal';
+import { SlotAssignModal } from './SlotAssignModal';
 import { CreateLeagueModal } from './CreateLeagueModal';
 import { LeagueManager } from './LeagueManager';
 import { DartScorer } from '@/components/anotador/DartScorer';
@@ -91,8 +92,25 @@ import {
   reportResult, 
   computePodium, 
   resetMatchSafely, 
+  getNextPowerOfTwo,
   Participant 
 } from '@/lib/bracket-engine';
+
+// Helper de traducción y estilo visual de estados de torneo en español (sin cortes)
+export function getTournamentStatusBadge(status: string) {
+  switch (status) {
+    case 'REGISTRATION_OPEN':
+      return { label: 'Inscripción Abierta', className: 'bg-[#00e676]/15 text-[#00e676] border-[#00e676]/40' };
+    case 'IN_PROGRESS':
+      return { label: 'En Juego', className: 'bg-amber-500/15 text-amber-400 border-amber-500/40 animate-pulse' };
+    case 'FINISHED':
+      return { label: 'Finalizado', className: 'bg-slate-700/30 text-slate-300 border-slate-700/50' };
+    case 'CANCELLED':
+      return { label: 'Cancelado', className: 'bg-red-500/15 text-red-400 border-red-500/40' };
+    default:
+      return { label: status.replace('_', ' '), className: 'bg-[#00e676]/15 text-[#00e676] border-[#00e676]/40' };
+  }
+}
 import { TournamentPodiumView } from './TournamentPodiumView';
 
 // Helper para crear la lista de participantes para la siembra (Seeding)
@@ -314,7 +332,13 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   const [activeLiveMatchConfig, setActiveLiveMatchConfig] = useState<MatchConfig | null>(null);
   const [activeLiveMatchOrigin, setActiveLiveMatchOrigin] = useState<{ type: 'BRACKET' | 'GROUP'; id: string } | null>(null);
 
-  // Lista de inscriptos locales
+  // Modal de asignación de slots estilo Nakka N01
+  const [slotAssignTarget, setSlotAssignTarget] = useState<{ match: TournamentBracketMatch; slotIndex: 1 | 2 } | null>(null);
+
+  // Jugadores de la comunidad disponibles en la nube
+  const [communityPlayers, setCommunityPlayers] = useState<PlayerProfile[]>([]);
+
+  // Lista de inscriptos locales (fallback)
   const [enrolledPlayers, setEnrolledPlayers] = useState([
     { id: currentUser.id, name: currentUser.fullName, nickname: currentUser.nickname, avg: currentUser.estimatedAvg || 48, hasWebcam: true }
   ]);
@@ -322,6 +346,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   useEffect(() => {
     fetchRegisteredPlayersFromCloud().then((cloud) => {
       if (cloud && cloud.length > 0) {
+        setCommunityPlayers(cloud);
         setEnrolledPlayers((prev) => {
           const map = new Map<string, { id: string; name: string; nickname: string; avg: number; hasWebcam: boolean }>();
           prev.forEach((p) => map.set(p.id, p));
@@ -502,6 +527,262 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     });
   };
 
+  // Inscriptos del torneo actual (por torneo específico, con soporte fallback)
+  const tournamentEnrolledList = useMemo(() => {
+    if (!currentTournament) return [];
+    if (currentTournament.enrolledPlayers && currentTournament.enrolledPlayers.length > 0) {
+      return currentTournament.enrolledPlayers;
+    }
+    return [
+      {
+        id: currentUser.id,
+        name: currentUser.fullName,
+        nickname: currentUser.nickname,
+        avatarUrl: currentUser.avatarUrl || '/images/iceman-perfil.png',
+        seed: 1,
+        avg: currentUser.estimatedAvg || 48,
+        hasWebcam: true,
+        nationality: currentUser.nationality || 'Argentina',
+        countryCode: currentUser.countryCode || 'AR',
+        enrolledAt: currentTournament.startDate
+      }
+    ];
+  }, [currentTournament, currentUser]);
+
+  // Inscripción y acreditación de jugadores al torneo
+  const handleEnrollPlayer = (playerData: { name: string; pin: string; useWebcam: boolean }) => {
+    if (!currentTournament) return;
+
+    const matchedProfile = communityPlayers.find(
+      (cp) => cp.fullName?.toLowerCase() === playerData.name.toLowerCase() ||
+              cp.nickname?.toLowerCase() === playerData.name.toLowerCase()
+    ) || (currentUser.fullName?.toLowerCase() === playerData.name.toLowerCase() ? currentUser : null);
+
+    const newPlayerItem = {
+      id: matchedProfile?.id || `enrolled-${Date.now()}`,
+      name: matchedProfile?.fullName || playerData.name,
+      nickname: matchedProfile?.nickname || playerData.name,
+      avatarUrl: matchedProfile?.avatarUrl || '/logos/logo-mdq.png',
+      seed: (currentTournament.enrolledPlayers?.length || 0) + 1,
+      avg: matchedProfile?.estimatedAvg || 45,
+      nationality: matchedProfile?.nationality || 'Argentina',
+      countryCode: matchedProfile?.countryCode || 'AR',
+      enrolledAt: new Date().toISOString()
+    };
+
+    setTournaments((prev) => {
+      const updated = prev.map((t) => {
+        if (t.id !== currentTournament.id) return t;
+
+        const currentEnrolled = t.enrolledPlayers || [];
+        if (currentEnrolled.some((p) => p.id === newPlayerItem.id || p.name.toLowerCase() === newPlayerItem.name.toLowerCase())) {
+          alert(`"${newPlayerItem.name}" ya se encuentra inscripto en este torneo.`);
+          return t;
+        }
+
+        const newEnrolled = [...currentEnrolled, newPlayerItem];
+        return {
+          ...t,
+          enrolledPlayers: newEnrolled,
+          registeredCount: newEnrolled.length
+        };
+      });
+
+      saveStoredTournaments(updated);
+      const updatedTourney = updated.find((t) => t.id === currentTournament.id);
+      if (updatedTourney) saveTournamentToCloud(updatedTourney);
+      return updated;
+    });
+
+    setShowEnrollModal(false);
+  };
+
+  // Motor Nakka N01: Asignación Automática de la Llave
+  const handleAutoAssignBracket = (isRandom: boolean) => {
+    if (!currentTournament) return;
+    const participants: Participant[] = tournamentEnrolledList.map((p, idx) => ({
+      id: p.id,
+      name: p.name,
+      nickname: p.nickname,
+      avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
+      seed: p.seed || idx + 1,
+      nationality: p.nationality || 'Argentina',
+      countryCode: p.countryCode || 'AR'
+    }));
+
+    if (participants.length === 0) {
+      alert('Debes tener al menos un jugador inscripto para realizar la asignación.');
+      return;
+    }
+
+    const bracketSize = getNextPowerOfTwo(currentTournament.maxParticipants || participants.length);
+    const legTarget = currentTournament.bestOfLegs || 3;
+    const distMode = currentTournament.roundLegsConfig?.distanceMode || 'LEGS';
+
+    let rawMatches: TournamentBracketMatch[] = [];
+    if (currentTournament.format === 'DOUBLE_ELIMINATION') {
+      rawMatches = generateDoubleElimination(participants, {
+        bracketSize,
+        seeding: isRandom ? 'RANDOM' : 'RANKED',
+        legTarget,
+        distanceMode: distMode
+      });
+    } else {
+      rawMatches = generateSingleElimination(participants, {
+        bracketSize,
+        seeding: isRandom ? 'RANDOM' : 'RANKED',
+        includeThirdPlace: true,
+        legTarget,
+        distanceMode: distMode
+      });
+    }
+
+    const namespacedMatches = rawMatches.map((m) => ({
+      ...m,
+      id: m.id.startsWith(currentTournament.id) ? m.id : `${currentTournament.id}-${m.id}`,
+      nextMatchId: m.nextMatchId ? (m.nextMatchId.startsWith(currentTournament.id) ? m.nextMatchId : `${currentTournament.id}-${m.nextMatchId}`) : undefined,
+      loserNextMatchId: m.loserNextMatchId ? (m.loserNextMatchId.startsWith(currentTournament.id) ? m.loserNextMatchId : `${currentTournament.id}-${m.loserNextMatchId}`) : undefined
+    }));
+
+    setTournaments((prev) => {
+      const updated = prev.map((t) => {
+        if (t.id !== currentTournament.id) return t;
+        return {
+          ...t,
+          matches: namespacedMatches
+        };
+      });
+      saveStoredTournaments(updated);
+      const updatedTourney = updated.find((t) => t.id === currentTournament.id);
+      if (updatedTourney) saveTournamentToCloud(updatedTourney);
+      return updated;
+    });
+  };
+
+  // Motor Nakka N01: Despejar / Limpiar Llave a Slots Vacíos
+  const handleClearBracket = () => {
+    if (!currentTournament) return;
+    const bracketSize = getNextPowerOfTwo(currentTournament.maxParticipants || 8);
+    const legTarget = currentTournament.bestOfLegs || 3;
+    const distMode = currentTournament.roundLegsConfig?.distanceMode || 'LEGS';
+
+    let rawMatches: TournamentBracketMatch[] = [];
+    if (currentTournament.format === 'DOUBLE_ELIMINATION') {
+      rawMatches = generateDoubleElimination([], {
+        bracketSize,
+        legTarget,
+        distanceMode: distMode
+      });
+    } else {
+      rawMatches = generateSingleElimination([], {
+        bracketSize,
+        includeThirdPlace: true,
+        legTarget,
+        distanceMode: distMode
+      });
+    }
+
+    const clearedMatches = rawMatches.map((m) => ({
+      ...m,
+      id: m.id.startsWith(currentTournament.id) ? m.id : `${currentTournament.id}-${m.id}`,
+      nextMatchId: m.nextMatchId ? (m.nextMatchId.startsWith(currentTournament.id) ? m.nextMatchId : `${currentTournament.id}-${m.nextMatchId}`) : undefined,
+      loserNextMatchId: m.loserNextMatchId ? (m.loserNextMatchId.startsWith(currentTournament.id) ? m.loserNextMatchId : `${currentTournament.id}-${m.loserNextMatchId}`) : undefined,
+      player1: undefined,
+      player2: undefined,
+      scoreP1: 0,
+      scoreP2: 0,
+      winnerId: undefined,
+      status: 'SCHEDULED' as const
+    }));
+
+    setTournaments((prev) => {
+      const updated = prev.map((t) => {
+        if (t.id !== currentTournament.id) return t;
+        return {
+          ...t,
+          matches: clearedMatches,
+          podium: {}
+        };
+      });
+      saveStoredTournaments(updated);
+      const updatedTourney = updated.find((t) => t.id === currentTournament.id);
+      if (updatedTourney) saveTournamentToCloud(updatedTourney);
+      return updated;
+    });
+  };
+
+  // Motor Nakka N01: Confirmar asignación manual slot a slot
+  const handleConfirmSlotAssign = (choice: { player?: any; isBye?: boolean; isClear?: boolean }) => {
+    if (!currentTournament || !slotAssignTarget) return;
+    const { match, slotIndex } = slotAssignTarget;
+
+    setTournaments((prev) => {
+      const updated = prev.map((t) => {
+        if (t.id !== currentTournament.id || !t.matches) return t;
+
+        let updatedMatches = t.matches.map((m) => {
+          if (m.id !== match.id) return m;
+
+          const newMatch = { ...m };
+          if (choice.isClear) {
+            if (slotIndex === 1) newMatch.player1 = undefined;
+            else newMatch.player2 = undefined;
+            newMatch.scoreP1 = 0;
+            newMatch.scoreP2 = 0;
+            newMatch.winnerId = undefined;
+            newMatch.status = 'SCHEDULED';
+          } else if (choice.isBye) {
+            if (slotIndex === 1) newMatch.player1 = undefined;
+            else newMatch.player2 = undefined;
+          } else if (choice.player) {
+            const assignedPlayer = {
+              id: choice.player.id,
+              name: choice.player.name || choice.player.fullName,
+              nickname: choice.player.nickname,
+              avatarUrl: choice.player.avatarUrl || '/logos/logo-mdq.png',
+              seed: choice.player.seed,
+              nationality: choice.player.nationality || 'Argentina',
+              countryCode: choice.player.countryCode || 'AR'
+            };
+            if (slotIndex === 1) newMatch.player1 = assignedPlayer;
+            else newMatch.player2 = assignedPlayer;
+          }
+          return newMatch;
+        });
+
+        // Si se asignó un BYE y en el otro slot hay un jugador, auto-avanzar con reportResult
+        const targetMatch = updatedMatches.find((m) => m.id === match.id);
+        if (targetMatch && choice.isBye) {
+          const activePlayer = slotIndex === 1 ? targetMatch.player2 : targetMatch.player1;
+          if (activePlayer) {
+            updatedMatches = reportResult(updatedMatches, targetMatch.id, {
+              scoreP1: slotIndex === 1 ? 0 : (targetMatch.legTarget || 3),
+              scoreP2: slotIndex === 1 ? (targetMatch.legTarget || 3) : 0,
+              winnerId: activePlayer.id,
+              note: 'Pase Automático (BYE)'
+            });
+          }
+        }
+
+        const format = t.format === 'DOUBLE_ELIMINATION' ? 'DOUBLE_ELIMINATION' : 'SINGLE_ELIMINATION';
+        const calculatedPodium = computePodium(updatedMatches, format);
+
+        return {
+          ...t,
+          matches: updatedMatches,
+          podium: calculatedPodium
+        };
+      });
+
+      saveStoredTournaments(updated);
+      const updatedTourney = updated.find((t) => t.id === currentTournament.id);
+      if (updatedTourney) saveTournamentToCloud(updatedTourney);
+      return updated;
+    });
+
+    setSlotAssignTarget(null);
+  };
+
   // Administrador: Eliminar Torneo Activo
   const handleDeleteTournament = (tourneyId: string, tourneyTitle: string) => {
     if (!isAdmin) {
@@ -671,35 +952,6 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     setActiveLiveMatchOrigin(null);
   };
 
-  // Inscribir nuevo jugador
-  const handleEnrollPlayer = (pData: { name: string; pin: string; useWebcam: boolean }) => {
-    const newPlayer = {
-      id: `player-${Date.now()}`,
-      name: pData.name,
-      nickname: pData.name.split(' ')[0].toLowerCase(),
-      avg: 55.0,
-      hasWebcam: pData.useWebcam
-    };
-
-    setEnrolledPlayers((prev) => [newPlayer, ...prev]);
-
-    // Si hay un torneo activo seleccionado, actualizar su conteo de inscriptos y persistir a la nube
-    if (selectedTournamentId) {
-      setTournaments((prev) => {
-        const updated = prev.map((t) => {
-          if (t.id !== selectedTournamentId) return t;
-          const updatedTourney = {
-            ...t,
-            registeredCount: Math.min(t.maxParticipants, (t.registeredCount || 0) + 1)
-          };
-          saveTournamentToCloud(updatedTourney);
-          return updatedTourney;
-        });
-        saveStoredTournaments(updated);
-        return updated;
-      });
-    }
-  };
 
   // Crear nueva Liga Oficial
   const handleCreateLeague = (newLeague: League) => {
@@ -764,7 +1016,20 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       doubleRoundRobin: newDoubleRoundRobin,
       tiebreakerDifference: newTiebreakerDifference,
       maxParticipants: newMaxParticipants,
-      registeredCount: 8,
+      registeredCount: 1,
+      enrolledPlayers: [
+        {
+          id: currentUser.id,
+          name: currentUser.fullName,
+          nickname: currentUser.nickname,
+          avatarUrl: currentUser.avatarUrl || '/images/iceman-perfil.png',
+          seed: 1,
+          avg: currentUser.estimatedAvg || 48,
+          nationality: currentUser.nationality || 'Argentina',
+          countryCode: currentUser.countryCode || 'AR',
+          enrolledAt: new Date().toISOString()
+        }
+      ],
       venueName: newVenue,
       city: newCity,
       province: newProvince,
@@ -1101,10 +1366,16 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                                 )}
                               </td>
 
-                              <td className="py-4 px-4">
-                                <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#00e676]/15 text-[#00e676] border border-[#00e676]/30">
-                                  {t.status.replace('_', ' ')}
-                                </span>
+                              <td className="py-4 px-4 whitespace-nowrap">
+                                {(() => {
+                                  const s = getTournamentStatusBadge(t.status);
+                                  return (
+                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border whitespace-nowrap inline-flex items-center gap-1.5 shadow-sm ${s.className}`}>
+                                      <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
+                                      <span>{s.label}</span>
+                                    </span>
+                                  );
+                                })()}
                               </td>
 
                               <td className="py-4 px-4 text-right">
@@ -1241,9 +1512,15 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30">
                             {currentTournament.type}
                           </span>
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/30">
-                            {currentTournament.status.replace('_', ' ')}
-                          </span>
+                          {(() => {
+                            const s = getTournamentStatusBadge(currentTournament.status);
+                            return (
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border whitespace-nowrap inline-flex items-center gap-1.5 ${s.className}`}>
+                                <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
+                                <span>{s.label}</span>
+                              </span>
+                            );
+                          })()}
                         </div>
                         <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide">
                           {currentTournament.title}
@@ -1348,7 +1625,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                             : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
                         }`}
                       >
-                        Inscriptos ({enrolledPlayers.length}/{currentTournament.maxParticipants})
+                        Inscriptos ({tournamentEnrolledList.length}/{currentTournament.maxParticipants})
                       </button>
                       <button
                         type="button"
@@ -1382,7 +1659,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                             <span>Cuadro Eliminatorio Oficial en Tiempo Real</span>
                           </h3>
                           <p className="text-xs text-slate-400">
-                            Toca cualquier partido activo para abrir el Anotador en Vivo. {isAdmin && 'Como administrador, pulsa el botón rojo en cada partido para editar o avanzar por W.O.'}
+                            Toca cualquier partido activo para abrir el Anotador en Vivo. {isAdmin && 'Como administrador, pulsa Asignación Automática (Nakka N01) o toca cualquier slot para sembrarlo manualmente.'}
                           </p>
                         </div>
                       </div>
@@ -1398,6 +1675,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                           onSelectPlayer={handleOpenPlayerDetail}
                           podium={currentTournament.podium}
                           prizesBreakdown={currentTournament.prizesBreakdown}
+                          enrolledCount={tournamentEnrolledList.length}
+                          onAutoAssign={handleAutoAssignBracket}
+                          onClearBracket={handleClearBracket}
+                          onAssignSlot={(match, slotIndex) => setSlotAssignTarget({ match, slotIndex })}
                         />
                       ) : (
                         <div className="text-center py-12 text-slate-500">
@@ -1424,7 +1705,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="text-base font-black text-white">
-                            Lista de Jugadores Inscriptos y Acreditados
+                            Lista de Jugadores Inscriptos y Acreditados ({tournamentEnrolledList.length})
                           </h3>
                           <p className="text-xs text-slate-400">
                             Todos los competidores verificados para las pistas del torneo
@@ -1439,7 +1720,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {enrolledPlayers.map((p, idx) => (
+                        {tournamentEnrolledList.map((p, idx) => (
                           <div
                             key={p.id}
                             className="p-3 rounded-2xl bg-[#07090e] border border-slate-800 flex items-center justify-between"
@@ -2612,6 +2893,25 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
             setSelectedHistoryTournamentId(targetId);
           }
         }}
+      />
+
+      {/* MODAL: INSCRIPCIÓN OFICIAL AL TORNEO */}
+      <PlayerEnrollModal
+        isOpen={showEnrollModal}
+        onClose={() => setShowEnrollModal(false)}
+        tournament={currentTournament}
+        onEnrollPlayer={handleEnrollPlayer}
+      />
+
+      {/* MODAL: ASIGNACIÓN DE SLOT ESTILO NAKKA N01 */}
+      <SlotAssignModal
+        isOpen={Boolean(slotAssignTarget)}
+        onClose={() => setSlotAssignTarget(null)}
+        match={slotAssignTarget?.match || null}
+        slotIndex={slotAssignTarget?.slotIndex || 1}
+        enrolledPlayers={tournamentEnrolledList}
+        communityPlayers={communityPlayers}
+        onAssign={handleConfirmSlotAssign}
       />
     </div>
   );

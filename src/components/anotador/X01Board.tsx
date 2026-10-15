@@ -300,8 +300,8 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const [isCamerasSwapped, setIsCamerasSwapped] = useState<boolean>(false);
 
   // Función Central de Apagado de Hardware y Desconexión WebRTC
-  const cleanupHardwareAndWebRtc = useCallback(() => {
-    console.log('[X01Board] Apagando hardware de cámara y cerrando sesión WebRTC...');
+  const cleanupHardwareAndWebRtc = useCallback((isAbandoning: boolean = false) => {
+    console.log('[X01Board] Apagando hardware de cámara (isAbandoning:', isAbandoning, ')...');
     if (mobileStreamRef.current) {
       try {
         mobileStreamRef.current.getTracks().forEach((t) => t.stop());
@@ -331,22 +331,26 @@ export const X01Board: React.FC<X01BoardProps> = ({
       audioContextRef.current = null;
     }
 
-    try {
-      const webrtc = getActiveWebRtcHandler();
-      if (webrtc) {
-        if (typeof webrtc.sendLeave === 'function') {
-          webrtc.sendLeave();
+    // Solo si el usuario abandona deliberadamente la partida se envía la señal de LEAVE y se destruye WebRTC.
+    // Si es un simple cambio de pestaña/menú, la sala se mantiene viva para reconectar automáticamente.
+    if (isAbandoning) {
+      try {
+        const webrtc = getActiveWebRtcHandler();
+        if (webrtc) {
+          if (typeof webrtc.sendLeave === 'function') {
+            webrtc.sendLeave();
+          }
+          webrtc.destroy();
+          setActiveWebRtcHandler(null);
         }
-        webrtc.destroy();
-        setActiveWebRtcHandler(null);
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
   }, []);
 
   // Cleanup garantizado al desmontar el componente (navegación atrás, cambio de ruta, etc.)
   useEffect(() => {
     return () => {
-      cleanupHardwareAndWebRtc();
+      cleanupHardwareAndWebRtc(false);
     };
   }, [cleanupHardwareAndWebRtc]);
 
@@ -687,9 +691,9 @@ export const X01Board: React.FC<X01BoardProps> = ({
     boardRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Auto-guardado de sesión activa en localStorage ante cada visita para blindar contra navegación accidental
+  // Auto-guardado de sesión activa en localStorage ante inicio de partida y cada visita
   useEffect(() => {
-    if (!isMatchFinished && (turnHistory.length > 0 || history.length > 0)) {
+    if (!isMatchFinished) {
       saveActiveMatchSession({
         config,
         gameType: 'X01',
@@ -720,15 +724,15 @@ export const X01Board: React.FC<X01BoardProps> = ({
   }, [scores, currentTurn, legsWon, setsWon, turnHistory, isMatchFinished]);
 
   const handleBackClick = () => {
-    // Si no se registró ningún tiro, vuelve directo a configurar partida
-    if (history.length === 0 && turnHistory.length === 0) {
-      cleanupHardwareAndWebRtc();
-      clearActiveMatchSession();
-      onExit();
+    // Si es partida online o ya se tiró algún dardo, abre modal de opciones (Stand By / Abandonar / Continuar)
+    if (config.isOnlineRoom || history.length > 0 || turnHistory.length > 0) {
+      setShowExitModal(true);
       return;
     }
-    // Si la partida ya está iniciada, abre modal de opciones (Stand By / Abandonar / Continuar)
-    setShowExitModal(true);
+    // Si es partida local sin tiros, vuelve directo a configurar partida
+    cleanupHardwareAndWebRtc(true);
+    clearActiveMatchSession();
+    onExit();
   };
 
   const handleStandBy = () => {
@@ -759,7 +763,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
       savedAt: new Date().toISOString()
     });
     setShowExitModal(false);
-    cleanupHardwareAndWebRtc();
+    cleanupHardwareAndWebRtc(false);
     if (onStandBy) {
       onStandBy();
     } else {
@@ -769,7 +773,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
   const handleAbandon = () => {
     setShowExitModal(false);
-    cleanupHardwareAndWebRtc();
+    cleanupHardwareAndWebRtc(true);
     clearActiveMatchSession();
 
     if (config.tournamentTitle) {

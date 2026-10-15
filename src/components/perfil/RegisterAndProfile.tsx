@@ -14,7 +14,7 @@ import {
   isUserAdmin,
   calculateAgeFromBirthDate
 } from '@/lib/constants';
-import { getCurrentPlayerProfile, saveCurrentPlayerProfile, clearCurrentPlayerSession } from '@/lib/storage';
+import { getCurrentPlayerProfile, saveCurrentPlayerProfile, clearCurrentPlayerSession, getBotStats, getBotMatches } from '@/lib/storage';
 import { UltimateDartsCard, UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
 import { LoginModal } from '@/components/perfil/LoginModal';
 import { InvitePlayersModal } from '@/components/comunidad/InvitePlayersModal';
@@ -40,7 +40,8 @@ import {
   Trash2,
   MessageCircle,
   AlertTriangle,
-  Calendar
+  Calendar,
+  Bot
 } from 'lucide-react';
 
 export const RegisterAndProfile: React.FC = () => {
@@ -91,6 +92,20 @@ export const RegisterAndProfile: React.FC = () => {
     };
     window.addEventListener('lpld_profile_updated', handleProfileUpdate);
     return () => window.removeEventListener('lpld_profile_updated', handleProfileUpdate);
+  }, []);
+
+  // Estado para separar estadísticas Oficiales Competitivas de Modo Práctica vs BOT (Máquina)
+  const [statsViewMode, setStatsViewMode] = useState<'OFFICIAL' | 'BOT'>('OFFICIAL');
+  const [botStats, setBotStats] = useState(getBotStats());
+  const [botMatches, setBotMatches] = useState(getBotMatches());
+
+  useEffect(() => {
+    const handleBotUpdate = (e: any) => {
+      setBotStats(e.detail || getBotStats());
+      setBotMatches(getBotMatches());
+    };
+    window.addEventListener('lpld_bot_stats_updated', handleBotUpdate);
+    return () => window.removeEventListener('lpld_bot_stats_updated', handleBotUpdate);
   }, []);
 
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -546,80 +561,242 @@ export const RegisterAndProfile: React.FC = () => {
             </div>
           </div>
 
-          {/* Tarjetas de Rendimiento en Gris Oscuro */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-            <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
-              <div className="flex items-center justify-between text-[#b8ad98] mb-2">
-                <span className="text-xs font-black uppercase">Partidos</span>
-                <Trophy className="w-4 h-4 text-[#00b853]" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-white">
-                  {profile.stats.matchesWon}
-                </span>
-                <span className="text-xs text-[#b8ad98]">
-                  / {profile.stats.matchesPlayed} PJ ({profile.stats.matchesPlayed > 0 ? ((profile.stats.matchesWon / profile.stats.matchesPlayed) * 100).toFixed(0) : 0}% Win)
-                </span>
-              </div>
-              <div className="w-full bg-[#14161f] h-2 rounded-full mt-2 overflow-hidden border border-[#313647]">
-                <div
-                  className="bg-[#00b853] h-full rounded-full"
-                  style={{ width: `${profile.stats.matchesPlayed > 0 ? (profile.stats.matchesWon / profile.stats.matchesPlayed) * 100 : 0}%` }}
-                />
-              </div>
+          {/* Selector de Modo de Estadísticas: Oficial Competitivo vs Práctica vs BOT */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#14161f] border border-[#313647] p-2 sm:p-2.5 rounded-2xl shadow-md">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setStatsViewMode('OFFICIAL')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${
+                  statsViewMode === 'OFFICIAL'
+                    ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/20'
+                    : 'text-slate-400 hover:text-white hover:bg-[#1c1f2b]'
+                }`}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                <span>🏆 Oficial Competitivo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatsViewMode('BOT')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${
+                  statsViewMode === 'BOT'
+                    ? 'bg-[#1d68ed] text-white shadow-md shadow-[#1d68ed]/30 ring-2 ring-[#1d68ed]/50'
+                    : 'text-slate-400 hover:text-white hover:bg-[#1c1f2b]'
+                }`}
+              >
+                <Bot className="w-4 h-4 text-sky-400" />
+                <span>🤖 Modo Práctica (vs Máquina)</span>
+                {botStats.matchesPlayed > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-sky-500/20 text-sky-300 font-mono">
+                    {botStats.matchesPlayed}
+                  </span>
+                )}
+              </button>
             </div>
 
-            <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
-              <div className="flex items-center justify-between text-[#b8ad98] mb-2">
-                <span className="text-xs font-black uppercase">% Cierre Dobles</span>
-                <Crosshair className="w-4 h-4 text-[#e52521]" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-[#e52521] font-mono">
-                  {profile.stats.checkoutPercentage.toFixed(1)}%
-                </span>
-                <span className="text-xs text-[#b8ad98]">
-                  ({profile.stats.checkoutHits}/{profile.stats.checkoutAttempts})
-                </span>
-              </div>
-              <div className="w-full bg-[#14161f] h-2 rounded-full mt-2 overflow-hidden border border-[#313647]">
-                <div
-                  className="bg-[#e52521] h-full rounded-full"
-                  style={{ width: `${profile.stats.checkoutPercentage}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
-              <div className="flex items-center justify-between text-[#b8ad98] mb-2">
-                <span className="text-xs font-black uppercase">Mayor Cierre</span>
-                <Zap className="w-4 h-4 text-[#1d68ed]" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-[#38bdf8] font-mono">
-                  {profile.stats.highestCheckout}
-                </span>
-                <span className="text-xs text-[#b8ad98]">Puntos</span>
-              </div>
-              <p className="text-[10px] text-[#b8ad98]/70 mt-1">Mejor Leg: {profile.stats.bestLegDarts} dardos</p>
-            </div>
-
-            <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
-              <div className="flex items-center justify-between text-[#b8ad98] mb-2">
-                <span className="text-xs font-black uppercase">Visitas Clave</span>
-                <Target className="w-4 h-4 text-[#00b853]" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-[#00b853]">
-                  {profile.stats.count180s}
-                </span>
-                <span className="text-xs text-[#b8ad98]">
-                  x 180s • {profile.stats.count140Plus} x 140+
-                </span>
-              </div>
-              <p className="text-[10px] text-[#b8ad98]/70 mt-1">{profile.stats.count100Plus} visitas de 100+</p>
-            </div>
+            <span className="text-[11px] font-bold text-slate-400 px-2">
+              {statsViewMode === 'OFFICIAL' 
+                ? 'Impacta en Ranking Federado' 
+                : 'Métricas aisladas de entrenamiento individual'}
+            </span>
           </div>
+
+          {statsViewMode === 'BOT' ? (
+            <div className="space-y-4">
+              {/* Banner Destacado Obligatorio */}
+              <div className="p-4 rounded-2xl bg-[#1d68ed]/10 border-2 border-[#1d68ed]/40 text-sky-200 text-xs flex items-center gap-3.5 shadow-lg">
+                <div className="p-2.5 rounded-xl bg-[#1d68ed]/20 text-sky-400 border border-[#1d68ed]/40 flex-shrink-0">
+                  <Bot className="w-6 h-6" />
+                </div>
+                <div>
+                  <strong className="block text-white font-black text-sm uppercase tracking-wide">
+                    Estadísticas de Entrenamiento en Modo Práctica contra la "Máquina" (BOT)
+                  </strong>
+                  <p className="text-sky-200/80 text-[11px] mt-0.5 leading-relaxed">
+                    Estas métricas reflejan tus partidas de práctica individual contra los 4 niveles de Inteligencia Artificial (Fácil, Medio, Avanzado y Pro). Están completamente aisladas de tu perfil competitivo para no alterar tu AVG Oficial ni tu posición en el Ranking Federado.
+                  </p>
+                </div>
+              </div>
+
+              {/* Tarjetas de Métricas vs BOT */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                    <span className="text-xs font-black uppercase">Partidas vs Bot</span>
+                    <Bot className="w-4 h-4 text-[#1d68ed]" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-white">{botStats.matchesWon}</span>
+                    <span className="text-xs text-[#b8ad98]">
+                      / {botStats.matchesPlayed} PJ ({botStats.matchesPlayed > 0 ? ((botStats.matchesWon / botStats.matchesPlayed) * 100).toFixed(0) : 0}% Win)
+                    </span>
+                  </div>
+                  <div className="w-full bg-[#14161f] h-2 rounded-full mt-2 overflow-hidden border border-[#313647]">
+                    <div
+                      className="bg-[#1d68ed] h-full rounded-full"
+                      style={{ width: `${botStats.matchesPlayed > 0 ? (botStats.matchesWon / botStats.matchesPlayed) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                    <span className="text-xs font-black uppercase">AVG vs Bot</span>
+                    <TrendingUp className="w-4 h-4 text-[#00e676]" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-[#00e676] font-mono">{botStats.overallAvg.toFixed(1)}</span>
+                    <span className="text-xs text-[#b8ad98]">AVG (F9: {botStats.first9Avg.toFixed(1)})</span>
+                  </div>
+                  <p className="text-[10px] text-[#b8ad98]/70 mt-1">First 9 Darts en práctica</p>
+                </div>
+
+                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                    <span className="text-xs font-black uppercase">Mayor Cierre</span>
+                    <Zap className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-amber-400 font-mono">{botStats.highestCheckout}</span>
+                    <span className="text-xs text-[#b8ad98]">Puntos</span>
+                  </div>
+                  <p className="text-[10px] text-[#b8ad98]/70 mt-1">Mejor Leg: {botStats.bestLegDarts > 0 ? `${botStats.bestLegDarts} dardos` : '-'}</p>
+                </div>
+
+                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                    <span className="text-xs font-black uppercase">180s en Práctica</span>
+                    <Target className="w-4 h-4 text-[#ef4444]" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-[#ef4444] font-mono">{botStats.count180s}</span>
+                    <span className="text-xs text-[#b8ad98]">x 180s • {botStats.count140Plus} x 140+</span>
+                  </div>
+                  <p className="text-[10px] text-[#b8ad98]/70 mt-1">{botStats.count100Plus} visitas de 100+</p>
+                </div>
+              </div>
+
+              {/* Historial de Partidas vs BOT */}
+              <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-5 shadow-lg">
+                <h3 className="font-black text-sm text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-sky-400" />
+                  Historial de Partidas en Modo Práctica vs la Máquina
+                </h3>
+                {botMatches.length > 0 ? (
+                  <div className="divide-y divide-[#313647]/50 max-h-72 overflow-y-auto">
+                    {botMatches.map((bm) => (
+                      <div key={bm.id} className="py-2.5 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                            bm.players[0]?.isWinner ? 'bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'
+                          }`}>
+                            {bm.players[0]?.isWinner ? 'VICTORIA' : 'DERROTA'}
+                          </span>
+                          <span className="font-bold text-white">vs {bm.players[1]?.name || 'BOT'}</span>
+                          {bm.cpuDifficulty && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#1d68ed]/15 text-sky-300 border border-[#1d68ed]/30 uppercase">
+                              {bm.cpuDifficulty}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-slate-400 font-mono">
+                          <span>Tu AVG: <strong className="text-white">{bm.players[0]?.avg?.toFixed(1) || '0.0'}</strong></span>
+                          <span>{new Date(bm.date).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-2xl bg-[#14161f] border border-[#313647] text-center space-y-2">
+                    <Bot className="w-8 h-8 text-sky-400 mx-auto opacity-70" />
+                    <span className="text-xs font-bold text-[#efe7d8] block">Sin partidas vs Bot registradas aún</span>
+                    <p className="text-[11px] text-[#b8ad98] max-w-xs mx-auto leading-relaxed">
+                      Ve al Anotador Oficial, selecciona al Jugador 2 como BOT y practica en cualquiera de sus 4 niveles. Tus estadísticas de entrenamiento aparecerán aquí automáticamente.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Tarjetas de Rendimiento en Gris Oscuro Oficiales */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                    <span className="text-xs font-black uppercase">Partidos</span>
+                    <Trophy className="w-4 h-4 text-[#00b853]" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-white">
+                      {profile.stats.matchesWon}
+                    </span>
+                    <span className="text-xs text-[#b8ad98]">
+                      / {profile.stats.matchesPlayed} PJ ({profile.stats.matchesPlayed > 0 ? ((profile.stats.matchesWon / profile.stats.matchesPlayed) * 100).toFixed(0) : 0}% Win)
+                    </span>
+                  </div>
+                  <div className="w-full bg-[#14161f] h-2 rounded-full mt-2 overflow-hidden border border-[#313647]">
+                    <div
+                      className="bg-[#00b853] h-full rounded-full"
+                      style={{ width: `${profile.stats.matchesPlayed > 0 ? (profile.stats.matchesWon / profile.stats.matchesPlayed) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                    <span className="text-xs font-black uppercase">% Cierre Dobles</span>
+                    <Crosshair className="w-4 h-4 text-[#e52521]" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-[#e52521] font-mono">
+                      {profile.stats.checkoutPercentage.toFixed(1)}%
+                    </span>
+                    <span className="text-xs text-[#b8ad98]">
+                      ({profile.stats.checkoutHits}/{profile.stats.checkoutAttempts})
+                    </span>
+                  </div>
+                  <div className="w-full bg-[#14161f] h-2 rounded-full mt-2 overflow-hidden border border-[#313647]">
+                    <div
+                      className="bg-[#e52521] h-full rounded-full"
+                      style={{ width: `${profile.stats.checkoutPercentage}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                    <span className="text-xs font-black uppercase">Mayor Cierre</span>
+                    <Zap className="w-4 h-4 text-[#1d68ed]" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-[#38bdf8] font-mono">
+                      {profile.stats.highestCheckout}
+                    </span>
+                    <span className="text-xs text-[#b8ad98]">Puntos</span>
+                  </div>
+                  <p className="text-[10px] text-[#b8ad98]/70 mt-1">Mejor Leg: {profile.stats.bestLegDarts} dardos</p>
+                </div>
+
+                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                    <span className="text-xs font-black uppercase">Visitas Clave</span>
+                    <Target className="w-4 h-4 text-[#00b853]" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-[#00b853]">
+                      {profile.stats.count180s}
+                    </span>
+                    <span className="text-xs text-[#b8ad98]">
+                      x 180s • {profile.stats.count140Plus} x 140+
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[#b8ad98]/70 mt-1">{profile.stats.count100Plus} visitas de 100+</p>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Historial y Esquema de Categorías */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

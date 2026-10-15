@@ -65,6 +65,7 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `TournamentGroupStage.tsx`: Fase de grupos (Round Robin) con tabla de posiciones oficial (PJ, G, P, LF, LC, +/-, Pts) y cruces a playoffs.
   * `MatchDispatcherModal.tsx`: Menú contextual de lanzamiento de partido (Partida Online, Anotador en Vivo de Club, o Registrar Resultados).
   * `PlayerEnrollModal.tsx`: Modal de inscripción y acreditación de competidores con contraseña de participante y toggle de webcam.
+  * `SlotAssignModal.tsx`: Modal de asignación manual slot a slot en la primera ronda de la llave (estilo Nakka N01), con soporte de lista de inscriptos, asignación de Byes automáticos y vaciado de slots.
   * `WebcamSetupModal.tsx`: Configuración de hardware de pista (cámara, micrófono, vúmetro de audio y soporte para celular como cámara de diana secundaria).
 * **`comunidad/`:**
   * `TournamentHeroBanner.tsx`: Head banner promocional de torneos con modal de inscripción.

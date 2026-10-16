@@ -19,7 +19,8 @@ import {
   TrendingUp,
   Target,
   ExternalLink,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react';
 
 interface LeagueManagerProps {
@@ -29,6 +30,7 @@ interface LeagueManagerProps {
   onSelectPlayer?: (playerId: string, playerName?: string) => void;
   isAdmin?: boolean;
   onDeleteLeague?: (leagueId: string, leagueName: string) => void;
+  onEditLeague?: (league: League) => void;
 }
 
 export const LeagueManager: React.FC<LeagueManagerProps> = ({
@@ -37,7 +39,8 @@ export const LeagueManager: React.FC<LeagueManagerProps> = ({
   onSelectLeague,
   onSelectPlayer,
   isAdmin = false,
-  onDeleteLeague
+  onDeleteLeague,
+  onEditLeague
 }) => {
   const [selectedLeagueId, setSelectedLeagueId] = useState<string>(
     leagues[0]?.id || 'league-national-argentina'
@@ -187,14 +190,29 @@ export const LeagueManager: React.FC<LeagueManagerProps> = ({
                       {isNational ? '🇦🇷 Liga Nacional Oficial' : '📍 Liga Local'}
                     </span>
 
-                    {/* Logo de la entidad organizadora */}
-                    <div className="relative w-6 h-6 flex-shrink-0" title={isNational ? 'Dardos Argentina' : 'Darderos Mar del Plata'}>
-                      <Image
-                        src={isNational ? '/logos/dardos-argentina.png' : '/logos/logo-mdq.png'}
-                        alt={isNational ? 'Dardos Argentina' : 'Darderos MDQ'}
-                        fill
-                        className="object-contain"
-                      />
+                    <div className="flex items-center gap-1.5">
+                      {isAdmin && onEditLeague && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditLeague(league);
+                          }}
+                          className="p-1 rounded-lg bg-amber-500/15 hover:bg-amber-500 text-amber-400 hover:text-black border border-amber-500/30 transition-all"
+                          title="Editar Liga"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                      {/* Logo de la entidad organizadora */}
+                      <div className="relative w-6 h-6 flex-shrink-0" title={isNational ? 'Dardos Argentina' : 'Darderos Mar del Plata'}>
+                        <Image
+                          src={isNational ? '/logos/dardos-argentina.png' : '/logos/logo-mdq.png'}
+                          alt={isNational ? 'Dardos Argentina' : 'Darderos MDQ'}
+                          fill
+                          className="object-contain"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -275,17 +293,32 @@ export const LeagueManager: React.FC<LeagueManagerProps> = ({
             </div>
 
             <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-2.5">
-              {/* Botón de eliminación exclusivo para administradores de torneo */}
-              {isAdmin && onDeleteLeague && (
-                <button
-                  type="button"
-                  onClick={() => onDeleteLeague(selectedLeague.id, selectedLeague.name)}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#ef4444]/15 hover:bg-[#ef4444] text-[#ef4444] hover:text-white font-bold text-xs border border-[#ef4444]/30 flex items-center gap-1.5 transition-all shadow-sm"
-                  title="Eliminar esta liga del circuito"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Eliminar Liga</span>
-                </button>
+              {/* Botones exclusivos para administradores de torneo */}
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  {onEditLeague && (
+                    <button
+                      type="button"
+                      onClick={() => onEditLeague(selectedLeague)}
+                      className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black font-bold text-xs border border-amber-500/40 flex items-center gap-1.5 transition-all shadow-sm"
+                      title="Editar nombre, temporada, sedes y reglas de esta liga"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Editar Liga</span>
+                    </button>
+                  )}
+                  {onDeleteLeague && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteLeague(selectedLeague.id, selectedLeague.name)}
+                      className="px-3.5 py-1.5 rounded-xl bg-[#ef4444]/15 hover:bg-[#ef4444] text-[#ef4444] hover:text-white font-bold text-xs border border-[#ef4444]/30 flex items-center gap-1.5 transition-all shadow-sm"
+                      title="Eliminar esta liga del circuito"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Eliminar Liga</span>
+                    </button>
+                  )}
+                </div>
               )}
 
               {/* Aviso especial de Clasificatorio Internacional si es Nacional */}

@@ -1,3 +1,19 @@
+- [x] **Edición Segura de Torneos y Ligas, Blindaje de Integridad Topológica y Puesta en Sesión Estilo Nakka N01:**
+  * **Análisis Crítico de Estabilidad y Ciclo de Vida Federativo:**
+    - Identificación y delimitación de fases: *Fase Previa (`0` partidos / `REGISTRATION_OPEN`)* donde la edición es irrestricta y cambiar el formato regenera la llave preservando inscriptos; vs *Fase En Sesión / En Juego (`IN_PROGRESS` / partidos en vivo o terminados)* donde el formato se congela obligatoriamente para no corromper el árbol de punteros (`nextMatchId`, `loserNextMatchId`).
+  * **Modal de Edición de Torneos (`EditTournamentModal.tsx`):**
+    - Formulario integral: Título, descripción, fechas, sedes, ciudad, provincia, cupo máximo (con guarda estricta `min={enrolledCount}` impidiendo reducir el cupo por debajo de los anotados), aranceles, pozo de premios (desglose 60-30-10), distancia de juego base y desglose independiente por rondas (Cuartos, Semis, Final).
+    - Candado de Integridad 🔒: Si el torneo tiene partidos disputados, el formato queda deshabilitado con advertencia visual. Si se modifican distancias en caliente, solo se recalculan los partidos pendientes (`SCHEDULED`).
+  * **Modal de Edición de Ligas (`EditLeagueModal.tsx`):**
+    - Edición de nombre, temporada, club organizador, sedes geográficas, descripción y toggle de bonificación presencial (⚡ x2 Pts), preservando el identificador foráneo `id` y las tablas acumuladas de posiciones.
+    - Integración de botones `[✏️ Editar Liga]` en el banner y tarjetas de `LeagueManager.tsx`.
+  * **Puesta en Sesión y Bloqueo de Inscripción Estilo Nakka N01 (`TournamentManager.tsx` & `PlayerEnrollModal.tsx`):**
+    - Botón de control de sesión para el administrador: **"🔒 Iniciar Sesión (Cerrar Cupo)"** que transiciona el torneo a `IN_PROGRESS` y sella la llave sorteada, con opción de reabrir inscripción solo si no hay partidos jugados.
+    - Bloqueo de inscripción en UI: el botón "+ Inscribirme" transmuta a *"🔒 Inscripción Cerrada (En Sesión)"*.
+    - Bloqueo en `PlayerEnrollModal.tsx`: ante cualquier acceso directo o deep link (`?inscribir={id}`), despliega un panel explicativo con candado bloqueando el formulario para impedir que nuevos registros alteren el cuadro.
+  * **Sincronización en la Nube:**
+    - Persistencia en Supabase PostgreSQL (`saveTournamentToCloud`) y `localStorage` en tiempo real.
+
 - [x] **Aislamiento de Estadísticas de Bot vs Humano, Preservación y Reconexión de Partidas Online, Badges en Español y Asignación de Llave Estilo Nakka N01:**
   * **Aislamiento Total de Métricas de Bot (`storage.ts`, `DartScorer.tsx`, `RegisterAndProfile.tsx`):**
     - Desvío de partidas vs Bot/CPU a `lpld_bot_matches` y `lpld_bot_stats` independientes. No alteran el AVG federativo ni se sincronizan al ranking competitivo de Supabase.

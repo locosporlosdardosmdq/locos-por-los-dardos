@@ -102,13 +102,12 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
 
   const whatsappUrl = `https://wa.me/${bankAccount.adminWhatsAppPhone}?text=${whatsappMessage}`;
 
+  const isRegistrationClosed = tournament ? tournament.status !== 'REGISTRATION_OPEN' : false;
+
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md overflow-y-auto flex items-start sm:items-center justify-center p-3 sm:p-4 select-none animate-in fade-in duration-150">
-        <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-lg bg-[#07090e] border border-[#ef4444]/40 rounded-3xl overflow-hidden shadow-2xl shadow-black/95 space-y-4 my-auto max-h-[92vh] overflow-y-auto overscroll-contain touch-pan-y"
-        >
+        <div className="w-full max-w-lg bg-[#07090e] border border-[#ef4444]/40 rounded-3xl overflow-hidden shadow-2xl shadow-black/95 my-auto max-h-[92vh] overflow-y-auto overscroll-contain touch-pan-y">
           {/* Cabecera */}
           <div className="bg-[#0f1422] border-b border-[#ef4444]/20 px-5 py-3.5 flex items-center justify-between sticky top-0 z-10">
             <button
@@ -116,34 +115,68 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
               onClick={onClose}
               className="px-3.5 py-1.5 rounded-xl bg-[#111622] hover:bg-[#1a2234] text-slate-300 font-bold text-xs border border-slate-700 transition-colors"
             >
-              Cancelar
+              {isRegistrationClosed ? 'Cerrar' : 'Cancelar'}
             </button>
             <h2 className="text-sm sm:text-base font-black text-white tracking-wide text-center">
-              Inscripción de Participante
+              {isRegistrationClosed ? 'Inscripción Cerrada' : 'Inscripción de Participante'}
             </h2>
-            <button
-              type="submit"
-              className="px-3.5 py-1.5 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black text-xs border border-[#00e676] transition-colors"
-            >
-              Confirmar
-            </button>
+            {!isRegistrationClosed ? (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="px-3.5 py-1.5 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black text-xs border border-[#00e676] transition-colors"
+              >
+                Confirmar
+              </button>
+            ) : (
+              <div className="w-16" />
+            )}
           </div>
 
-          <div className="p-4 sm:p-5 space-y-4">
-            {/* Banner de Modalidad (Gratuito vs Arancelado) */}
-            {isPaidTournament ? (
-              <div className="bg-gradient-to-r from-amber-500/15 via-[#111622] to-amber-500/10 border-2 border-amber-500/40 rounded-2xl p-3.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-amber-400" />
-                    <span className="text-xs font-black text-amber-400 uppercase tracking-wide">
-                      Torneo con Inscripción
+          {isRegistrationClosed ? (
+            /* Bloqueo: Torneo en Sesión / Inscripción Cerrada */
+            <div className="p-6 text-center space-y-4">
+              <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-500/15 border-2 border-amber-500/40 flex items-center justify-center text-amber-400 shadow-xl shadow-amber-500/10">
+                <Lock className="w-8 h-8" />
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-xs font-black uppercase tracking-wider text-amber-400 bg-amber-500/15 px-3 py-1 rounded-full border border-amber-500/30 inline-block">
+                  {tournament?.status === 'IN_PROGRESS' ? '🎯 Torneo en Sesión' : '⚪ Torneo Finalizado'}
+                </span>
+                <h3 className="text-lg font-black text-white">
+                  Las inscripciones están cerradas
+                </h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  Este torneo ya fue puesto en sesión y los partidos de la llave eliminatoria se encuentran sorteados y fijados. No se admiten nuevos participantes para no vulnerar el desarrollo de la llave.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-3 rounded-2xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider shadow-lg shadow-[#00e676]/20 transition-all active:scale-95"
+                >
+                  Ver Llave y Partidos
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4">
+              {/* Banner de Modalidad (Gratuito vs Arancelado) */}
+              {isPaidTournament ? (
+                <div className="bg-gradient-to-r from-amber-500/15 via-[#111622] to-amber-500/10 border-2 border-amber-500/40 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-black text-amber-400 uppercase tracking-wide">
+                        Torneo con Inscripción
+                      </span>
+                    </div>
+                    <span className="text-base font-black text-white bg-amber-500/20 px-2.5 py-0.5 rounded-lg border border-amber-500/40">
+                      ${entryFee.toLocaleString('es-AR')} ARS
                     </span>
                   </div>
-                  <span className="text-base font-black text-white bg-amber-500/20 px-2.5 py-0.5 rounded-lg border border-amber-500/40">
-                    ${entryFee.toLocaleString('es-AR')} ARS
-                  </span>
-                </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
                   Para confirmar tu lugar en la llave eliminatoria debés depositar el importe en la cuenta oficial y enviar el comprobante por WhatsApp al administrador designado.
                 </p>
@@ -331,8 +364,9 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
               <Calendar className="w-3.5 h-3.5 text-slate-500" />
               <span>Fecha y hora: <strong className="text-white">{currentDateString}</strong></span>
             </div>
-          </div>
-        </form>
+          </form>
+        )}
+        </div>
       </div>
 
       <WebcamSetupModal

@@ -1,5 +1,28 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 37] - 2026-10-15
+- **Objetivo:** Implementar la edición integral de ligas y torneos creados (nombres, configuraciones, sedes, fechas, premios y distancias de legs) con evaluación crítica de estabilidad para proteger la topología del árbol de llaves, e incorporar la instancia de control de sesión de Nakka N01 para definir cuándo el certamen entra en sesión y bloquear la inscripción para no vulnerar el cuadro ni su desarrollo.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Riesgo crítico de corrupción de llave:* En `bracket-engine.ts`, los torneos de eliminación simple y doble eliminación se sustentan en grafos con punteros deterministas (`nextMatchId`, `loserNextMatchId`, `nextSlot`). Si un torneo con partidos ya jugados o en vivo cambia de formato (ej: a doble eliminación o zonas), se destruyen los punteros y se corrompe el cuadro. Por lo tanto, el formato debe bloquearse con candado 🔒 cuando `hasMatchesPlayed === true`.
+  2. *Guarda de cupo e integridad de legs:* No se puede permitir reducir el cupo máximo por debajo de la cantidad de jugadores inscriptos ya confirmados (`maxParticipants >= enrolledCount`). Y si se modifican las piernas a ganar de una ronda, solo debe propagarse a los partidos pendientes (`SCHEDULED`), nunca a los partidos finalizados (`FINISHED`).
+  3. *Inscripción abierta durante el juego (Nakka Session Flow):* Si no existe un mecanismo explícito para poner el torneo "En Sesión" y cerrar inscripciones, nuevos jugadores pueden anotarse vía UI o deep link (`?inscribir={id}`), intentando ingresar a un cuadro ya sorteado y en desarrollo.
+- **Realizado:**
+  - **Modal de Edición de Torneos con Candado de Integridad (`EditTournamentModal.tsx`):**
+    * Formulario completo con: título, descripción, estado, modalidad de pista, formato de competición, sede, ciudad, provincia, fecha/hora, cupo máximo (con guarda `min={enrolledCount}`), checkbox de aranceles y pozo de premios con desglose oficial 60-30-10, distancia base de legs y desglose configurable por rondas (Cuartos, Semis, Final).
+    * Alerta visual dinámica de diagnóstico: si hay partidos jugados, el formato queda congelado (`disabled`) con aviso de seguridad; si está en fase previa, permite cambiar de formato regenerando determinísticamente la llave con los inscriptos actuales.
+  - **Modal de Edición de Ligas (`EditLeagueModal.tsx` & `LeagueManager.tsx`):**
+    * Formulario para actualizar nombre, temporada, ámbito (Nacional vs Local), club organizador, sede geográfica, descripción y regla de puntos dobles presenciales (⚡ x2 Pts), preservando el identificador foráneo `id` y las tablas de posiciones.
+    * Botones `[✏️ Editar Liga]` en el banner de la liga seleccionada y en cada tarjeta del listado para administradores.
+  - **Puesta en Sesión y Cierre de Inscripción Estilo Nakka N01 (`TournamentManager.tsx` & `PlayerEnrollModal.tsx`):**
+    * Botón de acción rápida en tabla y cabecera de torneo: **"🔒 Iniciar Sesión (Cerrar Cupo)"** para transicionar a `IN_PROGRESS` y consolidar la llave sorteada.
+    * Posibilidad para el administrador de revertir con **"🔓 Reabrir Inscripción"** únicamente si ningún partido ha sido disputado aún.
+    * En la interfaz del torneo, el botón "+ Inscribirme" transmuta a un estado de solo lectura: *"🔒 Inscripción Cerrada (En Sesión)"*.
+    * En `PlayerEnrollModal.tsx`, si el torneo ya está en sesión o finalizado, se bloquea el formulario tanto por click como por deep link (`/torneos?inscribir={id}`), desplegando un aviso con candado que explica que la llave ya está fijada y no se admiten nuevos participantes.
+  - **Sincronización Cloud Automática:**
+    * Todas las actualizaciones se sincronizan de inmediato con Supabase PostgreSQL (`saveTournamentToCloud`) y el almacenamiento local.
+- **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código 0).
+- **Estado del Proyecto:** Torneos y ligas completamente editables bajo estrictas reglas de integridad deportiva, con ciclo de vida federativo y control de sesión idéntico a Nakka N01.
+
 ## [Sesión 36] - 2026-10-15
 - **Objetivo:** Aislamiento total de estadísticas de partidas con BOT para no contaminar el promedio competitivo oficial del jugador (mostrándolas en una pestaña dedicada de Práctica vs la Máquina en el perfil), preservación y auto-reconexión de partidas online ante micro-desconexiones o navegación accidental por otras secciones del menú (con banner sticky de retorno inmediato), corrección y traducción al español de badges de estado de torneos ("Inscripción Abierta", sin cortes de línea), e implementación del sistema de siembra automática y asignación manual de llaves estilo Nakka N01.
 - **Diagnóstico y Análisis Consultivo:**

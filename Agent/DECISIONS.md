@@ -951,3 +951,29 @@
      - **Soporte de Bracket Size en Motor Puro (`bracket-engine.ts`):** `SingleEliminationOptions` y `DoubleEliminationOptions` ahora reciben `bracketSize?: 4 | 8 | 16 | 32 | 64`, permitiendo generar cuadros estándar aún cuando haya inscriptos impares o cupos pendientes.
 - **Motivo:** Cumple integralmente los estándares profesionales internacionales de torneos (Nakka / Challonge / PDC), protege la integridad del ranking competitivo y garantiza una experiencia de usuario fluida y libre de frustraciones en partidas online.
 
+---
+
+## [ADR-046] Edición Segura de Torneos/Ligas, Candado de Integridad Topológica y Puesta en Sesión (Nakka N01 Standard)
+
+- **Fecha:** 2026-10-15
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Necesidad de edición integral:* Los administradores necesitaban poder corregir o actualizar torneos y ligas creados (nombres, fechas, sedes, ciudades, provincias, cupos, valores de inscripción, premios y distancias de legs).
+  2. *Evaluación Crítica de Estabilidad Deportiva:* En un motor de torneos basado en grafos dirigidos con punteros (`nextMatchId`, `loserNextMatchId`, `nextSlot`), cambiar arbitrariamente la estructura de la competición (ej. de Eliminación Simple a Doble Eliminación o Grupos) mientras hay partidos disputados o en curso corrompe fatalmente el árbol de resultados. Asimismo, reducir el cupo máximo por debajo de los inscriptos ya confirmados o alterar legs de partidos terminados genera inconsistencias y reclamos deportivos.
+  3. *Flujo de Puesta en Sesión (Nakka N01 Session Standard):* En Nakka, una vez finalizada la convocatoria y sorteada la llave, el director del torneo debe tener una instancia explícita de "Iniciar Sesión" (o "Cerrar Inscripción"). Si la inscripción permanece abierta indefinidamente mientras se juega el torneo, nuevos competidores pueden anotarse y alterar el cuadro en caliente, rompiendo los cruces ya sorteados.
+- **Decisión:**
+  1. **Análisis de Ciclo de Vida y Candado de Integridad Topológica (`EditTournamentModal.tsx`):**
+     - **Fase Previa (`0` partidos jugados / `REGISTRATION_OPEN`):** La edición es irrestricta. Si se cambia de Formato (ej. Simple a Doble Eliminación), la llave se regenera determinísticamente con los inscriptos actuales (`tournamentEnrolledList`).
+     - **Fase En Sesión / En Juego (`hasMatchesPlayed === true` o `IN_PROGRESS`):** El campo de Formato se bloquea visualmente con candado 🔒 (`disabled`), protegiendo la topología. El cupo máximo está protegido por validación `min={enrolledCount}` impidiendo reducirlo por debajo de los anotados. Cualquier modificación de piernas (`bestOfLegs` o `roundLegsConfig`) únicamente recalcula el `legTarget` de los partidos pendientes (`m.status === 'SCHEDULED'`), dejando inalterados los resultados ya cantados (`FINISHED`).
+  2. **Edición Controlada de Ligas (`EditLeagueModal.tsx` & `LeagueManager.tsx`):**
+     - Permite modificar nombre, temporada, club organizador, sedes y regla de puntos dobles presenciales (⚡ x2 Pts), preservando el identificador foráneo `id` para que ningún torneo ni tabla de posiciones acumulada se desvincule.
+     - Botones `[✏️ Editar Liga]` añadidos en el banner y tarjetas de liga para administradores.
+  3. **Puesta en Sesión y Bloqueo de Inscripciones Estilo Nakka (`TournamentManager.tsx` & `PlayerEnrollModal.tsx`):**
+     - Botón de control de sesión en tabla y cabecera de torneo: **"🔒 Iniciar Sesión (Cerrar Cupo)"** que transiciona el torneo a `IN_PROGRESS` y sella la llave. Si no hay partidos jugados, el administrador puede reabrir la inscripción con **"🔓 Reabrir Inscripción"**.
+     - En la interfaz del torneo, el botón de inscripción transmuta a *"🔒 Inscripción Cerrada (En Sesión)"*.
+     - En `PlayerEnrollModal.tsx`, ante cualquier intento de ingreso por deep link (`/torneos?inscribir={id}`) o click directo, se despliega una pantalla con candado y aviso institucional que bloquea la carga de nuevos participantes para garantizar el normal desarrollo del cuadro.
+  4. **Persistencia Sincronizada:**
+     - Todas las ediciones y cambios de estado de sesión se sincronizan en caliente en Supabase PostgreSQL (`saveTournamentToCloud`) y `localStorage`.
+- **Motivo:** Protege al 100% la estabilidad y el desarrollo matemático de las llaves eliminatorias, otorga a los directores de torneo la misma solvencia operativa que Nakka N01 y previene cualquier corrupción de datos deportivos.
+
+

@@ -52,6 +52,8 @@ import { AdminMatchModal } from './AdminMatchModal';
 import { SlotAssignModal } from './SlotAssignModal';
 import { CreateLeagueModal } from './CreateLeagueModal';
 import { LeagueManager } from './LeagueManager';
+import { EditTournamentModal } from './EditTournamentModal';
+import { EditLeagueModal } from './EditLeagueModal';
 import { DartScorer } from '@/components/anotador/DartScorer';
 import { 
   Trophy, 
@@ -83,7 +85,11 @@ import {
   Share2,
   Link2,
   MessageCircle,
-  Check
+  Check,
+  Pencil,
+  Lock,
+  Unlock,
+  Play
 } from 'lucide-react';
 
 import { 
@@ -226,6 +232,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   // Vista dentro de activos: Tabla General ('TABLE') o Detalle del Torneo ('DETAIL')
   const [activeViewMode, setActiveViewMode] = useState<'TABLE' | 'DETAIL'>('TABLE');
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
+
+  // Estados de edición de Torneos y Ligas
+  const [tournamentToEdit, setTournamentToEdit] = useState<Tournament | null>(null);
+  const [leagueToEdit, setLeagueToEdit] = useState<League | null>(null);
 
   // Estado de feedback al copiar enlaces de inscripción
   const [copiedTournamentId, setCopiedTournamentId] = useState<string | null>(null);
@@ -818,6 +828,122 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         return filtered;
       });
     }
+  };
+
+  // Administrador / Nakka Style: Iniciar Sesión (Cerrar Inscripción) o Reabrirla
+  const handleToggleTournamentSession = (tourney: Tournament) => {
+    if (!isAdmin) {
+      alert('Solo los administradores oficiales pueden controlar el estado de sesión del torneo.');
+      return;
+    }
+
+    if (tourney.status === 'REGISTRATION_OPEN') {
+      const hasEnrolled = (tourney.enrolledPlayers && tourney.enrolledPlayers.length > 0) || (tourney.registeredCount && tourney.registeredCount > 0);
+      if (!hasEnrolled) {
+        if (!confirm('Este torneo no cuenta con jugadores inscriptos aún. ¿Deseas iniciarlo de todas formas con los slots por acreditar?')) {
+          return;
+        }
+      }
+
+      const updatedTourney: Tournament = {
+        ...tourney,
+        status: 'IN_PROGRESS'
+      };
+
+      setTournaments((prev) => {
+        const next = prev.map((t) => (t.id === tourney.id ? updatedTourney : t));
+        saveStoredTournaments(next);
+        saveTournamentToCloud(updatedTourney);
+        return next;
+      });
+    } else if (tourney.status === 'IN_PROGRESS') {
+      // Reabrir inscripción (si no hay partidos jugados o terminados)
+      const hasPlayedMatches = tourney.matches?.some((m) => m.status === 'LIVE' || m.status === 'FINISHED');
+      if (hasPlayedMatches) {
+        alert('No es posible reabrir la inscripción porque el torneo ya cuenta con partidos disputados o en vivo.');
+        return;
+      }
+
+      if (confirm(`¿Deseas reabrir las inscripciones para "${tourney.title}"? Los jugadores podrán volver a anotarse.`)) {
+        const updatedTourney: Tournament = {
+          ...tourney,
+          status: 'REGISTRATION_OPEN'
+        };
+
+        setTournaments((prev) => {
+          const next = prev.map((t) => (t.id === tourney.id ? updatedTourney : t));
+          saveStoredTournaments(next);
+          saveTournamentToCloud(updatedTourney);
+          return next;
+        });
+      }
+    }
+  };
+
+  // Guardar Torneo Editado con validación de estabilidad y regeneración segura si aplica
+  const handleSaveEditedTournament = (updatedTourney: Tournament, shouldRegenerateMatches: boolean) => {
+    let finalTourney = { ...updatedTourney };
+
+    if (shouldRegenerateMatches) {
+      const participants: Participant[] = (updatedTourney.enrolledPlayers && updatedTourney.enrolledPlayers.length > 0)
+        ? updatedTourney.enrolledPlayers.map((p, idx) => ({
+            id: p.id,
+            name: p.name,
+            nickname: p.nickname,
+            avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
+            seed: p.seed || idx + 1,
+            nationality: p.nationality || 'Argentina',
+            countryCode: p.countryCode || 'AR'
+          }))
+        : createTournamentParticipants(updatedTourney.maxParticipants, currentUser || undefined);
+
+      const bracketSize = getNextPowerOfTwo(updatedTourney.maxParticipants || participants.length);
+      const legTarget = updatedTourney.bestOfLegs || 3;
+      const distMode = updatedTourney.roundLegsConfig?.distanceMode || 'LEGS';
+
+      let rawMatches: TournamentBracketMatch[] = [];
+      if (updatedTourney.format === 'DOUBLE_ELIMINATION') {
+        rawMatches = generateDoubleElimination(participants, {
+          bracketSize,
+          seeding: 'RANKED',
+          legTarget,
+          distanceMode: distMode
+        });
+      } else {
+        rawMatches = generateSingleElimination(participants, {
+          bracketSize,
+          seeding: 'RANKED',
+          includeThirdPlace: true,
+          legTarget,
+          distanceMode: distMode
+        });
+      }
+
+      const namespacedMatches = rawMatches.map((m) => ({
+        ...m,
+        id: m.id.startsWith(updatedTourney.id) ? m.id : `${updatedTourney.id}-${m.id}`,
+        nextMatchId: m.nextMatchId ? (m.nextMatchId.startsWith(updatedTourney.id) ? m.nextMatchId : `${updatedTourney.id}-${m.nextMatchId}`) : undefined,
+        loserNextMatchId: m.loserNextMatchId ? (m.loserNextMatchId.startsWith(updatedTourney.id) ? m.loserNextMatchId : `${updatedTourney.id}-${m.loserNextMatchId}`) : undefined
+      }));
+
+      finalTourney.matches = namespacedMatches;
+    }
+
+    setTournaments((prev) => {
+      const next = prev.map((t) => (t.id === finalTourney.id ? finalTourney : t));
+      saveStoredTournaments(next);
+      saveTournamentToCloud(finalTourney);
+      return next;
+    });
+  };
+
+  // Guardar Liga Editada
+  const handleSaveEditedLeague = (updatedLeague: League) => {
+    setLeagues((prev) => {
+      const next = prev.map((l) => (l.id === updatedLeague.id ? updatedLeague : l));
+      saveStoredLeagues(next);
+      return next;
+    });
   };
 
   // Administrador: Finalizar Torneo y Archivar en Historial con Estadísticas
@@ -1434,6 +1560,36 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                                     <>
                                       <button
                                         type="button"
+                                        onClick={() => setTournamentToEdit(t)}
+                                        className="p-1.5 rounded-xl bg-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white border border-blue-500/40 transition-colors"
+                                        title="Editar Torneo (Nombre, Fechas, Sede, Distancia, Premios)"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleTournamentSession(t)}
+                                        className={`p-1.5 rounded-xl border transition-colors ${
+                                          t.status === 'REGISTRATION_OPEN'
+                                            ? 'bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black border-amber-500/40'
+                                            : 'bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white border-emerald-500/40'
+                                        }`}
+                                        title={
+                                          t.status === 'REGISTRATION_OPEN'
+                                            ? 'Cerrar Inscripción e Iniciar Sesión (Nakka style)'
+                                            : 'Reabrir Inscripción'
+                                        }
+                                      >
+                                        {t.status === 'REGISTRATION_OPEN' ? (
+                                          <Lock className="w-3.5 h-3.5" />
+                                        ) : (
+                                          <Unlock className="w-3.5 h-3.5" />
+                                        )}
+                                      </button>
+
+                                      <button
+                                        type="button"
                                         onClick={() => handleArchiveTournamentToHistory(t)}
                                         className="p-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black border border-amber-500/40 transition-colors"
                                         title="Finalizar Torneo y Archivar a Historial"
@@ -1570,14 +1726,63 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                         <span>WhatsApp</span>
                       </a>
 
-                      <button
-                        type="button"
-                        onClick={() => setShowEnrollModal(true)}
-                        className="px-3.5 py-2 bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#00e676]/20 transition-all"
-                      >
-                        <Users className="w-4 h-4" />
-                        <span>+ Inscribirme</span>
-                      </button>
+                      {currentTournament.status === 'REGISTRATION_OPEN' ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowEnrollModal(true)}
+                          className="px-3.5 py-2 bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#00e676]/20 transition-all"
+                        >
+                          <Users className="w-4 h-4" />
+                          <span>+ Inscribirme</span>
+                        </button>
+                      ) : (
+                        <div className="px-3 py-2 bg-slate-800/80 border border-slate-700 text-slate-300 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-not-allowed">
+                          <Lock className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Inscripción Cerrada ({currentTournament.status === 'IN_PROGRESS' ? 'En Sesión' : 'Finalizado'})</span>
+                        </div>
+                      )}
+
+                      {/* Controles de Administrador: Poner en Sesión y Editar Torneo */}
+                      {isAdmin && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTournamentSession(currentTournament)}
+                            className={`px-3 py-2 rounded-xl font-black text-xs flex items-center gap-1.5 border transition-all ${
+                              currentTournament.status === 'REGISTRATION_OPEN'
+                                ? 'bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black border-amber-500/40 shadow-sm'
+                                : 'bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border-emerald-500/40 shadow-sm'
+                            }`}
+                            title={
+                              currentTournament.status === 'REGISTRATION_OPEN'
+                                ? 'Cerrar inscripciones e iniciar sesión del torneo (Nakka style)'
+                                : 'Reabrir inscripciones si aún no se jugaron partidos'
+                            }
+                          >
+                            {currentTournament.status === 'REGISTRATION_OPEN' ? (
+                              <>
+                                <Lock className="w-4 h-4 text-amber-400" />
+                                <span>Iniciar Sesión (Cerrar Cupo)</span>
+                              </>
+                            ) : (
+                              <>
+                                <Unlock className="w-4 h-4 text-emerald-400" />
+                                <span>Reabrir Inscripción</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setTournamentToEdit(currentTournament)}
+                            className="px-3 py-2 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all"
+                            title="Editar nombre, sede, fechas, premios y parámetros de juego"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            <span>Editar Torneo</span>
+                          </button>
+                        </>
+                      )}
 
                       <button
                         type="button"
@@ -1816,6 +2021,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
               onSelectPlayer={handleOpenPlayerDetail}
               isAdmin={isAdmin}
               onDeleteLeague={handleDeleteLeague}
+              onEditLeague={(league) => setLeagueToEdit(league)}
             />
           )}
 
@@ -2912,6 +3118,24 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         enrolledPlayers={tournamentEnrolledList}
         communityPlayers={communityPlayers}
         onAssign={handleConfirmSlotAssign}
+      />
+
+      {/* MODAL: EDITAR CONFIGURACIÓN DEL TORNEO */}
+      <EditTournamentModal
+        isOpen={Boolean(tournamentToEdit)}
+        onClose={() => setTournamentToEdit(null)}
+        tournament={tournamentToEdit}
+        leagues={leagues}
+        isAdmin={isAdmin}
+        onSaveTournament={handleSaveEditedTournament}
+      />
+
+      {/* MODAL: EDITAR CONFIGURACIÓN DE LA LIGA */}
+      <EditLeagueModal
+        isOpen={Boolean(leagueToEdit)}
+        onClose={() => setLeagueToEdit(null)}
+        league={leagueToEdit}
+        onSaveLeague={handleSaveEditedLeague}
       />
     </div>
   );

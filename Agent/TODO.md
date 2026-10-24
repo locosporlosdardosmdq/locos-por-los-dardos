@@ -1,3 +1,14 @@
+- [x] **Sincronización Reactiva de Cuenta Bancaria en Formulario de Inscripción y Blindaje Exclusivo de SuperAdmin en `/asociacion`:**
+  * **Datos Bancarios de Vitrina 4 en Formulario In-App (`GrandTournamentEnrollModal.tsx`):**
+    - Desacoplamiento de la constante estática `DEFAULT_ASSOCIATION_BANK_ACCOUNT` reemplazándola por el hook reactivo `getStoredAssociationBankAccount()`.
+    - Escucha de eventos en caliente (`lpld_association_bank_updated` y `storage`) para reflejar instantáneamente cualquier cambio guardado en Vitrina 4 de SuperAdmin (Mercado Pago, Alias `dardeus.mp`, CBU/CVU, Titular, CUIT/CUIL, Teléfono WhatsApp del administrador).
+    - Adaptación del mensaje automático de WhatsApp con el nombre del Administrador configurado y desglose completo del arancel.
+  * **Blindaje de Permisos Exclusivo SuperAdmin en `/asociacion` (`asociacion/page.tsx`):**
+    - Erradicado el fallback inseguro `getCurrentPlayerProfile(USER_ICEMAN)` que otorgaba permisos de administración a visitantes anónimos o no logueados en su primera visita.
+    - Sustituido el chequeo genérico `isAdmin` por `isSuperAdmin` (`isUserSuperAdmin(currentUser)`), limitando estrictamente el acceso a Mariano Deux (`marianodeux@gmail.com` / `SUPERADMIN`).
+    - Ocultamiento garantizado del botón "Administrar Asociación", "+ Sumar Autoridad", "Editar", "Eliminar" y flechas de orden para cualquier usuario que no sea SuperAdmin autenticado.
+    - Integración bidireccional con el Panel SuperAdmin: enlace directo `[⚙️ Panel SuperAdmin ↗]` (`/superadmin?tab=authorities`) y botón de retorno en Tab 4 de SuperAdmin (`[👁️ Ver Organigrama Público ↗]`).
+
 - [x] **Carga Local de Imágenes del Slider con Compresión Canvas, Reordenamiento de Galería y Contador Online de Inscriptos 100% Dinámico:**
   * **Selector y Subida de Imágenes desde Equipo o Disco Local (`superadmin/page.tsx`):**
     - Botón interactivo `[📁 Elegir del Equipo / Disco]` con input de archivo `accept="image/*"`.

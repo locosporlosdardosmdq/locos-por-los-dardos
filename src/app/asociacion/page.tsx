@@ -7,7 +7,7 @@ import {
   DEFAULT_ASSOCIATION_AUTHORITIES, 
   DEFAULT_ASSOCIATION_BANK_ACCOUNT,
   USER_ICEMAN,
-  isUserAdmin,
+  isUserSuperAdmin,
   getAuthorityHierarchyWeight,
   getAuthorityTierInfo,
   AuthorityTier
@@ -62,12 +62,13 @@ export default function AsociacionPage() {
   const [bankAccount, setBankAccount] = useState<AssociationBankAccount>(() => {
     return getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT);
   });
-  const [currentUser, setCurrentUser] = useState<PlayerProfile>(() => {
-    return getCurrentPlayerProfile(USER_ICEMAN);
+  const [currentUser, setCurrentUser] = useState<PlayerProfile | null>(() => {
+    return getCurrentPlayerProfile(null);
   });
-  const [registeredPlayers, setRegisteredPlayers] = useState<PlayerProfile[]>([USER_ICEMAN]);
+  const [registeredPlayers, setRegisteredPlayers] = useState<PlayerProfile[]>([]);
 
-  const isAdmin = isUserAdmin(currentUser.email) || currentUser.role === 'ADMIN';
+  // Seguridad Institucional: Sólo Mariano Deux (SuperAdmin) puede administrar la Asociación
+  const isSuperAdmin = currentUser ? isUserSuperAdmin(currentUser) : false;
 
   // Modales de administración
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -129,8 +130,9 @@ export default function AsociacionPage() {
 
   // Lista de jugadores elegibles para vincular foto oficial
   const availablePlayers = useMemo(() => {
-    const list = [
-      {
+    const list: any[] = [];
+    if (currentUser) {
+      list.push({
         id: currentUser.id,
         fullName: currentUser.fullName,
         nickname: currentUser.nickname,
@@ -140,10 +142,12 @@ export default function AsociacionPage() {
         province: currentUser.province,
         email: currentUser.email,
         phone: currentUser.phone
-      },
-      ...registeredPlayers
-        .filter((p) => p.id !== currentUser.id && (!currentUser.email || p.email?.toLowerCase() !== currentUser.email.toLowerCase()))
-        .map((p) => ({
+      });
+    }
+    registeredPlayers
+      .filter((p) => (!currentUser || (p.id !== currentUser.id && (!currentUser.email || p.email?.toLowerCase() !== currentUser.email.toLowerCase()))))
+      .forEach((p) => {
+        list.push({
           id: p.id,
           fullName: p.fullName || p.nickname || 'Jugador',
           nickname: p.nickname,
@@ -153,8 +157,8 @@ export default function AsociacionPage() {
           province: p.province || 'Buenos Aires',
           email: p.email || '',
           phone: p.phone || ''
-        }))
-    ];
+        });
+      });
     return list;
   }, [currentUser, registeredPlayers]);
 
@@ -172,7 +176,7 @@ export default function AsociacionPage() {
       })
       .map((auth) => {
         // Si la autoridad está vinculada al usuario activo actual, sincronizar su foto en caliente
-        if (auth.playerId === currentUser.id || auth.playerId === 'user-iceman-admin') {
+        if (currentUser && (auth.playerId === currentUser.id || auth.playerId === 'user-iceman-admin')) {
           return {
             ...auth,
             photoUrl: currentUser.photoUrl || currentUser.avatarUrl || auth.photoUrl,
@@ -491,8 +495,8 @@ export default function AsociacionPage() {
             )}
           </div>
 
-          {/* Acciones de administración */}
-          {isAdmin && (
+          {/* Acciones de administración exclusivas SuperAdmin */}
+          {isSuperAdmin && (
             <div className="mt-3 pt-3 border-t border-slate-800 w-full flex items-center justify-between text-xs">
               <div className="flex items-center gap-1">
                 <button
@@ -576,19 +580,26 @@ export default function AsociacionPage() {
             </div>
           </div>
 
-          {/* BOTÓN ADMINISTRACIÓN EXCLUSIVO ICEMAN */}
-          {isAdmin && (
+          {/* ACCIONES EXCLUSIVAS SUPERADMIN (MARIANO DEUX) */}
+          {isSuperAdmin && (
             <div className="flex flex-col sm:flex-row items-center gap-2">
+              <Link
+                href="/superadmin?tab=authorities"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#00e676]/20 transition-all"
+              >
+                <Settings2 className="w-4 h-4" />
+                <span>Panel SuperAdmin ↗</span>
+              </Link>
               <button
                 type="button"
                 onClick={() => {
                   setAdminTab('AUTHORITIES');
                   setShowAdminModal(true);
                 }}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#00e676]/20 transition-all"
+                className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700"
               >
-                <Settings2 className="w-4 h-4" />
-                <span>Administrar Asociación</span>
+                <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Edición Rápida</span>
               </button>
             </div>
           )}
@@ -674,7 +685,7 @@ export default function AsociacionPage() {
               </button>
             </div>
 
-            {isAdmin && (
+            {isSuperAdmin && (
               <button
                 type="button"
                 onClick={handleOpenAddAuthority}
@@ -820,18 +831,27 @@ export default function AsociacionPage() {
             </p>
           </div>
 
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => {
-                setAdminTab('BANK');
-                setShowAdminModal(true);
-              }}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition-colors self-start sm:self-auto"
-            >
-              <Edit3 className="w-3.5 h-3.5 text-[#00e676]" />
-              <span>Editar Datos de la Cuenta</span>
-            </button>
+          {isSuperAdmin && (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/superadmin?tab=payments"
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+              >
+                <CreditCard className="w-3.5 h-3.5 text-sky-400" />
+                <span>Configurar en Vitrina 4 ↗</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminTab('BANK');
+                  setShowAdminModal(true);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-[#00e676] text-xs font-bold border border-emerald-500/30 flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edición Rápida</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -926,7 +946,7 @@ export default function AsociacionPage() {
       </div>
 
       {/* MODAL ADMINISTRATIVO (EXCLUSIVO ICEMAN) */}
-      {showAdminModal && (
+      {isSuperAdmin && showAdminModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md overflow-y-auto p-3 sm:p-5 flex justify-center items-start sm:items-center">
           <div className="w-full max-w-2xl bg-[#07090e] border-2 border-[#00e676] rounded-3xl p-5 sm:p-6 shadow-2xl my-auto max-h-[92vh] overflow-y-auto overscroll-contain touch-pan-y space-y-4">
             {/* Cabecera Modal */}

@@ -21,7 +21,7 @@ import {
   AlertCircle 
 } from 'lucide-react';
 import { COUNTRIES, PROVINCIAS_ARGENTINA, DEFAULT_ASSOCIATION_BANK_ACCOUNT } from '@/lib/constants';
-import { AttendanceDays, GrandTournamentRegistration, LandingShowcaseSettings, Tournament } from '@/lib/types';
+import { AttendanceDays, GrandTournamentRegistration, LandingShowcaseSettings, Tournament, AssociationBankAccount } from '@/lib/types';
 import { 
   addGrandTournamentRegistration, 
   getCurrentPlayerProfile, 
@@ -29,7 +29,8 @@ import {
   saveStoredTournaments, 
   saveTournamentToCloud,
   getStoredLandingShowcases,
-  saveStoredLandingShowcases
+  saveStoredLandingShowcases,
+  getStoredAssociationBankAccount
 } from '@/lib/storage';
 
 interface GrandTournamentEnrollModalProps {
@@ -271,13 +272,33 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
     }
   };
 
-  const bank = DEFAULT_ASSOCIATION_BANK_ACCOUNT;
-  const whatsappAdminNumber = bank.adminWhatsAppPhone || '5492235551234';
+  const [bank, setBank] = useState<AssociationBankAccount>(() => {
+    return getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT);
+  });
+
+  useEffect(() => {
+    const handleBankUpdate = (e: any) => {
+      if (e?.detail) {
+        setBank(e.detail);
+      } else {
+        setBank(getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT));
+      }
+    };
+    window.addEventListener('lpld_association_bank_updated', handleBankUpdate);
+    window.addEventListener('storage', handleBankUpdate);
+    return () => {
+      window.removeEventListener('lpld_association_bank_updated', handleBankUpdate);
+      window.removeEventListener('storage', handleBankUpdate);
+    };
+  }, []);
+
+  const whatsappAdminNumber = (bank.adminWhatsAppPhone || '5492235320777').replace(/\D/g, '');
 
   const generateWhatsAppMessage = () => {
     if (!createdRegistration) return '';
-    const text = `🎯 *INSCRIPCIÓN OFICIAL • GRAN OPEN MAR DEL PLATA 2026*
-¡Hola Mariano! Acabo de registrarme a través de la App para el torneo en la Sociedad de Fomento Nueva Pompeya:
+    const adminFirstName = bank.adminWhatsAppName ? bank.adminWhatsAppName.split(' ')[0] : 'Mariano';
+    const text = `🎯 *INSCRIPCIÓN OFICIAL • ${heroSettings.title || 'GRAN OPEN MAR DEL PLATA 2026'}*
+¡Hola ${adminFirstName}! Acabo de registrarme a través de la App para el torneo en la ${heroSettings.venue || 'Sociedad de Fomento Nueva Pompeya'}:
 
 👤 *Jugador:* ${createdRegistration.fullName} (${createdRegistration.nickname})
 🆔 *DNI / Pasaporte:* ${createdRegistration.dniOrPassport}
@@ -595,17 +616,20 @@ Adjunto a continuación el comprobante de pago para la acreditación oficial. ¡
               </div>
 
               <div className="bg-[#141824] border border-slate-800 rounded-2xl p-4 text-xs space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-2.5">
                   <div>
-                    <span className="text-slate-400 text-[11px] block">Banco Oficial:</span>
-                    <strong className="text-white font-black">{bank.bankName}</strong>
+                    <span className="text-slate-400 text-[11px] block">Banco / Entidad Oficial:</span>
+                    <strong className="text-white font-black text-sm">{bank.bankName}</strong>
+                    {bank.accountType && (
+                      <span className="text-[10px] text-slate-400 block font-medium">{bank.accountType}</span>
+                    )}
                   </div>
                   <div>
                     <span className="text-slate-400 text-[11px] block">Titular de la Cuenta:</span>
                     <strong className="text-white font-bold">{bank.holderName}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 text-[11px] block">CUIT:</span>
+                    <span className="text-slate-400 text-[11px] block">CUIT / CUIL:</span>
                     <strong className="text-slate-300 font-mono">{bank.cuitCuil}</strong>
                   </div>
                 </div>
@@ -645,7 +669,7 @@ Adjunto a continuación el comprobante de pago para la acreditación oficial. ¡
                 </div>
 
                 <p className="text-[11px] text-slate-400 italic">
-                  * Tras enviar el formulario se abrirá un enlace directo para remitir el comprobante de transferencia al organizador ({bank.adminWhatsAppName}).
+                  * Tras enviar el formulario se abrirá un enlace directo para remitir el comprobante de transferencia al organizador ({bank.adminWhatsAppName || 'Mariano Deux (ICEMAN)'}).
                 </p>
               </div>
             </div>

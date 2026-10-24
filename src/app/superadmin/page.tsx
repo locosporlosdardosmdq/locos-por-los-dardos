@@ -201,6 +201,25 @@ export default function SuperadminPage() {
     return () => window.removeEventListener('lpld_grand_registrations_updated', handleRegUpdate);
   }, []);
 
+  // Sincronización de pestañas por URL (?tab=authorities, ?tab=payments, etc.)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab')?.toLowerCase();
+      if (tabParam === 'authorities' || tabParam === 'comision' || tabParam === 'asociacion') {
+        setActiveTab('AUTHORITIES');
+      } else if (tabParam === 'payments' || tabParam === 'bancos' || tabParam === 'cuenta') {
+        setActiveTab('SHOWCASES');
+        setActiveShowcaseTab('PAYMENTS');
+      } else if (tabParam === 'hero' || tabParam === 'torneo') {
+        setActiveTab('SHOWCASES');
+        setActiveShowcaseTab('HERO_TOURNAMENT');
+      } else if (tabParam === 'demographics' || tabParam === 'padron') {
+        setActiveTab('DEMOGRAPHICS');
+      }
+    }
+  }, []);
+
   // Estado de autoridades de la Asociación
   const [authoritiesScope, setAuthoritiesScope] = useState<AssociationScope>('MDQ');
   const [authorities, setAuthorities] = useState<AssociationAuthority[]>(() => {
@@ -2890,30 +2909,41 @@ export default function SuperadminPage() {
                 </p>
               </div>
 
-              {/* Selector de Ámbito: Mar del Plata vs Nacional */}
-              <div className="flex items-center gap-2 bg-[#0f1422] p-1 rounded-xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setAuthoritiesScope('MDQ')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                    authoritiesScope === 'MDQ'
-                      ? 'bg-[#00e676] text-[#07090e]'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href="/asociacion"
+                  target="_blank"
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-black flex items-center gap-1.5 transition-all shadow-sm"
                 >
-                  Asociación MDQ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAuthoritiesScope('ARGENTINA')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                    authoritiesScope === 'ARGENTINA'
-                      ? 'bg-[#38bdf8] text-[#07090e]'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Dardos Argentina
-                </button>
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Ver Organigrama Público ↗</span>
+                </Link>
+
+                {/* Selector de Ámbito: Mar del Plata vs Nacional */}
+                <div className="flex items-center gap-2 bg-[#0f1422] p-1 rounded-xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setAuthoritiesScope('MDQ')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                      authoritiesScope === 'MDQ'
+                        ? 'bg-[#00e676] text-[#07090e]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Asociación MDQ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAuthoritiesScope('ARGENTINA')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                      authoritiesScope === 'ARGENTINA'
+                        ? 'bg-[#38bdf8] text-[#07090e]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Dardos Argentina
+                  </button>
+                </div>
               </div>
             </div>
 

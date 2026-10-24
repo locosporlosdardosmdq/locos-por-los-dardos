@@ -1,5 +1,27 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 41] - 2026-10-24
+- **Objetivo:** Conectar reactivamente los datos de la cuenta bancaria de Vitrina 4 de SuperAdmin (Mercado Pago, Alias `dardeus.mp`, CVU, CUIT, WhatsApp) al formulario unificado in-app de inscripción para el Gran Torneo Oficial, y resolver la seguridad de permisos del botón "Administrar Asociación" y acciones directivas en `/asociacion` asegurando que aparezcan única y exclusivamente a Mariano Deux (SuperAdmin) con integración al panel SuperAdmin.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Datos Bancarios Desconectados en Modal:* En `GrandTournamentEnrollModal.tsx`, se utilizaba la constante estática `DEFAULT_ASSOCIATION_BANK_ACCOUNT` (Banco Provincia) en lugar de consultar `getStoredAssociationBankAccount()`. Al guardar cambios en Vitrina 4 en SuperAdmin, el modal continuaba exhibiendo los datos estáticos antiguos.
+  2. *Vulnerabilidad de Permisos en `/asociacion`:* La vista institucional `/asociacion` inicializaba `currentUser` mediante `getCurrentPlayerProfile(USER_ICEMAN)`. En la primera visita de cualquier navegador anónimo sin sesión, heredaba la identidad de Mariano Deux (`marianodeux@gmail.com`). Además, utilizaba la guarda laxa `isAdmin` (`currentUser.role === 'ADMIN'`), lo que facultaba a administradores de torneos para editar la Comisión Directiva y las cuentas bancarias de la Asociación.
+- **Realizado:**
+  - **Reactividad Bancaria Total en Inscripción (`GrandTournamentEnrollModal.tsx`):**
+    * Sustituida la constante estática por el hook reactivo `getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT)`.
+    * Integrados los listeners `lpld_association_bank_updated` y `storage`, de modo que cualquier cambio guardado en Vitrina 4 de SuperAdmin se refleja en vivo en el modal.
+    * Desglose completo: Banco, Tipo de Cuenta (ej. "Cuenta Corriente Especial"), Titular, CUIT/CUIL, Alias, CBU/CVU y contacto oficial.
+    * Mensaje de WhatsApp automatizado con el nombre del Administrador configurado (`adminWhatsAppName`).
+  - **Blindaje Exclusivo de SuperAdmin en `/asociacion` (`asociacion/page.tsx`):**
+    * Erradicado el fallback inseguro a `USER_ICEMAN`: ahora inicializa en `getCurrentPlayerProfile(null)` con manejo seguro de nulos.
+    * Sustituido `isAdmin` por `isSuperAdmin` (`isUserSuperAdmin(currentUser)`), permitiendo la gestión directiva únicamente a Mariano Deux (`marianodeux@gmail.com` / `SUPERADMIN`).
+    * Para todos los visitantes y jugadores estándar, los botones "Administrar Asociación", "+ Sumar Autoridad", "Editar", "Eliminar" y flechas de orden quedan 100% ocultos.
+    * Para Mariano Deux, se incorporó el acceso directo `[⚙️ Panel SuperAdmin ↗]` vinculando a `/superadmin?tab=authorities`, junto con la opción de edición rápida in-place.
+  - **Deep Linking y Navegación Bidireccional (`superadmin/page.tsx`):**
+    * Soporte para selección de pestañas vía URL (`?tab=authorities`, `?tab=payments`).
+    * Botón `[👁️ Ver Organigrama Público ↗]` en Tab 4 de SuperAdmin para saltar al organigrama de `/asociacion` en 1 click.
+- **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código 0).
+- **Estado del Proyecto:** Formulario de inscripción sincronizado al 100% con los datos bancarios de SuperAdmin (Mercado Pago), y panel institucional blindado contra accesos no autorizados.
+
 ## [Sesión 40] - 2026-10-24
 - **Objetivo:** Permitir la selección y subida de imágenes para la galería del slider directamente desde el equipo o disco local con reordenamiento interactivo de aparición (asignación de orden `#1..N` y portada), y convertir el campo de inscriptos en un contador online 100% dinámico y real conectado al padrón de inscripciones efectivas de la App y de la llave del torneo.
 - **Diagnóstico y Análisis Consultivo:**

@@ -349,6 +349,128 @@ export default function ReglamentoPage() {
               </div>
             </div>
           </div>
+
+          {/* TABLA OFICIAL DE CÓMPUTO DE PUNTOS FEDERADOS */}
+          <div className="bg-[#0f1422] border border-slate-800 rounded-3xl p-5 sm:p-7 shadow-2xl space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+              <div>
+                <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20">
+                  Escala Oficial de Puntuación Homologada
+                </span>
+                <h3 className="text-lg sm:text-xl font-black text-white mt-1.5 flex items-center gap-2">
+                  <span>📊 Baremo Oficial de Puntos: Fechas Online (1x) vs Fechas Presenciales (2x)</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Escala de puntos federativos aplicable para la Liga Nacional Oficial de Argentina, Ligas Locales y rankings federados.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-[#07090e] text-slate-300 uppercase tracking-wider font-black text-[11px]">
+                    <th className="py-3 px-4">Instancia / Posición</th>
+                    <th className="py-3 px-4 text-center text-sky-400">🌐 Individual Online (1x)</th>
+                    <th className="py-3 px-4 text-center text-amber-400">⚡ Individual Presencial (2x)</th>
+                    <th className="py-3 px-4 text-center text-purple-400">👥 Parejas Online (1x c/u)</th>
+                    <th className="py-3 px-4 text-center text-emerald-400">🏆 Parejas Presencial (2x c/u)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  <tr className="hover:bg-amber-400/5">
+                    <td className="py-3 px-4 font-black text-white flex items-center gap-2">
+                      <span className="text-base">🥇</span>
+                      <span>1º Puesto (Campeón)</span>
+                    </td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-sky-300">100 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-black text-amber-400 bg-amber-400/10">200 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-purple-300">75 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-black text-emerald-400 bg-emerald-400/10">150 Pts</td>
+                  </tr>
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="py-3 px-4 font-black text-slate-200 flex items-center gap-2">
+                      <span className="text-base">🥈</span>
+                      <span>2º Puesto (Subcampeón)</span>
+                    </td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-sky-300">70 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-black text-amber-400 bg-amber-400/10">140 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-purple-300">50 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-black text-emerald-400 bg-emerald-400/10">100 Pts</td>
+                  </tr>
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="py-3 px-4 font-bold text-slate-300 flex items-center gap-2">
+                      <span className="text-base">🥉</span>
+                      <span>Semifinales (3º y 4º)</span>
+                    </td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-sky-300">50 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-black text-amber-400 bg-amber-400/10">100 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-purple-300">35 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-black text-emerald-400 bg-emerald-400/10">70 Pts</td>
+                  </tr>
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="py-3 px-4 text-slate-400 font-bold">Cuartos de Final (5º al 8º)</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-sky-300">30 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-black text-amber-400 bg-amber-400/10">60 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-purple-300">20 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-black text-emerald-400 bg-emerald-400/10">40 Pts</td>
+                  </tr>
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="py-3 px-4 text-slate-400">Octavos de Final (9º al 16º)</td>
+                    <td className="py-3 px-4 text-center font-mono text-sky-300">15 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-amber-400 bg-amber-400/10">30 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono text-purple-300">10 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-emerald-400 bg-emerald-400/10">20 Pts</td>
+                  </tr>
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="py-3 px-4 text-slate-400">Ronda de 32 (17º al 32º)</td>
+                    <td className="py-3 px-4 text-center font-mono text-sky-300">8 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-amber-400 bg-amber-400/10">16 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono text-purple-300">5 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-emerald-400 bg-emerald-400/10">10 Pts</td>
+                  </tr>
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="py-3 px-4 text-slate-500 italic">Puntos de Participación (Acreditados)</td>
+                    <td className="py-3 px-4 text-center font-mono text-slate-400">3 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-slate-300 bg-slate-800/30">6 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono text-slate-400">2 Pts</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-slate-300 bg-slate-800/30">4 Pts</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* CRITERIOS DE DESEMPATE Y MODALIDAD PAREJAS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="p-4 rounded-2xl bg-[#07090e] border border-slate-800 space-y-2">
+                <h4 className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+                  <Scale className="w-4 h-4" />
+                  <span>Criterios Oficiales de Desempate en Ranking</span>
+                </h4>
+                <ol className="text-[11px] text-slate-300 space-y-1 list-decimal list-inside leading-relaxed">
+                  <li><strong className="text-white">Puntos Acumulados:</strong> Suma total de puntos en la temporada activa.</li>
+                  <li><strong className="text-white">Títulos Oficiales:</strong> Mayor cantidad de 1º puestos (#1 Campeón).</li>
+                  <li><strong className="text-white">Podios Logrados:</strong> Mayor cantidad de finales (1º y 2º puesto).</li>
+                  <li><strong className="text-white">Promedio General (AVG 501):</strong> Eficacia de 3 dardos en partidos federados.</li>
+                  <li><strong className="text-white">Diferencia de Legs (+/-):</strong> Legs ganados menos legs concedidos.</li>
+                  <li><strong className="text-white">Enfrentamiento Directo:</strong> Resultado entre los jugadores empatados.</li>
+                </ol>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#07090e] border border-slate-800 space-y-2">
+                <h4 className="text-xs font-black uppercase text-emerald-400 flex items-center gap-1.5">
+                  <Award className="w-4 h-4" />
+                  <span>Torneos con o sin Premios en Efectivo</span>
+                </h4>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  El organizador o club organizador puede configurar cada torneo como <strong className="text-white">Con Premios en Efectivo</strong> (distribución 60% al 1º, 30% al 2º y 10% al 3º) o <strong className="text-white">Sin Premios en Efectivo</strong>.
+                </p>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  En los torneos <strong className="text-amber-300">Sin Premios en Efectivo</strong>, el arancel de inscripción se destina íntegramente a gastos operativos, alquiler de sede, refrigerio y logística del club, premiando a los ganadores con <strong className="text-white">trofeos, medallas, palmarés oficial y el 100% de los puntos del ranking federado</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* ======================================================== */}

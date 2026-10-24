@@ -18,7 +18,8 @@ import {
   ShieldCheck, 
   Globe2, 
   Clock, 
-  AlertCircle 
+  AlertCircle,
+  Target 
 } from 'lucide-react';
 import { COUNTRIES, PROVINCIAS_ARGENTINA, DEFAULT_ASSOCIATION_BANK_ACCOUNT } from '@/lib/constants';
 import { AttendanceDays, GrandTournamentRegistration, LandingShowcaseSettings, Tournament, AssociationBankAccount } from '@/lib/types';
@@ -70,6 +71,12 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
   // Submitting
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdRegistration, setCreatedRegistration] = useState<GrandTournamentRegistration | null>(null);
+
+  // Competencias oficiales del domingo
+  const [competeSingles, setCompeteSingles] = useState<boolean>(true);
+  const [competeDoubles, setCompeteDoubles] = useState<boolean>(true);
+  const [doublesPartnerMode, setDoublesPartnerMode] = useState<'BLIND_DRAW' | 'DEFINED_PARTNER'>('BLIND_DRAW');
+  const [doublesPartnerName, setDoublesPartnerName] = useState<string>('');
 
   // Cuenta bancaria oficial de la asociación
   const [bank, setBank] = useState<AssociationBankAccount>(() => {
@@ -125,6 +132,15 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
       return;
     }
 
+    if (!competeSingles && !competeDoubles) {
+      alert('Por favor selecciona al menos una competencia para el domingo (501 Individual o 501 Parejas).');
+      return;
+    }
+    if (competeDoubles && doublesPartnerMode === 'DEFINED_PARTNER' && !doublesPartnerName.trim()) {
+      alert('Por favor ingresa el nombre o apodo de tu compañero para el torneo por parejas.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -148,6 +164,10 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
         dinnerComensalesCount: Number(dinnerComensalesCount) || 1,
         dietaryRestrictions: dietaryRestrictions.trim() || undefined,
         notes: notes.trim() || undefined,
+        competeSingles,
+        competeDoubles,
+        doublesPartnerMode: competeDoubles ? doublesPartnerMode : undefined,
+        doublesPartnerName: (competeDoubles && doublesPartnerMode === 'DEFINED_PARTNER') ? doublesPartnerName.trim() : undefined,
         paymentStatus: 'PENDING',
         paymentMethod: 'TRANSFERENCIA_BANCARIA'
       };
@@ -265,6 +285,69 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
         saveTournamentToCloud(createdTournament).catch(err => console.warn('[Cloud Sync Error]', err));
       }
 
+      // 4. SI SE ANOTÓ EN EL TORNEO POR PAREJAS: ENROLAR O CREAR EL TORNEO DE DUPLAS
+      if (newRegistration.competeDoubles) {
+        const pairsTourneyId = `${heroSettings.tournamentId || 'torneo-open-mdq-2026'}-parejas`;
+        const pairsIdx = tournaments.findIndex(t => t.id === pairsTourneyId || t.title.toLowerCase().includes('parejas'));
+
+        const doublesPlayerItem = {
+          ...playerItem,
+          partnerMode: doublesPartnerMode,
+          partnerName: doublesPartnerMode === 'DEFINED_PARTNER' ? doublesPartnerName.trim() : undefined
+        };
+
+        if (pairsIdx >= 0) {
+          const pairsTarget = tournaments[pairsIdx];
+          const already = pairsTarget.enrolledPlayers?.some((p: any) => 
+            p.id === regId || p.name.toLowerCase() === newRegistration.fullName.toLowerCase()
+          );
+
+          if (!already) {
+            const updatedEnrolled = [...(pairsTarget.enrolledPlayers || []), doublesPlayerItem];
+            const updatedPairsTarget: Tournament = {
+              ...pairsTarget,
+              registeredCount: Math.max((pairsTarget.registeredCount || 0) + 1, updatedEnrolled.length),
+              enrolledPlayers: updatedEnrolled
+            };
+            tournaments[pairsIdx] = updatedPairsTarget;
+            saveStoredTournaments(tournaments);
+            saveTournamentToCloud(updatedPairsTarget).catch(err => console.warn('[Cloud Sync Pairs Error]', err));
+          }
+        } else {
+          // Auto-crear el torneo oficial de parejas
+          const createdPairsTournament: Tournament = {
+            id: pairsTourneyId,
+            slug: pairsTourneyId,
+            title: `${heroSettings.title || 'Gran Open Mar del Plata 2026'} • 501 Parejas (Duplas)`,
+            description: 'Torneo Oficial presencial en duplas (2 vs 2). Sistema Blind Draw (sorteo a ciegas) y parejas confirmadas.',
+            type: 'PRESENCIAL',
+            format: 'SINGLE_ELIMINATION',
+            competitionMode: 'STANDALONE_DAY',
+            startingScore: 501,
+            outMode: 'DOUBLE_OUT',
+            startDate: '2026-11-22T14:00:00Z',
+            endDate: '2026-11-22T21:00:00Z',
+            venueName: heroSettings.venue || 'Sociedad de Fomento Nueva Pompeya',
+            city: heroSettings.highlightCity || 'Mar del Plata',
+            province: 'Buenos Aires',
+            status: 'REGISTRATION_OPEN',
+            bannerImageUrl: '/logos/logo-mdq.png',
+            bestOfLegs: 5,
+            registeredCount: 1,
+            maxParticipants: heroSettings.maxParticipants || 32,
+            isPaid: true,
+            entryFeeArs: 0,
+            prizePoolArs: 0,
+            organizer: 'Darderos Mar del Plata & Mariano Deux',
+            enrolledPlayers: [doublesPlayerItem],
+            matches: []
+          };
+          tournaments.push(createdPairsTournament);
+          saveStoredTournaments(tournaments);
+          saveTournamentToCloud(createdPairsTournament).catch(err => console.warn('[Cloud Sync Pairs Error]', err));
+        }
+      }
+
       // Notificar a toda la aplicación del nuevo inscripto para actualización en vivo de llaves y cuadros
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('lpld_tournaments_updated'));
@@ -296,6 +379,14 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
   const generateWhatsAppMessage = () => {
     if (!createdRegistration) return '';
     const adminFirstName = bank.adminWhatsAppName ? bank.adminWhatsAppName.split(' ')[0] : 'Mariano';
+    
+    const comps: string[] = [];
+    if (createdRegistration.competeSingles) comps.push('501 Individual (Singles)');
+    if (createdRegistration.competeDoubles) {
+      comps.push(`501 Parejas (${createdRegistration.doublesPartnerMode === 'DEFINED_PARTNER' ? 'Dupla: ' + (createdRegistration.doublesPartnerName || 'Confirmada') : 'Sorteo a Ciegas'})`);
+    }
+    const compsText = comps.length > 0 ? comps.join(' + ') : '501 Oficial';
+
     const text = `🎯 *INSCRIPCIÓN OFICIAL • ${heroSettings.title || 'GRAN OPEN MAR DEL PLATA 2026'}*
 ¡Hola ${adminFirstName}! Acabo de registrarme a través de la App para el torneo en la ${heroSettings.venue || 'Sociedad de Fomento Nueva Pompeya'}:
 
@@ -303,6 +394,7 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
 🆔 *DNI / Pasaporte:* ${createdRegistration.dniOrPassport}
 🌍 *Nacionalidad:* ${selectedCountry.flag} ${createdRegistration.nationality} - ${createdRegistration.city}, ${createdRegistration.province}
 🎯 *Club:* ${createdRegistration.club}
+🏆 *Torneos Domingo:* ${compsText}
 📅 *Días de Asistencia:* ${getAttendanceLabel(createdRegistration.attendanceDays)}
 👥 *Acompañantes en Sede:* ${createdRegistration.companionsCount} persona(s)
 🍽️ *Comensales Cena Sábado:* ${createdRegistration.dinnerComensalesCount} comensal(es)
@@ -547,6 +639,136 @@ Adjunto a continuación el comprobante de pago para la acreditación oficial. ¡
                     </div>
                   </button>
                 </div>
+              </div>
+
+              {/* SELECCIÓN DE COMPETENCIAS OFICIALES (DOMINGO 22) */}
+              <div className="bg-[#141824] border border-blue-500/30 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-amber-400" />
+                    <span className="font-black text-white text-xs uppercase tracking-wide">
+                      Competencias Oficiales del Domingo (Fecha Nacional)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-blue-300 font-bold bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+                    Anotarse en una o ambas
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-slate-300 leading-snug">
+                  El domingo se disputarán dos certámenes oficiales. Selecciona en cuáles vas a competir:
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Tarjeta 1: Torneo 501 Individual */}
+                  <label className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-2.5 ${
+                    competeSingles 
+                      ? 'bg-[#00b853]/15 border-[#00b853] text-white ring-1 ring-[#00b853]/40' 
+                      : 'bg-[#0b0e14] border-slate-800 text-slate-400 hover:border-slate-700'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={competeSingles}
+                      onChange={(e) => setCompeteSingles(e.target.checked)}
+                      className="mt-1 rounded border-slate-700 text-[#00b853] focus:ring-0"
+                    />
+                    <div>
+                      <div className="font-black text-xs text-white flex items-center gap-1.5">
+                        <Target className="w-3.5 h-3.5 text-[#00b853]" />
+                        <span>501 Individual (Singles)</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                        Llave individual oficial 1 vs 1 por puntos para el ranking nacional y clasificación internacional.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Tarjeta 2: Torneo 501 por Parejas */}
+                  <label className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-2.5 ${
+                    competeDoubles 
+                      ? 'bg-amber-400/15 border-amber-400 text-white ring-1 ring-amber-400/40' 
+                      : 'bg-[#0b0e14] border-slate-800 text-slate-400 hover:border-slate-700'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={competeDoubles}
+                      onChange={(e) => setCompeteDoubles(e.target.checked)}
+                      className="mt-1 rounded border-slate-700 text-amber-400 focus:ring-0"
+                    />
+                    <div>
+                      <div className="font-black text-xs text-white flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-amber-400" />
+                        <span>501 por Parejas (Duplas)</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                        Torneo oficial en duplas (2 vs 2). Se puede jugar con compañero fijo o mediante sorteo a ciegas.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Sub-opciones para Parejas si está activado */}
+                {competeDoubles && (
+                  <div className="pt-2 mt-1 border-t border-slate-800/80 space-y-2 animate-in fade-in">
+                    <span className="text-[11px] font-bold text-amber-300 block">
+                      Modalidad de Dupla para el Torneo por Parejas:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setDoublesPartnerMode('BLIND_DRAW')}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          doublesPartnerMode === 'BLIND_DRAW'
+                            ? 'bg-amber-400 text-black font-black border-amber-400 shadow-sm'
+                            : 'bg-[#0b0e14] text-slate-300 border-slate-700 hover:border-slate-600'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>🎲 Sorteo a Ciegas (Blind Draw)</span>
+                        </div>
+                        <span className={`text-[10px] block mt-0.5 font-normal ${
+                          doublesPartnerMode === 'BLIND_DRAW' ? 'text-black/80 font-bold' : 'text-slate-400'
+                        }`}>
+                          La organización sortea tu compañero de manera aleatoria en la sede.
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setDoublesPartnerMode('DEFINED_PARTNER')}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          doublesPartnerMode === 'DEFINED_PARTNER'
+                            ? 'bg-amber-400 text-black font-black border-amber-400 shadow-sm'
+                            : 'bg-[#0b0e14] text-slate-300 border-slate-700 hover:border-slate-600'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>🤝 Pareja Confirmada</span>
+                        </div>
+                        <span className={`text-[10px] block mt-0.5 font-normal ${
+                          doublesPartnerMode === 'DEFINED_PARTNER' ? 'text-black/80 font-bold' : 'text-slate-400'
+                        }`}>
+                          Ya tienes compañero definido para jugar el certamen.
+                        </span>
+                      </button>
+                    </div>
+
+                    {doublesPartnerMode === 'DEFINED_PARTNER' && (
+                      <div className="pt-1">
+                        <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                          Nombre / Apodo de tu Compañero de Pareja: *
+                        </label>
+                        <input
+                          type="text"
+                          value={doublesPartnerName}
+                          onChange={(e) => setDoublesPartnerName(e.target.value)}
+                          placeholder="Ej: Juan Pérez / 'CARPO'"
+                          className="w-full bg-[#0b0e14] border border-amber-400/50 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Conteo de Acompañantes y Comensales Cena */}

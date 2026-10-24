@@ -292,6 +292,8 @@ export interface Tournament {
   entryFeeArs: number;
   prizePoolArs: number;
   isPaid?: boolean;
+  hasCashPrizes?: boolean;
+  isDoubles?: boolean;
   prizesBreakdown?: {
     first: number;
     second: number;
@@ -455,6 +457,11 @@ export interface GrandTournamentRegistration {
   dinnerComensalesCount: number; // Comensales para la cena de bienvenida del sábado
   dietaryRestrictions?: string; // Celíaco, vegetariano, alergias, etc.
   notes?: string;
+  // Competencias oficiales del domingo
+  competeSingles?: boolean; // Torneo 501 Individual Oficial
+  competeDoubles?: boolean; // Torneo 501 Parejas Oficial
+  doublesPartnerMode?: 'BLIND_DRAW' | 'DEFINED_PARTNER'; // Sorteo a ciegas vs dupla definida
+  doublesPartnerName?: string; // Nombre/Apodo de la pareja si está definida
   // Estado y pago
   paymentStatus: 'PENDING' | 'CONFIRMED' | 'EXEMPT';
   paymentMethod?: string;

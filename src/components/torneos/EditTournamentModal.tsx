@@ -71,6 +71,7 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
   const [maxParticipants, setMaxParticipants] = useState(tournament.maxParticipants);
   const [bestOfLegs, setBestOfLegs] = useState(tournament.bestOfLegs);
   const [isPaid, setIsPaid] = useState<boolean>(tournament.isPaid !== false && tournament.entryFeeArs > 0);
+  const [hasCashPrizes, setHasCashPrizes] = useState<boolean>(tournament.hasCashPrizes ?? (tournament.prizePoolArs > 0));
   const [entryFeeArs, setEntryFeeArs] = useState(tournament.entryFeeArs || 0);
   const [prizePoolArs, setPrizePoolArs] = useState(tournament.prizePoolArs || 0);
 
@@ -99,6 +100,7 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
       setMaxParticipants(tournament.maxParticipants);
       setBestOfLegs(tournament.bestOfLegs);
       setIsPaid(tournament.isPaid !== false && tournament.entryFeeArs > 0);
+      setHasCashPrizes(tournament.hasCashPrizes ?? (tournament.prizePoolArs > 0));
       setEntryFeeArs(tournament.entryFeeArs || 0);
       setPrizePoolArs(tournament.prizePoolArs || 0);
       setQuarterLegs(tournament.roundLegsConfig?.quarterFinals || 3);
@@ -171,9 +173,10 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
       bestOfLegs,
       roundLegsConfig,
       isPaid,
+      hasCashPrizes: isPaid ? hasCashPrizes : false,
       entryFeeArs: isPaid ? entryFeeArs : 0,
-      prizePoolArs: isPaid ? prizePoolArs : 0,
-      prizesBreakdown: isPaid ? {
+      prizePoolArs: (isPaid && hasCashPrizes) ? prizePoolArs : 0,
+      prizesBreakdown: (isPaid && hasCashPrizes && prizePoolArs > 0) ? {
         first: Math.round(prizePoolArs * 0.60),
         second: Math.round(prizePoolArs * 0.30),
         third: Math.round(prizePoolArs * 0.10)
@@ -415,49 +418,93 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
 
             {isPaid ? (
               <div className="space-y-3 pt-1">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] text-slate-400 block mb-1">Costo de Entrada (ARS)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="500"
-                      value={entryFeeArs}
-                      onChange={(e) => {
-                        const val = Math.max(0, Number(e.target.value));
-                        setEntryFeeArs(val);
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Costo de Entrada / Inscripción (ARS)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="500"
+                    value={entryFeeArs}
+                    onChange={(e) => {
+                      const val = Math.max(0, Number(e.target.value));
+                      setEntryFeeArs(val);
+                      if (hasCashPrizes) {
                         setPrizePoolArs(Math.round(maxParticipants * val));
-                      }}
-                      className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-1.5 text-white font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] text-slate-400 block mb-1">Pozo de Premios Total (ARS)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      value={prizePoolArs}
-                      onChange={(e) => setPrizePoolArs(Math.max(0, Number(e.target.value)))}
-                      className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-1.5 text-[#00e676] font-black"
-                    />
-                  </div>
+                      }
+                    }}
+                    className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-1.5 text-white font-bold"
+                  />
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
-                  <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                    <div className="font-black text-amber-400">1º Puesto (60%)</div>
-                    <div className="font-bold text-white mt-0.5">${Math.round(prizePoolArs * 0.60).toLocaleString('es-AR')}</div>
+                {/* SELECTOR: PREMIOS EN EFECTIVO O SOLO TROFEOS */}
+                <div className="bg-[#07090e] border border-slate-800 rounded-xl p-2.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-300">¿Entrega Premios en Efectivo?</span>
+                    <div className="flex items-center gap-1 bg-[#111827] p-0.5 rounded-lg border border-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHasCashPrizes(true);
+                          if (prizePoolArs === 0) setPrizePoolArs(maxParticipants * entryFeeArs);
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-black transition-all ${
+                          hasCashPrizes
+                            ? 'bg-amber-400 text-black shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        💵 Sí (Con Pozo)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHasCashPrizes(false);
+                          setPrizePoolArs(0);
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-black transition-all ${
+                          !hasCashPrizes
+                            ? 'bg-[#00e676] text-black shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        🏆 No (Solo Trofeos)
+                      </button>
+                    </div>
                   </div>
-                  <div className="p-2 rounded-xl bg-slate-800 border border-slate-700">
-                    <div className="font-black text-slate-300">2º Puesto (30%)</div>
-                    <div className="font-bold text-white mt-0.5">${Math.round(prizePoolArs * 0.30).toLocaleString('es-AR')}</div>
-                  </div>
-                  <div className="p-2 rounded-xl bg-amber-700/10 border border-amber-700/30">
-                    <div className="font-black text-amber-600">3º Puesto (10%)</div>
-                    <div className="font-bold text-white mt-0.5">${Math.round(prizePoolArs * 0.10).toLocaleString('es-AR')}</div>
-                  </div>
+
+                  {!hasCashPrizes ? (
+                    <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg text-[10px] text-blue-200">
+                      🛡️ <strong>Sin premios en efectivo:</strong> La inscripción cubre organización y sede. Se entregan trofeos, copas y puntos federados.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pt-1 border-t border-slate-800">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Pozo de Premios Total (ARS)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1000"
+                          value={prizePoolArs}
+                          onChange={(e) => setPrizePoolArs(Math.max(0, Number(e.target.value)))}
+                          className="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-1.5 text-[#00e676] font-black"
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
+                        <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                          <div className="font-black text-amber-400">1º Puesto (60%)</div>
+                          <div className="font-bold text-white mt-0.5">${Math.round(prizePoolArs * 0.60).toLocaleString('es-AR')}</div>
+                        </div>
+                        <div className="p-2 rounded-xl bg-slate-800 border border-slate-700">
+                          <div className="font-black text-slate-300">2º Puesto (30%)</div>
+                          <div className="font-bold text-white mt-0.5">${Math.round(prizePoolArs * 0.30).toLocaleString('es-AR')}</div>
+                        </div>
+                        <div className="p-2 rounded-xl bg-amber-700/15 border border-amber-700/30">
+                          <div className="font-black text-amber-500">3º Puesto (10%)</div>
+                          <div className="font-bold text-white mt-0.5">${Math.round(prizePoolArs * 0.10).toLocaleString('es-AR')}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

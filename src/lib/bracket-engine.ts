@@ -20,6 +20,7 @@ export interface Participant {
   nickname?: string;
   avatarUrl?: string;
   seed?: number;
+  avg?: number;
   nationality?: string;
   countryCode?: string;
   isBye?: boolean;

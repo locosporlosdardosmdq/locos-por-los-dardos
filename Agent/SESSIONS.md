@@ -1,5 +1,35 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 43] - 2026-10-24
+- **Objetivo:** Implementar la visualización a pantalla completa desacoplada para TV de 32" estilo Nakka N01 sin scroll vertical, el sorteo a ciegas de parejas (Blind Draw) con edición manual de duplas, la inscripción multimodal para la fecha oficial del domingo (501 Individuales, 501 Parejas o Ambos), el toggle explícito de Premios en Efectivo vs Deportivos, el Baremo Oficial de Puntos (Online 1x vs Presencial 2x) en el Reglamento, y la Cartelera de Récords estilo Arcade Mortal Kombat para el Top 5 de Cierres Más Altos y el Club del 180.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Visualización en TV de Club (32" sin scroll para ~24 competidores):* En monitores y televisores de 32" colocados en clubes, las interfaces web estándar obligan a usar el scroll para ver los 16 partidos de la primera ronda. Nakka N01 resuelve esto compactando los slots en ~56px con auto-scaling transform vertical y un ratio panorámico que cabe al 100% en 1080p y 720p. Además, se ofreció tanto el tema clásico Dark TV (LPLD) como el Nakka Classic Green (`#0f5132`).
+  2. *Relación de Formulario de Inscripción y Torneos del Domingo:* El domingo se disputan dos torneos paralelos: 501 Individual y 501 Parejas. El formulario unificado debía permitir al jugador elegir en qué certamen/es compite y, en caso de parejas, definir si tiene pareja confirmada o si solicita Sorteo a Ciegas (Blind Draw).
+  3. *Sorteo a Ciegas (Blind Draw):* Se desarrolló el algoritmo Fisher-Yates que empareja aleatoriamente los inscriptos en duplas de 2 jugadores, calcula el promedio combinado y las siembra en la llave, permitiendo al organizador intercambiar duplas en cualquier slot mediante `SlotAssignModal.tsx`.
+  4. *Premios en Efectivo vs Deportivos:* Se añadió el campo `hasCashPrizes` para diferenciar torneos donde la inscripción se destina a gastos operativos, sede y buffet, entregando trofeos, medallas y puntos federativos sin repartir dinero en mano.
+  5. *Baremo de Puntos:* Se incorporó en Capítulo II de `/reglamento` la tabla oficial de puntuación para 1x Online vs 2x Presencial Oficial en modalidades individual y parejas con los 6 criterios jerárquicos de desempate.
+  6. *Salón Mortal Kombat:* Se diseñaron cartas de peleadores con fotos oficiales, halos de fuego y rayos neón para celebrar el Top 5 de Cierres Más Altos (170 Big Fish, 164, 160, 156, 140) y el Club del 180.
+- **Realizado:**
+  - **Componente y Ruta TV 32" (`/torneos/tv-bracket` & `NakkaTvBracketView.tsx`):**
+    * Ventana emergente desacoplada a pantalla completa (`100vw x 100vh`) con auto-scaling vertical.
+    * Sincronización continua en tiempo real (3.5s polling + `lpld_tournaments_updated` + `storage`).
+    * Conmutador de temas: Dark TV y Classic Nakka Green.
+    * Botones `[📺 Pantalla TV 32" (Estilo Nakka) ↗]` en `TournamentManager.tsx` y `TournamentBracket.tsx` con fallback a modal in-app.
+  - **Sorteo a Ciegas de Parejas (`TournamentManager.tsx`):**
+    * Botón `[🎲 Sortear Parejas (Blind Draw)]` en torneos de parejas.
+    * Barajado Fisher-Yates y asignación automática en llave, con edición slot a slot en `SlotAssignModal.tsx`.
+  - **Inscripción Multimodal Domingo (`GrandTournamentEnrollModal.tsx`):**
+    * Selector interactivo: Solo Individuales, Solo Parejas o Ambos.
+    * Selector de pareja: Blind Draw vs Nombre de Pareja Confirmada.
+  - **Selector de Premios en Efectivo (`TournamentManager.tsx`, `EditTournamentModal.tsx`, `types.ts`):**
+    * Toggle interactivo `[💵 Sí (Con Pozo en Efectivo)]` vs `[🏆 No (Solo Trofeos / Puntos)]`.
+  - **Baremo de Puntos Homologado (`reglamento/page.tsx`):**
+    * Tabla completa en Capítulo II para Online 1x vs Presencial 2x y Parejas, con criterios de desempate.
+  - **Salón Mortal Kombat (`MortalKombatStats.tsx` & `/ranking`):**
+    * Cartelera de peleadores estilo arcade, Top 5 Cierres Más Altos, Club del 180 y modal de registro de hazañas.
+- **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Plataforma lista para retransmisión televisiva en vivo en la fecha oficial, gestión integral de duplas y baremo reglamentario transparente.
+
 ## [Sesión 42] - 2026-10-24
 - **Objetivo:** Resolver el error crítico de cliente (`Application error: a client-side exception has occurred` / `Minified React error #310 / #418`) al hacer click en el botón `+ INSCRIPCIÓN RÁPIDA` del Head Banner en la página principal.
 - **Diagnóstico y Análisis Consultivo:**

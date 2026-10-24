@@ -1083,6 +1083,52 @@
      - En `/superadmin`, se implementó soporte para deep linking de pestañas vía URL (`?tab=authorities`, `?tab=payments`) y un botón de previsualización `[👁️ Ver Organigrama Público ↗]`.
 - **Motivo:** Coherencia de datos financieros para recaudación de inscripciones e inviolabilidad de los órganos de gobierno institucional de la Asociación y de la Federación.
 
+---
+
+## [ADR-051] Pantalla TV 32" Desacoplada sin Scroll (Estilo Nakka N01) y Sorteo a Ciegas de Parejas (Blind Draw)
+
+- **Fecha:** 2026-10-24
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Retransmisión en Clubes con TV de 32":* En los torneos presenciales (con ~24 competidores en cuadros de 32 slots), los jugadores y espectadores necesitan seguir el desarrollo de la llave y los marcadores de legs en vivo en una pantalla fija de 32" (1080p o 720p) sin necesidad de utilizar el ratón para scrollear ni depender de la barra de navegación de la aplicación web.
+  2. *Torneos de Parejas (Duplas) y Sorteo a Ciegas:* En las fechas oficiales de parejas (ej. 501 Parejas), los competidores se inscriben individualmente o en dupla. Se requería una función para sortear aleatoriamente las parejas (Blind Draw) entre los inscriptos sembrándolas en la llave, permitiendo a su vez al director del torneo intercambiar, modificar o reasignar cualquier dupla slot por slot mediante la asignación manual.
+- **Decisión:**
+  1. **Pantalla TV 32" (`/torneos/tv-bracket` & `NakkaTvBracketView.tsx`):**
+     - Se creó una ruta desacoplada de primer nivel (`/torneos/tv-bracket?id=...`) y un componente especializado `NakkaTvBracketView` a pantalla completa (100vw x 100vh).
+     - *Matemática de auto-ajuste:* Para 32 slots (16 partidos en Ronda 1), se compactaron los slots a ~56px con auto-scaling transform dinámico, garantizando visualización completa sin barra de scroll vertical en pantallas de 32".
+     - Sincronización continua en tiempo real mediante sondeo cada 3.5s y escucha reactiva de eventos locales (`lpld_tournaments_updated`, `storage`).
+     - Selector de paletas: Modo Dark TV (LPLD Samurai 4) y Modo Classic Nakka Green (`#0f5132`) para familiaridad de directores de torneo.
+     - Botón de proyección `[📺 Pantalla TV 32" (Estilo Nakka) ↗]` en la cabecera de la llave y en la barra de herramientas de `TournamentBracket.tsx`, con fallback a modal in-app ante bloqueadores de pop-ups.
+  2. **Sorteo a Ciegas de Parejas (Blind Draw):**
+     - Implementado el botón `[🎲 Sortear Parejas (Blind Draw)]` en torneos de modalidad parejas o duplas.
+     - Algoritmo de barajado Fisher-Yates que empareja jugadores no asignados en duplas con promedio y banderas combinadas, sembrándolos automáticamente en la llave.
+     - Posibilidad de edición slot por slot en Ronda 1 mediante `SlotAssignModal.tsx`.
+- **Motivo:** Experiencia de visualización en club idéntica a los estándares mundiales de Nakka N01 sin fricción de scroll, y dinamismo federativo para torneos de parejas.
+
+---
+
+## [ADR-052] Baremo Oficial de Puntos Federados (Online 1x vs Presencial 2x), Régimen de Premios y Salón Mortal Kombat para 180s y Cierres Altos
+
+- **Fecha:** 2026-10-24
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Doble Puntuación y Ranking Nacional/Local:* Coexisten fechas disputadas a distancia vía online y fechas presenciales oficiales en las sedes deportivas del país. Se requería plasmar con total transparencia en el Reglamento Oficial (`/reglamento`) el baremo de puntos exacto por puesto, el multiplicador x2 en presenciales oficiales y la escala aplicable a modalidades individuales y parejas.
+  2. *Premios en Efectivo vs Premios Deportivos:* Se requería explicitar que el cobro de aranceles de inscripción puede configurarse como "Con Premios en Efectivo" o "Sin Premios en Efectivo", destinando el fondo a la cobertura de sede, refrigerio y trofeos sin obligación de dinero en mano.
+  3. *Impacto Visual de Récords (Mortal Kombat Style):* Los máximos logros del dardo (el Club del 180 y el Top 5 de cierres más altos) requerían una presentación visual emocionante y de alto impacto similar a las tarjetas de luchadores de Mortal Kombat, destacando las fotos de perfil, halos de energía y combinaciones de tiro.
+- **Decisión:**
+  1. **Baremo Oficial en Capítulo II de `/reglamento`:**
+     - Tabla comparativa homologada: 1º (100 / 200 pts), 2º (70 / 140 pts), 3º/4º (50 / 100 pts), Cuartos (30 / 60 pts), Octavos (15 / 30 pts), Dieciseisavos (8 / 16 pts), Acreditados (3 / 6 pts).
+     - Escala para parejas: 75 pts (Online) / 150 pts (Presencial) por jugador campeón.
+     - Formalización de los 6 criterios jerárquicos de desempate en ranking.
+     - Cláusula de transparencia para torneos "Sin Premios en Efectivo".
+  2. **Salón de la Gloria Mortal Kombat (`MortalKombatStats.tsx` & `/ranking`):**
+     - Cartelera de peleadores estilo Arcade con fotos oficiales, halos de fuego y rayos neón.
+     - Top 5 Cierres Más Altos (Fatality Finishes) con puntuación gigante (170 Big Fish, 164, 160, 156, 140), combinación de dardos, torneo y año.
+     - Club del 180 con conteo de máximos y badges de batalla.
+     - Modal interactivo para que administradores o jugadores registren nuevas hazañas.
+     - Pestañas en `/ranking`: `[🏆 Leaderboard Oficial]` vs `[🔥 180s & Top 5 Cierres (Mortal Kombat)]`.
+- **Motivo:** Claridad reglamentaria absoluta para la federación y la comunidad, y una experiencia visual estimulante que celebra las grandes jugadas del dardo nacional.
+
 
 
 

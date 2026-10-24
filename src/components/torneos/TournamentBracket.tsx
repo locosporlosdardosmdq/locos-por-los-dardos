@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { TournamentBracketMatch, TournamentPodium } from '@/lib/types';
 import { getCountryFlag } from '@/lib/constants';
 import { TournamentPodiumView } from './TournamentPodiumView';
-import { Trophy, Clock, CheckCircle2, Play, ShieldAlert, Zap, Repeat, Award, Trash2, UserPlus, Users, Shuffle } from 'lucide-react';
+import { Trophy, Clock, CheckCircle2, Play, ShieldAlert, Zap, Repeat, Award, Trash2, UserPlus, Users, Shuffle, Tv, Dices } from 'lucide-react';
 
 interface TournamentBracketProps {
   matches: TournamentBracketMatch[];
@@ -21,6 +21,9 @@ interface TournamentBracketProps {
   onAutoAssign?: (isRandom: boolean) => void;
   onClearBracket?: () => void;
   onAssignSlot?: (match: TournamentBracketMatch, slotIndex: 1 | 2) => void;
+  onOpenTvView?: () => void;
+  onBlindDrawPairs?: () => void;
+  isDoubles?: boolean;
 }
 
 export const TournamentBracket: React.FC<TournamentBracketProps> = ({
@@ -36,7 +39,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
   enrolledCount,
   onAutoAssign,
   onClearBracket,
-  onAssignSlot
+  onAssignSlot,
+  onOpenTvView,
+  onBlindDrawPairs,
+  isDoubles = false
 }) => {
   const isDoubleElim = matches.some((m) => m.bracketType === 'LOSERS');
   const [deTab, setDeTab] = useState<'ALL' | 'WINNERS' | 'LOSERS' | 'FINALS'>('ALL');
@@ -373,6 +379,19 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               </button>
             )}
 
+            {/* Botón Sorteo a Ciegas de Parejas (Blind Draw) */}
+            {onBlindDrawPairs && (
+              <button
+                type="button"
+                onClick={onBlindDrawPairs}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-md transition-all active:scale-95"
+                title="Sortear duplas aleatorias entre los inscriptos y sembrarlas en la llave"
+              >
+                <Dices className="w-3.5 h-3.5" />
+                <span>🎲 Sortear Parejas (Blind Draw)</span>
+              </button>
+            )}
+
             {/* Botón Despejar Llave */}
             {onClearBracket && (
               <button
@@ -387,6 +406,19 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Despejar Llave</span>
+              </button>
+            )}
+
+            {/* Botón Pantalla TV 32" Estilo Nakka */}
+            {onOpenTvView && (
+              <button
+                type="button"
+                onClick={onOpenTvView}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-500/20 transition-all active:scale-95 ml-auto"
+                title="Abrir pantalla completa para TV de 32'' sin scroll (Estilo Nakka N01)"
+              >
+                <Tv className="w-3.5 h-3.5" />
+                <span>📺 Pantalla TV 32&quot; (Nakka) ↗</span>
               </button>
             )}
           </div>

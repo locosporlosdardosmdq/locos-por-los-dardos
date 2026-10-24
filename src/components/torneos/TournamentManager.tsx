@@ -55,6 +55,7 @@ import { CreateLeagueModal } from './CreateLeagueModal';
 import { LeagueManager } from './LeagueManager';
 import { EditTournamentModal } from './EditTournamentModal';
 import { EditLeagueModal } from './EditLeagueModal';
+import { NakkaTvBracketView } from './NakkaTvBracketView';
 import { DartScorer } from '@/components/anotador/DartScorer';
 import { 
   Trophy, 
@@ -63,6 +64,7 @@ import {
   Users, 
   DollarSign, 
   Shuffle, 
+  Dices,
   Radio, 
   Globe, 
   Shield, 
@@ -359,6 +361,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showWebcamModal, setShowWebcamModal] = useState(false);
+  const [showTvModal, setShowTvModal] = useState(false);
 
   // Partido seleccionado en bracket para dispatch interactivo
   const [selectedBracketMatch, setSelectedBracketMatch] = useState<TournamentBracketMatch | null>(null);
@@ -417,6 +420,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   const [newCity, setNewCity] = useState('Mar del Plata');
   const [newProvince, setNewProvince] = useState('Buenos Aires');
   const [newIsPaid, setNewIsPaid] = useState<boolean>(true);
+  const [newHasCashPrizes, setNewHasCashPrizes] = useState<boolean>(true);
   const [newEntryFee, setNewEntryFee] = useState(10000);
   const [newMaxParticipants, setNewMaxParticipants] = useState(32);
   const [newPrizePool, setNewPrizePool] = useState(320000); // 32 * 10000 auto calculado
@@ -747,6 +751,114 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       if (updatedTourney) saveTournamentToCloud(updatedTourney);
       return updated;
     });
+  };
+
+  // Apertura de Pantalla TV de 32" Estilo Nakka N01
+  const handleOpenTvWindow = () => {
+    if (!currentTournament) return;
+    const tvUrl = `/torneos/tv-bracket?id=${encodeURIComponent(currentTournament.id)}`;
+    const popup = window.open(
+      tvUrl,
+      'NakkaTvWindow',
+      'width=1920,height=1080,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no'
+    );
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      // Si el navegador bloqueó la ventana emergente, abrimos el modal full-screen in-app
+      setShowTvModal(true);
+    }
+  };
+
+  // Motor Nakka N01: Sorteo a Ciegas de Parejas (Blind Draw)
+  const handleBlindDrawPairs = () => {
+    if (!currentTournament) return;
+    if (tournamentEnrolledList.length < 2) {
+      alert('Se necesitan al menos 2 jugadores inscriptos para sortear parejas.');
+      return;
+    }
+
+    if (!window.confirm('¿Deseas realizar el Sorteo a Ciegas (Blind Draw) de Parejas? Se mezclarán aleatoriamente los inscriptos para conformar las duplas de la llave.')) {
+      return;
+    }
+
+    // 1. Barajar jugadores con Fisher-Yates
+    const shuffled = [...tournamentEnrolledList].sort(() => Math.random() - 0.5);
+
+    // 2. Conformar duplas
+    const pairs: Participant[] = [];
+    for (let i = 0; i < shuffled.length; i += 2) {
+      const p1 = shuffled[i];
+      const p2 = shuffled[i + 1];
+
+      if (p2) {
+        pairs.push({
+          id: `pair-${p1.id}-${p2.id}`,
+          name: `${p1.nickname || p1.name} & ${p2.nickname || p2.name}`,
+          nickname: `${p1.nickname || p1.name} / ${p2.nickname || p2.name}`,
+          avatarUrl: p1.avatarUrl || p2.avatarUrl || '/logos/logo-mdq.png',
+          seed: Math.floor(i / 2) + 1,
+          avg: Math.round(((p1.avg || 45) + (p2.avg || 45)) / 2),
+          nationality: p1.nationality || p2.nationality || 'Argentina',
+          countryCode: p1.countryCode || p2.countryCode || 'AR'
+        });
+      } else {
+        pairs.push({
+          id: `pair-${p1.id}-solo`,
+          name: `${p1.nickname || p1.name} (Libre)`,
+          nickname: p1.nickname || p1.name,
+          avatarUrl: p1.avatarUrl || '/logos/logo-mdq.png',
+          seed: Math.floor(i / 2) + 1,
+          avg: p1.avg || 45,
+          nationality: p1.nationality || 'Argentina',
+          countryCode: p1.countryCode || 'AR'
+        });
+      }
+    }
+
+    // 3. Sembrar parejas en la llave
+    const bracketSize = getNextPowerOfTwo(pairs.length);
+    const legTarget = currentTournament.bestOfLegs || 3;
+    const distMode = currentTournament.roundLegsConfig?.distanceMode || 'LEGS';
+
+    let rawMatches: TournamentBracketMatch[] = [];
+    if (currentTournament.format === 'DOUBLE_ELIMINATION') {
+      rawMatches = generateDoubleElimination(pairs, {
+        bracketSize,
+        seeding: 'RANDOM',
+        legTarget,
+        distanceMode: distMode
+      });
+    } else {
+      rawMatches = generateSingleElimination(pairs, {
+        bracketSize,
+        seeding: 'RANDOM',
+        includeThirdPlace: true,
+        legTarget,
+        distanceMode: distMode
+      });
+    }
+
+    const namespacedMatches = rawMatches.map((m) => ({
+      ...m,
+      id: m.id.startsWith(currentTournament.id) ? m.id : `${currentTournament.id}-${m.id}`,
+      nextMatchId: m.nextMatchId ? (m.nextMatchId.startsWith(currentTournament.id) ? m.nextMatchId : `${currentTournament.id}-${m.nextMatchId}`) : undefined,
+      loserNextMatchId: m.loserNextMatchId ? (m.loserNextMatchId.startsWith(currentTournament.id) ? m.loserNextMatchId : `${currentTournament.id}-${m.loserNextMatchId}`) : undefined
+    }));
+
+    setTournaments((prev) => {
+      const updated = prev.map((t) => {
+        if (t.id !== currentTournament.id) return t;
+        return {
+          ...t,
+          matches: namespacedMatches
+        };
+      });
+      saveStoredTournaments(updated);
+      const updatedTourney = updated.find((t) => t.id === currentTournament.id);
+      if (updatedTourney) saveTournamentToCloud(updatedTourney);
+      return updated;
+    });
+
+    alert(`¡Sorteo a Ciegas completado con éxito! Se armaron ${pairs.length} duplas y se sembraron en la llave. Puedes intercambiar o editar cualquier dupla tocando el botón de asignación de cada slot.`);
   };
 
   // Motor Nakka N01: Confirmar asignación manual slot a slot
@@ -1195,9 +1307,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       status: 'REGISTRATION_OPEN',
       bannerImageUrl: '/logos/logo-mdq.png',
       isPaid: newIsPaid,
+      hasCashPrizes: newIsPaid ? newHasCashPrizes : false,
       entryFeeArs: newIsPaid ? newEntryFee : 0,
-      prizePoolArs: newIsPaid ? newPrizePool : 0,
-      prizesBreakdown: newIsPaid ? {
+      prizePoolArs: (newIsPaid && newHasCashPrizes) ? newPrizePool : 0,
+      prizesBreakdown: (newIsPaid && newHasCashPrizes && newPrizePool > 0) ? {
         first: Math.round(newPrizePool * 0.60),
         second: Math.round(newPrizePool * 0.30),
         third: Math.round(newPrizePool * 0.10)
@@ -1889,7 +2002,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                   {/* SUB CONTENIDO: BRACKET */}
                   {tournamentSubTab === 'BRACKET' && (
                     <div className="bg-[#07090e] border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <h3 className="text-base font-black text-white flex items-center gap-2">
                             <Trophy className="w-5 h-5 text-[#00e676]" />
@@ -1898,6 +2011,17 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                           <p className="text-xs text-slate-400">
                             Toca cualquier partido activo para abrir el Anotador en Vivo. {canManageTournament(currentTournament) && 'Como organizador o administrador, pulsa Asignación Automática (Nakka N01) o toca cualquier slot para sembrarlo manualmente.'}
                           </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleOpenTvWindow}
+                            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/40 text-xs font-black uppercase tracking-wider transition-all shadow-lg active:scale-95"
+                            title="Proyectar cuadro y tanteador en vivo en pantalla de TV de 32'' sin scroll (Estilo Nakka N01)"
+                          >
+                            <Tv className="w-4 h-4" />
+                            <span>📺 Pantalla TV 32&quot; (Estilo Nakka) ↗</span>
+                          </button>
                         </div>
                       </div>
 
@@ -1916,6 +2040,9 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                           onAutoAssign={handleAutoAssignBracket}
                           onClearBracket={handleClearBracket}
                           onAssignSlot={(match, slotIndex) => setSlotAssignTarget({ match, slotIndex })}
+                          onOpenTvView={handleOpenTvWindow}
+                          onBlindDrawPairs={handleBlindDrawPairs}
+                          isDoubles={currentTournament.isDoubles || currentTournament.title.toLowerCase().includes('pareja') || currentTournament.title.toLowerCase().includes('dupla')}
                         />
                       ) : (
                         <div className="text-center py-12 text-slate-500">
@@ -2301,6 +2428,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                         onSelectPlayer={handleOpenPlayerDetail}
                         podium={currentHistoryTournament.podium}
                         prizesBreakdown={currentHistoryTournament.prizesBreakdown}
+                        onOpenTvView={() => {
+                          const tvUrl = `/torneos/tv-bracket?id=${encodeURIComponent(currentHistoryTournament.id)}`;
+                          window.open(tvUrl, 'NakkaTvWindow', 'width=1920,height=1080');
+                        }}
                       />
                     </div>
                   )}
@@ -3016,69 +3147,119 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
                 {newIsPaid ? (
                   <div className="space-y-3 pt-2 border-t border-slate-800">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-slate-300 font-bold block mb-1 text-xs">
-                          Inscripción ($ ARS)
-                        </label>
-                        <input
-                          type="number"
-                          min="500"
-                          step="500"
-                          value={newEntryFee}
-                          onChange={(e) => {
-                            const fee = Math.max(0, Number(e.target.value));
-                            setNewEntryFee(fee);
+                    <div>
+                      <label className="text-slate-300 font-bold block mb-1 text-xs">
+                        Inscripción ($ ARS)
+                      </label>
+                      <input
+                        type="number"
+                        min="500"
+                        step="500"
+                        value={newEntryFee}
+                        onChange={(e) => {
+                          const fee = Math.max(0, Number(e.target.value));
+                          setNewEntryFee(fee);
+                          if (newHasCashPrizes) {
                             setNewPrizePool(Math.round(newMaxParticipants * fee));
-                          }}
-                          className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-amber-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-slate-300 font-bold block mb-1 text-xs">
-                          Pozo Estimado ($ ARS)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1000"
-                          value={newPrizePool}
-                          onChange={(e) => setNewPrizePool(Math.max(0, Number(e.target.value)))}
-                          className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-[#00e676] text-xs font-black focus:outline-none focus:border-[#00e676]"
-                        />
-                      </div>
+                          }
+                        }}
+                        className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-amber-400"
+                      />
                     </div>
-                    <p className="text-[10px] text-slate-400 flex items-center justify-between">
-                      <span>⚡ Auto-calculado: Cupo ({newMaxParticipants}) × Inscripción (${newEntryFee.toLocaleString('es-AR')}) = ${(newMaxParticipants * newEntryFee).toLocaleString('es-AR')}</span>
-                      <span className="text-amber-400 font-semibold">(Editable)</span>
-                    </p>
 
-                    {/* DESGLOSE OFICIAL: 60% 1º, 30% 2º, 10% 3º */}
-                    <div className="bg-[#07090e] border border-amber-500/30 rounded-xl p-2.5">
-                      <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                        <span>🏆 Distribución Oficial de Premios</span>
-                        <span className="text-slate-400 font-normal">Pozo: ${newPrizePool.toLocaleString('es-AR')} ARS</span>
+                    {/* SELECTOR: ¿SE ENTREGAN PREMIOS EN EFECTIVO O SOLO TROFEOS? */}
+                    <div className="bg-[#07090e] border border-slate-800 rounded-xl p-2.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-300">
+                          Premios en Efectivo ($ ARS):
+                        </span>
+                        <div className="flex items-center gap-1 bg-[#111622] p-0.5 rounded-lg border border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewHasCashPrizes(true);
+                              if (newPrizePool === 0) {
+                                setNewPrizePool(newMaxParticipants * newEntryFee);
+                              }
+                            }}
+                            className={`px-2.5 py-1 rounded-md text-[10px] font-black transition-all ${
+                              newHasCashPrizes
+                                ? 'bg-amber-400 text-black shadow-sm'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            💵 Sí (Con Pozo en Efectivo)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewHasCashPrizes(false);
+                              setNewPrizePool(0);
+                            }}
+                            className={`px-2.5 py-1 rounded-md text-[10px] font-black transition-all ${
+                              !newHasCashPrizes
+                                ? 'bg-[#00e676] text-black shadow-sm'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            🏆 No (Solo Trofeos / Puntos)
+                          </button>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-1.5 text-center">
-                        <div className="bg-[#111622] border border-amber-500/40 rounded-lg p-2">
-                          <div className="text-[10px] font-black text-amber-400">🥇 1º Puesto (60%)</div>
-                          <div className="text-xs font-black text-white mt-1">
-                            ${Math.round(newPrizePool * 0.60).toLocaleString('es-AR')}
+
+                      {!newHasCashPrizes ? (
+                        <div className="p-2.5 bg-blue-500/10 border border-blue-500/25 rounded-lg text-[10px] text-blue-200 leading-relaxed">
+                          🛡️ <strong>Sin Premios en Efectivo:</strong> La inscripción ($ {newEntryFee.toLocaleString('es-AR')}) cubre costos de salón, logística, asado o copas. El torneo premiará oficialmente con trofeos, medallas y puntos para el ranking federado.
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5 pt-1 border-t border-slate-800/80">
+                          <div>
+                            <label className="text-slate-300 font-bold block mb-1 text-xs">
+                              Pozo Estimado ($ ARS)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1000"
+                              value={newPrizePool}
+                              onChange={(e) => setNewPrizePool(Math.max(0, Number(e.target.value)))}
+                              className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-[#00e676] text-xs font-black focus:outline-none focus:border-[#00e676]"
+                            />
+                          </div>
+                          <p className="text-[10px] text-slate-400 flex items-center justify-between">
+                            <span>⚡ Auto-calculado: Cupo ({newMaxParticipants}) × Inscripción (${newEntryFee.toLocaleString('es-AR')}) = ${(newMaxParticipants * newEntryFee).toLocaleString('es-AR')}</span>
+                            <span className="text-amber-400 font-semibold">(Editable)</span>
+                          </p>
+
+                          {/* DESGLOSE OFICIAL: 60% 1º, 30% 2º, 10% 3º */}
+                          <div className="bg-[#111622] border border-amber-500/30 rounded-xl p-2.5">
+                            <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                              <span>🏆 Distribución Oficial de Premios</span>
+                              <span className="text-slate-400 font-normal">Pozo: ${newPrizePool.toLocaleString('es-AR')} ARS</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-1.5 text-center">
+                              <div className="bg-[#07090e] border border-amber-500/40 rounded-lg p-2">
+                                <div className="text-[10px] font-black text-amber-400">🥇 1º Puesto (60%)</div>
+                                <div className="text-xs font-black text-white mt-1">
+                                  ${Math.round(newPrizePool * 0.60).toLocaleString('es-AR')}
+                                </div>
+                              </div>
+                              <div className="bg-[#07090e] border border-slate-600 rounded-lg p-2">
+                                <div className="text-[10px] font-black text-slate-300">🥈 2º Puesto (30%)</div>
+                                <div className="text-xs font-black text-white mt-1">
+                                  ${Math.round(newPrizePool * 0.30).toLocaleString('es-AR')}
+                                </div>
+                              </div>
+                              <div className="bg-[#07090e] border border-amber-700/40 rounded-lg p-2">
+                                <div className="text-[10px] font-black text-amber-600">🥉 3º Puesto (10%)</div>
+                                <div className="text-xs font-black text-white mt-1">
+                                  ${Math.round(newPrizePool * 0.10).toLocaleString('es-AR')}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div className="bg-[#111622] border border-slate-600 rounded-lg p-2">
-                          <div className="text-[10px] font-black text-slate-300">🥈 2º Puesto (30%)</div>
-                          <div className="text-xs font-black text-white mt-1">
-                            ${Math.round(newPrizePool * 0.30).toLocaleString('es-AR')}
-                          </div>
-                        </div>
-                        <div className="bg-[#111622] border border-amber-700/40 rounded-lg p-2">
-                          <div className="text-[10px] font-black text-amber-600">🥉 3º Puesto (10%)</div>
-                          <div className="text-xs font-black text-white mt-1">
-                            ${Math.round(newPrizePool * 0.10).toLocaleString('es-AR')}
-                          </div>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -3173,6 +3354,16 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         league={leagueToEdit}
         onSaveLeague={handleSaveEditedLeague}
       />
+
+      {/* MODAL: PANTALLA TV 32" ESTILO NAKKA N01 (MODAL FALLBACK O IN-APP) */}
+      {showTvModal && currentTournament && (
+        <div className="fixed inset-0 z-50 bg-black">
+          <NakkaTvBracketView
+            tournament={currentTournament}
+            onClose={() => setShowTvModal(false)}
+          />
+        </div>
+      )}
     </div>
   );
 };

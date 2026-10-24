@@ -1,3 +1,33 @@
+- [x] **Pantalla TV 32" Estilo Nakka N01 (Zero Scroll), Sorteo a Ciegas de Parejas (Blind Draw), Selector de Premios en Efectivo vs Deportivos, Baremo Oficial de Puntos y Salón de la Gloria Mortal Kombat:**
+  * **Pantalla TV de 32" Desacoplada sin Scroll (`/torneos/tv-bracket` & `NakkaTvBracketView.tsx`):**
+    - Vista a pantalla completa (100vw x 100vh) optimizada para monitores y proyectores de 32" de club sin necesidad de desplazamiento vertical para cuadros de hasta 32 competidores (~24 reales con byes).
+    - Auto-scaling y compactación vertical dinámica para garantizar cero overflow en 720p y 1080p.
+    - Sincronización continua en tiempo real mediante polling cada 3.5s y listeners reactivos (`lpld_tournaments_updated`, `storage`).
+    - Selector de temas visuales: Dark TV (LPLD Samurai 4) y Classic Nakka Green (`#0f5132`) para familiaridad de directores de torneo.
+    - Integración de botón de lanzamiento `[📺 Pantalla TV 32" (Estilo Nakka) ↗]` tanto en la cabecera de la llave como en la barra de herramientas de `TournamentBracket.tsx` y en el historial de torneos, con fallback a modal in-app ante bloqueadores de pop-ups.
+  * **Sorteo a Ciegas de Parejas (Blind Draw) y Edición de Duplas (`TournamentManager.tsx` & `SlotAssignModal.tsx`):**
+    - Botón interactivo `[🎲 Sortear Parejas (Blind Draw)]` en torneos de modalidad parejas o duplas.
+    - Algoritmo de barajado aleatorio Fisher-Yates que empareja jugadores no asignados en duplas con promedio y banderas combinadas, sembrándolos automáticamente en la llave.
+    - Permite al director del torneo intercambiar, modificar o reasignar cualquier dupla slot por slot mediante `SlotAssignModal.tsx`.
+  * **Inscripción Multimodal Domingo (Individuales 501, Parejas 501 o Ambos) en `GrandTournamentEnrollModal.tsx`:**
+    - Selector interactivo de modalidad de competición: `[Solo 501 Individual]`, `[Solo 501 Parejas (Duplas)]` o `[Ambos (Individual + Parejas)]`.
+    - Selector de pareja: `[Sorteo a Ciegas (Blind Draw)]` vs `[Pareja Confirmada (Ingresar Nombre)]`.
+    - Registro atómico que siembra al jugador en los torneos correspondientes de `/torneos` y genera mensaje estructurado para WhatsApp.
+  * **Selector de Premios en Efectivo vs Deportivos (`TournamentManager.tsx`, `EditTournamentModal.tsx`, `types.ts`):**
+    - Campo `hasCashPrizes` configurable tanto en la creación como en la edición de torneos.
+    - Si se selecciona `🏆 No (Solo Trofeos / Puntos)`, la inscripción arancelada se transparenta como fondo operativo y de refrigerio para la sede, premiando con trofeos, medallas y puntos federativos.
+  * **Baremo Oficial de Puntos Federados en `/reglamento` (`reglamento/page.tsx`):**
+    - Tabla comparativa homologada en Capítulo II: Fechas Online (1x) vs Fechas Presenciales Oficiales (2x) con escala de puntos para 1º (100 / 200 pts), 2º (70 / 140 pts), 3º/4º (50 / 100 pts), Cuartos (30 / 60 pts), Octavos (15 / 30 pts), Dieciseisavos (8 / 16 pts) y Acreditados (3 / 6 pts).
+    - Desglose oficial de puntuación para modalidad por parejas (75 / 150 pts por jugador campeón).
+    - Definición formal de los 6 criterios jerárquicos de desempate en ranking.
+  * **Salón de la Gloria Mortal Kombat (Top 5 Cierres & Club del 180) en `/ranking` (`MortalKombatStats.tsx`):**
+    - Cartelera de peleadores estilo Arcade / Fighting Game con fotos oficiales, halos de fuego y rayos neón.
+    - Top 5 Cierres Más Altos (Fatality Finishes) con puntuación gigante (170 Big Fish, 164, 160, 156, 140), combinación de dardos, torneo y año.
+    - Club del 180 con conteo de máximos y badges de batalla (Grand Master 180, Lightning Striker).
+    - Formulario modal interactivo para que administradores o jugadores registren nuevas hazañas.
+    - Switch en cabecera de `/ranking`: `[🏆 Leaderboard Oficial]` vs `[🔥 180s & Top 5 Cierres (Mortal Kombat)]`.
+  * **Validación de Compilación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Corrección de Violación a las Reglas de Hooks de React en `GrandTournamentEnrollModal.tsx` (Client-Side Crash en "+ INSCRIPCIÓN RÁPIDA"):**
   * **Diagnóstico de Causa Raíz:**
     - `GrandTournamentEnrollModal.tsx` contenía un retorno prematuro condicional `if (!isOpen) return null;` en la línea 92, mientras que en la línea 275 se invocaban `useState<AssociationBankAccount>` y su respectivo `useEffect`.

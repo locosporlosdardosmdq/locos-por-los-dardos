@@ -54,6 +54,7 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Image as ImageIcon
 } from 'lucide-react';
 import { 
@@ -103,6 +104,7 @@ import {
   COMMUNITY_DEMOGRAPHICS 
 } from '@/lib/community-analytics';
 import { CANONICAL_PLAYERS } from '@/lib/players-data';
+import { PresencialEnrollmentsManager } from '@/components/superadmin/PresencialEnrollmentsManager';
 
 export default function SuperadminPage() {
   // Estado de autenticación
@@ -119,8 +121,8 @@ export default function SuperadminPage() {
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Pestañas principales del Super Admin
-  type MainTab = 'INFRASTRUCTURE' | 'DEMOGRAPHICS' | 'SHOWCASES' | 'AUTHORITIES';
-  const [activeTab, setActiveTab] = useState<MainTab>('INFRASTRUCTURE');
+  type MainTab = 'ENROLLMENTS' | 'INFRASTRUCTURE' | 'DEMOGRAPHICS' | 'SHOWCASES' | 'AUTHORITIES';
+  const [activeTab, setActiveTab] = useState<MainTab>('ENROLLMENTS');
 
   // Subpestañas de Vitrinas (DBikes style)
   type ShowcaseSubTab = 'HERO_TOURNAMENT' | 'COMMUNITY' | 'CLUBS' | 'PAYMENTS';
@@ -206,7 +208,11 @@ export default function SuperadminPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab')?.toLowerCase();
-      if (tabParam === 'authorities' || tabParam === 'comision' || tabParam === 'asociacion') {
+      if (tabParam === 'inscriptos' || tabParam === 'presencial' || tabParam === 'inscripciones' || tabParam === 'logistica' || tabParam === 'enrollments') {
+        setActiveTab('ENROLLMENTS');
+      } else if (tabParam === 'infra' || tabParam === 'servidores' || tabParam === 'infrastructure') {
+        setActiveTab('INFRASTRUCTURE');
+      } else if (tabParam === 'authorities' || tabParam === 'comision' || tabParam === 'asociacion') {
         setActiveTab('AUTHORITIES');
       } else if (tabParam === 'payments' || tabParam === 'bancos' || tabParam === 'cuenta') {
         setActiveTab('SHOWCASES');
@@ -1092,7 +1098,28 @@ export default function SuperadminPage() {
 
       {/* 2. BARRA DE PESTAÑAS PRINCIPALES DEL SUPERADMIN */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 bg-[#0f1422] border border-[#1e2a40] p-1.5 rounded-2xl shadow-xl">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 bg-[#0f1422] border border-[#1e2a40] p-1.5 rounded-2xl shadow-xl">
+          <button
+            onClick={() => setActiveTab('ENROLLMENTS')}
+            className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all relative ${
+              activeTab === 'ENROLLMENTS'
+                ? 'bg-amber-400 text-[#07090e] shadow-lg shadow-amber-400/25 ring-2 ring-amber-300'
+                : 'text-slate-400 hover:text-white hover:bg-[#141a29]'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">📋 Inscriptos Presencial</span>
+            {grandRegistrations.length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                activeTab === 'ENROLLMENTS'
+                  ? 'bg-black text-amber-300'
+                  : 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
+              }`}>
+                {grandRegistrations.length}
+              </span>
+            )}
+          </button>
+
           <button
             onClick={() => setActiveTab('INFRASTRUCTURE')}
             className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
@@ -1145,6 +1172,19 @@ export default function SuperadminPage() {
 
       {/* CONTENIDO PRINCIPAL POR PESTAÑA */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        {/* ================================================================= */}
+        {/* PESTAÑA: INSCRIPTOS PRESENCIALES Y LOGÍSTICA SEDE NUEVA POMPEYA   */}
+        {/* ================================================================= */}
+        {activeTab === 'ENROLLMENTS' && (
+          <PresencialEnrollmentsManager
+            registrations={grandRegistrations}
+            tournaments={availableTournaments}
+            onUpdateRegistrations={(updated) => {
+              setGrandRegistrations(updated);
+              saveStoredGrandTournamentRegistrations(updated);
+            }}
+          />
+        )}
         {/* ================================================================= */}
         {/* PESTAÑA 1: INFRAESTRUCTURA & SERVIDORES (DEUS GESTION STYLE)     */}
         {/* ================================================================= */}
@@ -2391,6 +2431,37 @@ export default function SuperadminPage() {
                       <span className="text-slate-300 font-bold">Solo Domingo (Oficial PDC):</span>
                       <strong className="text-[#38bdf8] font-mono text-sm">{logisticMetrics.sundayOnlyCount}</strong>
                     </div>
+                  </div>
+
+                  {/* Acceso Directo al Panel Completo de Inscriptos y Logística */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-amber-500/15 via-[#111622] to-[#111622] border border-amber-500/30 rounded-xl">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 flex-shrink-0">
+                        <ClipboardList className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-white flex items-center gap-2">
+                          <span>Panel Maestro de Inscriptos Presenciales y Logística Sede</span>
+                          <span className="px-2 py-0.5 rounded-full bg-amber-400 text-black text-[10px] font-black">
+                            {grandRegistrations.length} registradas
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          Orden cronológico por fechas presenciales, comensales asado sábado, acompañantes, ciudad/país y exportación Excel/Print.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('ENROLLMENTS');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#07090e] font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-amber-400/20 whitespace-nowrap"
+                    >
+                      <span>Abrir Pestaña 1 Completa</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
                   </div>
 
                   {/* Tabla de Inscripciones Recientes */}

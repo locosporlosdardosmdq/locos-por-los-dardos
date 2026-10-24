@@ -148,6 +148,7 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
       const newRegistration: GrandTournamentRegistration = {
         id: regId,
         tournamentId: heroSettings.tournamentId || 'torneo-open-mdq-2026',
+        tournamentTitle: heroSettings.title || 'Gran Open Mar del Plata 2026 • Pompeya Arena',
         registeredAt: new Date().toISOString(),
         fullName: fullName.trim(),
         nickname: nickname.trim() || fullName.trim().split(' ')[0],

@@ -1129,6 +1129,30 @@
      - Pestañas en `/ranking`: `[🏆 Leaderboard Oficial]` vs `[🔥 180s & Top 5 Cierres (Mortal Kombat)]`.
 - **Motivo:** Claridad reglamentaria absoluta para la federación y la comunidad, y una experiencia visual estimulante que celebra las grandes jugadas del dardo nacional.
 
+---
+
+## [ADR-053] Padrón Centralizado de Inscriptos Presenciales y Logística de Sede en Panel SuperAdmin
+
+- **Fecha:** 2026-10-24
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Visibilidad del Formulario de Inscripción:* El formulario in-app (`GrandTournamentEnrollModal`) captura datos deportivos y de logística (competidor, DNI, ciudad, provincia, país, club, acompañantes en sede, asistencia a la cena/asado del sábado y cantidad de comensales, restricciones alimentarias, modalidad del domingo y comprobante de pago). Anteriormente, estos datos solo se veían en una tabla secundaria dentro de la Pestaña 3 (Vitrinas) -> Vitrina 1.
+  2. *Gestión Multi-Fecha y Orden Cronológico:* La federación disputará múltiples fechas presenciales a lo largo del año. El SuperAdmin necesitaba una forma inmediata de filtrar y ordenar las fechas presenciales cronológicamente, identificando en primer plano la **fecha oficial inmediatamente próxima** (Gran Open Mar del Plata 2026 en Pompeya Arena) y manteniendo accesible el historial de fechas anteriores.
+  3. *Operatividad de Sede y Acreditación:* El anfitrión (Mariano Deux) requiere saber con exactitud los comensales para el asado del sábado, la capacidad de la sede, las ciudades/países de procedencia, contactar directamente por WhatsApp a cada jugador, alternar el estado del pago con 1 clic y exportar las listas a Excel (CSV con UTF-8 BOM) o imprimirlas para la mesa de acreditación física.
+- **Decisión:**
+  1. **Pestaña 1 Prioritaria en SuperAdmin (`ENROLLMENTS`):** Se jerarquizó como primera opción en `/superadmin` la pestaña `📋 Inscriptos Presencial`, con badge numérico en tiempo real, deep linking por URL (`?tab=inscriptos`) y banner de acceso directo desde Vitrina 1 de la Landing Page.
+  2. **Selector de Fechas y Cronología Inteligente (`PresencialEnrollmentsManager.tsx`):**
+     - Selector desplegable de fechas presenciales ordenadas cronológicamente por cercanía.
+     - Detección automática y banner destacado para la fecha más próxima con badge `🏆 PRÓXIMA FECHA OFICIAL`.
+     - Permite filtrar por torneo presencial específico o consultar el padrón consolidado.
+  3. **Panel de Control Logístico y Herramientas:**
+     - 6 KPI cards en vivo: Competidores, Acompañantes en Sede, Capacidad Total de Sede, Comensales Cena Sábado, Procedencia Geográfica y Modalidades de Domingo.
+     - Alertas visuales para celíacos y dietas especiales.
+     - Tabla completa con WhatsApp directo, 1-click toggle de pago (`CONFIRMADO` / `PENDIENTE`), búsqueda multi-campo y filtros combinados.
+     - Exportación a CSV/Excel con codificación BOM UTF-8 y versión lista para imprimir.
+- **Motivo:** Brinda a la dirigencia el control operativo absoluto de la sede y recepción de delegaciones provinciales e internacionales con máxima ergonomía y cero margen de error en la logística del sábado y domingo.
+
+
 
 
 

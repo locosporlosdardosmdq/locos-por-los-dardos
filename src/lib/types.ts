@@ -439,6 +439,7 @@ export type AttendanceDays = 'SATURDAY_ONLY' | 'SUNDAY_ONLY' | 'BOTH_DAYS';
 export interface GrandTournamentRegistration {
   id: string;
   tournamentId?: string;
+  tournamentTitle?: string;
   registeredAt: string;
   // Identificación Oficial y PDC
   fullName: string;

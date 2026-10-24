@@ -1,3 +1,25 @@
+- [x] **Padrón Maestro de Inscriptos Presenciales y Logística Sede en Panel SuperAdmin (`/superadmin` & `PresencialEnrollmentsManager.tsx`):**
+  * **Ubicación Destacada y Centralizada en SuperAdmin:**
+    - Creada la pestaña principal prioritaria `📋 Inscriptos Presencial` como Pestaña 1 del panel (`activeTab = 'ENROLLMENTS'`), accesible inmediatamente al ingresar a `/superadmin` o vía query param `?tab=inscriptos`.
+    - Badge dinámico con el total real de inscripciones registradas y sincronización reactiva en tiempo real.
+    - Banner de acceso directo y atajo desde Vitrina 1 de la Landing Page.
+  * **Organización y Filtro Cronológico por Fechas Presenciales:**
+    - Selector desplegable de fechas presenciales ordenadas cronológicamente por proximidad temporal.
+    - Detección automática y banner destacado para la **Fecha Oficial Inmediatamente Próxima** (`Gran Open Mar del Plata 2026 • Pompeya Arena`) con etiqueta `🏆 PRÓXIMA FECHA OFICIAL` frente al historial de fechas pasadas.
+    - Soporte multi-torneo para asociar inscripciones a cualquier torneo presencial creado en la plataforma.
+  * **Tablero de Control Logístico de Sede (Sociedad de Fomento Nueva Pompeya):**
+    - 6 KPI cards en tiempo real: Competidores Oficiales, Acompañantes en Sede, Capacidad Total en Sede (Competidores + Acompañantes), Comensales del Asado/Cena de Bienvenida del Sábado, Procedencia Geográfica (Ciudades, Provincias y Países), y Modalidades del Domingo (Individual 501, Parejas Fijas y Blind Draw).
+    - Detección visual y alerta de requerimientos dietéticos / comensales celíacos o vegetarianos.
+  * **Padrón Detallado de Competidores y Herramientas Operativas:**
+    - Visualización de Nombre, Apodo, DNI/Pasaporte, Ciudad, Provincia, País con bandera internacional, y Club.
+    - Enlace directo a chat de WhatsApp de 1-click con número formateado y prefijo internacional.
+    - Desglose logístico: Jornadas de asistencia (Fin de semana completo, Solo Sábado, Solo Domingo), cantidad de acompañantes y cena del sábado (conteo exacto de tarjetas/cubiertos y dietas especiales).
+    - Modalidad de competición del domingo (Individuales 501, Parejas Blind Draw vs Compañero Asignado).
+    - Alternador de estado de pago interactivo de 1-click (`CONFIRMADO` verde vs `PENDIENTE` ámbar) persistido en `localStorage` y emitido reactivamente.
+    - Exportación a CSV / Excel con codificación BOM UTF-8 (garantizando compatibilidad con acentos y caracteres latinos).
+    - Vista optimizada de impresión para la Mesa de Acreditaciones y Control de Acceso.
+  * **Validación de Compilación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Pantalla TV 32" Estilo Nakka N01 (Zero Scroll), Sorteo a Ciegas de Parejas (Blind Draw), Selector de Premios en Efectivo vs Deportivos, Baremo Oficial de Puntos y Salón de la Gloria Mortal Kombat:**
   * **Pantalla TV de 32" Desacoplada sin Scroll (`/torneos/tv-bracket` & `NakkaTvBracketView.tsx`):**
     - Vista a pantalla completa (100vw x 100vh) optimizada para monitores y proyectores de 32" de club sin necesidad de desplazamiento vertical para cuadros de hasta 32 competidores (~24 reales con byes).

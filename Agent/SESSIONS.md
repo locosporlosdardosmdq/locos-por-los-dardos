@@ -1,5 +1,30 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 44] - 2026-10-24
+- **Objetivo:** Implementar la visualización integral y gestión del formulario de inscripción en el Panel SuperAdmin: padrón de competidores, ciudad, provincia y país de procedencia, acompañantes en sede, comensales de la cena/asado del sábado con alertas de celiaquía/dietas, y organización cronológica de múltiples fechas presenciales (resaltando la fecha oficial inmediatamente próxima vs el historial).
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Visibilidad y Centralización de Datos:* Los datos capturados por el formulario in-app (`GrandTournamentEnrollModal`) para la Sociedad de Fomento Nueva Pompeya requerían un centro de control operativo principal en `/superadmin`, evitando que queden relegados a una tabla secundaria dentro de las vitrinas de la landing.
+  2. *Organización Cronológica de Fechas Presenciales:* Ante la existencia de múltiples fechas oficiales en el calendario, se requería un selector de torneos presenciales ordenados cronológicamente por proximidad, con detección y distinción visual inmediata de la **Fecha Oficial Inmediatamente Próxima** (`Gran Open Mar del Plata 2026 • Pompeya Arena`) con badge `🏆 PRÓXIMA FECHA OFICIAL` frente al historial.
+  3. *Herramientas Operativas de Sede:* Se implementaron 6 KPI cards de capacidad en tiempo real (competidores, acompañantes, comensales de cena, países/ciudades, modalidades de domingo), chat de WhatsApp directo con 1 clic para cada competidor, alternador interactivo de pago (`CONFIRMADO` / `PENDIENTE`), exportación a Excel (CSV con UTF-8 BOM) y versión imprimible para mesa de acreditaciones.
+- **Realizado:**
+  - **Componente Maestro `PresencialEnrollmentsManager.tsx` (`src/components/superadmin/`):**
+    * Selector y filtro cronológico por fechas presenciales.
+    * Banner destacado de la próxima fecha oficial inmediata con acceso a exportación e impresión.
+    * 6 tarjetas KPI logísticas en vivo para cálculo de sede y asado de bienvenida.
+    * Alertas visuales para celíacos y dietas especiales.
+    * Tabla completa con buscador multi-campo, filtros combinados, WhatsApp directo y alternador de pago.
+    * Exportador a CSV/Excel con codificación UTF-8 BOM (soporte total para caracteres y tildes).
+    * Modal y vista optimizada de impresión para la mesa de entrada de la sede.
+  - **Jerarquización en Panel SuperAdmin (`src/app/superadmin/page.tsx`):**
+    * Agregada la Pestaña 1 prioritaria `📋 Inscriptos Presencial` (`activeTab = 'ENROLLMENTS'`) con badge dinámico de inscriptos en tiempo real.
+    * Soporte para query parameter `?tab=inscriptos` (también `tab=presencial`, `tab=inscripciones`, `tab=logistica`).
+    * Banner de acceso directo y atajo desde Vitrina 1 de la Landing Page.
+  - **Tipado y Consistencia de Datos (`types.ts`, `bracket-engine.ts`, `GrandTournamentEnrollModal.tsx`):**
+    * Añadido `tournamentTitle?: string;` a `GrandTournamentRegistration`.
+    * Vinculación atómica del título del torneo al momento de enviar la inscripción.
+- **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Panel SuperAdmin con control logístico integral de la sede Nueva Pompeya y padrón maestro de inscriptos presenciales operativo.
+
 ## [Sesión 43] - 2026-10-24
 - **Objetivo:** Implementar la visualización a pantalla completa desacoplada para TV de 32" estilo Nakka N01 sin scroll vertical, el sorteo a ciegas de parejas (Blind Draw) con edición manual de duplas, la inscripción multimodal para la fecha oficial del domingo (501 Individuales, 501 Parejas o Ambos), el toggle explícito de Premios en Efectivo vs Deportivos, el Baremo Oficial de Puntos (Online 1x vs Presencial 2x) en el Reglamento, y la Cartelera de Récords estilo Arcade Mortal Kombat para el Top 5 de Cierres Más Altos y el Club del 180.
 - **Diagnóstico y Análisis Consultivo:**

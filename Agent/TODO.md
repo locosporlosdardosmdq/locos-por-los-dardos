@@ -1,3 +1,20 @@
+- [x] **Estructura de Organigrama Jerárquico en la Asociación y Arquitectura de Gobernanza de Torneos y Ligas:**
+  * **Organigrama Directivo Oficial (`asociacion/page.tsx` & `constants.ts`):**
+    - Clasificación y ponderación algorítmica de cargos directivos en 4 niveles (`getAuthorityHierarchyWeight`, `getAuthorityTierInfo`):
+      * Nivel 1: Presidencia (Gabriel Rubio @ZEUS, tarjeta destacada en la cúspide con corona dorada 👑 y aura focal).
+      * Nivel 2: Mesa Directiva Ejecutiva (Victor Albaitero @CARPO - Vicepresidente, Mariano Deux @ICEMAN - Tesorero).
+      * Nivel 3: Secretarías & Direcciones Operativas (Tecnologías y Sistemas, Prensa y Difusión).
+      * Nivel 4: Cuerpo de Vocales & Logística de Pista (Héctor Valentín Giménez @THE CASHIER, Logística de Dianas).
+    - Conectores visuales de organigrama estilizados entre niveles directivos.
+    - Selector interactivo de vista: `[🌳 Vista Organigrama Jerárquico]` (por defecto) vs `[📋 Vista Grilla Estándar]`.
+    - Controles interactivos de reordenación `[↑]` y `[↓]` en cada tarjeta para ajuste fino de autoridades en tiempo real por administradores.
+    - Réplica de ordenamiento jerárquico en la Pestaña 4 de `/superadmin`.
+  * **Análisis Consultivo de Gobernanza de Creación y Edición de Torneos y Ligas:**
+    - Modelo de co-administración y propiedad granular a nivel de torneo (`creatorId`, `coAdminIds`).
+    - Protección de la llave contra manipulación externa con Master Key para Superadmin.
+    - Regla de 1 liga local presencial activa por organizador hasta su conclusión formal.
+    - Reserva exclusiva de la creación de la Liga Nacional Oficial de Argentina para Superadmin, Administradores y Miembros de Comisión Directiva Nacional.
+
 - [x] **Edición Segura de Torneos y Ligas, Blindaje de Integridad Topológica y Puesta en Sesión Estilo Nakka N01:**
   * **Análisis Crítico de Estabilidad y Ciclo de Vida Federativo:**
     - Identificación y delimitación de fases: *Fase Previa (`0` partidos / `REGISTRATION_OPEN`)* donde la edición es irrestricta y cambiar el formato regenera la llave preservando inscriptos; vs *Fase En Sesión / En Juego (`IN_PROGRESS` / partidos en vivo o terminados)* donde el formato se congela obligatoriamente para no corromper el árbol de punteros (`nextMatchId`, `loserNextMatchId`).

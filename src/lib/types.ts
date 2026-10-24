@@ -328,6 +328,7 @@ export interface AssociationAuthority {
   province?: string;
   bio?: string;
   orderIndex: number;
+  tier?: number;
   phoneWhatsApp?: string;
   email?: string;
 }

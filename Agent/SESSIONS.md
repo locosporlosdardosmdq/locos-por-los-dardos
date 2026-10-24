@@ -1,5 +1,27 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 38] - 2026-10-24
+- **Objetivo:** Implementar la visualización y estructuración de la Comisión Directiva en forma de Organigrama Jerárquico en `/asociacion` (clasificando en 4 niveles directivos y erradicando el orden plano desordenado), e incorporar el análisis consultivo de arquitectura sobre la gobernanza y creación descentralizada de torneos y ligas (co-administración, protección de llave y exclusividad de Ligas Nacionales).
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Autoridades en cuadrícula desordenada:* En `/asociacion`, las tarjetas se mostraban en un grid de 4 columnas según el orden de inserción de `localStorage`, lo que provocaba que el Tesorero apareciera antes que el Presidente y el Vicepresidente.
+  2. *Estructura de Organigrama:* Un órgano institucional requiere orden jerárquico visual: Cúpula Presidencial (Nivel 1, centrado, destacado con corona dorada 👑) descendiendo por conectores a Mesa Directiva Ejecutiva (Nivel 2), Secretarías Operativas (Nivel 3) y Cuerpo de Vocales & Logística de Pista (Nivel 4).
+  3. *Gobernanza de Torneos y Ligas:*
+     - Torneos: Cualquiera puede crear, pero solo el creador (`creatorId`) y co-administradores designados (`coAdminIds`) pueden editarlo y resolver partidos, con Master Key de Superadmin.
+     - Ligas locales: Máximo 1 liga local presencial activa por usuario hasta su conclusión (`FINISHED`).
+     - Liga Nacional: Restringida con exclusividad para Superadmin, administradores globales y miembros de Comisión Directiva de Dardos Argentina.
+- **Realizado:**
+  - **Motor de Jerarquía de Autoridades (`constants.ts`):**
+    * Funciones deterministas `getAuthorityHierarchyWeight(roleTitle)` y `getAuthorityTierInfo(roleTitle)` que mapean los roles a sus 4 niveles de organigrama sin depender de inserción cronológica.
+    * Actualizado `DEFAULT_ASSOCIATION_AUTHORITIES` con el organigrama oficial de Mar del Plata (Gabriel Rubio @ZEUS como Presidente, Victor Albaitero @CARPO como Vicepresidente, Mariano Deux @ICEMAN como Tesorero y Héctor Giménez @THE CASHIER como Vocal).
+  - **Organigrama Interactivo en `/asociacion` (`asociacion/page.tsx`):**
+    * Renderizado por niveles con conectores visuales estilizados (líneas en degradé con nodos luminosos).
+    * Tarjeta de Presidencia destacada con corona dorada, anillo de luz ámbar y foco central.
+    * Controles directos para administradores: botones `[↑]` (Subir) y `[↓]` (Bajar) para ajuste fino del orden relativo con 1-click.
+    * Conmutador en cabecera: `[🌳 Vista Organigrama Jerárquico]` (activa por defecto) vs `[📋 Vista Grilla Estándar]`.
+    * Ordenamiento jerárquico sincronizado en la Pestaña 4 de `/superadmin`.
+- **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código 0).
+- **Estado del Proyecto:** Comisión Directiva organizada como un auténtico organigrama deportivo institucional de alto prestigio, y arquitectura de gobernanza de torneos y ligas claramente estructurada.
+
 ## [Sesión 37] - 2026-10-15
 - **Objetivo:** Implementar la edición integral de ligas y torneos creados (nombres, configuraciones, sedes, fechas, premios y distancias de legs) con evaluación crítica de estabilidad para proteger la topología del árbol de llaves, e incorporar la instancia de control de sesión de Nakka N01 para definir cuándo el certamen entra en sesión y bloquear la inscripción para no vulnerar el cuadro ni su desarrollo.
 - **Diagnóstico y Análisis Consultivo:**

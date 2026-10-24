@@ -7,7 +7,10 @@ import {
   DEFAULT_ASSOCIATION_AUTHORITIES, 
   DEFAULT_ASSOCIATION_BANK_ACCOUNT,
   USER_ICEMAN,
-  isUserAdmin
+  isUserAdmin,
+  getAuthorityHierarchyWeight,
+  getAuthorityTierInfo,
+  AuthorityTier
 } from '@/lib/constants';
 import { 
   getStoredAssociationAuthorities, 
@@ -43,11 +46,16 @@ import {
   MapPin,
   ArrowRight,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ChevronUp,
+  ChevronDown,
+  Network,
+  LayoutGrid
 } from 'lucide-react';
 
 export default function AsociacionPage() {
   const [activeScope, setActiveScope] = useState<AssociationScope>('MDQ');
+  const [viewMode, setViewMode] = useState<'ORGANIGRAMA' | 'GRID'>('ORGANIGRAMA');
   const [authorities, setAuthorities] = useState<AssociationAuthority[]>(() => {
     return getStoredAssociationAuthorities(DEFAULT_ASSOCIATION_AUTHORITIES);
   });
@@ -150,11 +158,18 @@ export default function AsociacionPage() {
     return list;
   }, [currentUser, registeredPlayers]);
 
-  // Obtener autoridades filtradas por el ámbito seleccionado
+  // Obtener autoridades filtradas por el ámbito seleccionado y ordenadas como organigrama
   const filteredAuthorities = useMemo(() => {
     return authorities
       .filter((a) => a.scope === activeScope)
-      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .sort((a, b) => {
+        const weightA = getAuthorityHierarchyWeight(a.roleTitle);
+        const weightB = getAuthorityHierarchyWeight(b.roleTitle);
+        if (weightA !== weightB) {
+          return weightA - weightB;
+        }
+        return (a.orderIndex || 0) - (b.orderIndex || 0);
+      })
       .map((auth) => {
         // Si la autoridad está vinculada al usuario activo actual, sincronizar su foto en caliente
         if (auth.playerId === currentUser.id || auth.playerId === 'user-iceman-admin') {
@@ -180,6 +195,51 @@ export default function AsociacionPage() {
         return auth;
       });
   }, [authorities, activeScope, currentUser, registeredPlayers]);
+
+  // Agrupamiento dinámico por niveles jerárquicos de organigrama
+  const authoritiesByTier = useMemo(() => {
+    const tiers: Record<number, typeof filteredAuthorities> = {
+      1: [],
+      2: [],
+      3: [],
+      4: []
+    };
+    filteredAuthorities.forEach((auth) => {
+      const info = getAuthorityTierInfo(auth.roleTitle);
+      tiers[info.tierNumber].push(auth);
+    });
+    return tiers;
+  }, [filteredAuthorities]);
+
+  // Reordenar autoridades (Subir / Bajar) con 1-click para administradores
+  const handleMoveAuthority = (authId: string, direction: 'UP' | 'DOWN') => {
+    const currentScopeList = [...filteredAuthorities];
+    const currentIndex = currentScopeList.findIndex((a) => a.id === authId);
+    if (currentIndex === -1) return;
+    const targetIndex = direction === 'UP' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= currentScopeList.length) return;
+
+    // Intercambiar posiciones
+    const temp = currentScopeList[currentIndex];
+    currentScopeList[currentIndex] = currentScopeList[targetIndex];
+    currentScopeList[targetIndex] = temp;
+
+    // Asignar índices secuenciales normalizados
+    const newOrderMap = new Map<string, number>();
+    currentScopeList.forEach((a, idx) => {
+      newOrderMap.set(a.id, idx + 1);
+    });
+
+    const updated = authorities.map((a) => {
+      if (a.scope === activeScope && newOrderMap.has(a.id)) {
+        return { ...a, orderIndex: newOrderMap.get(a.id)! };
+      }
+      return a;
+    });
+
+    setAuthorities(updated);
+    saveStoredAssociationAuthorities(updated);
+  };
 
   const handleCopy = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -314,6 +374,172 @@ export default function AsociacionPage() {
     setTimeout(() => setSaveSuccessMsg(null), 3000);
   };
 
+  const renderAuthorityCard = (auth: AssociationAuthority, indexInFiltered: number) => {
+    const isPresident = auth.roleTitle.toLowerCase().includes('presidente') && !auth.roleTitle.toLowerCase().includes('vice');
+    const isVice = auth.roleTitle.toLowerCase().includes('vice');
+    const tierInfo = getAuthorityTierInfo(auth.roleTitle);
+    
+    // Bordes y estilos según jerarquía de organigrama
+    const borderClass = isPresident 
+      ? 'border-amber-400 ring-4 ring-amber-400/20 shadow-2xl shadow-amber-500/10'
+      : tierInfo.tierNumber === 2
+      ? 'border-amber-500/40 hover:border-amber-400/70 shadow-xl'
+      : tierInfo.tierNumber === 3
+      ? 'border-sky-500/40 hover:border-sky-400/70 shadow-lg'
+      : 'border-slate-800 hover:border-slate-700 shadow-md';
+
+    const roleBadgeClass = isPresident
+      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black'
+      : tierInfo.tierNumber === 2
+      ? 'bg-amber-500/20 text-amber-300 border-b border-amber-500/30 font-black'
+      : tierInfo.tierNumber === 3
+      ? 'bg-sky-500/15 text-sky-300 border-b border-sky-500/30 font-bold'
+      : 'bg-[#111622] text-slate-300 border-b border-slate-800 font-bold';
+
+    return (
+      <div
+        key={auth.id}
+        className={`group relative bg-[#0f1422] rounded-3xl border transition-all duration-200 overflow-hidden flex flex-col ${borderClass} w-full`}
+      >
+        {/* Badge de Nivel y Cargo */}
+        <div className={`px-4 py-2.5 text-center text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 ${roleBadgeClass}`}>
+          {isPresident && <span className="text-sm">👑</span>}
+          {isVice && <span className="text-xs">🏛️</span>}
+          <span>{auth.roleTitle}</span>
+        </div>
+
+        <div className="p-5 flex flex-col items-center text-center flex-1">
+          {/* FOTO DE PERFIL DEL JUGADOR */}
+          <div className="relative mb-3.5">
+            <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-[#07090e] border-2 shadow-xl ${
+              isPresident 
+                ? 'border-amber-400 ring-4 ring-amber-400/25' 
+                : tierInfo.tierNumber === 2
+                ? 'border-amber-500/60'
+                : tierInfo.tierNumber === 3
+                ? 'border-sky-500/60'
+                : 'border-slate-700'
+            }`}>
+              <img
+                src={auth.photoUrl || '/logos/logo-mdq.png'}
+                alt={auth.name}
+                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                onError={(e: any) => {
+                  e.target.src = '/logos/logo-mdq.png';
+                }}
+              />
+            </div>
+            {isPresident && (
+              <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-amber-400 text-black font-black text-xs flex items-center justify-center shadow-md">
+                👑
+              </div>
+            )}
+          </div>
+
+          {/* Nombre y Apodo */}
+          <h3 className="text-base font-black text-white tracking-tight">
+            {auth.name}
+          </h3>
+          {auth.nickname && (
+            <div className="text-xs font-bold text-[#00e676] mt-0.5">
+              @{auth.nickname}
+            </div>
+          )}
+
+          {/* Club y Ubicación */}
+          <div className="mt-2 text-[11px] text-slate-400 flex items-center gap-1 justify-center">
+            <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
+            <span>{auth.city || 'Mar del Plata'}, {auth.province || 'Buenos Aires'}</span>
+          </div>
+
+          {auth.club && (
+            <div className="text-[11px] font-bold text-slate-300 mt-0.5">
+              {auth.club}
+            </div>
+          )}
+
+          {/* Breve Reseña / Función */}
+          {auth.bio && (
+            <p className="mt-3 text-[11px] text-slate-400 line-clamp-3 leading-relaxed border-t border-slate-800/80 pt-2.5 w-full">
+              {auth.bio}
+            </p>
+          )}
+
+          {/* Botones de contacto si aplica */}
+          <div className="mt-auto pt-4 w-full flex items-center justify-center gap-2">
+            {auth.phoneWhatsApp && (
+              <a
+                href={`https://wa.me/${auth.phoneWhatsApp}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 flex items-center gap-1 transition-colors"
+                title="Contacto de WhatsApp"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>WhatsApp</span>
+              </a>
+            )}
+            {auth.email && (
+              <a
+                href={`mailto:${auth.email}`}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 flex items-center gap-1 transition-colors"
+                title="Email oficial"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>Email</span>
+              </a>
+            )}
+          </div>
+
+          {/* Acciones de administración */}
+          {isAdmin && (
+            <div className="mt-3 pt-3 border-t border-slate-800 w-full flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleMoveAuthority(auth.id, 'UP')}
+                  disabled={indexInFiltered === 0}
+                  className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  title="Subir en el organigrama"
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMoveAuthority(auth.id, 'DOWN')}
+                  disabled={indexInFiltered === filteredAuthorities.length - 1}
+                  className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  title="Bajar en el organigrama"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleEditAuthority(auth)}
+                  className="text-slate-400 hover:text-amber-400 flex items-center gap-1 transition-colors"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Editar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteAuthority(auth.id)}
+                  className="text-slate-400 hover:text-rose-400 flex items-center gap-1 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full flex flex-col gap-6 select-none animate-in fade-in duration-200">
       {/* CABECERA INSTITUCIONAL */}
@@ -404,156 +630,178 @@ export default function AsociacionPage() {
         </div>
       </div>
 
-      {/* SECCIÓN 1: GRILLA DE AUTORIDADES OFICIALES */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      {/* SECCIÓN 1: ORGANIGRAMA Y AUTORIDADES OFICIALES */}
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
           <div>
             <h2 className="text-lg font-black text-white flex items-center gap-2">
               <Award className="w-5 h-5 text-amber-400" />
               <span>Comisión Directiva y Autoridades Designadas</span>
             </h2>
             <p className="text-xs text-slate-400">
-              Fotos sincronizadas con los perfiles oficiales de los jugadores en la plataforma.
+              Estructura jerárquica institucional y organigrama deportivo oficial.
             </p>
           </div>
 
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={handleOpenAddAuthority}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-[#00e676] text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Sumar Autoridad</span>
-            </button>
-          )}
+          <div className="flex items-center gap-2.5">
+            {/* Selector de Vista: Organigrama vs Grilla */}
+            <div className="flex items-center bg-[#07090e] p-1 rounded-xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setViewMode('ORGANIGRAMA')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all ${
+                  viewMode === 'ORGANIGRAMA'
+                    ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/20'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Vista Organigrama Jerárquico"
+              >
+                <Network className="w-3.5 h-3.5" />
+                <span>Organigrama</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('GRID')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all ${
+                  viewMode === 'GRID'
+                    ? 'bg-slate-700 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Vista Grilla Estándar"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Grilla</span>
+              </button>
+            </div>
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleOpenAddAuthority}
+                className="px-3.5 py-1.5 rounded-xl bg-[#00e676]/15 hover:bg-[#00e676]/25 text-[#00e676] text-xs font-black border border-[#00e676]/30 flex items-center gap-1.5 transition-colors shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Sumar Autoridad</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* TARJETAS DE AUTORIDADES */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredAuthorities.map((auth, idx) => {
-            const isPresident = auth.roleTitle.toLowerCase().includes('presidente');
-            return (
-              <div
-                key={auth.id}
-                className={`group relative bg-[#0f1422] rounded-3xl border transition-all duration-200 overflow-hidden flex flex-col ${
-                  isPresident 
-                    ? 'border-amber-500/50 shadow-xl shadow-amber-500/5' 
-                    : 'border-slate-800 hover:border-slate-700 shadow-lg'
-                }`}
-              >
-                {/* Badge de Cargo en la parte superior */}
-                <div className={`px-4 py-2 text-center text-xs font-black uppercase tracking-wider ${
-                  isPresident 
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black' 
-                    : 'bg-[#111622] text-slate-300 border-b border-slate-800'
-                }`}>
-                  {auth.roleTitle}
+        {/* CONTENIDO: VISTA ORGANIGRAMA O VISTA GRILLA */}
+        {viewMode === 'ORGANIGRAMA' ? (
+          <div className="space-y-6 pt-1">
+            {/* NIVEL 1: PRESIDENCIA */}
+            {authoritiesByTier[1].length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center">
+                  <span className="text-[11px] font-black uppercase tracking-wider px-4 py-1 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-400/30 to-amber-500/20 text-amber-300 border border-amber-400/40 flex items-center gap-1.5 shadow-lg shadow-amber-500/10">
+                    <span className="text-sm">👑</span>
+                    <span>Nivel 1 • Presidencia Institucional</span>
+                  </span>
                 </div>
-
-                <div className="p-5 flex flex-col items-center text-center flex-1">
-                  {/* FOTO DE PERFIL DEL JUGADOR */}
-                  <div className="relative mb-3.5">
-                    <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-[#07090e] border-2 shadow-xl ${
-                      isPresident ? 'border-amber-400 ring-4 ring-amber-400/20' : 'border-slate-700'
-                    }`}>
-                      <img
-                        src={auth.photoUrl || '/logos/logo-mdq.png'}
-                        alt={auth.name}
-                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
-                        onError={(e: any) => {
-                          e.target.src = '/logos/logo-mdq.png';
-                        }}
-                      />
-                    </div>
-                    {isPresident && (
-                      <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-amber-400 text-black font-black text-xs flex items-center justify-center shadow-md">
-                        👑
-                      </div>
-                    )}
+                <div className="flex justify-center">
+                  <div className="w-full max-w-sm">
+                    {authoritiesByTier[1].map((auth) => {
+                      const idx = filteredAuthorities.findIndex((a) => a.id === auth.id);
+                      return renderAuthorityCard(auth, idx);
+                    })}
                   </div>
-
-                  {/* Nombre y Apodo */}
-                  <h3 className="text-base font-black text-white tracking-tight">
-                    {auth.name}
-                  </h3>
-                  {auth.nickname && (
-                    <div className="text-xs font-bold text-[#00e676] mt-0.5">
-                      @{auth.nickname}
-                    </div>
-                  )}
-
-                  {/* Club y Ubicación */}
-                  <div className="mt-2 text-[11px] text-slate-400 flex items-center gap-1 justify-center">
-                    <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
-                    <span>{auth.city || 'Mar del Plata'}, {auth.province || 'Buenos Aires'}</span>
-                  </div>
-
-                  {auth.club && (
-                    <div className="text-[11px] font-bold text-slate-300 mt-0.5">
-                      {auth.club}
-                    </div>
-                  )}
-
-                  {/* Breve Reseña / Función */}
-                  {auth.bio && (
-                    <p className="mt-3 text-[11px] text-slate-400 line-clamp-3 leading-relaxed border-t border-slate-800/80 pt-2.5 w-full">
-                      {auth.bio}
-                    </p>
-                  )}
-
-                  {/* Botones de contacto si aplica */}
-                  <div className="mt-auto pt-4 w-full flex items-center justify-center gap-2">
-                    {auth.phoneWhatsApp && (
-                      <a
-                        href={`https://wa.me/${auth.phoneWhatsApp}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 flex items-center gap-1 transition-colors"
-                        title="Contacto de WhatsApp"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        <span>WhatsApp</span>
-                      </a>
-                    )}
-                    {auth.email && (
-                      <a
-                        href={`mailto:${auth.email}`}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 flex items-center gap-1 transition-colors"
-                        title="Email oficial"
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                        <span>Email</span>
-                      </a>
-                    )}
-                  </div>
-
-                  {/* Acciones de administración */}
-                  {isAdmin && (
-                    <div className="mt-3 pt-3 border-t border-slate-800 w-full flex items-center justify-between text-xs">
-                      <button
-                        type="button"
-                        onClick={() => handleEditAuthority(auth)}
-                        className="text-slate-400 hover:text-amber-400 flex items-center gap-1 transition-colors"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Editar</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAuthority(auth.id)}
-                        className="text-slate-400 hover:text-rose-400 flex items-center gap-1 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Eliminar</span>
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
-            );
-          })}
-        </div>
+            )}
+
+            {/* CONECTOR JERÁRQUICO NIVEL 1 -> 2 */}
+            {authoritiesByTier[1].length > 0 && authoritiesByTier[2].length > 0 && (
+              <div className="flex flex-col items-center justify-center my-3 relative select-none">
+                <div className="w-0.5 h-5 bg-gradient-to-b from-amber-400 to-amber-500/60" />
+                <div className="w-3 h-3 rounded-full bg-amber-400 ring-4 ring-amber-400/20 flex items-center justify-center shadow-lg">
+                  <div className="w-1.5 h-1.5 rounded-full bg-black/70" />
+                </div>
+                <div className="w-0.5 h-5 bg-gradient-to-b from-amber-500/60 to-emerald-500/60" />
+              </div>
+            )}
+
+            {/* NIVEL 2: MESA DIRECTIVA EJECUTIVA */}
+            {authoritiesByTier[2].length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center">
+                  <span className="text-[11px] font-black uppercase tracking-wider px-4 py-1 rounded-full bg-gradient-to-r from-emerald-500/20 via-amber-500/20 to-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-md">
+                    <span className="text-sm">🏛️</span>
+                    <span>Nivel 2 • Mesa Directiva Ejecutiva</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                  {authoritiesByTier[2].map((auth) => {
+                    const idx = filteredAuthorities.findIndex((a) => a.id === auth.id);
+                    return renderAuthorityCard(auth, idx);
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* CONECTOR JERÁRQUICO NIVEL 2 -> 3 */}
+            {authoritiesByTier[2].length > 0 && authoritiesByTier[3].length > 0 && (
+              <div className="flex flex-col items-center justify-center my-3 relative select-none">
+                <div className="w-0.5 h-5 bg-gradient-to-b from-emerald-500/60 to-[#00e676]" />
+                <div className="w-3 h-3 rounded-full bg-[#00e676] ring-4 ring-[#00e676]/20 flex items-center justify-center shadow-lg">
+                  <div className="w-1.5 h-1.5 rounded-full bg-black/70" />
+                </div>
+                <div className="w-0.5 h-5 bg-gradient-to-b from-[#00e676] to-sky-500/60" />
+              </div>
+            )}
+
+            {/* NIVEL 3: SECRETARÍAS OPERATIVAS & ÁREAS TÉCNICAS */}
+            {authoritiesByTier[3].length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center">
+                  <span className="text-[11px] font-black uppercase tracking-wider px-4 py-1 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1.5 shadow-md">
+                    <span className="text-sm">⚡</span>
+                    <span>Nivel 3 • Secretarías & Direcciones Operativas</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 max-w-5xl mx-auto">
+                  {authoritiesByTier[3].map((auth) => {
+                    const idx = filteredAuthorities.findIndex((a) => a.id === auth.id);
+                    return renderAuthorityCard(auth, idx);
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* CONECTOR JERÁRQUICO NIVEL 3 -> 4 */}
+            {authoritiesByTier[3].length > 0 && authoritiesByTier[4].length > 0 && (
+              <div className="flex flex-col items-center justify-center my-3 relative select-none">
+                <div className="w-0.5 h-5 bg-gradient-to-b from-sky-500/60 to-slate-600" />
+                <div className="w-3 h-3 rounded-full bg-sky-400 ring-4 ring-sky-400/20 flex items-center justify-center shadow-lg">
+                  <div className="w-1.5 h-1.5 rounded-full bg-black/70" />
+                </div>
+                <div className="w-0.5 h-5 bg-gradient-to-b from-slate-600 to-slate-700" />
+              </div>
+            )}
+
+            {/* NIVEL 4: VOCALES & LOGÍSTICA DE DIANAS */}
+            {authoritiesByTier[4].length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center">
+                  <span className="text-[11px] font-black uppercase tracking-wider px-4 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 shadow-md">
+                    <span className="text-sm">🎯</span>
+                    <span>Nivel 4 • Cuerpo de Vocales & Logística de Pista</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full">
+                  {authoritiesByTier[4].map((auth) => {
+                    const idx = filteredAuthorities.findIndex((a) => a.id === auth.id);
+                    return renderAuthorityCard(auth, idx);
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredAuthorities.map((auth, idx) => renderAuthorityCard(auth, idx))}
+          </div>
+        )}
       </div>
 
       {/* SECCIÓN 2: DATOS BANCARIOS OFICIALES PARA INSCRIPCIONES */}

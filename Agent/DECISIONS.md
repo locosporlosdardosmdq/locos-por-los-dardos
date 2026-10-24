@@ -976,4 +976,31 @@
      - Todas las ediciones y cambios de estado de sesión se sincronizan en caliente en Supabase PostgreSQL (`saveTournamentToCloud`) y `localStorage`.
 - **Motivo:** Protege al 100% la estabilidad y el desarrollo matemático de las llaves eliminatorias, otorga a los directores de torneo la misma solvencia operativa que Nakka N01 y previene cualquier corrupción de datos deportivos.
 
+---
+
+## [ADR-047] Estructura de Organigrama Jerárquico en la Asociación y Gobernanza Descentralizada de Torneos y Ligas
+
+- **Fecha:** 2026-10-24
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Organigrama Directivo en `/asociacion`:* La Comisión Directiva se desplegaba en una cuadrícula plana no jerárquica de 4 columnas donde el Tesorero aparecía antes que el Presidente y el Vicepresidente debido al orden cronológico de inserción en `localStorage`. Se requirió estructurar a las autoridades ordenadas cual organigrama institucional (Presidencia -> Mesa Directiva -> Secretarías Operativas -> Cuerpo de Vocales).
+  2. *Gobernanza de Creación y Edición de Torneos:* Se analizó la lógica de negocio para democratizar la creación de torneos comunitarios sin poner en riesgo la integridad de los certámenes: cualquiera puede crear torneos, pero solo su creador (administrador nato) y co-administradores designados pueden editarlo y resolver partidos. El Superadmin mantiene la "Master Key" federativa.
+  3. *Restricción de Ligas Presenciales y Ligas Nacionales:* Un usuario organizador de liga local no puede abrir una nueva liga hasta que la anterior esté finalizada, evitando spam o abandono de tablas. La Liga Nacional Oficial de Argentina queda blindada exclusivamente para el Superadmin (`marianodeux@gmail.com`), Administradores de la App y autoridades de la Comisión Directiva Nacional.
+- **Decisión:**
+  1. **Estructura de Organigrama en `/asociacion` (`asociacion/page.tsx` & `constants.ts`):**
+     - Funciones `getAuthorityHierarchyWeight(roleTitle)` y `getAuthorityTierInfo(roleTitle)` que clasifican automáticamente en 4 niveles directivos:
+       * **Nivel 1: Presidencia Institucional (peso 100):** Centrada en la cúspide con corona dorada 👑, badge áureo y anillo focal.
+       * **Nivel 2: Mesa Directiva Ejecutiva (peso 200-299):** Vicepresidente, Secretario General, Tesorero, Protesorero.
+       * **Nivel 3: Secretarías & Direcciones Operativas (peso 300-399):** Tecnologías y Sistemas, Prensa y Difusión, Competencias y Arbitraje.
+       * **Nivel 4: Cuerpo de Vocales & Logística de Dianas (peso 400-499):** Vocales Titulares, Logística de Dianas, Revisores de Cuentas.
+     - Conectores visuales estilizados de organigrama entre niveles (líneas verticales en degradé con nodos luminosos).
+     - Switch de visualización en cabecera: `[🌳 Vista Organigrama Jerárquico]` (por defecto) vs `[📋 Vista Grilla Estándar]`.
+     - Botones `[↑]` (Subir) y `[↓]` (Bajar) en cada tarjeta para que el administrador pueda reordenar posiciones con 1-click en tiempo real.
+     - Ordenación réplica aplicada en la pestaña 4 de `/superadmin`.
+  2. **Arquitectura de Gobernanza Descentralizada de Torneos y Ligas:**
+     - Modelo con `creatorId`, `creatorName` y `coAdminIds` por torneo.
+     - Guarda de ligas activas concurrentes por organizador (`status !== 'FINISHED'`).
+     - Guarda de autorización estricta para la Liga Nacional Oficial de Argentina (`scope === 'NATIONAL'`).
+- **Motivo:** Otorga a la Asociación Marplatense y a Dardos Argentina una presencia institucional rigurosa y prestigiosa con organigrama jerárquico real, y sienta la arquitectura de gobernanza federativa para proteger las llaves de torneos y la exclusividad de la Liga Nacional.
+
 

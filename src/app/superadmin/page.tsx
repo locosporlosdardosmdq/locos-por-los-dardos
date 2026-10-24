@@ -58,7 +58,9 @@ import {
   PROVINCIAS_ARGENTINA,
   DEFAULT_ASSOCIATION_AUTHORITIES,
   DEFAULT_ASSOCIATION_BANK_ACCOUNT,
-  calculateAgeFromBirthDate
+  calculateAgeFromBirthDate,
+  getAuthorityHierarchyWeight,
+  getAuthorityTierInfo
 } from '@/lib/constants';
 import { 
   getCurrentPlayerProfile, 
@@ -2271,6 +2273,12 @@ export default function SuperadminPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {authorities
                   .filter(a => a.scope === authoritiesScope)
+                  .sort((a, b) => {
+                    const weightA = getAuthorityHierarchyWeight(a.roleTitle);
+                    const weightB = getAuthorityHierarchyWeight(b.roleTitle);
+                    if (weightA !== weightB) return weightA - weightB;
+                    return (a.orderIndex || 0) - (b.orderIndex || 0);
+                  })
                   .map((auth) => {
                     const matchedPlayer = availablePlayers.find(p => p.id === auth.playerId);
                     const displayPhoto = matchedPlayer?.photoUrl || auth.photoUrl || '/logos/logo-mdq.png';

@@ -538,25 +538,167 @@ export const MOCK_RANKINGS: PlayerProfile[] = [
 // Ligas Oficiales de Dardos (Nacional y Locales)
 export const DEFAULT_LEAGUES: League[] = [];
 
+// JERARQUÍA OFICIAL DE ORGANIGRAMA DIRECTIVO
+export type AuthorityTier = 'PRESIDENCIA' | 'MESA_DIRECTIVA' | 'SECRETARIAS' | 'VOCALES';
+
+export function getAuthorityHierarchyWeight(roleTitle: string): number {
+  const clean = (roleTitle || '').trim().toLowerCase();
+  
+  // Nivel 1: Presidencia (peso 100 - 199)
+  if (clean.includes('presidente') && !clean.includes('vice')) {
+    return 100;
+  }
+  
+  // Nivel 2: Mesa Directiva Ejecutiva (peso 200 - 299)
+  if (clean.includes('vicepresidente') || clean.includes('vice presidente') || clean.includes('vice-presidente')) {
+    return 200;
+  }
+  if (clean.includes('secretario general') || clean.includes('secretaria general')) {
+    return 210;
+  }
+  if (clean.includes('tesorero') || clean.includes('tesorera') || clean.includes('finanzas')) {
+    return 220;
+  }
+  if (clean.includes('prosecretario') || clean.includes('protesorero') || clean.includes('pro-tesorero')) {
+    return 230;
+  }
+  
+  // Nivel 3: Secretarías y Direcciones Operativas (peso 300 - 399)
+  if (clean.includes('tecnolog') || clean.includes('sistema')) {
+    return 300;
+  }
+  if (clean.includes('prensa') || clean.includes('difusión') || clean.includes('difusion') || clean.includes('comunicaci')) {
+    return 310;
+  }
+  if (clean.includes('torneo') || clean.includes('competici') || clean.includes('deportiv') || clean.includes('arbitr')) {
+    return 320;
+  }
+  if (clean.includes('secretari') || clean.includes('director') || clean.includes('coordinad')) {
+    return 350;
+  }
+  
+  // Nivel 4: Cuerpo de Vocales & Logística (peso 400 - 499)
+  if (clean.includes('vocal titular') && !clean.includes('área') && !clean.includes('area') && !clean.includes('responsable')) {
+    return 400;
+  }
+  if (clean.includes('vocal')) {
+    return 410;
+  }
+  if (clean.includes('revisor') || clean.includes('fiscal')) {
+    return 450;
+  }
+  
+  return 490;
+}
+
+export function getAuthorityTierInfo(roleTitle: string): {
+  tierNumber: 1 | 2 | 3 | 4;
+  tierId: AuthorityTier;
+  tierTitle: string;
+  tierBadgeColor: string;
+  tierDescription: string;
+} {
+  const weight = getAuthorityHierarchyWeight(roleTitle);
+  if (weight < 200) {
+    return {
+      tierNumber: 1,
+      tierId: 'PRESIDENCIA',
+      tierTitle: 'Presidencia Institucional',
+      tierBadgeColor: 'from-amber-500 to-amber-600 text-black',
+      tierDescription: 'Máxima autoridad ejecutiva y representación institucional de la Asociación.'
+    };
+  }
+  if (weight < 300) {
+    return {
+      tierNumber: 2,
+      tierId: 'MESA_DIRECTIVA',
+      tierTitle: 'Mesa Directiva Ejecutiva',
+      tierBadgeColor: 'bg-amber-500/15 text-amber-300 border border-amber-500/30',
+      tierDescription: 'Gobierno de gestión, tesorería, secretaría y administración patrimonial.'
+    };
+  }
+  if (weight < 400) {
+    return {
+      tierNumber: 3,
+      tierId: 'SECRETARIAS',
+      tierTitle: 'Secretarías & Direcciones Operativas',
+      tierBadgeColor: 'bg-sky-500/15 text-sky-300 border border-sky-500/30',
+      tierDescription: 'Direcciones técnicas, infraestructura tecnológica, prensa y difusión.'
+    };
+  }
+  return {
+    tierNumber: 4,
+    tierId: 'VOCALES',
+    tierTitle: 'Cuerpo de Vocales & Logística de Pista',
+    tierBadgeColor: 'bg-slate-800 text-slate-300 border border-slate-700',
+    tierDescription: 'Fiscalización, logística de equipamiento y comisiones de apoyo deportivo.'
+  };
+}
+
 // AUTORIDADES OFICIALES DE LA ASOCIACIÓN
 export const DEFAULT_ASSOCIATION_AUTHORITIES: AssociationAuthority[] = [
-  // ASOCIACIÓN MARPLATENSE DE DARDOS (DARDEROS MDQ)
+  // ASOCIACIÓN MARPLATENSE DE DARDOS (DARDEROS MDQ) - ESTRUCTURA ORGANIGRAMA
   {
     id: 'auth-mdq-1',
+    scope: 'MDQ',
+    playerId: 'user-zeus-mdq',
+    name: 'Gabriel Rubio',
+    nickname: 'ZEUS',
+    roleTitle: 'Presidente',
+    photoUrl: '/logos/logo-mdq.png',
+    avatarUrl: '/logos/logo-mdq.png',
+    club: 'Darderos Mar del Plata Oficial',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    bio: 'Presidente de la Asociación Marplatense de Dardos. Liderazgo institucional y federativo.',
+    orderIndex: 1
+  },
+  {
+    id: 'auth-mdq-2',
+    scope: 'MDQ',
+    playerId: 'user-carpo-mdq',
+    name: 'Victor Albaitero',
+    nickname: 'CARPO',
+    roleTitle: 'Vicepresidente',
+    photoUrl: '/logos/logo-mdq.png',
+    avatarUrl: '/logos/logo-mdq.png',
+    club: 'Darderos Mar del Plata',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    bio: 'Vicepresidente de Darderos Mar del Plata. Coordinación directiva y deportiva.',
+    orderIndex: 2
+  },
+  {
+    id: 'auth-mdq-3',
     scope: 'MDQ',
     playerId: 'user-iceman-admin',
     name: 'Mariano Deux',
     nickname: 'ICEMAN',
-    roleTitle: 'Presidente',
+    roleTitle: 'Tesorero',
     photoUrl: '/images/iceman-perfil.png',
     avatarUrl: '/images/iceman-perfil.png',
     club: 'Darderos Mar del Plata',
     city: 'Mar del Plata',
     province: 'Buenos Aires',
-    bio: 'Fundador de Darderos Mar del Plata y Locos por los Dardos. Impulsor del circuito presencial y online de la Costa Atlántica.',
-    orderIndex: 1,
+    bio: 'Fundador de Darderos Mar del Plata y Locos por los Dardos. Tesorería y administración de finanzas.',
+    orderIndex: 3,
     phoneWhatsApp: '5492235218765',
     email: 'marianodeux@gmail.com'
+  },
+  {
+    id: 'auth-mdq-4',
+    scope: 'MDQ',
+    playerId: 'user-cashier-mdq',
+    name: 'Héctor Valentín Giménez',
+    nickname: 'THE CASHIER',
+    roleTitle: 'Vocal Titular',
+    photoUrl: '/logos/logo-mdq.png',
+    avatarUrl: '/logos/logo-mdq.png',
+    club: 'Darderos Mar del Plata',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    bio: 'Vocal titular de la Comisión Directiva. Fiscalización y apoyo en torneos oficiales.',
+    orderIndex: 4
   },
 
   // ASOCIACIÓN / FEDERACIÓN DARDOS ARGENTINA

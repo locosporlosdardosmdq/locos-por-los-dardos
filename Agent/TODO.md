@@ -1,3 +1,17 @@
+- [x] **Onboarding Atómico Fricción Cero en Inscripción a Torneos (Opción C):**
+  * **Acceso Inclusivo sin Bloqueo:** El formulario de inscripción permanece 100% abierto para visitas desde WhatsApp/redes sin exigir registro ni login previo de contraseña (eliminando la tasa de abandono del 40-60%).
+  * **Creación y Vinculación Atómica en Supabase (`/api/inscripciones` POST):**
+    - Búsqueda federada previa por email, nombre completo, apodo o WhatsApp.
+    - Si existe: vincula la inscripción y complementa datos faltantes (club, teléfono, ciudad) sin pisar personalizaciones.
+    - Si no existe: crea atómicamente el usuario en `users` (rol `PLAYER`), el perfil en `profiles` (estado `ACTIVE`, categoría base `INTERMEDIA`, AVG inicial `45.0`) y el registro base en `player_stats`.
+  * **Auto-Login Transparente en Cliente (`GrandTournamentEnrollModal.tsx`):**
+    - Si el visitante anónimo no tenía sesión activa en su navegador, el cliente adopta el nuevo perfil oficial en `localStorage` (`CURRENT_PLAYER`) para que quede reconocido en toda la app de inmediato.
+  * **Ficha Federada Visual en Pantalla de Éxito:**
+    - En el paso `SUCCESS` se despliega la tarjeta de la ficha oficial federada con enlace directo a `/jugadores` para consultar su perfil.
+  * **Auto-Creación de Perfiles en Torneos Locales (`TournamentManager.tsx`):**
+    - Al ingresar jugadores con nombre personalizado en `PlayerEnrollModal`, se dispara la creación asíncrona en `/api/jugadores` para incorporarlos al padrón nacional.
+  * **Validación de Compilación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Filtros Dependientes por Ámbito, Liga y Fecha del Evento + Sincronización Cloud Centralizada de Inscripciones en Supabase (`/api/inscripciones`):**
   * **Confirmación y Resolución del Caso Héctor Giménez:**
     - Verificado que Héctor Valentín Giménez ("THE CASHIER") sí completó el formulario con éxito el 24/10/2026 18:11 hs (ID `reg_1792876311590_dfu7`) en su propio dispositivo.

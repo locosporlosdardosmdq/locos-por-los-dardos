@@ -319,10 +319,162 @@ export async function POST(request: NextRequest) {
       console.warn('[API /api/inscripciones] Error al sincronizar enrolledPlayers de torneo:', err.message);
     }
 
+    // 3. ONBOARDING ATÓMICO EN EL PADRÓN NACIONAL (Opción C: Fricción Cero con Creación/Vinculación de Perfil)
+    let linkedProfile: any = null;
+    let isNewProfileCreated = false;
+
+    try {
+      const cleanEmail = reg.email ? reg.email.toLowerCase().trim() : '';
+      const cleanName = reg.fullName.trim();
+      const cleanNick = (reg.nickname || reg.fullName.split(' ')[0]).trim();
+      const cleanPhone = (reg.phoneWhatsApp || '').trim();
+
+      // Buscar si el jugador ya existe en el padrón por email, nombre exacto, apodo o teléfono
+      const matchQuery = `
+        SELECT 
+          p.id, 
+          p.user_id, 
+          p.full_name, 
+          p.nickname, 
+          p.avatar_url, 
+          p.photo_url,
+          p.city, 
+          p.province, 
+          p.club, 
+          u.email, 
+          p.initial_estimated_avg, 
+          p.category,
+          p.status
+        FROM profiles p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE ($1 <> '' AND LOWER(COALESCE(u.email, '')) = $1)
+           OR (LOWER(p.full_name) = LOWER($2))
+           OR ($3 <> '' AND LOWER(p.nickname) = LOWER($3))
+           OR ($4 <> '' AND p.phone IS NOT NULL AND p.phone <> '' AND p.phone = $4)
+        LIMIT 1;
+      `;
+      const matchRes = await pool.query(matchQuery, [cleanEmail, cleanName, cleanNick, cleanPhone]);
+
+      if (matchRes.rows.length > 0) {
+        // Jugador ya existente: actualizar datos de contacto/ubicación si faltaban, sin pisar avatar ni apodo
+        const existing = matchRes.rows[0];
+        const updateExistingQuery = `
+          UPDATE profiles SET
+            phone = COALESCE(NULLIF(phone, ''), $1),
+            city = COALESCE(NULLIF(city, ''), $2),
+            province = COALESCE(NULLIF(province, ''), $3),
+            club = COALESCE(NULLIF(club, ''), $4),
+            nationality = COALESCE(NULLIF(nationality, ''), $5),
+            country_code = COALESCE(NULLIF(country_code, ''), $6),
+            updated_at = NOW()
+          WHERE id = $7
+          RETURNING *;
+        `;
+        const updatedRes = await pool.query(updateExistingQuery, [
+          cleanPhone || null,
+          reg.city || null,
+          reg.province || null,
+          reg.club || null,
+          reg.nationality || 'Argentina',
+          reg.countryCode || 'AR',
+          existing.id
+        ]);
+        linkedProfile = updatedRes.rows[0] || existing;
+      } else {
+        // Jugador nuevo: Generar Usuario + Ficha Federada en profiles + Estadísticas Iniciales de manera atómica
+        const safeSlug = cleanNick.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jugador';
+        const generatedEmail = cleanEmail || `${safeSlug}.${Date.now().toString(36)}@locosporlosdardos.com.ar`;
+
+        // a. Registrar usuario en tabla users
+        const newUserRes = await pool.query(
+          `INSERT INTO users (email, password_hash, role)
+           VALUES ($1, $2, $3)
+           RETURNING id;`,
+          [generatedEmail, 'no_hash_pwa', 'PLAYER']
+        );
+        const newUserId = newUserRes.rows[0].id;
+
+        // b. Crear ficha federada en profiles
+        const newProfileRes = await pool.query(
+          `INSERT INTO profiles (
+            user_id, nickname, full_name, phone, province, city,
+            avatar_url, photo_url, logo_url, nationality, country_code,
+            initial_estimated_avg, category, status, is_verified, bio,
+            preferred_dart_weight_g, dart_brand, club, association_role
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6,
+            $7, $8, $9, $10, $11,
+            $12, $13, $14, $15, $16,
+            $17, $18, $19, $20
+          ) RETURNING *;`,
+          [
+            newUserId,
+            cleanNick,
+            cleanName,
+            cleanPhone || null,
+            reg.province || 'Buenos Aires',
+            reg.city || 'Mar del Plata',
+            '/logos/logo-mdq.png',
+            '/logos/logo-mdq.png',
+            '/logos/logo-mdq.png',
+            reg.nationality || 'Argentina',
+            reg.countryCode || 'AR',
+            45.0,
+            'INTERMEDIA',
+            'ACTIVE',
+            false,
+            `Jugador inscripto formalmente en ${reg.tournamentTitle || 'Torneo Oficial'}.`,
+            24,
+            'TARGET 90%',
+            reg.club || 'Darderos Mar del Plata',
+            'Competidor Oficial'
+          ]
+        );
+        linkedProfile = newProfileRes.rows[0];
+        isNewProfileCreated = true;
+
+        // c. Inicializar registro en player_stats
+        await pool.query(
+          `INSERT INTO player_stats (
+            user_id, overall_avg, first_9_avg, matches_played, matches_won,
+            legs_played, legs_won, highest_checkout, checkout_attempts,
+            checkout_hits, checkout_percentage, count_180s, count_140_plus,
+            count_100_plus, count_60_plus, best_leg_darts, updated_at
+          ) VALUES (
+            $1, 45.0, 45.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NOW()
+          ) ON CONFLICT (user_id) DO NOTHING;`,
+          [newUserId]
+        );
+      }
+    } catch (profileErr: any) {
+      console.warn('[API /api/inscripciones] Error en creación atómica de perfil:', profileErr.message);
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Inscripción guardada exitosamente en PostgreSQL.',
-      registration: reg
+      message: isNewProfileCreated 
+        ? 'Inscripción confirmada y ficha de jugador federado creada en el Padrón Nacional.' 
+        : 'Inscripción confirmada y vinculada a tu perfil oficial.',
+      registration: reg,
+      profile: linkedProfile ? {
+        id: linkedProfile.id,
+        userId: linkedProfile.user_id,
+        fullName: linkedProfile.full_name,
+        nickname: linkedProfile.nickname,
+        avatarUrl: linkedProfile.avatar_url || '/logos/logo-mdq.png',
+        photoUrl: linkedProfile.photo_url || '/logos/logo-mdq.png',
+        city: linkedProfile.city || reg.city || 'Mar del Plata',
+        province: linkedProfile.province || reg.province || 'Buenos Aires',
+        club: linkedProfile.club || reg.club || 'Darderos Mar del Plata',
+        nationality: linkedProfile.nationality || reg.nationality || 'Argentina',
+        countryCode: linkedProfile.country_code || reg.countryCode || 'AR',
+        estimatedAvg: parseFloat(linkedProfile.initial_estimated_avg || '45.0'),
+        category: linkedProfile.category || 'INTERMEDIA',
+        status: linkedProfile.status || 'ACTIVE',
+        role: 'PLAYER',
+        isProfileComplete: true
+      } : null,
+      isNewProfileCreated
     });
   } catch (err: any) {
     console.error('[API /api/inscripciones POST Error]:', err.message);

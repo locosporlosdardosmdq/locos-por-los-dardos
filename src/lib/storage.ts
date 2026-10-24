@@ -291,6 +291,8 @@ export function saveCurrentPlayerProfile(profile: any): void {
   }
 }
 
+export const savePlayerProfile = saveCurrentPlayerProfile;
+
 export function getLastPlayerProfile(): any | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -782,17 +784,29 @@ export async function fetchGrandTournamentRegistrationsFromCloud(tournamentId?: 
   return [];
 }
 
-export async function saveGrandTournamentRegistrationToCloud(reg: GrandTournamentRegistration): Promise<boolean> {
+export interface GrandRegistrationSyncResult {
+  success: boolean;
+  profile?: any;
+  isNewProfileCreated?: boolean;
+}
+
+export async function saveGrandTournamentRegistrationToCloud(reg: GrandTournamentRegistration): Promise<GrandRegistrationSyncResult> {
   try {
     const res = await fetch('/api/inscripciones', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ registration: reg })
     });
-    return res.ok;
+    if (!res.ok) return { success: false };
+    const data = await res.json();
+    return {
+      success: !!data.success,
+      profile: data.profile,
+      isNewProfileCreated: !!data.isNewProfileCreated
+    };
   } catch (err) {
     console.warn('[Storage] Error saving grand registration to cloud:', err);
-    return false;
+    return { success: false };
   }
 }
 

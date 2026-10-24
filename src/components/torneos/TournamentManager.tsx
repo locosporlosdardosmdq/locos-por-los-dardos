@@ -636,6 +636,34 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       return updated;
     });
 
+    // Si es un jugador nuevo ingresado por nombre personalizado, generar automáticamente su perfil federado en la nube (Opción C)
+    if (!matchedProfile && playerData.name.trim()) {
+      fetch('/api/jugadores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile: {
+            fullName: playerData.name.trim(),
+            nickname: playerData.name.trim().split(' ')[0],
+            city: currentTournament.city || 'Mar del Plata',
+            province: currentTournament.province || 'Buenos Aires',
+            club: 'Darderos Mar del Plata',
+            estimatedAvg: 45.0,
+            category: 'INTERMEDIA',
+            role: 'PLAYER',
+            status: 'ACTIVE'
+          }
+        })
+      }).then(res => res.json()).then(data => {
+        if (data.success && data.profile) {
+          setCommunityPlayers(prev => {
+            if (prev.some(p => p.id === data.profile.id)) return prev;
+            return [...prev, data.profile];
+          });
+        }
+      }).catch(err => console.warn('[Auto Player Creation Cloud Error]', err));
+    }
+
     setShowEnrollModal(false);
   };
 

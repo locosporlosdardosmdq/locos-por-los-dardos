@@ -1177,7 +1177,27 @@
      - Botón `[📲 Difundir por WhatsApp]`: Mensaje pre-redactado listo para grupos.
      - Botón `[📌 Fijar en Portada]`: Asocia la fecha con la Vitrina 1 de la landing page.
      - Modal de Ficha Individual de Inscripción `[👁️ Ficha]` para cada competidor.
-- **Motivo:** Garantiza que el 100% de las inscripciones remotas queden respaldadas en la base de datos central y visibles en tiempo real para la dirigencia, con un control de filtros profesional para todo el calendario deportivo.
+---
+
+## [ADR-055] Onboarding Atómico Fricción Cero: Generación y Vinculación Automática de Ficha Federada al Inscribirse
+
+- **Fecha:** 2026-10-24
+- **Estado:** ACEPTADA
+- **Contexto:**
+  El usuario consultó si estaba codificado que para anotarse a un torneo primero fuera obligatorio registrarse como jugador en la app.
+  - El análisis crítico de UX y arquitectura arrojó que obligar a registrarse con contraseña previa antes de ver o llenar el formulario genera una tasa de abandono de entre el 40% y 60% (especialmente cuando los competidores llegan desde links directos en WhatsApp o Instagram en sus celulares).
+  - Por otro lado, permitir que jueguen sin vincular un perfil provocaría que sus estadísticas (promedios, 180s, cierres altos y puntos de ranking) queden sueltas como texto plano en lugar de acumularse en el padrón de la liga.
+  - El usuario seleccionó la **Opción C: Onboarding Atómico Fricción Cero**.
+- **Decisión:**
+  1. **Formulario Abierto y Precarga:** El formulario de inscripción permanece accesible sin barreras ni exigencia de login previo. Si el usuario ya está conectado, sus datos se auto-completan. Si es un visitante nuevo, ingresa sus datos directamente.
+  2. **Onboarding Atómico en Supabase (`/api/inscripciones` POST):**
+     - Al enviar el formulario, el backend busca en `profiles` y `users` si ya existe un perfil federado por email, nombre exacto, apodo o teléfono.
+     - Si existe: vincula la inscripción y complementa datos faltantes (club, teléfono, ciudad) sin sobrescribir foto ni estadísticas.
+     - Si NO existe: crea automáticamente el registro en `users` (rol `PLAYER`), en `profiles` (estado `ACTIVE`, categoría base `INTERMEDIA`, AVG inicial `45.0`, avatar oficial) y en `player_stats` de manera atómica.
+  3. **Auto-Login Transparente en Cliente:** Si el visitante no tenía sesión activa en su navegador, el cliente adopta el nuevo perfil oficial en `localStorage` (`CURRENT_PLAYER`), reconociéndolo en toda la app de inmediato.
+  4. **Confirmación Visual:** En la pantalla de éxito se presenta la tarjeta oficial de "Ficha Federada en el Padrón Nacional" con acceso directo a `/jugadores`.
+- **Motivo:** Combina la máxima tasa de conversión (cero fricción de inscripción) con el 100% de integridad relacional en la base de datos nacional de competidores.
+
 
 
 

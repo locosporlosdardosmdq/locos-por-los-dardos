@@ -26,9 +26,11 @@ import { AttendanceDays, GrandTournamentRegistration, LandingShowcaseSettings, T
 import { 
   addGrandTournamentRegistration, 
   getCurrentPlayerProfile, 
+  savePlayerProfile,
   getStoredTournaments, 
   saveStoredTournaments, 
   saveTournamentToCloud,
+  saveGrandTournamentRegistrationToCloud,
   getStoredLandingShowcases,
   saveStoredLandingShowcases,
   getStoredAssociationBankAccount
@@ -68,9 +70,11 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
   const [dietaryRestrictions, setDietaryRestrictions] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Submitting
+  // Submitting y Ficha Federada (Opción C)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdRegistration, setCreatedRegistration] = useState<GrandTournamentRegistration | null>(null);
+  const [createdProfile, setCreatedProfile] = useState<any | null>(null);
+  const [isNewProfileCreated, setIsNewProfileCreated] = useState<boolean>(false);
 
   // Competencias oficiales del domingo
   const [competeSingles, setCompeteSingles] = useState<boolean>(true);
@@ -176,6 +180,25 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
       // 1. Guardar en registro unificado del Gran Torneo
       const updatedRegistrations = addGrandTournamentRegistration(newRegistration);
       setCreatedRegistration(newRegistration);
+
+      // Onboarding Atómico en la nube: vincular o crear ficha federada en Supabase (Opción C)
+      try {
+        const cloudSync = await saveGrandTournamentRegistrationToCloud(newRegistration);
+        if (cloudSync.success && cloudSync.profile) {
+          setCreatedProfile(cloudSync.profile);
+          setIsNewProfileCreated(!!cloudSync.isNewProfileCreated);
+
+          // Si el jugador navegante es nuevo o no tiene perfil configurado en este dispositivo,
+          // establecer su sesión para que navegue reconocido con su ficha
+          const current = getCurrentPlayerProfile();
+          const isGenericOrAdmin = !current || current.fullName.toLowerCase().includes('iceman');
+          if (isGenericOrAdmin && !newRegistration.fullName.toLowerCase().includes('iceman')) {
+            savePlayerProfile(cloudSync.profile);
+          }
+        }
+      } catch (syncErr) {
+        console.warn('[Sync Profile Error]', syncErr);
+      }
 
       // 2. Sincronizar contador real en heroSettings
       const currentShowcases = getStoredLandingShowcases();
@@ -952,6 +975,67 @@ Adjunto a continuación el comprobante de pago para la acreditación oficial. ¡
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400">Comensales Cena Sábado:</span>
                   <strong className="text-[#ffe600]">{createdRegistration.dinnerComensalesCount} cubierto(s)</strong>
+                </div>
+              </div>
+            )}
+
+            {/* Tarjeta de Ficha Federada Oficial en el Padrón Nacional (Opción C) */}
+            {createdRegistration && (
+              <div className="bg-gradient-to-br from-[#0c121e] to-[#121929] border border-[#00e676]/30 rounded-2xl p-4 text-left max-w-md mx-auto space-y-3 shadow-xl">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-[#00e676]/15 border border-[#00e676]/40 flex items-center justify-center text-[#00e676]">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-[#00e676] tracking-wider block">
+                        {isNewProfileCreated ? 'Ficha Federada Generada Automáticamente' : 'Ficha Federada Oficial Vinculada'}
+                      </span>
+                      <strong className="text-sm font-black text-white">
+                        {createdProfile?.fullName || createdRegistration.fullName}
+                      </strong>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Padrón Activo
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-[#07090e] p-2 rounded-xl border border-slate-800">
+                    <span className="text-[10px] text-slate-400 block font-bold">Apodo Oficial</span>
+                    <span className="text-white font-black truncate">@{createdProfile?.nickname || createdRegistration.nickname}</span>
+                  </div>
+                  <div className="bg-[#07090e] p-2 rounded-xl border border-slate-800">
+                    <span className="text-[10px] text-slate-400 block font-bold">Categoría Base</span>
+                    <span className="text-amber-400 font-black">{createdProfile?.category || 'INTERMEDIA'} • AVG 45.0</span>
+                  </div>
+                  <div className="bg-[#07090e] p-2 rounded-xl border border-slate-800">
+                    <span className="text-[10px] text-slate-400 block font-bold">Ciudad / Club</span>
+                    <span className="text-slate-200 font-bold truncate">
+                      {createdProfile?.city || createdRegistration.city} • {createdProfile?.club || createdRegistration.club}
+                    </span>
+                  </div>
+                  <div className="bg-[#07090e] p-2 rounded-xl border border-slate-800">
+                    <span className="text-[10px] text-slate-400 block font-bold">Nacionalidad</span>
+                    <span className="text-slate-200 font-bold truncate">
+                      {createdProfile?.nationality || createdRegistration.nationality}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-300 leading-relaxed bg-[#00e676]/5 p-2 rounded-xl border border-[#00e676]/20">
+                  ✨ <strong>Padrón Nacional:</strong> Tu ficha ya está activa. Tus estadísticas, partidos, legs y 180s se computarán automáticamente en el ranking oficial de la Asociación.
+                </p>
+
+                <div className="pt-0.5">
+                  <a
+                    href={`/jugadores?q=${encodeURIComponent(createdRegistration.nickname || createdRegistration.fullName)}`}
+                    className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors border border-slate-700"
+                  >
+                    <Users className="w-3.5 h-3.5 text-[#00e676]" />
+                    <span>Ver Ficha en Directorio Nacional de Jugadores</span>
+                  </a>
                 </div>
               </div>
             )}

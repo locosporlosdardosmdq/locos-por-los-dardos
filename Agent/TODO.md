@@ -1,3 +1,15 @@
+- [x] **Resolución de Error de Inicio de Sesión (`airesrvice@gmail.com`) y Bypass de Rate Limit de Supabase:**
+  * **Diagnóstico de Caso `airesrvice@gmail.com`:**
+    - Causa del error visual: Supabase Auth arrojó `email rate limit exceeded` (límite de 3 correos por hora del plan gratuito de Supabase saturado).
+    - Causa en base de datos: El usuario existía en `auth.users` y en `public.users`, pero carecía de fila en `public.profiles`.
+  * **Acciones Ejecutadas:**
+    - Ficha deportiva creada e inicializada en `public.profiles` y `player_stats` en Supabase PostgreSQL.
+    - Fallback resiliente en `/api/auth`: si un usuario existe en `users` pero no en `profiles`, se le genera automáticamente su perfil federado y se le permite entrar sin dar 404.
+    - Rescate en UI (`LoginModal.tsx`): ante errores de rate limit o fallos de entrega de correo, se despliega traducción amigable y botón de rescate `[⚡ Acceder Directamente con esta Cuenta]` de 1 clic.
+    - Botón `¿Problemas con el correo? Ingresar directamente` disponible en el formulario de acceso.
+    - Botón `[⚡ Entrar]` de 1 clic en la búsqueda de perfil por apodo.
+  * **Validación de Compilación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Onboarding Atómico Fricción Cero en Inscripción a Torneos (Opción C):**
   * **Acceso Inclusivo sin Bloqueo:** El formulario de inscripción permanece 100% abierto para visitas desde WhatsApp/redes sin exigir registro ni login previo de contraseña (eliminando la tasa de abandono del 40-60%).
   * **Creación y Vinculación Atómica en Supabase (`/api/inscripciones` POST):**

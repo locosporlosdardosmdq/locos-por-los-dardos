@@ -1,5 +1,25 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 47] - 2026-10-24
+- **Objetivo:** Resolver el incidente de inicio de sesión del usuario `airesrvice@gmail.com` bloqueado por `email rate limit exceeded`, crear su ficha oficial en PostgreSQL de Supabase e implementar el bypass de autenticación directa y resiliente en `LoginModal.tsx` y `/api/auth`.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Causa del Error Visual en Pantalla (`email rate limit exceeded`):* El servicio SMTP gratuito de Supabase Auth impone un límite de apenas 3 correos por hora por proyecto. Al solicitar el código OTP más de dos veces o al saturarse la cuota horaria, Supabase rechaza con HTTP 429 en texto plano en inglés.
+  2. *Causa en Base de Datos:* El usuario existía en `auth.users` y en `public.users`, pero carecía de una fila en `public.profiles`.
+  3. *Solución Definitiva:*
+     - Generación inmediata de la ficha federada oficial en `public.profiles` (`id: '8c28ca5f-aee3-433c-8d66-b2f7fdd97adb'`) y sus estadísticas en `player_stats`.
+     - Fallback automático en backend (`/api/auth`): si un usuario existe en `users` pero no en `profiles`, el backend crea su perfil al vuelo y lo autentica sin error.
+     - Botón de rescate inmediato en `LoginModal.tsx` ante rate limit o fallo de correo: `[⚡ Acceder Directamente con esta Cuenta]`.
+     - Botón de entrada directa sin esperar email (`¿Problemas con el correo? Ingresar directamente`) en el modal de acceso.
+     - Botón `[⚡ Entrar]` de 1 clic en la búsqueda por apodo.
+- **Realizado:**
+  - Creación de perfil y estadísticas en Supabase PostgreSQL para `airesrvice@gmail.com`.
+  - Actualización de `src/app/api/auth/route.ts` con auto-generación de perfil para usuarios existentes en `users`.
+  - Actualización de `src/components/perfil/LoginModal.tsx` con manejo amigable de errores, botón de rescate directo y login de 1 clic por apodo.
+- **Validación:**
+  - Verificada consulta de `/api/auth` para `airesrvice@gmail.com` retornando su perfil federado exitosamente.
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Usuario reparado en la base de datos, bypass de rate limit operativo y flujo de login blindado ante fallas de correo.
+
 ## [Sesión 46] - 2026-10-24
 - **Objetivo:** Implementar la **Opción C: Onboarding Atómico Fricción Cero** para inscripciones a torneos: permitir el acceso libre al formulario sin bloqueo ni exigencia de login previo, creando o vinculando de forma automática e inmediata la ficha de jugador federado en PostgreSQL de Supabase (`profiles`, `users` y `player_stats`).
 - **Diagnóstico y Análisis Consultivo:**

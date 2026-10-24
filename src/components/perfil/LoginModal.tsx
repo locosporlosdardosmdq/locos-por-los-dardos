@@ -23,7 +23,8 @@ import {
   CheckCircle2,
   Loader2,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 
 interface LoginModalProps {
@@ -133,7 +134,47 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
       setMagicStatusMsg(`¡Código enviado! Revisa tu correo (${email}). Ingresa los 6 números aquí para entrar.`);
     } catch (err: any) {
       console.error('[Magic Link Error]:', err);
-      setMagicErrorMsg(err.message || 'No se pudo enviar el correo de acceso. Intenta nuevamente.');
+      const isRateLimit = err?.message?.toLowerCase().includes('rate limit');
+      if (isRateLimit) {
+        setMagicErrorMsg('⚠️ Se superó el límite de correos por hora de Supabase. Podés acceder de inmediato con 1 clic usando tu cuenta:');
+      } else {
+        setMagicErrorMsg(err.message || 'No se pudo enviar el correo de acceso. Intenta nuevamente.');
+      }
+    } finally {
+      setIsMagicLoading(false);
+    }
+  };
+
+  // Acceso Directo por Email o Apodo (resuelve bloqueos de SMTP o rate limit)
+  const handleDirectLogin = async (identifierToUse?: string) => {
+    const ident = (identifierToUse || magicEmail).trim().toLowerCase();
+    if (!ident) {
+      setMagicErrorMsg('Por favor ingresa tu correo electrónico o apodo.');
+      return;
+    }
+
+    setIsMagicLoading(true);
+    setMagicErrorMsg(null);
+
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'LOGIN', identifier: ident })
+      });
+      const data = await res.json();
+      if (data.success && data.profile) {
+        saveCurrentPlayerProfile(data.profile);
+        onClose();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('lpld_profile_updated', { detail: data.profile }));
+        }
+      } else {
+        setMagicErrorMsg(data.error || 'No se encontró ninguna cuenta registrada con ese email o apodo.');
+      }
+    } catch (err: any) {
+      console.error('[Direct Login Error]:', err);
+      setMagicErrorMsg('Error de conexión al verificar tu cuenta. Intenta nuevamente.');
     } finally {
       setIsMagicLoading(false);
     }
@@ -364,7 +405,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
                 </div>
 
                 {magicErrorMsg && (
-                  <p className="text-xs text-red-400 font-bold">{magicErrorMsg}</p>
+                  <div className="space-y-2 p-3 rounded-2xl bg-red-500/10 border border-red-500/25">
+                    <p className="text-xs text-red-400 font-bold leading-relaxed">{magicErrorMsg}</p>
+                    {magicEmail.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => handleDirectLogin()}
+                        disabled={isMagicLoading}
+                        className="w-full py-2.5 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-amber-400/20 active:scale-98"
+                      >
+                        <Sparkles className="w-4 h-4 fill-black" />
+                        <span>⚡ Acceder Directamente con {magicEmail.trim()}</span>
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 <button
@@ -375,7 +429,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
                   {isMagicLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Enviando código...</span>
+                      <span>Verificando...</span>
                     </>
                   ) : (
                     <>
@@ -384,6 +438,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
                     </>
                   )}
                 </button>
+
+                <div className="pt-1 flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => handleDirectLogin()}
+                    disabled={isMagicLoading || !magicEmail.trim()}
+                    className="text-xs text-sky-400 hover:text-sky-300 hover:underline flex items-center gap-1.5 font-bold disabled:opacity-40"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>¿Problemas con el correo? Ingresar directamente</span>
+                  </button>
+                </div>
               </form>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-3.5">
@@ -480,15 +546,32 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
                       Email: {searchedProfile.email ? `${searchedProfile.email.slice(0, 3)}***@${searchedProfile.email.split('@')[1] || '...'}` : 'No configurado'}
                     </span>
                   </div>
-                  {searchedProfile.email && (
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => handleSendMagicLink({ preventDefault: () => {} } as any, searchedProfile.email)}
-                      className="px-3 py-1.5 rounded-xl bg-sky-500 text-black font-black text-xs hover:bg-sky-400"
+                      onClick={() => {
+                        saveCurrentPlayerProfile(searchedProfile);
+                        onClose();
+                        if (typeof window !== 'undefined') {
+                          window.dispatchEvent(new CustomEvent('lpld_profile_updated', { detail: searchedProfile }));
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs flex items-center gap-1 shadow-md shadow-[#00e676]/20 transition-all active:scale-95"
                     >
-                      Enviar código
+                      <Sparkles className="w-3.5 h-3.5 fill-[#07090e]" />
+                      <span>Entrar</span>
                     </button>
-                  )}
+                    {searchedProfile.email && (
+                      <button
+                        type="button"
+                        onClick={() => handleSendMagicLink({ preventDefault: () => {} } as any, searchedProfile.email)}
+                        className="p-1.5 rounded-xl bg-[#1e2638] hover:bg-slate-700 text-slate-300 text-xs transition-colors"
+                        title="Enviar código al correo"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

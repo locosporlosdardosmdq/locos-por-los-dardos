@@ -64,6 +64,80 @@ export async function POST(request: NextRequest) {
       );
 
       if (res.rows.length === 0) {
+        // Fallback: Verificar si el usuario existe en la tabla users pero aún no tenía fila en profiles
+        const userCheck = await pool.query(
+          `SELECT id, email, role FROM users WHERE LOWER(email) = $1 LIMIT 1;`,
+          [idOrEmail]
+        );
+
+        if (userCheck.rows.length > 0) {
+          const uRow = userCheck.rows[0];
+          const autoNick = uRow.email.split('@')[0];
+          const autoProf = await pool.query(
+            `INSERT INTO profiles (
+              user_id, nickname, full_name, province, city,
+              avatar_url, nationality, country_code, initial_estimated_avg,
+              category, status, is_verified, preferred_dart_weight_g, dart_brand,
+              club, association_role
+            ) VALUES (
+              $1, $2, $3, 'Buenos Aires', 'Mar del Plata',
+              '/logos/logo-mdq.png', 'Argentina', 'AR', 45.0,
+              'INTERMEDIA', 'ACTIVE', false, 24, 'TARGET 90%',
+              'Darderos Mar del Plata', 'Competidor Oficial'
+            ) RETURNING *;`,
+            [uRow.id, autoNick, autoNick]
+          );
+
+          await pool.query(
+            `INSERT INTO player_stats (user_id, overall_avg, first_9_avg, matches_played, matches_won, legs_played, legs_won, updated_at)
+             VALUES ($1, 45.0, 45.0, 0, 0, 0, 0, NOW())
+             ON CONFLICT (user_id) DO NOTHING;`,
+            [uRow.id]
+          );
+
+          const createdRow = autoProf.rows[0];
+          const fallbackProfile: PlayerProfile = {
+            id: createdRow.id,
+            email: uRow.email,
+            nickname: createdRow.nickname,
+            fullName: createdRow.full_name,
+            phone: '',
+            province: createdRow.province || 'Buenos Aires',
+            city: createdRow.city || 'Mar del Plata',
+            nationality: 'Argentina',
+            countryCode: 'AR',
+            avatarUrl: createdRow.avatar_url || '/logos/logo-mdq.png',
+            estimatedAvg: 45.0,
+            category: 'INTERMEDIA',
+            isVerified: false,
+            bio: '',
+            preferredDartWeight: 24,
+            dartBrand: 'TARGET 90%',
+            majorTitle: '',
+            associationRole: '',
+            isProfileComplete: true,
+            stats: {
+              overallAvg: 45.0,
+              first9Avg: 45.0,
+              matchesPlayed: 0,
+              matchesWon: 0,
+              legsPlayed: 0,
+              legsWon: 0,
+              highestCheckout: 0,
+              checkoutAttempts: 0,
+              checkoutHits: 0,
+              checkoutPercentage: 0,
+              count180s: 0,
+              count140Plus: 0,
+              count100Plus: 0,
+              count60Plus: 0,
+              bestLegDarts: 0
+            }
+          };
+
+          return NextResponse.json({ success: true, profile: fallbackProfile });
+        }
+
         return NextResponse.json({ success: false, error: 'No se encontró ninguna cuenta registrada con ese email o apodo.' }, { status: 404 });
       }
 

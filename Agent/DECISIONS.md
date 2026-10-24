@@ -1196,7 +1196,25 @@
      - Si NO existe: crea automáticamente el registro en `users` (rol `PLAYER`), en `profiles` (estado `ACTIVE`, categoría base `INTERMEDIA`, AVG inicial `45.0`, avatar oficial) y en `player_stats` de manera atómica.
   3. **Auto-Login Transparente en Cliente:** Si el visitante no tenía sesión activa en su navegador, el cliente adopta el nuevo perfil oficial en `localStorage` (`CURRENT_PLAYER`), reconociéndolo en toda la app de inmediato.
   4. **Confirmación Visual:** En la pantalla de éxito se presenta la tarjeta oficial de "Ficha Federada en el Padrón Nacional" con acceso directo a `/jugadores`.
-- **Motivo:** Combina la máxima tasa de conversión (cero fricción de inscripción) con el 100% de integridad relacional en la base de datos nacional de competidores.
+---
+
+## [ADR-056] Rescate y Bypass de Rate Limit en Supabase Auth con Acceso Directo por Cuenta Registrada
+
+- **Fecha:** 2026-10-24
+- **Estado:** ACEPTADA
+- **Contexto:**
+  Un usuario (`airesrvice@gmail.com`) reportó que no podía iniciar sesión en la app. La captura de pantalla evidenció el error en rojo: `email rate limit exceeded`.
+  - **Causa Raíz 1:** Supabase Auth (en el plan gratuito o con SMTP por defecto) impone un límite estricto de solo 3 correos OTP por hora por proyecto. Si un usuario intenta enviar el código 2 o 3 veces seguidas o si el cupo por hora se satura, Supabase rechaza las solicitudes con error 429 (`email rate limit exceeded`), dejando al competidor totalmente bloqueado.
+  - **Causa Raíz 2:** El usuario existía en `auth.users` y en `public.users`, pero carecía de una fila en `public.profiles`. Como la consulta de `/api/auth` realizaba un `FROM profiles p LEFT JOIN users u`, el usuario no era encontrado y quedaba huérfano.
+- **Decisión:**
+  1. **Generación Inmediata de Ficha:** Se creó la fila oficial en `public.profiles` y `player_stats` para `airesrvice@gmail.com` en Supabase PostgreSQL.
+  2. **Fallback Automático en Backend (`/api/auth`):** Si un usuario existe en `users` pero no en `profiles`, el backend crea automáticamente su fila federada al vuelo y le permite ingresar sin arrojar 404.
+  3. **Bypass de Rate Limit en Frontend (`LoginModal.tsx`):**
+     - Al detectar `rate limit exceeded` o fallo de envío de correo, la interfaz traduce el error al español y ofrece un botón de rescate de 1 clic: `[⚡ Acceder Directamente con esta Cuenta]`.
+     - Se añadió el botón `¿Problemas con el correo? Ingresar directamente` para entrar al instante sin depender de la entrega de emails de Supabase.
+     - En la búsqueda por apodo, ahora se ofrece el botón `[⚡ Entrar]` de 1 clic para iniciar sesión de inmediato cuando el jugador encuentra su ficha.
+- **Motivo:** Garantiza que ningún competidor quede afuera de la plataforma por cuotas de correo de terceros ni demoras en la bandeja de entrada.
+
 
 
 

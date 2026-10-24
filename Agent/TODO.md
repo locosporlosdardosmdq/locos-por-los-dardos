@@ -1,3 +1,17 @@
+- [x] **Carga Local de Imágenes del Slider con Compresión Canvas, Reordenamiento de Galería y Contador Online de Inscriptos 100% Dinámico:**
+  * **Selector y Subida de Imágenes desde Equipo o Disco Local (`superadmin/page.tsx`):**
+    - Botón interactivo `[📁 Elegir del Equipo / Disco]` con input de archivo `accept="image/*"`.
+    - Compresión y redimensionamiento in-browser mediante `<canvas>` (máx 1920x1080 @ 85% calidad JPEG) para evitar rebasar la cuota de `localStorage` ante fotos de cámaras o teléfonos móviles.
+    - Input complementario para URLs externas y presets pre-configurados.
+  * **Reordenamiento Intuitivo de la Galería del Slider (`superadmin/page.tsx`):**
+    - Grilla de tarjetas con visualización de posición, badge especial `#1 Portada`, controles de desplazamiento táctil: `[←]` (mover antes), `<select>` para saltar directamente a cualquier posición `#1..N`, `[→]` (mover después), y `[🗑️]` (eliminar foto).
+  * **Contador de Inscriptos 100% Dinámico y Real ("Contador Online"):**
+    - Erradicación definitiva del número estático `38` mockeado en `storage.ts` (`DEFAULT_LANDING_SHOWCASES.heroTournament.registeredCount = 0`).
+    - Sanitización reactiva automática en `getStoredLandingShowcases()` para corregir valores guardados previamente en navegadores que tengan el mock de 38.
+    - Widget reactivo en SuperAdmin con indicador pulsante en vivo `🟢 Sincronizado En Vivo`, desglose por tarjetas (Inscriptos In-App PDC, Inscriptos en Llave/Cuadro y Total Oficial) y auto-sincronización en tiempo real.
+    - Contador pulsante en vivo en el Head Banner (`TournamentHeroBanner.tsx`) con baliza `🟢 EN VIVO: X / Y inscriptos reales`.
+    - Sincronización precisa en `GrandTournamentEnrollModal.tsx` que actualiza el conteo exacto de registros confirmados al finalizar el flujo.
+
 - [x] **Slider de Galería en Head Banner, Formulario Unificado In-App (PDC + Sociedad de Fomento) y Gobernanza Estricta de Torneos y Ligas:**
   * **Slider de Galería de Imágenes en Head Banner (`TournamentHeroBanner.tsx`):**
     - Carrusel interactivo automático cada 5 segundos con pausa al hover, indicadores dot, flechas previo/siguiente y contador de diapositivas.

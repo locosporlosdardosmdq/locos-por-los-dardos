@@ -1037,5 +1037,30 @@
      - Creación de Liga Nacional Oficial restringida al SuperAdmin, administradores y Comisión Directiva Nacional.
 - **Motivo:** Máxima tasa de conversión en inscripciones eliminando fricciones externas, centralización de datos clave de hospitalidad para la Sociedad de Fomento y riguroso cumplimiento de estándares internacionales PDC para posicionar a Mar del Plata como sede mundialista.
 
+---
+
+## [ADR-049] Carga y Compresión Canvas de Fotos Locales para Slider, Reordenamiento de Galería y Contador Online Dinámico de Inscriptos Reales
+
+- **Fecha:** 2026-10-24
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Carga y Orden de Galería de Imágenes:* El Superadministrador requería poder seleccionar fotos directamente desde su computadora o disco local sin depender de subirlas primero a un hosting externo ni pegar URLs manualmente. Asimismo, requería poder definir con precisión el orden de aparición de las imágenes en el slider del Head Banner, designando cuál funge como portada (`#1 Portada`) y pudiendo alternar las secuencias de las fotos.
+  2. *Contador de Inscriptos Estático vs Real:* El campo "Inscriptos Confirmados (Real)" en SuperAdmin y el Head Banner mostraba un valor fijo de `38` heredado de un mock de maquetado en `DEFAULT_LANDING_SHOWCASES`. El usuario solicitó explícitamente que sea 100% dinámico y REAL: un contador online en vivo que refleje exactamente a los competidores federados que se van inscribiendo en la plataforma.
+- **Decisión:**
+  1. **Selector de Imágenes Locales con Compresión en Canvas (`superadmin/page.tsx`):**
+     - Se integró un input de archivo nativo oculto (`type="file" accept="image/*"`) accionado por el botón principal `[📁 Elegir del Equipo / Disco]`.
+     - *Optimización crítica de cuota:* Dado que las fotografías tomadas con cámaras digitales o smartphones pesan comúnmente entre 5 MB y 15 MB, almacenarlas directamente en Base64 en `localStorage` dispararía de inmediato una excepción `QuotaExceededError`. Para evitarlo, se implementó compresión client-side in-memory mediante un elemento `<canvas>` que escala la imagen a una resolución máxima de 1920x1080 px y la codifica en JPEG con factor de calidad 0.85 (~150 KB - 250 KB), manteniendo máxima nitidez Full HD con un peso despreciable.
+  2. **Controles de Reordenamiento de Galería (`superadmin/page.tsx`):**
+     - Cada miniatura exhibe su posición `#1, #2, ...` y un badge distintivo `#1 Portada` para el primer elemento.
+     - Controles ergonómicos: botón `[←]` (mover a la izquierda/antes), `<select>` interactivo para saltar de forma inmediata a cualquier posición `#1..N`, botón `[→]` (mover a la derecha/después), y `[🗑️]` (eliminar foto).
+  3. **Contador Online Dinámico de Inscriptos Reales (`storage.ts`, `TournamentHeroBanner.tsx`, `superadmin/page.tsx`, `GrandTournamentEnrollModal.tsx`):**
+     - Saneamiento del valor base en `DEFAULT_LANDING_SHOWCASES.heroTournament.registeredCount = 0`.
+     - Sanitización automática y retrocompatible en `getStoredLandingShowcases()`: si el navegador del usuario tiene el valor mockeado `38`, lo reemplaza dinámicamente por la cantidad real de registros confirmados (`getStoredGrandTournamentRegistrations().length`).
+     - Reemplazo del `<input type="number">` estático en SuperAdmin por el widget interactivo **"Contador Online en Tiempo Real (100% Dinámico y Real)"**, con indicador pulsante verde `🟢 Sincronizado En Vivo`, desglose en tarjetas (In-App PDC, Llave de Torneo y Total Oficial), y `useEffect` sincronizador bidireccional.
+     - En `TournamentHeroBanner.tsx`, el badge del certamen se transformó en un monitor online activo: `🟢 EN VIVO: {liveCount} / {maxParticipants} inscriptos reales`, escuchando eventos del sistema (`lpld_grand_registrations_updated`, `lpld_tournaments_updated`, `lpld_showcases_updated`, `storage`).
+     - En `GrandTournamentEnrollModal.tsx`, al completar la inscripción, se sincroniza el total fidedigno de inscripciones activas (`updatedRegistrations.length`).
+- **Motivo:** Facilidad y autonomía total para el SuperAdmin al armar el carrusel con fotos de sus carpetas locales sin riesgos de saturación de almacenamiento, y transparencia deportiva absoluta con un contador en vivo fidedigno que legitima la convocatoria oficial del certamen.
+
+
 
 

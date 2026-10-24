@@ -591,7 +591,7 @@ export const DEFAULT_LANDING_SHOWCASES: LandingShowcaseSettings = {
     date: '21 y 22 Nov',
     venue: 'Sociedad de Fomento Nueva Pompeya',
     prizePool: '$0 ARS',
-    registeredCount: 38,
+    registeredCount: 0,
     maxParticipants: 32,
     googleFormUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScTorneoOficialLPD2026/viewform',
     autoSyncGoogleForm: true,
@@ -672,19 +672,37 @@ export function getStoredLandingShowcases(fallback: LandingShowcaseSettings = DE
   if (typeof window === 'undefined') return fallback;
   try {
     const data = localStorage.getItem(SHOWCASE_KEYS.SHOWCASES);
+    const grandRegs = getStoredGrandTournamentRegistrations();
     if (data) {
       const parsed = JSON.parse(data);
       if (parsed && parsed.heroTournament && parsed.communitySection) {
+        // Sanitizar el número simulado 38 si no existen 38 registros en la realidad
+        let realCount = parsed.heroTournament.registeredCount;
+        if (realCount === 38 && grandRegs.length !== 38) {
+          realCount = grandRegs.length;
+        } else if (grandRegs.length > 0) {
+          realCount = Math.max(realCount || 0, grandRegs.length);
+        }
         return {
           ...fallback,
           ...parsed,
-          heroTournament: { ...fallback.heroTournament, ...parsed.heroTournament },
+          heroTournament: {
+            ...fallback.heroTournament,
+            ...parsed.heroTournament,
+            registeredCount: realCount ?? grandRegs.length
+          },
           communitySection: { ...fallback.communitySection, ...parsed.communitySection },
           affiliatedClubs: Array.isArray(parsed.affiliatedClubs) ? parsed.affiliatedClubs : fallback.affiliatedClubs
         };
       }
     }
-    return fallback;
+    return {
+      ...fallback,
+      heroTournament: {
+        ...fallback.heroTournament,
+        registeredCount: grandRegs.length
+      }
+    };
   } catch {
     return fallback;
   }

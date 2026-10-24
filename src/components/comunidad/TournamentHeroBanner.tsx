@@ -19,7 +19,7 @@ import {
   Pause,
   Play
 } from 'lucide-react';
-import { getStoredLandingShowcases, DEFAULT_LANDING_SHOWCASES } from '@/lib/storage';
+import { getStoredLandingShowcases, DEFAULT_LANDING_SHOWCASES, getStoredGrandTournamentRegistrations } from '@/lib/storage';
 import { LandingShowcaseSettings } from '@/lib/types';
 import { GrandTournamentEnrollModal } from './GrandTournamentEnrollModal';
 
@@ -39,14 +39,33 @@ export const TournamentHeroBanner: React.FC = () => {
   const [activeCardTab, setActiveCardTab] = useState<'GALLERY' | 'ORGANIZA'>('GALLERY');
   const [isPaused, setIsPaused] = useState(false);
 
+  // Conteo en vivo y real de inscriptos
+  const [realRegistrationsCount, setRealRegistrationsCount] = useState<number>(() => {
+    return getStoredGrandTournamentRegistrations().length;
+  });
+
   useEffect(() => {
     const handleUpdate = (e: any) => {
       if (e.detail?.heroTournament) {
         setHeroSettings(e.detail.heroTournament);
       }
     };
+    const updateRealCount = () => {
+      const regs = getStoredGrandTournamentRegistrations();
+      setRealRegistrationsCount(regs.length);
+    };
+
     window.addEventListener('lpld_showcases_updated', handleUpdate);
-    return () => window.removeEventListener('lpld_showcases_updated', handleUpdate);
+    window.addEventListener('lpld_grand_registrations_updated', updateRealCount);
+    window.addEventListener('lpld_tournaments_updated', updateRealCount);
+    window.addEventListener('storage', updateRealCount);
+
+    return () => {
+      window.removeEventListener('lpld_showcases_updated', handleUpdate);
+      window.removeEventListener('lpld_grand_registrations_updated', updateRealCount);
+      window.removeEventListener('lpld_tournaments_updated', updateRealCount);
+      window.removeEventListener('storage', updateRealCount);
+    };
   }, []);
 
   const galleryList = (heroSettings.galleryImages && heroSettings.galleryImages.length > 0)
@@ -135,13 +154,23 @@ export const TournamentHeroBanner: React.FC = () => {
                 </strong>
               </div>
 
-              <div className="bg-[#14161f] border border-[#313647] rounded-2xl p-3 text-center lg:text-left flex-1 sm:flex-none sm:min-w-[105px]">
-                <span className="text-[10px] uppercase font-black text-[#b8ad98] block flex items-center justify-center lg:justify-start gap-1">
-                  <Users className="w-3 h-3 text-[#1d68ed]" /> Inscriptos
-                </span>
-                <strong className="text-xs sm:text-sm text-[#efe7d8] font-black block mt-0.5 whitespace-nowrap">
-                  {heroSettings.registeredCount} / {heroSettings.maxParticipants}
+              {/* Contador En Vivo Dinámico y Real */}
+              <div className="bg-[#14161f] border border-[#00e676]/40 rounded-2xl p-3 text-center lg:text-left flex-1 sm:flex-none sm:min-w-[115px] relative overflow-hidden shadow-md shadow-[#00e676]/10">
+                <div className="flex items-center justify-center lg:justify-start gap-1.5">
+                  <div className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00e676] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00e676]"></span>
+                  </div>
+                  <span className="text-[10px] uppercase font-black text-[#00e676] block">
+                    En Vivo
+                  </span>
+                </div>
+                <strong className="text-xs sm:text-sm text-white font-black block mt-0.5 whitespace-nowrap font-mono">
+                  {Math.max(heroSettings.registeredCount || 0, realRegistrationsCount)} / {heroSettings.maxParticipants || 64}
                 </strong>
+                <span className="text-[9px] text-slate-400 block -mt-0.5">
+                  inscriptos reales
+                </span>
               </div>
             </div>
 

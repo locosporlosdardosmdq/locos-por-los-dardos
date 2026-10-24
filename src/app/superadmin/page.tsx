@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
@@ -50,6 +50,10 @@ import {
   Camera,
   Flame,
   Trophy,
+  Upload,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Image as ImageIcon
 } from 'lucide-react';
 import { 
@@ -137,11 +141,41 @@ export default function SuperadminPage() {
     return getStoredGrandTournamentRegistrations();
   });
   const [newGalleryUrl, setNewGalleryUrl] = useState('');
+  const galleryFileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingGalleryImage, setIsUploadingGalleryImage] = useState(false);
 
   // Torneos creados en la App para vinculación directa de la inscripción
   const [availableTournaments, setAvailableTournaments] = useState<Tournament[]>(() => {
     return getStoredTournaments();
   });
+
+  // Torneo vinculado y conteo dinámico real
+  const linkedTourney = useMemo(() => {
+    return availableTournaments.find(t => 
+      (showcases.heroTournament.tournamentId && t.id === showcases.heroTournament.tournamentId) ||
+      t.title.toLowerCase().includes('open') ||
+      t.title.toLowerCase().includes('mar del plata') ||
+      t.title.toLowerCase().includes('pompeya')
+    );
+  }, [availableTournaments, showcases.heroTournament.tournamentId]);
+
+  const realOnlineEnrolledCount = Math.max(
+    grandRegistrations.length,
+    linkedTourney?.enrolledPlayers?.length || 0
+  );
+
+  // Sincronización automática de showcases.heroTournament.registeredCount con el contador real online
+  useEffect(() => {
+    if (showcases.heroTournament.registeredCount !== realOnlineEnrolledCount) {
+      setShowcases(prev => ({
+        ...prev,
+        heroTournament: {
+          ...prev.heroTournament,
+          registeredCount: realOnlineEnrolledCount
+        }
+      }));
+    }
+  }, [realOnlineEnrolledCount]);
 
   useEffect(() => {
     const handleTournamentsUpdate = () => {
@@ -556,6 +590,89 @@ export default function SuperadminPage() {
       countriesCount: countriesMap.size
     };
   }, [grandRegistrations]);
+
+  // Carga de foto local desde el equipo / disco local con compresión automática en canvas
+  const handleLocalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona un archivo de imagen válido (JPG, PNG o WebP).');
+      return;
+    }
+
+    setIsUploadingGalleryImage(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (!result) {
+        setIsUploadingGalleryImage(false);
+        return;
+      }
+
+      // Optimizar en canvas para evitar sobrecargar localStorage
+      const img = new window.Image();
+      img.onload = () => {
+        const maxWidth = 1920;
+        const maxHeight = 1080;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width / height > maxWidth / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          handleAddGalleryImage(compressedDataUrl);
+        } else {
+          handleAddGalleryImage(result);
+        }
+        setIsUploadingGalleryImage(false);
+        if (galleryFileInputRef.current) galleryFileInputRef.current.value = '';
+      };
+      img.onerror = () => {
+        handleAddGalleryImage(result);
+        setIsUploadingGalleryImage(false);
+        if (galleryFileInputRef.current) galleryFileInputRef.current.value = '';
+      };
+      img.src = result;
+    };
+    reader.onerror = () => {
+      alert('Error al leer el archivo del disco local.');
+      setIsUploadingGalleryImage(false);
+      if (galleryFileInputRef.current) galleryFileInputRef.current.value = '';
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Reordenar imágenes en el carrusel (asignar orden de aparición)
+  const handleMoveGalleryImage = (fromIndex: number, toIndex: number) => {
+    const current = [...(showcases.heroTournament.galleryImages || [])];
+    if (toIndex < 0 || toIndex >= current.length || fromIndex === toIndex) return;
+    const [movedItem] = current.splice(fromIndex, 1);
+    current.splice(toIndex, 0, movedItem);
+    const updated = {
+      ...showcases,
+      heroTournament: {
+        ...showcases.heroTournament,
+        galleryImages: current
+      }
+    };
+    setShowcases(updated);
+    saveStoredLandingShowcases(updated);
+  };
 
   // Agregar imagen a la galería del Slider
   const handleAddGalleryImage = (urlToAdd?: string) => {
@@ -1769,44 +1886,67 @@ export default function SuperadminPage() {
                 </div>
 
                 {/* GESTOR DE GALERÍA DE IMÁGENES (SLIDER HEAD BANNER) */}
-                <div className="p-4 rounded-2xl bg-[#07090e] border border-slate-800 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                <div className="p-5 rounded-2xl bg-[#07090e] border border-slate-800 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
                     <div>
                       <h4 className="text-xs font-black uppercase tracking-wider text-[#00e676] flex items-center gap-1.5">
                         <Camera className="w-4 h-4" />
                         <span>Galería de Imágenes del Slider (Head Banner)</span>
                       </h4>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        Imágenes en rotación continua (5s) exhibiendo la sede, trofeos y comunidad de darderos.
+                        Rotación continua (5s). Elige fotos de tu equipo/disco local o ingresa enlaces, y define el orden de aparición.
                       </p>
                     </div>
 
-                    <span className="text-xs text-slate-400 font-mono">
+                    <span className="text-xs text-slate-400 font-mono bg-slate-800/80 px-2.5 py-1 rounded-full">
                       {(showcases.heroTournament.galleryImages || []).length} imagen(es) en slider
                     </span>
                   </div>
 
-                  {/* Input para agregar URL personalizada */}
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={newGalleryUrl}
-                      onChange={(e) => setNewGalleryUrl(e.target.value)}
-                      placeholder="Ingresa URL de imagen (ej: /images/mi-foto.jpg o https://...)"
-                      className="flex-1 px-3.5 py-2 bg-[#111622] border border-slate-700 rounded-xl text-white text-xs focus:border-[#00e676] focus:outline-none"
-                    />
+                  {/* Input de archivo oculto para elegir del disco local */}
+                  <input
+                    type="file"
+                    ref={galleryFileInputRef}
+                    accept="image/*"
+                    onChange={handleLocalImageUpload}
+                    className="hidden"
+                  />
+
+                  {/* Barra de Carga: Botón Disco Local + Input URL */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
+                    {/* Botón Principal: Elegir del Equipo */}
                     <button
                       type="button"
-                      onClick={() => handleAddGalleryImage()}
-                      className="px-4 py-2 bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-1"
+                      disabled={isUploadingGalleryImage}
+                      onClick={() => galleryFileInputRef.current?.click()}
+                      className="md:col-span-5 px-4 py-2.5 bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Agregar</span>
+                      <Upload className="w-4 h-4" />
+                      <span>{isUploadingGalleryImage ? 'Procesando Foto...' : 'Elegir del Equipo / Disco'}</span>
                     </button>
+
+                    {/* Input secundario para URL web */}
+                    <div className="md:col-span-7 flex gap-2">
+                      <input
+                        type="url"
+                        value={newGalleryUrl}
+                        onChange={(e) => setNewGalleryUrl(e.target.value)}
+                        placeholder="O pega URL de imagen (ej: /images/mi-foto.jpg o https://...)"
+                        className="flex-1 px-3.5 py-2 bg-[#111622] border border-slate-700 rounded-xl text-white text-xs focus:border-[#00e676] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddGalleryImage()}
+                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1 flex-shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Agregar</span>
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Botones de Presets Rápidos */}
-                  <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+                  {/* Presets Rápidos */}
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
                     <span className="text-slate-400 font-bold">Presets recomendados:</span>
                     <button
                       type="button"
@@ -1831,35 +1971,90 @@ export default function SuperadminPage() {
                     </button>
                   </div>
 
-                  {/* Grilla de Miniaturas */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                    {(showcases.heroTournament.galleryImages || [
-                      '/images/gallery-venue-pompeya.jpg',
-                      '/images/gallery-trophies.jpg',
-                      '/images/darderos.jpeg'
-                    ]).map((imgUrl, idx) => (
-                      <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-slate-700 bg-black group">
-                        <Image
-                          src={imgUrl}
-                          alt={`Slider ${idx + 1}`}
-                          fill
-                          className="object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveGalleryImage(idx)}
-                            className="p-1.5 rounded-lg bg-red-600/90 text-white hover:bg-red-500 transition-colors"
-                            title="Eliminar de galería"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                  {/* Grilla de Miniaturas con Asignación de Orden de Aparición */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Orden de Aparición en el Slider:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {(showcases.heroTournament.galleryImages || [
+                        '/images/gallery-venue-pompeya.jpg',
+                        '/images/gallery-trophies.jpg',
+                        '/images/darderos.jpeg'
+                      ]).map((imgUrl, idx, arr) => (
+                        <div key={idx} className="bg-[#111622] rounded-2xl overflow-hidden border border-slate-700 p-2.5 space-y-2 flex flex-col justify-between shadow-md">
+                          
+                          {/* Cabecera de la miniatura: Número de Orden */}
+                          <div className="flex items-center justify-between">
+                            {idx === 0 ? (
+                              <span className="bg-[#ffe600] text-black font-black text-[10px] px-2 py-0.5 rounded-full uppercase flex items-center gap-1 shadow-sm">
+                                ★ Portada (#1)
+                              </span>
+                            ) : (
+                              <span className="bg-slate-800 text-slate-200 font-mono font-bold text-[10px] px-2 py-0.5 rounded-full">
+                                Posición #{idx + 1}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveGalleryImage(idx)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              title="Eliminar de la galería"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Imagen */}
+                          <div className="relative aspect-video rounded-xl overflow-hidden border border-slate-800 bg-black">
+                            <Image
+                              src={imgUrl}
+                              alt={`Slider ${idx + 1}`}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+
+                          {/* Controles para Asignar Orden de Aparición */}
+                          <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-800/80">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => handleMoveGalleryImage(idx, idx - 1)}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-[#00e676] text-slate-300 hover:text-black transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                              title="Mover antes en el slider (←)"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+
+                            <div className="flex items-center gap-1 text-[11px] text-slate-300 font-mono">
+                              <span className="text-slate-400 text-[10px]">Orden:</span>
+                              <select
+                                value={idx}
+                                onChange={(e) => handleMoveGalleryImage(idx, Number(e.target.value))}
+                                className="bg-[#07090e] border border-slate-700 text-white rounded-lg px-2 py-1 text-xs focus:border-[#00e676] focus:outline-none"
+                              >
+                                {arr.map((_, optIdx) => (
+                                  <option key={optIdx} value={optIdx}>
+                                    #{optIdx + 1} {optIdx === 0 ? '(Portada)' : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={idx === arr.length - 1}
+                              onClick={() => handleMoveGalleryImage(idx, idx + 1)}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-[#00e676] text-slate-300 hover:text-black transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                              title="Mover después en el slider (→)"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                        <span className="absolute bottom-1 right-1 bg-black/70 text-[9px] font-mono text-white px-1.5 py-0.2 rounded">
-                          #{idx + 1}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -1968,22 +2163,86 @@ export default function SuperadminPage() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300">Inscriptos Confirmados (Real)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={showcases.heroTournament.registeredCount}
-                      onChange={(e) => setShowcases({
-                        ...showcases,
-                        heroTournament: {
-                          ...showcases.heroTournament,
-                          registeredCount: Math.max(0, parseInt(e.target.value, 10) || 0)
-                        }
-                      })}
-                      placeholder="ej: 38"
-                      className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-[#ef4444] focus:outline-none font-mono"
-                    />
+                  {/* CONTADOR ONLINE EN TIEMPO REAL (100% DINÁMICO Y REAL) */}
+                  <div className="space-y-1.5 md:col-span-2 bg-[#07090e] border-2 border-[#00e676]/40 p-4 rounded-2xl shadow-lg relative overflow-hidden">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00e676] opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-[#00e676]"></span>
+                        </div>
+                        <div>
+                          <label className="text-xs font-black uppercase tracking-wider text-[#00e676] flex items-center gap-1.5">
+                            <Users className="w-4 h-4" />
+                            <span>Inscriptos Confirmados • Contador Online en Tiempo Real</span>
+                          </label>
+                          <p className="text-[11px] text-slate-400">
+                            Total dinámico y 100% real según los competidores que se registran en la App y en la llave oficial.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded-full font-mono flex items-center gap-1">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#00e676]"></span>
+                          Sincronizado En Vivo
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                      {/* 1. Registrados por Formulario In-App (PDC) */}
+                      <div className="bg-[#111622] border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
+                        <span className="text-[10px] text-slate-400 uppercase font-black">
+                          Formulario In-App (PDC)
+                        </span>
+                        <div className="flex items-baseline gap-2 mt-1">
+                          <span className="text-2xl font-black text-[#00e676] font-mono">
+                            {grandRegistrations.length}
+                          </span>
+                          <span className="text-xs text-slate-400">registrados</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 mt-1">Con datos Fomento & PDC</span>
+                      </div>
+
+                      {/* 2. Sembrados en Llave / Cuadro Oficial */}
+                      <div className="bg-[#111622] border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
+                        <span className="text-[10px] text-slate-400 uppercase font-black">
+                          En Llave / Cuadro Oficial
+                        </span>
+                        <div className="flex items-baseline gap-2 mt-1">
+                          <span className="text-2xl font-black text-[#ffe600] font-mono">
+                            {linkedTourney?.enrolledPlayers?.length || 0}
+                          </span>
+                          <span className="text-xs text-slate-400">sembrados</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 mt-1">En el fixture de /torneos</span>
+                      </div>
+
+                      {/* 3. Total Oficial Exhibido en Portada */}
+                      <div className="bg-gradient-to-br from-[#00e676]/15 to-[#00e676]/5 border border-[#00e676]/50 rounded-xl p-3 flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-[#00e676] uppercase font-black flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" /> Total Oficial en Portada
+                          </span>
+                          <span className="text-[9px] bg-[#00e676] text-black font-black px-1.5 py-0.2 rounded-full uppercase">
+                            100% Real
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-2 mt-1">
+                          <span className="text-2xl sm:text-3xl font-black text-white font-mono">
+                            {realOnlineEnrolledCount}
+                          </span>
+                          <span className="text-xs text-slate-300 font-bold">
+                            / {showcases.heroTournament.maxParticipants || 64}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 mt-1">
+                          {realOnlineEnrolledCount >= (showcases.heroTournament.maxParticipants || 64) 
+                            ? '⚠️ Cupo completado' 
+                            : `${(showcases.heroTournament.maxParticipants || 64) - realOnlineEnrolledCount} lugares disponibles`}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">

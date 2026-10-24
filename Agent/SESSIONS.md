@@ -1,5 +1,31 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 40] - 2026-10-24
+- **Objetivo:** Permitir la selección y subida de imágenes para la galería del slider directamente desde el equipo o disco local con reordenamiento interactivo de aparición (asignación de orden `#1..N` y portada), y convertir el campo de inscriptos en un contador online 100% dinámico y real conectado al padrón de inscripciones efectivas de la App y de la llave del torneo.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Subida de Fotos Locales vs Cuota de LocalStorage:* Permitir cargar fotos tomadas con cámaras o celulares (pesos de 5 MB a 15 MB) directamente en Base64 en `localStorage` ocasiona un error crítico de cuota `QuotaExceededError`. La solución óptima es implementar compresión client-side in-memory mediante un `<canvas>` HTML5 reduciendo a máximo 1920x1080 px en formato JPEG con calidad 85% (~150 KB a 250 KB), conservando nitidez Full HD con un tamaño liviano y seguro.
+  2. *Reordenamiento de Galería del Slider:* El SuperAdmin requería decidir qué imagen abre el carrusel en la portada (`#1 Portada`) y cómo se suceden las fotografías en el Head Banner mediante controles táctiles rápidos y selector directo de posición.
+  3. *Inscriptos Ficticios (38) vs Contador Online Real:* El valor `38` estaba prefijado como mock estático en `DEFAULT_LANDING_SHOWCASES.heroTournament.registeredCount`. El usuario requirió que sea un contador online dinámico y REAL basado exclusivamente en los competidores que se registren en la App.
+- **Realizado:**
+  - **Selector y Subida de Imágenes Locales con Compresión en Canvas (`superadmin/page.tsx`):**
+    * Input de archivo oculto `type="file" accept="image/*"` disparado mediante el botón destacado `[📁 Elegir del Equipo / Disco]`.
+    * Pipeline de compresión client-side con `FileReader` y `<canvas>`: redimensionamiento proporcional a máx 1920x1080 px y codificación JPEG al 85% de calidad.
+    * Incorporación automática a `showcases.heroTournament.galleryImages`.
+  - **Controles de Reordenamiento de Galería (`superadmin/page.tsx`):**
+    * Grilla interactiva de miniaturas con badge `#1 Portada`, indicador visual de índice y controles de movimiento:
+      - `[←]` (Mover a la izquierda / antes).
+      - `<select>` para saltar directamente a cualquier posición `#1..N`.
+      - `[→]` (Mover a la derecha / después).
+      - `[🗑️]` (Eliminar fotografía).
+  - **Contador Online Dinámico y Real (`storage.ts`, `TournamentHeroBanner.tsx`, `superadmin/page.tsx`, `GrandTournamentEnrollModal.tsx`):**
+    * Saneado `DEFAULT_LANDING_SHOWCASES.heroTournament.registeredCount = 0`.
+    * Sanitización automática y retrocompatible en `getStoredLandingShowcases()`: si el navegador del usuario contiene el valor `38` mockeado, se reemplaza en caliente por la cantidad de inscriptos reales (`getStoredGrandTournamentRegistrations().length`).
+    * Reemplazado el input numérico estático de SuperAdmin por el widget interactivo **"Contador Online en Tiempo Real (100% Dinámico y Real)"** con baliza pulsante verde `🟢 Sincronizado En Vivo`, desglose en 3 tarjetas (In-App PDC, Llave de Torneo y Total Oficial), y `useEffect` reactivo.
+    * En `TournamentHeroBanner.tsx`, badge superior transformado en contador online en vivo: `🟢 EN VIVO: {liveCount} / {maxParticipants} inscriptos reales`, con escucha reactiva de eventos `lpld_grand_registrations_updated`, `lpld_tournaments_updated`, `lpld_showcases_updated` y `storage`.
+    * En `GrandTournamentEnrollModal.tsx`, al confirmar la inscripción se sincroniza el total fidedigno de inscripciones activas (`updatedRegistrations.length`).
+- **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código 0).
+- **Estado del Proyecto:** Galería del slider del Head Banner con carga directa desde el disco local y reordenamiento flexible, y contador de inscriptos 100% dinámico y real en vivo tanto en SuperAdmin como en la portada de la App.
+
 ## [Sesión 39] - 2026-10-24
 - **Objetivo:** Implementar el Slider & Head Banner del Gran Torneo Oficial con carrusel fotográfico rotativo configurable desde SuperAdmin, el Formulario de Inscripción Unificado In-App que inscribe atómicamente en un solo formulario al jugador en el torneo oficial para esa fecha (en la llave y cuadro) y registra los datos de acreditación PDC y logística para la Sociedad de Fomento Nueva Pompeya (acompañantes en sede, cubiertos para la cena de bienvenida del sábado y días de asistencia), más la Gobernanza Federativa de Creación y Edición de Torneos y Ligas.
 - **Diagnóstico y Análisis Consultivo:**

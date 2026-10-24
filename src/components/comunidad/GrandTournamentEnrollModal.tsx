@@ -133,17 +133,16 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
       };
 
       // 1. Guardar en registro unificado del Gran Torneo
-      addGrandTournamentRegistration(newRegistration);
+      const updatedRegistrations = addGrandTournamentRegistration(newRegistration);
       setCreatedRegistration(newRegistration);
 
-      // 2. Incrementar inscriptos en heroSettings y sincronizar
+      // 2. Sincronizar contador real en heroSettings
       const currentShowcases = getStoredLandingShowcases();
-      const updatedRegisteredCount = (currentShowcases.heroTournament.registeredCount || 0) + 1;
       const updatedShowcases: LandingShowcaseSettings = {
         ...currentShowcases,
         heroTournament: {
           ...currentShowcases.heroTournament,
-          registeredCount: updatedRegisteredCount,
+          registeredCount: updatedRegistrations.length,
           lastSyncedAt: 'Hoy, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       };

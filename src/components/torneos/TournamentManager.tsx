@@ -24,6 +24,7 @@ import {
   DEFAULT_LEAGUES,
   getCountryFlag, 
   isUserAdmin,
+  isUserSuperAdmin,
   canUserManageTournaments
 } from '@/lib/constants';
 import { 
@@ -268,7 +269,26 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   });
   const isAdmin = canUserManageTournaments(currentUser);
 
-  // Sincronización bidireccional con Supabase PostgreSQL en la nube
+  // Gobernanza de Torneo: Master Key para Superadmin o Creador / Co-Admin nato
+  const canManageTournament = (t: Tournament | null | undefined): boolean => {
+    if (!t) return false;
+    if (isUserSuperAdmin(currentUser) || currentUser.email?.toLowerCase() === 'marianodeux@gmail.com') return true;
+    if (t.creatorId && t.creatorId === currentUser.id) return true;
+    if (t.coAdminIds && t.coAdminIds.includes(currentUser.id)) return true;
+    if (!t.creatorId && isAdmin) return true;
+    return false;
+  };
+
+  // Validación de Liga Local Activa del usuario organizador
+  const userActiveLocalLeague = useMemo(() => {
+    return leagues.find(l => 
+      l.scope === 'LOCAL' && 
+      l.status !== 'FINISHED' && 
+      (l.creatorId === currentUser.id || (!l.creatorId && isAdmin))
+    );
+  }, [leagues, currentUser, isAdmin]);
+
+  // Sincronización bidireccional con Supabase PostgreSQL en la nube y eventos locales
   useEffect(() => {
     let isMounted = true;
     fetchTournamentsFromCloud().then((cloudTourneys) => {
@@ -285,8 +305,16 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       }
     }).catch((err) => console.warn('[TournamentManager] Error sincronizando torneos desde la nube:', err));
 
+    const handleStorageUpdate = () => {
+      setTournaments(getStoredTournaments(MOCK_TOURNAMENTS));
+    };
+    window.addEventListener('lpld_tournaments_updated', handleStorageUpdate);
+    window.addEventListener('storage', handleStorageUpdate);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('lpld_tournaments_updated', handleStorageUpdate);
+      window.removeEventListener('storage', handleStorageUpdate);
     };
   }, []);
 
@@ -499,7 +527,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
   // Administrador: Declarar Walkover (W.O.) y avanzar
   const handleAdminAdvanceWalkover = (matchId: string, winnerId: string, absentPlayerName: string) => {
-    if (!currentTournament) return;
+    if (!currentTournament || !canManageTournament(currentTournament)) return;
     const match = currentTournament.matches?.find((m) => m.id === matchId);
     if (!match) return;
 
@@ -513,7 +541,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
   // Administrador: Resetear partido de forma segura con cascada
   const handleAdminResetMatch = (matchId: string) => {
-    if (!selectedTournamentId) return;
+    if (!selectedTournamentId || !canManageTournament(currentTournament)) return;
 
     setTournaments((prev) => {
       const updated = prev.map((t) => {
@@ -793,10 +821,11 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     setSlotAssignTarget(null);
   };
 
-  // Administrador: Eliminar Torneo Activo
+  // Administrador / Creador: Eliminar Torneo Activo
   const handleDeleteTournament = (tourneyId: string, tourneyTitle: string) => {
-    if (!isAdmin) {
-      alert('Solo un administrador designado o Superadmin puede eliminar torneos.');
+    const tourney = tournaments.find((t) => t.id === tourneyId);
+    if (!canManageTournament(tourney)) {
+      alert('Solo el creador del torneo, sus co-administradores designados o Superadmin pueden eliminar torneos.');
       return;
     }
 
@@ -830,10 +859,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     }
   };
 
-  // Administrador / Nakka Style: Iniciar Sesión (Cerrar Inscripción) o Reabrirla
+  // Administrador / Creador (Nakka Style): Iniciar Sesión (Cerrar Inscripción) o Reabrirla
   const handleToggleTournamentSession = (tourney: Tournament) => {
-    if (!isAdmin) {
-      alert('Solo los administradores oficiales pueden controlar el estado de sesión del torneo.');
+    if (!canManageTournament(tourney)) {
+      alert('Solo el creador del torneo, sus co-administradores designados o Superadmin pueden controlar el estado de sesión del torneo.');
       return;
     }
 
@@ -946,9 +975,9 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     });
   };
 
-  // Administrador: Finalizar Torneo y Archivar en Historial con Estadísticas
+  // Administrador / Creador: Finalizar Torneo y Archivar en Historial con Estadísticas
   const handleArchiveTournamentToHistory = (tourney: Tournament) => {
-    if (!isAdmin) return;
+    if (!canManageTournament(tourney)) return;
 
     if (confirm(`¿Deseas finalizar el torneo "${tourney.title}" y moverlo al Historial Oficial de Torneos?`)) {
       // Determinar campeón si hay partido final
@@ -1123,6 +1152,9 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       id: newId,
       slug: newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       title: newTitle,
+      creatorId: currentUser.id,
+      creatorName: currentUser.fullName || currentUser.nickname,
+      coAdminIds: [],
       description: `Torneo oficial de competición federada. Modalidad ${newType.toLowerCase()}, formato ${newFormat === 'DOUBLE_ELIMINATION' ? 'Doble Eliminación' : newFormat === 'ROUND_ROBIN' ? 'Liga / Grupos' : 'Eliminación Simple'}.`,
       type: newType,
       format: newFormat,
@@ -1555,8 +1587,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                                     <span>Ver Llave</span>
                                   </button>
 
-                                  {/* Botones exclusivos para Administrador */}
-                                  {isAdmin && (
+                                  {/* Botones exclusivos para Administrador / Creador */}
+                                  {canManageTournament(t) && (
                                     <>
                                       <button
                                         type="button"
@@ -1629,7 +1661,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                       <span>← Volver a la Lista de Torneos Activos</span>
                     </button>
 
-                    {isAdmin && (
+                    {canManageTournament(currentTournament) && (
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -1742,8 +1774,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                         </div>
                       )}
 
-                      {/* Controles de Administrador: Poner en Sesión y Editar Torneo */}
-                      {isAdmin && (
+                      {/* Controles de Administrador / Creador: Poner en Sesión y Editar Torneo */}
+                      {canManageTournament(currentTournament) && (
                         <>
                           <button
                             type="button"
@@ -1864,7 +1896,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                             <span>Cuadro Eliminatorio Oficial en Tiempo Real</span>
                           </h3>
                           <p className="text-xs text-slate-400">
-                            Toca cualquier partido activo para abrir el Anotador en Vivo. {isAdmin && 'Como administrador, pulsa Asignación Automática (Nakka N01) o toca cualquier slot para sembrarlo manualmente.'}
+                            Toca cualquier partido activo para abrir el Anotador en Vivo. {canManageTournament(currentTournament) && 'Como organizador o administrador, pulsa Asignación Automática (Nakka N01) o toca cualquier slot para sembrarlo manualmente.'}
                           </p>
                         </div>
                       </div>
@@ -1875,7 +1907,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                           onSelectMatch={(m) => setSelectedBracketMatch(m)}
                           onUpdateScore={handleUpdateMatchScore}
                           bestOfLegs={currentTournament.bestOfLegs}
-                          isAdmin={isAdmin}
+                          isAdmin={canManageTournament(currentTournament)}
                           onAdminEditMatch={(m) => setAdminMatchToEdit(m)}
                           onSelectPlayer={handleOpenPlayerDetail}
                           podium={currentTournament.podium}
@@ -3083,7 +3115,11 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         isOpen={showCreateLeagueModal}
         onClose={() => setShowCreateLeagueModal(false)}
         onCreateLeague={handleCreateLeague}
-        canCreateNational={isAdmin}
+        canCreateNational={isAdmin || isUserSuperAdmin(currentUser)}
+        hasActiveLocalLeague={Boolean(userActiveLocalLeague)}
+        activeLocalLeagueName={userActiveLocalLeague?.name}
+        creatorId={currentUser.id}
+        creatorName={currentUser.fullName || currentUser.nickname}
       />
 
       {/* MODAL: DETALLE Y FICHA OFICIAL DEL JUGADOR */}
@@ -3126,7 +3162,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         onClose={() => setTournamentToEdit(null)}
         tournament={tournamentToEdit}
         leagues={leagues}
-        isAdmin={isAdmin}
+        isAdmin={canManageTournament(tournamentToEdit)}
         onSaveTournament={handleSaveEditedTournament}
       />
 

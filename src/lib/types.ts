@@ -252,6 +252,10 @@ export interface League {
   doublePointsOnPresential?: boolean;
   activeTournamentsCount: number;
   standings: LeagueStanding[];
+  creatorId?: string;
+  creatorName?: string;
+  status?: 'REGISTRATION' | 'ACTIVE' | 'FINISHED';
+  coAdminIds?: string[];
   createdAt: string;
 }
 
@@ -294,6 +298,9 @@ export interface Tournament {
     third: number;
   };
   organizer: string;
+  creatorId?: string;
+  creatorName?: string;
+  coAdminIds?: string[];
   matches?: TournamentBracketMatch[];
   stats?: TournamentStats;
   podium?: TournamentPodium;
@@ -387,6 +394,9 @@ export interface LandingShowcaseSettings {
     googleFormUrl: string;
     autoSyncGoogleForm: boolean;
     lastSyncedAt?: string;
+    tournamentId?: string;
+    galleryImages?: string[];
+    registrationMode?: 'IN_APP' | 'GOOGLE_FORM' | 'HYBRID';
     ctaButtonText: string;
     secondaryButtonText?: string;
     secondaryButtonUrl?: string;
@@ -420,3 +430,33 @@ export interface LandingShowcaseSettings {
     description: string;
   }>;
 }
+
+// Registro Unificado para el Gran Torneo Oficial (PDC Qualifier Standard & Logística Sociedad de Fomento)
+export type AttendanceDays = 'SATURDAY_ONLY' | 'SUNDAY_ONLY' | 'BOTH_DAYS';
+
+export interface GrandTournamentRegistration {
+  id: string;
+  tournamentId?: string;
+  registeredAt: string;
+  // Identificación Oficial y PDC
+  fullName: string;
+  nickname: string;
+  dniOrPassport: string;
+  nationality: string;
+  countryCode: string; // ej 'AR', 'UY', 'BR', 'CL', etc.
+  city: string;
+  province: string;
+  club: string;
+  email: string;
+  phoneWhatsApp: string;
+  // Logística Sociedad de Fomento Nueva Pompeya
+  attendanceDays: AttendanceDays; // 'SATURDAY_ONLY' | 'SUNDAY_ONLY' | 'BOTH_DAYS'
+  companionsCount: number; // Acompañantes que concurrirán a la Sociedad de Fomento
+  dinnerComensalesCount: number; // Comensales para la cena de bienvenida del sábado
+  dietaryRestrictions?: string; // Celíaco, vegetariano, alergias, etc.
+  notes?: string;
+  // Estado y pago
+  paymentStatus: 'PENDING' | 'CONFIRMED' | 'EXEMPT';
+  paymentMethod?: string;
+}
+

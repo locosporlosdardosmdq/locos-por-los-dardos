@@ -1,5 +1,37 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 39] - 2026-10-24
+- **Objetivo:** Implementar el Slider & Head Banner del Gran Torneo Oficial con carrusel fotográfico rotativo configurable desde SuperAdmin, el Formulario de Inscripción Unificado In-App que inscribe atómicamente en un solo formulario al jugador en el torneo oficial para esa fecha (en la llave y cuadro) y registra los datos de acreditación PDC y logística para la Sociedad de Fomento Nueva Pompeya (acompañantes en sede, cubiertos para la cena de bienvenida del sábado y días de asistencia), más la Gobernanza Federativa de Creación y Edición de Torneos y Ligas.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Fricción y Abandono con Google Forms Externo:* Derivar a los participantes a un Google Forms externo provocaba pérdida de conversiones y desconexión con la llave del torneo en la App. El usuario requirió que el formulario sea in-app y haga **todo junto en un mismo formulario**: inscribirse en el torneo oficial que se cree para esa fecha y registrar el resto de los datos (PDC y Fomento Pompeya).
+  2. *Relevamiento Logístico para Fomento Pompeya:* La sede requiere saber con precisión cuántos acompañantes concurren al club, cuántos comensales asistirán a la cena de bienvenida del sábado, qué días se presentarán (sábado no oficial, domingo puntuable nacional, o fin de semana completo) y requerimientos de menú especial.
+  3. *Gobernanza de Creación y Co-Administración:* Democratizar la creación de torneos comunitarios sin poner en riesgo la integridad de los cuadros: el creador es el administrador nato (`creatorId`), con potestad de sumar co-administradores (`coAdminIds`). Se protege la llave (W.O., reseteos, eliminación y cambios de parámetros). Además, un organizador no puede crear otra liga local hasta finalizar la anterior, y la creación de la Liga Nacional Oficial queda restringida a autoridades federativas.
+- **Realizado:**
+  - **Slider de Galería de Fotos en Head Banner (`TournamentHeroBanner.tsx`):**
+    * Carrusel interactivo automático cada 5 segundos con pausa al hover, flechas táctiles, puntos indicadores y contador de slides.
+    * Pestaña `[📸 Galería Sede]` vs `[🛡️ Fiscaliza]` que exhibe la sede de Nueva Pompeya, trofeos oficiales y la comunidad de darderos junto a las insignias oficiales (+25% Darderos MDQ sobre Dardos Argentina).
+  - **Formulario de Inscripción Unificado In-App (`GrandTournamentEnrollModal.tsx`):**
+    * Flujo 100% atómico e integrado:
+      1. Registra al jugador simultáneamente en el torneo oficial creado para esa fecha (en `enrolledPlayers` de la llave y suma a `registeredCount`).
+      2. Si el torneo aún no fue creado en el sistema, lo auto-crea en tiempo y forma para garantizar que el participante quede sembrado en `/torneos`.
+      3. Captura credenciales oficiales estándar PDC para candidatura de sede clasificatoria a mundiales (Nombre completo, Nickname, DNI/Pasaporte, Nacionalidad con bandera, Ciudad, Provincia, Club).
+      4. Captura relevamiento logístico para la Sociedad de Fomento Nueva Pompeya: acompañantes en sede, comensales para la cena de bienvenida del sábado, días de asistencia y dietas especiales.
+      5. Datos bancarios oficiales para transferencia con botones 1-click copy y botón WhatsApp con mensaje pre-armado y estructurado con todos los datos listo para adjuntar comprobante a Mariano Deux.
+      6. Notificación en tiempo real mediante `lpld_tournaments_updated` para actualización instantánea del cuadro en vivo.
+  - **Gestor de Vitrina 1 & Logística PDC en SuperAdmin (`superadmin/page.tsx`):**
+    * Selector interactivo de modalidad: `IN_APP` (Recomendado), `HYBRID` (Modal + Google Forms) y `GOOGLE_FORM`.
+    * Selector de torneo vinculado de la App (`tournamentId`), permitiendo seleccionar cualquier torneo creado o modo auto-detección.
+    * Gestor de galería de imágenes del slider con agregar URL, presets rápidos y miniaturas con eliminación.
+    * Tablero logístico en vivo: Inscriptos confirmados, Acompañantes en sede, Aforo total en Fomento Pompeya, Comensales cena sábado, desglose por días de asistencia y países PDC.
+    * Botón **"Exportar Planilla Oficial (CSV / Excel)"** con descarga directa.
+  - **Gobernanza de Creación y Edición de Torneos y Ligas (`TournamentManager.tsx`, `CreateLeagueModal.tsx`, `types.ts`):**
+    * El creador del torneo es automáticamente designado su administrador (`creatorId`), con potestad de designar co-administradores (`coAdminIds`).
+    * Las acciones críticas (Walkover, reseteo de match, eliminación de torneo, puesta en sesión y edición de parámetros) están protegidas: solo el creador, co-admins o SuperAdmin (`marianodeux@gmail.com` Master Key) pueden realizarlas.
+    * Regla de Liga Local: si un usuario tiene una liga local activa en curso, se bloquea la creación de una nueva hasta finalizar la anterior.
+    * Regla de Liga Nacional: reservada exclusivamente para SuperAdmin, administradores oficiales y miembros de la Comisión Directiva Nacional.
+- **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código 0).
+- **Estado del Proyecto:** Head Banner con carrusel de imágenes de alta fidelidad, formulario unificado in-app operativo con inscripción atómica a la llave y captura de logística para Fomento Pompeya y PDC, tablero logístico de control con exportación CSV en SuperAdmin, y gobernanza integral de torneos y ligas activa.
+
 ## [Sesión 38] - 2026-10-24
 - **Objetivo:** Implementar la visualización y estructuración de la Comisión Directiva en forma de Organigrama Jerárquico en `/asociacion` (clasificando en 4 niveles directivos y erradicando el orden plano desordenado), e incorporar el análisis consultivo de arquitectura sobre la gobernanza y creación descentralizada de torneos y ligas (co-administración, protección de llave y exclusividad de Ligas Nacionales).
 - **Diagnóstico y Análisis Consultivo:**

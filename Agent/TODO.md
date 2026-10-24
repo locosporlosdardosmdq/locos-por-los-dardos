@@ -1,19 +1,28 @@
-- [x] **Estructura de Organigrama Jerárquico en la Asociación y Arquitectura de Gobernanza de Torneos y Ligas:**
-  * **Organigrama Directivo Oficial (`asociacion/page.tsx` & `constants.ts`):**
-    - Clasificación y ponderación algorítmica de cargos directivos en 4 niveles (`getAuthorityHierarchyWeight`, `getAuthorityTierInfo`):
-      * Nivel 1: Presidencia (Gabriel Rubio @ZEUS, tarjeta destacada en la cúspide con corona dorada 👑 y aura focal).
-      * Nivel 2: Mesa Directiva Ejecutiva (Victor Albaitero @CARPO - Vicepresidente, Mariano Deux @ICEMAN - Tesorero).
-      * Nivel 3: Secretarías & Direcciones Operativas (Tecnologías y Sistemas, Prensa y Difusión).
-      * Nivel 4: Cuerpo de Vocales & Logística de Pista (Héctor Valentín Giménez @THE CASHIER, Logística de Dianas).
-    - Conectores visuales de organigrama estilizados entre niveles directivos.
-    - Selector interactivo de vista: `[🌳 Vista Organigrama Jerárquico]` (por defecto) vs `[📋 Vista Grilla Estándar]`.
-    - Controles interactivos de reordenación `[↑]` y `[↓]` en cada tarjeta para ajuste fino de autoridades en tiempo real por administradores.
-    - Réplica de ordenamiento jerárquico en la Pestaña 4 de `/superadmin`.
-  * **Análisis Consultivo de Gobernanza de Creación y Edición de Torneos y Ligas:**
-    - Modelo de co-administración y propiedad granular a nivel de torneo (`creatorId`, `coAdminIds`).
-    - Protección de la llave contra manipulación externa con Master Key para Superadmin.
-    - Regla de 1 liga local presencial activa por organizador hasta su conclusión formal.
-    - Reserva exclusiva de la creación de la Liga Nacional Oficial de Argentina para Superadmin, Administradores y Miembros de Comisión Directiva Nacional.
+- [x] **Slider de Galería en Head Banner, Formulario Unificado In-App (PDC + Sociedad de Fomento) y Gobernanza Estricta de Torneos y Ligas:**
+  * **Slider de Galería de Imágenes en Head Banner (`TournamentHeroBanner.tsx`):**
+    - Carrusel interactivo automático cada 5 segundos con pausa al hover, indicadores dot, flechas previo/siguiente y contador de diapositivas.
+    - Pestaña `[📸 Galería Sede]` vs `[🛡️ Fiscaliza]` alternando entre imágenes de alta fidelidad y la doble insignia federativa (Darderos MDQ +25% sobre Dardos Argentina).
+    - Presets de imágenes generadas profesionalmente: Sede Sociedad de Fomento Nueva Pompeya (`gallery-venue-pompeya.jpg`), Trofeos Oficiales & Tungsteno (`gallery-trophies.jpg`), y Comunidad Darderos MDQ (`darderos.jpeg`).
+  * **Formulario de Inscripción Unificado In-App (`GrandTournamentEnrollModal.tsx`):**
+    - Flujo atómico "todo en un mismo form":
+      1. Registra al jugador simultáneamente en el torneo oficial creado para esa fecha (en `enrolledPlayers` de la llave y suma a `registeredCount`).
+      2. Si el torneo aún no fue creado en el sistema, lo auto-crea en tiempo y forma para garantizar que el participante quede sembrado en `/torneos`.
+      3. Captura credenciales oficiales estándar PDC para candidatura de sede clasificatoria a mundiales (Nombre completo, Nickname, DNI/Pasaporte, Nacionalidad con bandera, Ciudad, Provincia, Club).
+      4. Captura relevamiento logístico para la Sociedad de Fomento Nueva Pompeya: cantidad de acompañantes en sede, comensales para la cena de bienvenida del sábado, días de asistencia (Solo Sábado no oficial, Solo Domingo fecha oficial puntuable, o Fin de semana completo) y restricciones alimentarias (celíacos, vegetarianos).
+      5. Datos bancarios oficiales para transferencia (Banco Provincia, CBU, Alias `DARDOS.MDQ.OFICIAL`, CUIT) con botones de 1-click copy.
+      6. Enlace directo a WhatsApp con mensaje pre-armado y estructurado listo para enviar el comprobante a Mariano Deux.
+      7. Notificación en tiempo real mediante `lpld_tournaments_updated` para actualización instantánea del cuadro en vivo.
+  * **Gestor de Vitrina 1 & Logística PDC en SuperAdmin (`superadmin/page.tsx`):**
+    - Selector interactivo de modalidad: `IN_APP` (Recomendado), `HYBRID` (Modal + Google Forms) y `GOOGLE_FORM`.
+    - Selector de torneo vinculado de la App (`tournamentId`), permitiendo seleccionar cualquier torneo creado o modo auto-detección.
+    - Gestor de galería de imágenes del slider con agregar URL, presets rápidos y miniaturas con eliminación.
+    - Tablero logístico en vivo: Inscriptos confirmados, Acompañantes en sede, Aforo total en Fomento Pompeya, Comensales cena sábado, desglose por días de asistencia y países PDC.
+    - Botón **"Exportar Planilla Oficial (CSV / Excel)"** con descarga directa.
+  * **Gobernanza de Creación y Edición de Torneos y Ligas (`TournamentManager.tsx`, `CreateLeagueModal.tsx`, `types.ts`):**
+    - El creador del torneo es automáticamente designado su administrador (`creatorId`), con potestad de designar co-administradores (`coAdminIds`).
+    - Las acciones críticas (Walkover, reseteo de match, eliminación de torneo, puesta en sesión y edición de parámetros) están protegidas: solo el creador, co-admins o SuperAdmin (`marianodeux@gmail.com` Master Key) pueden realizarlas.
+    - Regla de Liga Local: si un usuario tiene una liga local activa en curso, se bloquea la creación de una nueva hasta finalizar la anterior.
+    - Regla de Liga Nacional: reservada exclusivamente para SuperAdmin, administradores oficiales y miembros de la Comisión Directiva Nacional.
 
 - [x] **Edición Segura de Torneos y Ligas, Blindaje de Integridad Topológica y Puesta en Sesión Estilo Nakka N01:**
   * **Análisis Crítico de Estabilidad y Ciclo de Vida Federativo:**

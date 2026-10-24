@@ -4,20 +4,28 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { League, LeagueScope } from '@/lib/types';
 import { PROVINCIAS_ARGENTINA } from '@/lib/constants';
-import { Trophy, X, Shield, MapPin, Sparkles, CheckCircle2, Flame, Award } from 'lucide-react';
+import { Trophy, X, Shield, MapPin, Sparkles, CheckCircle2, Flame, Award, AlertTriangle, Lock } from 'lucide-react';
 
 interface CreateLeagueModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateLeague: (league: League) => void;
   canCreateNational?: boolean;
+  hasActiveLocalLeague?: boolean;
+  activeLocalLeagueName?: string;
+  creatorId?: string;
+  creatorName?: string;
 }
 
 export const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
   isOpen,
   onClose,
   onCreateLeague,
-  canCreateNational = false
+  canCreateNational = false,
+  hasActiveLocalLeague = false,
+  activeLocalLeagueName,
+  creatorId,
+  creatorName
 }) => {
   const [name, setName] = useState('');
   const [scope, setScope] = useState<LeagueScope>('LOCAL');
@@ -30,9 +38,23 @@ export const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isLocalBlocked = scope === 'LOCAL' && hasActiveLocalLeague;
+  const isNationalBlocked = scope === 'NATIONAL' && !canCreateNational;
+  const isFormBlocked = isLocalBlocked || isNationalBlocked;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    if (scope === 'NATIONAL' && !canCreateNational) {
+      alert('La creación de la Liga Nacional Oficial de Argentina está reservada para el Superadmin, administradores y la Comisión Directiva Nacional.');
+      return;
+    }
+
+    if (scope === 'LOCAL' && hasActiveLocalLeague) {
+      alert('Ya posees una Liga Local activa en curso. Según las normas federativas, debes concluirla formalmente antes de inaugurar una nueva.');
+      return;
+    }
 
     const newLeague: League = {
       id: `league-${Date.now()}`,
@@ -47,6 +69,9 @@ export const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
       isOfficialNational: scope === 'NATIONAL',
       doublePointsOnPresential,
       activeTournamentsCount: 0,
+      creatorId,
+      creatorName,
+      status: 'ACTIVE',
       createdAt: new Date().toISOString(),
       standings: []
     };
@@ -81,6 +106,19 @@ export const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* ALERTA DE LIGA LOCAL ACTIVA EXISTENTE */}
+        {hasActiveLocalLeague && scope === 'LOCAL' && (
+          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/40 text-amber-300 text-xs flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold block">Regla Federativa de Creación de Ligas:</span>
+              <span className="text-[11px] text-slate-300 leading-snug">
+                Actualmente tienes una liga local activa en curso {activeLocalLeagueName ? `("${activeLocalLeagueName}")` : ''}. Para garantizar el orden de los calendarios, debes finalizar y coronar tu liga actual antes de crear una nueva.
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-3.5 text-xs">
           {/* Nombre de la Liga */}
@@ -130,12 +168,21 @@ export const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
                 <div className="flex items-center gap-1.5 font-black text-xs text-[#38bdf8]">
                   <Award className="w-4 h-4" />
                   <span>Liga Nacional Oficial</span>
+                  {!canCreateNational && <Lock className="w-3 h-3 text-red-400 ml-auto" />}
                 </div>
                 <span className="text-[10px] text-slate-400 leading-tight">
                   Clasificatoria para torneos internacionales con fechas online y presenciales x2.
                 </span>
               </button>
             </div>
+
+            {/* Aviso si intenta crear Liga Nacional sin permisos */}
+            {scope === 'NATIONAL' && !canCreateNational && (
+              <div className="mt-2 p-2.5 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 text-[11px] flex items-center gap-2">
+                <Lock className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <span>Exclusivo: La creación de la Liga Nacional Oficial de Argentina está reservada para el Superadmin, administradores globales y la Comisión Directiva Nacional.</span>
+              </div>
+            )}
 
             {/* Emblema Oficial asignado según el Ámbito */}
             <div className="mt-2 p-2.5 rounded-xl bg-[#07090e] border border-slate-800 flex items-center gap-3">
@@ -246,9 +293,10 @@ export const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
         <div className="flex gap-2 pt-2">
           <button
             type="submit"
-            className="flex-1 py-3 rounded-xl bg-[#ffe600] hover:bg-yellow-400 text-[#07090e] font-black text-xs uppercase tracking-wider shadow-lg transition-all"
+            disabled={isFormBlocked}
+            className="flex-1 py-3 rounded-xl bg-[#ffe600] hover:bg-yellow-400 text-[#07090e] font-black text-xs uppercase tracking-wider shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            CREAR Y PUBLICAR LIGA
+            {isFormBlocked ? 'CREACIÓN RESTRINGIDA' : 'CREAR Y PUBLICAR LIGA'}
           </button>
           <button
             type="button"

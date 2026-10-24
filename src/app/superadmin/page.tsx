@@ -44,7 +44,13 @@ import {
   TrendingUp,
   FileSpreadsheet,
   Check,
-  LayoutTemplate
+  LayoutTemplate,
+  Download,
+  UtensilsCrossed,
+  Camera,
+  Flame,
+  Trophy,
+  Image as ImageIcon
 } from 'lucide-react';
 import { 
   ADMIN_EMAILS, 
@@ -72,14 +78,20 @@ import {
   getStoredLandingShowcases, 
   saveStoredLandingShowcases,
   DEFAULT_LANDING_SHOWCASES,
-  fetchRegisteredPlayersFromCloud
+  fetchRegisteredPlayersFromCloud,
+  getStoredGrandTournamentRegistrations,
+  saveStoredGrandTournamentRegistrations,
+  getStoredTournaments
 } from '@/lib/storage';
 import { 
   AssociationAuthority, 
   AssociationBankAccount, 
   AssociationScope, 
   LandingShowcaseSettings, 
-  PlayerProfile 
+  PlayerProfile,
+  GrandTournamentRegistration,
+  AttendanceDays,
+  Tournament
 } from '@/lib/types';
 import { 
   INFRASTRUCTURE_METRICS, 
@@ -119,6 +131,41 @@ export default function SuperadminPage() {
   // Estado de sincronización de Google Forms
   const [isSyncingGoogleForm, setIsSyncingGoogleForm] = useState(false);
   const [googleSyncMsg, setGoogleSyncMsg] = useState<string | null>(null);
+
+  // Inscripciones oficiales y logística de Sociedad de Fomento (PDC Dossier)
+  const [grandRegistrations, setGrandRegistrations] = useState<GrandTournamentRegistration[]>(() => {
+    return getStoredGrandTournamentRegistrations();
+  });
+  const [newGalleryUrl, setNewGalleryUrl] = useState('');
+
+  // Torneos creados en la App para vinculación directa de la inscripción
+  const [availableTournaments, setAvailableTournaments] = useState<Tournament[]>(() => {
+    return getStoredTournaments();
+  });
+
+  useEffect(() => {
+    const handleTournamentsUpdate = () => {
+      setAvailableTournaments(getStoredTournaments());
+    };
+    window.addEventListener('lpld_tournaments_updated', handleTournamentsUpdate);
+    window.addEventListener('storage', handleTournamentsUpdate);
+    return () => {
+      window.removeEventListener('lpld_tournaments_updated', handleTournamentsUpdate);
+      window.removeEventListener('storage', handleTournamentsUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleRegUpdate = (e: any) => {
+      if (Array.isArray(e.detail)) {
+        setGrandRegistrations(e.detail);
+      } else {
+        setGrandRegistrations(getStoredGrandTournamentRegistrations());
+      }
+    };
+    window.addEventListener('lpld_grand_registrations_updated', handleRegUpdate);
+    return () => window.removeEventListener('lpld_grand_registrations_updated', handleRegUpdate);
+  }, []);
 
   // Estado de autoridades de la Asociación
   const [authoritiesScope, setAuthoritiesScope] = useState<AssociationScope>('MDQ');
@@ -478,6 +525,130 @@ export default function SuperadminPage() {
     } finally {
       setIsSyncingGoogleForm(false);
     }
+  };
+
+  // Métricas consolidadas de logística Fomento Pompeya y Homologación PDC
+  const logisticMetrics = useMemo(() => {
+    const totalEnrolled = grandRegistrations.length;
+    const totalCompanions = grandRegistrations.reduce((acc, r) => acc + (Number(r.companionsCount) || 0), 0);
+    const totalPeopleAtVenue = totalEnrolled + totalCompanions;
+    const totalSaturdayDinner = grandRegistrations.reduce((acc, r) => acc + (Number(r.dinnerComensalesCount) || 0), 0);
+
+    const bothDaysCount = grandRegistrations.filter(r => r.attendanceDays === 'BOTH_DAYS').length;
+    const saturdayOnlyCount = grandRegistrations.filter(r => r.attendanceDays === 'SATURDAY_ONLY').length;
+    const sundayOnlyCount = grandRegistrations.filter(r => r.attendanceDays === 'SUNDAY_ONLY').length;
+
+    // Conteo por países para PDC
+    const countriesMap = new Map<string, number>();
+    grandRegistrations.forEach(r => {
+      const country = r.nationality || 'Argentina';
+      countriesMap.set(country, (countriesMap.get(country) || 0) + 1);
+    });
+
+    return {
+      totalEnrolled,
+      totalCompanions,
+      totalPeopleAtVenue,
+      totalSaturdayDinner,
+      bothDaysCount,
+      saturdayOnlyCount,
+      sundayOnlyCount,
+      countriesCount: countriesMap.size
+    };
+  }, [grandRegistrations]);
+
+  // Agregar imagen a la galería del Slider
+  const handleAddGalleryImage = (urlToAdd?: string) => {
+    const url = (urlToAdd || newGalleryUrl).trim();
+    if (!url) return;
+    const current = showcases.heroTournament.galleryImages || [];
+    if (current.includes(url)) {
+      alert('Esta imagen ya se encuentra en la galería.');
+      return;
+    }
+    const updated = {
+      ...showcases,
+      heroTournament: {
+        ...showcases.heroTournament,
+        galleryImages: [...current, url]
+      }
+    };
+    setShowcases(updated);
+    saveStoredLandingShowcases(updated);
+    setNewGalleryUrl('');
+  };
+
+  // Eliminar imagen de la galería
+  const handleRemoveGalleryImage = (indexToRemove: number) => {
+    const current = showcases.heroTournament.galleryImages || [];
+    const updatedImages = current.filter((_, idx) => idx !== indexToRemove);
+    const updated = {
+      ...showcases,
+      heroTournament: {
+        ...showcases.heroTournament,
+        galleryImages: updatedImages
+      }
+    };
+    setShowcases(updated);
+    saveStoredLandingShowcases(updated);
+  };
+
+  // Exportar Planilla Oficial (CSV para Excel / Sheets / PDC / Fomento)
+  const exportRegistrationsCsv = () => {
+    if (grandRegistrations.length === 0) {
+      alert('Aún no hay inscripciones registradas en la plataforma para exportar.');
+      return;
+    }
+
+    const headers = [
+      'ID Registro',
+      'Fecha Registro',
+      'Nombre y Apellido',
+      'Apodo',
+      'DNI / Pasaporte',
+      'Nacionalidad',
+      'Codigo Pais',
+      'Ciudad',
+      'Provincia',
+      'Club',
+      'Email',
+      'WhatsApp',
+      'Dias Asistencia',
+      'Acompañantes en Sede',
+      'Comensales Cena Sabado',
+      'Dieta o Restricciones',
+      'Estado de Pago'
+    ];
+
+    const rows = grandRegistrations.map(r => [
+      r.id,
+      new Date(r.registeredAt).toLocaleDateString('es-AR'),
+      `"${r.fullName.replace(/"/g, '""')}"`,
+      `"${r.nickname.replace(/"/g, '""')}"`,
+      `"${r.dniOrPassport}"`,
+      `"${r.nationality}"`,
+      r.countryCode,
+      `"${r.city.replace(/"/g, '""')}"`,
+      `"${r.province.replace(/"/g, '""')}"`,
+      `"${r.club.replace(/"/g, '""')}"`,
+      `"${r.email}"`,
+      `"${r.phoneWhatsApp}"`,
+      `"${r.attendanceDays === 'BOTH_DAYS' ? 'Ambos Dias (Sab y Dom)' : r.attendanceDays === 'SATURDAY_ONLY' ? 'Solo Sabado' : 'Solo Domingo'}"`,
+      r.companionsCount,
+      r.dinnerComensalesCount,
+      `"${(r.dietaryRestrictions || '').replace(/"/g, '""')}"`,
+      r.paymentStatus
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Planilla_Oficial_Gran_Open_Pompeya_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Guardar cambios en las vitrinas
@@ -1507,7 +1678,7 @@ export default function SuperadminPage() {
                       <span>Vitrina 1 — Slider & Head Banner del Gran Torneo Oficial</span>
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Parámetros de fecha, bolsa de premios y conexión automática con Formulario de Google.
+                      Configuración del Head Banner, Slider de Galería de Imágenes, Modalidad de Inscripción y Control Logístico para Fomento Pompeya & PDC.
                     </p>
                   </div>
 
@@ -1525,7 +1696,210 @@ export default function SuperadminPage() {
                   </label>
                 </div>
 
+                {/* MODALIDAD DE INSCRIPCIÓN */}
+                <div className="p-4 rounded-2xl bg-[#07090e] border border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black uppercase tracking-wider text-[#00e676] flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4" />
+                      <span>Modalidad de Inscripción en la Portada</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full font-mono">
+                      Actual: {showcases.heroTournament.registrationMode || 'IN_APP'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowcases({
+                        ...showcases,
+                        heroTournament: { ...showcases.heroTournament, registrationMode: 'IN_APP' }
+                      })}
+                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                        (showcases.heroTournament.registrationMode || 'IN_APP') === 'IN_APP'
+                          ? 'bg-[#00e676]/15 border-[#00e676] text-white ring-1 ring-[#00e676]/50'
+                          : 'bg-[#111622] border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between font-bold text-xs text-white">
+                        <span>Formulario In-App</span>
+                        <span className="text-[9px] bg-[#00e676] text-black px-1.5 py-0.2 rounded-full font-black">Recomendado</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                        Modal nativo de alta conversión. Captura datos PDC y comensales sin salir de la App.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowcases({
+                        ...showcases,
+                        heroTournament: { ...showcases.heroTournament, registrationMode: 'HYBRID' }
+                      })}
+                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                        showcases.heroTournament.registrationMode === 'HYBRID'
+                          ? 'bg-[#ffe600]/15 border-[#ffe600] text-white ring-1 ring-[#ffe600]/50'
+                          : 'bg-[#111622] border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="font-bold text-xs text-white">Híbrido (Modal + Google)</div>
+                      <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                        Botón principal abre el modal nativo e incluye link secundario a Google Forms.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowcases({
+                        ...showcases,
+                        heroTournament: { ...showcases.heroTournament, registrationMode: 'GOOGLE_FORM' }
+                      })}
+                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                        showcases.heroTournament.registrationMode === 'GOOGLE_FORM'
+                          ? 'bg-[#38bdf8]/15 border-[#38bdf8] text-white ring-1 ring-[#38bdf8]/50'
+                          : 'bg-[#111622] border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="font-bold text-xs text-white">Solo Google Forms</div>
+                      <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                        El botón redirige directamente a la URL externa del formulario de Google.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* GESTOR DE GALERÍA DE IMÁGENES (SLIDER HEAD BANNER) */}
+                <div className="p-4 rounded-2xl bg-[#07090e] border border-slate-800 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-[#00e676] flex items-center gap-1.5">
+                        <Camera className="w-4 h-4" />
+                        <span>Galería de Imágenes del Slider (Head Banner)</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Imágenes en rotación continua (5s) exhibiendo la sede, trofeos y comunidad de darderos.
+                      </p>
+                    </div>
+
+                    <span className="text-xs text-slate-400 font-mono">
+                      {(showcases.heroTournament.galleryImages || []).length} imagen(es) en slider
+                    </span>
+                  </div>
+
+                  {/* Input para agregar URL personalizada */}
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={newGalleryUrl}
+                      onChange={(e) => setNewGalleryUrl(e.target.value)}
+                      placeholder="Ingresa URL de imagen (ej: /images/mi-foto.jpg o https://...)"
+                      className="flex-1 px-3.5 py-2 bg-[#111622] border border-slate-700 rounded-xl text-white text-xs focus:border-[#00e676] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddGalleryImage()}
+                      className="px-4 py-2 bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Agregar</span>
+                    </button>
+                  </div>
+
+                  {/* Botones de Presets Rápidos */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+                    <span className="text-slate-400 font-bold">Presets recomendados:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAddGalleryImage('/images/gallery-venue-pompeya.jpg')}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                    >
+                      🏟️ Sede Pompeya
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddGalleryImage('/images/gallery-trophies.jpg')}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                    >
+                      🏆 Trofeos & Medallas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddGalleryImage('/images/darderos.jpeg')}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                    >
+                      🎯 Darderos MDQ
+                    </button>
+                  </div>
+
+                  {/* Grilla de Miniaturas */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                    {(showcases.heroTournament.galleryImages || [
+                      '/images/gallery-venue-pompeya.jpg',
+                      '/images/gallery-trophies.jpg',
+                      '/images/darderos.jpeg'
+                    ]).map((imgUrl, idx) => (
+                      <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-slate-700 bg-black group">
+                        <Image
+                          src={imgUrl}
+                          alt={`Slider ${idx + 1}`}
+                          fill
+                          className="object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveGalleryImage(idx)}
+                            className="p-1.5 rounded-lg bg-red-600/90 text-white hover:bg-red-500 transition-colors"
+                            title="Eliminar de galería"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <span className="absolute bottom-1 right-1 bg-black/70 text-[9px] font-mono text-white px-1.5 py-0.2 rounded">
+                          #{idx + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* PARÁMETROS DEL TORNEO */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  {/* Selector del Torneo de la App Vinculado */}
+                  <div className="space-y-1.5 md:col-span-2 bg-[#111622] p-4 rounded-2xl border border-slate-700">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <label className="text-xs font-black uppercase tracking-wider text-[#ffe600] flex items-center gap-1.5">
+                        <Trophy className="w-4 h-4" />
+                        <span>Torneo de la App Vinculado (Cuadro / Llave Oficial)</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono bg-black/40 px-2 py-0.5 rounded-full">
+                        {showcases.heroTournament.tournamentId ? `ID: ${showcases.heroTournament.tournamentId}` : 'Modo Auto-detección'}
+                      </span>
+                    </div>
+                    <select
+                      value={showcases.heroTournament.tournamentId || ''}
+                      onChange={(e) => setShowcases({
+                        ...showcases,
+                        heroTournament: {
+                          ...showcases.heroTournament,
+                          tournamentId: e.target.value
+                        }
+                      })}
+                      className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-[#ffe600] focus:outline-none"
+                    >
+                      <option value="">(Auto-detectar por fecha o título del torneo)</option>
+                      {availableTournaments.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          🎯 {t.title} — {t.startDate || 'Sin fecha'} ({t.enrolledPlayers?.length || t.registeredCount || 0} inscriptos) [ID: {t.id}]
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-slate-400">
+                      Cuando un jugador completa el formulario en la portada, se lo inscribe automáticamente en este torneo oficial y se registran al mismo tiempo todos sus datos federados y de la cena de bienvenida.
+                    </p>
+                  </div>
+
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-300">Título del Torneo</label>
                     <input
@@ -1561,7 +1935,7 @@ export default function SuperadminPage() {
                         ...showcases,
                         heroTournament: { ...showcases.heroTournament, date: e.target.value }
                       })}
-                      placeholder="ej: 14 y 15 Nov"
+                      placeholder="ej: 21 y 22 Nov"
                       className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-[#ef4444] focus:outline-none"
                     />
                   </div>
@@ -1575,7 +1949,7 @@ export default function SuperadminPage() {
                         ...showcases,
                         heroTournament: { ...showcases.heroTournament, venue: e.target.value }
                       })}
-                      placeholder="ej: MDQ Central"
+                      placeholder="ej: Sociedad de Fomento Nueva Pompeya"
                       className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-[#ef4444] focus:outline-none"
                     />
                   </div>
@@ -1589,7 +1963,7 @@ export default function SuperadminPage() {
                         ...showcases,
                         heroTournament: { ...showcases.heroTournament, prizePool: e.target.value }
                       })}
-                      placeholder="ej: $450.000 ARS"
+                      placeholder="ej: $0 ARS"
                       className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-[#ef4444] focus:outline-none font-mono"
                     />
                   </div>
@@ -1607,7 +1981,7 @@ export default function SuperadminPage() {
                           registeredCount: Math.max(0, parseInt(e.target.value, 10) || 0)
                         }
                       })}
-                      placeholder="ej: 0"
+                      placeholder="ej: 38"
                       className="w-full px-3.5 py-2.5 bg-[#07090e] border border-slate-700 rounded-xl text-white text-xs focus:border-[#ef4444] focus:outline-none font-mono"
                     />
                   </div>
@@ -1654,12 +2028,183 @@ export default function SuperadminPage() {
                   </div>
                 </div>
 
-                {/* INTEGRACIÓN AUTOMÁTICA CON GOOGLE FORMS */}
+                {/* PANEL DE CONTROL LOGÍSTICO & ACCREDITACIÓN PDC (SOCIEDAD DE FOMENTO NUEVA POMPEYA) */}
+                <div className="p-5 rounded-3xl bg-[#07090e] border-2 border-[#00e676]/40 space-y-4 shadow-xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-[#e52521] text-white px-2 py-0.5 rounded-full">
+                          PDC Qualifier Standard
+                        </span>
+                        <h4 className="text-sm font-black text-white flex items-center gap-1.5">
+                          <Building2 className="w-4 h-4 text-[#00e676]" />
+                          <span>Panel Logístico • Sociedad de Fomento Nueva Pompeya</span>
+                        </h4>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Control de aforo en sede, comensales para la cena de bienvenida del sábado y ficha oficial de jugadores para homologación PDC.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={exportRegistrationsCsv}
+                      className="px-4 py-2.5 bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-[#00e676]/30 flex items-center gap-2 flex-shrink-0"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Exportar Planilla Oficial (CSV)</span>
+                    </button>
+                  </div>
+
+                  {/* 4 Métricas Clave de Logística */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-[#111622] border border-slate-800 rounded-2xl p-3.5 text-center">
+                      <span className="text-[10px] uppercase font-black text-slate-400 block flex items-center justify-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-[#00e676]" /> Inscriptos en App
+                      </span>
+                      <strong className="text-xl sm:text-2xl font-black text-white block mt-1 font-mono">
+                        {logisticMetrics.totalEnrolled}
+                      </strong>
+                      <span className="text-[10px] text-slate-400">competidores federados</span>
+                    </div>
+
+                    <div className="bg-[#111622] border border-slate-800 rounded-2xl p-3.5 text-center">
+                      <span className="text-[10px] uppercase font-black text-slate-400 block flex items-center justify-center gap-1">
+                        👥 Acompañantes Sede
+                      </span>
+                      <strong className="text-xl sm:text-2xl font-black text-[#38bdf8] block mt-1 font-mono">
+                        {logisticMetrics.totalCompanions}
+                      </strong>
+                      <span className="text-[10px] text-slate-400">familiares / allegados</span>
+                    </div>
+
+                    <div className="bg-[#111622] border border-slate-800 rounded-2xl p-3.5 text-center">
+                      <span className="text-[10px] uppercase font-black text-slate-400 block flex items-center justify-center gap-1">
+                        🏛️ Aforo en Sede
+                      </span>
+                      <strong className="text-xl sm:text-2xl font-black text-[#ffe600] block mt-1 font-mono">
+                        {logisticMetrics.totalPeopleAtVenue}
+                      </strong>
+                      <span className="text-[10px] text-slate-400">personas en Fomento</span>
+                    </div>
+
+                    <div className="bg-[#111622] border border-slate-800 rounded-2xl p-3.5 text-center">
+                      <span className="text-[10px] uppercase font-black text-slate-400 block flex items-center justify-center gap-1">
+                        <UtensilsCrossed className="w-3.5 h-3.5 text-[#ef4444]" /> Cena Sábado
+                      </span>
+                      <strong className="text-xl sm:text-2xl font-black text-[#ef4444] block mt-1 font-mono">
+                        {logisticMetrics.totalSaturdayDinner}
+                      </strong>
+                      <span className="text-[10px] text-slate-400">comensales asado bienvenida</span>
+                    </div>
+                  </div>
+
+                  {/* Desglose por Días de Asistencia */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+                    <div className="bg-[#111622] border border-slate-800/80 rounded-xl p-3 flex items-center justify-between">
+                      <span className="text-slate-300 font-bold">Fin de semana completo:</span>
+                      <strong className="text-[#00e676] font-mono text-sm">{logisticMetrics.bothDaysCount}</strong>
+                    </div>
+                    <div className="bg-[#111622] border border-slate-800/80 rounded-xl p-3 flex items-center justify-between">
+                      <span className="text-slate-300 font-bold">Solo Sábado (Amistosos):</span>
+                      <strong className="text-[#ffe600] font-mono text-sm">{logisticMetrics.saturdayOnlyCount}</strong>
+                    </div>
+                    <div className="bg-[#111622] border border-slate-800/80 rounded-xl p-3 flex items-center justify-between">
+                      <span className="text-slate-300 font-bold">Solo Domingo (Oficial PDC):</span>
+                      <strong className="text-[#38bdf8] font-mono text-sm">{logisticMetrics.sundayOnlyCount}</strong>
+                    </div>
+                  </div>
+
+                  {/* Tabla de Inscripciones Recientes */}
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-300">
+                        Padrón de Inscriptos Oficiales ({grandRegistrations.length})
+                      </span>
+                      {grandRegistrations.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('¿Deseas reiniciar las inscripciones de prueba?')) {
+                              saveStoredGrandTournamentRegistrations([]);
+                            }
+                          }}
+                          className="text-[11px] text-red-400 hover:underline"
+                        >
+                          Limpiar Registros de Prueba
+                        </button>
+                      )}
+                    </div>
+
+                    {grandRegistrations.length === 0 ? (
+                      <div className="p-4 rounded-xl bg-[#111622] border border-dashed border-slate-800 text-center text-xs text-slate-400">
+                        Aún no hay inscripciones registradas en la app para este torneo. Los competidores que completen el formulario en la portada aparecerán aquí automáticamente.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto rounded-xl border border-slate-800 bg-[#111622]">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-[#07090e] text-slate-400 uppercase text-[10px] font-black border-b border-slate-800">
+                            <tr>
+                              <th className="px-3.5 py-2.5">Competidor</th>
+                              <th className="px-3.5 py-2.5">DNI / Pasaporte</th>
+                              <th className="px-3.5 py-2.5">Nacionalidad / Sede</th>
+                              <th className="px-3.5 py-2.5">Jornadas</th>
+                              <th className="px-3.5 py-2.5">Acompañantes</th>
+                              <th className="px-3.5 py-2.5">Cena Sábado</th>
+                              <th className="px-3.5 py-2.5">Estado Pago</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800 text-slate-300">
+                            {grandRegistrations.slice(0, 10).map((r) => (
+                              <tr key={r.id} className="hover:bg-slate-800/40">
+                                <td className="px-3.5 py-2.5">
+                                  <strong className="text-white block">{r.fullName}</strong>
+                                  <span className="text-[10px] text-[#00e676]">@{r.nickname}</span>
+                                </td>
+                                <td className="px-3.5 py-2.5 font-mono text-slate-300">
+                                  {r.dniOrPassport}
+                                </td>
+                                <td className="px-3.5 py-2.5">
+                                  <span>{r.nationality}</span>
+                                  <span className="text-[10px] text-slate-400 block">{r.city}, {r.province}</span>
+                                </td>
+                                <td className="px-3.5 py-2.5">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    r.attendanceDays === 'BOTH_DAYS' 
+                                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                                      : r.attendanceDays === 'SATURDAY_ONLY'
+                                      ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                                      : 'bg-sky-950 text-sky-400 border border-sky-800'
+                                  }`}>
+                                    {r.attendanceDays === 'BOTH_DAYS' ? 'Ambos Días' : r.attendanceDays === 'SATURDAY_ONLY' ? 'Solo Sábado' : 'Solo Domingo'}
+                                  </span>
+                                </td>
+                                <td className="px-3.5 py-2.5 font-mono text-center">
+                                  {r.companionsCount}
+                                </td>
+                                <td className="px-3.5 py-2.5 font-mono text-center font-bold text-[#ef4444]">
+                                  {r.dinnerComensalesCount}
+                                </td>
+                                <td className="px-3.5 py-2.5">
+                                  <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-800">
+                                    {r.paymentStatus === 'CONFIRMED' ? 'Confirmado' : 'Pendiente Comprobante'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* INTEGRACIÓN CON GOOGLE FORMS (RESPALDO / SINCRONIZACIÓN) */}
                 <div className="p-5 rounded-2xl bg-[#07090e] border border-[#00e676]/30 space-y-4 shadow-lg">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
                       <FileSpreadsheet className="w-5 h-5 text-[#00e676]" />
-                      <h4 className="text-sm font-black text-white">Sincronización Automática con Formulario de Google</h4>
+                      <h4 className="text-sm font-black text-white">Sincronización Opcional con Formulario de Google</h4>
                     </div>
                     {showcases.heroTournament.lastSyncedAt && (
                       <span className="text-[11px] text-slate-400 font-mono">

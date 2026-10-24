@@ -3,7 +3,7 @@
  * Diseñado para operar 100% offline en clubes, pubs y canchas de tiro con mala señal.
  */
 
-import { MatchConfig, LandingShowcaseSettings } from './types';
+import { MatchConfig, LandingShowcaseSettings, GrandTournamentRegistration } from './types';
 
 export interface SavedMatch {
   id: string;
@@ -39,6 +39,7 @@ const STORAGE_KEYS = {
   RECENT_ACCOUNTS: 'lpld_recent_accounts_v1',
   OFFLINE_QUEUE: 'lpld_sync_queue_v1',
   TOURNAMENTS: 'lpld_tournaments_local_v1',
+  GRAND_REGISTRATIONS: 'lpld_grand_tournament_registrations_v1',
 };
 
 // --- Persistencia de Partidas (Anotador) ---
@@ -587,14 +588,21 @@ export const DEFAULT_LANDING_SHOWCASES: LandingShowcaseSettings = {
     highlightCity: 'Mar del Plata',
     year: '2026',
     description: 'La cita cumbre de los dardos en la Costa Atlántica y Argentina. Dos jornadas de máxima adrenalina: fase de grupos, llaves directas 501 Doble Out, marcadores digitales táctiles y transmisión oficial.',
-    date: '14 y 15 Nov',
-    venue: 'MDQ Central',
-    prizePool: '$450.000 ARS',
+    date: '21 y 22 Nov',
+    venue: 'Sociedad de Fomento Nueva Pompeya',
+    prizePool: '$0 ARS',
     registeredCount: 38,
-    maxParticipants: 64,
+    maxParticipants: 32,
     googleFormUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScTorneoOficialLPD2026/viewform',
     autoSyncGoogleForm: true,
     lastSyncedAt: 'Hoy, 10:45 hs',
+    tournamentId: 'torneo-open-mdq-2026',
+    galleryImages: [
+      '/images/gallery-venue-pompeya.jpg',
+      '/images/gallery-trophies.jpg',
+      '/images/darderos.jpeg'
+    ],
+    registrationMode: 'IN_APP',
     ctaButtonText: 'Inscripción Rápida',
     secondaryButtonText: 'Ver Cuadro y Reglamento',
     secondaryButtonUrl: '/torneos',
@@ -691,5 +699,46 @@ export function saveStoredLandingShowcases(settings: LandingShowcaseSettings): v
     console.warn('[Storage] Error al guardar vitrinas de la landing:', err);
   }
 }
+
+// --- Persistencia de Inscripciones Oficiales & PDC (Sociedad de Fomento Nueva Pompeya) ---
+export function getStoredGrandTournamentRegistrations(): GrandTournamentRegistration[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.GRAND_REGISTRATIONS);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.warn('[Storage] Error leyendo inscripciones del Gran Torneo:', err);
+  }
+  return [];
+}
+
+export function saveStoredGrandTournamentRegistrations(registrations: GrandTournamentRegistration[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.GRAND_REGISTRATIONS, JSON.stringify(registrations));
+    window.dispatchEvent(new CustomEvent('lpld_grand_registrations_updated', { detail: registrations }));
+  } catch (err) {
+    console.warn('[Storage] Error guardando inscripciones del Gran Torneo:', err);
+  }
+}
+
+export function addGrandTournamentRegistration(reg: GrandTournamentRegistration): GrandTournamentRegistration[] {
+  const current = getStoredGrandTournamentRegistrations();
+  // Evitar duplicados por DNI o pasaporte
+  const existingIdx = current.findIndex(r => r.dniOrPassport.trim().toLowerCase() === reg.dniOrPassport.trim().toLowerCase());
+  let updated: GrandTournamentRegistration[];
+  if (existingIdx >= 0) {
+    updated = [...current];
+    updated[existingIdx] = reg;
+  } else {
+    updated = [reg, ...current];
+  }
+  saveStoredGrandTournamentRegistrations(updated);
+  return updated;
+}
+
 
 

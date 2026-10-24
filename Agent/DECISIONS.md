@@ -1003,4 +1003,39 @@
      - Guarda de autorización estricta para la Liga Nacional Oficial de Argentina (`scope === 'NATIONAL'`).
 - **Motivo:** Otorga a la Asociación Marplatense y a Dardos Argentina una presencia institucional rigurosa y prestigiosa con organigrama jerárquico real, y sienta la arquitectura de gobernanza federativa para proteger las llaves de torneos y la exclusividad de la Liga Nacional.
 
+---
+
+## [ADR-048] Slider de Galería de Imágenes en Head Banner, Formulario Unificado In-App para Candidatura PDC y Sociedad de Fomento, y Gobernanza de Torneos y Ligas
+
+- **Fecha:** 2026-10-24
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Head Banner Oficial:* Para presentar la candidatura oficial de la sede ante la Professional Darts Corporation (PDC) con miras a albergar fechas clasificatorias para el Campeonato Mundial de Dardos, el Head Banner necesitaba exhibir una galería fotográfica rotativa de alta calidad (sede, trofeos, ambiente de competencia).
+  2. *Formulario Unificado Atómico:* Anteriormente se utilizaba un Google Forms externo. Se requería un formulario nativo in-app que hiciese **todo junto en un solo paso**: inscribir al jugador en el torneo oficial creado para esa fecha (sumándolo a la llave y cuadro en `/torneos`), capturar las credenciales federadas PDC (DNI/Pasaporte, país/bandera, club, procedencia) y relevar los datos logísticos indispensables para la Sociedad de Fomento Nueva Pompeya (acompañantes en sede, comensales para la cena de bienvenida del sábado, días de asistencia y dietas especiales).
+  3. *Gobernanza Federativa:* Se implementó la restricción técnica para que el creador de un torneo sea automáticamente su administrador (`creatorId`) con posibilidad de co-administración (`coAdminIds`), protegiendo la llave contra alteraciones no autorizadas y blindando la creación de la Liga Nacional para autoridades federativas.
+- **Decisión:**
+  1. **Slider de Galería de Imágenes (`TournamentHeroBanner.tsx`):**
+     - Carrusel interactivo automático cada 5s con pausa al hover, flechas táctiles, puntos de paginación y contador de diapositivas.
+     - Pestaña `[📸 Galería Sede]` vs `[🛡️ Fiscaliza]` alternando entre imágenes de alta fidelidad y la doble insignia federativa (Darderos MDQ +25% sobre Dardos Argentina).
+     - Presets en `/images`: `gallery-venue-pompeya.jpg`, `gallery-trophies.jpg`, `darderos.jpeg`.
+  2. **Formulario Unificado In-App (`GrandTournamentEnrollModal.tsx`):**
+     - Registra atómicamente al jugador en el torneo oficial creado para la fecha en `enrolledPlayers` y suma al conteo de inscriptos. Si el torneo aún no fue creado en el sistema, lo auto-crea para garantizar que el participante quede sembrado en `/torneos`.
+     - Captura datos PDC: DNI/Pasaporte, nacionalidad con bandera, club, ciudad, provincia, teléfono WhatsApp.
+     - Captura logística Fomento Pompeya: acompañantes no jugadores, cubiertos para la cena de bienvenida del sábado, días de asistencia (Solo Sábado, Solo Domingo fecha oficial puntuable, o Fin de semana completo) y dietas especiales.
+     - Datos bancarios oficiales para transferencia con botones 1-click copy y botón WhatsApp con mensaje pre-armado y estructurado con todos los datos listo para adjuntar comprobante a Mariano Deux.
+     - Disparo del evento global `lpld_tournaments_updated` para que los componentes y la vista de `/torneos` se actualicen en caliente sin recargar.
+  3. **SuperAdmin Vitrina 1 & Logística PDC (`superadmin/page.tsx`):**
+     - Selector de modalidad: `IN_APP` (Recomendado), `HYBRID` y `GOOGLE_FORM`.
+     - Selector desplegable de torneo vinculado de la app (`tournamentId`) con modo auto-detección.
+     - Gestor de imágenes del carrusel con agregar URL personalizada, presets rápidos y miniaturas con eliminación.
+     - Panel de Control Logístico y Acreditación PDC en vivo con contadores (Inscriptos, Acompañantes, Aforo total Sede, Comensales Cena Sábado, desglose por días y países).
+     - Botón **"Exportar Planilla Oficial (CSV / Excel)"** con descarga directa en 1 click.
+  4. **Gobernanza de Torneos y Ligas (`TournamentManager.tsx`, `CreateLeagueModal.tsx`):**
+     - Función `canManageTournament(t)`: SuperAdmin Master Key (`marianodeux@gmail.com`), Creador (`t.creatorId === currentUser.id`) y Co-Admins (`t.coAdminIds?.includes(currentUser.id)`).
+     - Protección de W.O., reseteo de match, eliminación de torneo, puesta en sesión y edición de parámetros.
+     - Guarda de 1 liga local activa en curso por organizador (`userActiveLocalLeague`).
+     - Creación de Liga Nacional Oficial restringida al SuperAdmin, administradores y Comisión Directiva Nacional.
+- **Motivo:** Máxima tasa de conversión en inscripciones eliminando fricciones externas, centralización de datos clave de hospitalidad para la Sociedad de Fomento y riguroso cumplimiento de estándares internacionales PDC para posicionar a Mar del Plata como sede mundialista.
+
+
 

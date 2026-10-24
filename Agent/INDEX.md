@@ -70,7 +70,8 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `SlotAssignModal.tsx`: Modal de asignación manual slot a slot en la primera ronda de la llave (estilo Nakka N01), con soporte de lista de inscriptos, asignación de Byes automáticos y vaciado de slots.
   * `WebcamSetupModal.tsx`: Configuración de hardware de pista (cámara, micrófono, vúmetro de audio y soporte para celular como cámara de diana secundaria).
 * **`comunidad/`:**
-  * `TournamentHeroBanner.tsx`: Head banner promocional de torneos con modal de inscripción.
+  * `TournamentHeroBanner.tsx`: Head banner promocional de torneos con carrusel de imágenes rotativo (5s, hover-pause, selector de sede vs fiscaliza), enlace directo a modal y compatibilidad híbrida.
+  * `GrandTournamentEnrollModal.tsx`: Formulario de inscripción atómico in-app que simultáneamente inscribe al jugador en el torneo oficial creado para esa fecha (en la llave y cuadro) y captura sus credenciales PDC (DNI/Pasaporte, procedencia, club) y datos logísticos para la Sociedad de Fomento Nueva Pompeya (acompañantes en sede, cena de bienvenida del sábado y días de asistencia), con datos bancarios de transferencia y botón WhatsApp a Mariano Deux.
   * `NationalRankings.tsx`: Tabla de posiciones y podio con filtros provinciales conectado a la base de datos de jugadores en la nube (`fetchRegisteredPlayersFromCloud`).
   * `InvitePlayersModal.tsx`: Modal oficial para invitar a nuevos jugadores a registrarse en la plataforma, con enlace directo a `/perfil` (`https://locosporlosdardos.com.ar/perfil`), botón de envío directo por WhatsApp con texto deportivo pre-redactado, copiado de link y copiado de mensaje completo.
 * **`perfil/`:**

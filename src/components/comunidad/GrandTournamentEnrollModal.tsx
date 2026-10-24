@@ -71,6 +71,27 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdRegistration, setCreatedRegistration] = useState<GrandTournamentRegistration | null>(null);
 
+  // Cuenta bancaria oficial de la asociación
+  const [bank, setBank] = useState<AssociationBankAccount>(() => {
+    return getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT);
+  });
+
+  useEffect(() => {
+    const handleBankUpdate = (e: any) => {
+      if (e?.detail) {
+        setBank(e.detail);
+      } else {
+        setBank(getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT));
+      }
+    };
+    window.addEventListener('lpld_association_bank_updated', handleBankUpdate);
+    window.addEventListener('storage', handleBankUpdate);
+    return () => {
+      window.removeEventListener('lpld_association_bank_updated', handleBankUpdate);
+      window.removeEventListener('storage', handleBankUpdate);
+    };
+  }, []);
+
   // Precargar con el jugador logueado si existe
   useEffect(() => {
     if (isOpen) {
@@ -88,8 +109,6 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
       }
     }
   }, [isOpen]);
-
-  if (!isOpen) return null;
 
   const handleCopy = (text: string, fieldId: string) => {
     navigator.clipboard.writeText(text);
@@ -272,26 +291,6 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
     }
   };
 
-  const [bank, setBank] = useState<AssociationBankAccount>(() => {
-    return getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT);
-  });
-
-  useEffect(() => {
-    const handleBankUpdate = (e: any) => {
-      if (e?.detail) {
-        setBank(e.detail);
-      } else {
-        setBank(getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT));
-      }
-    };
-    window.addEventListener('lpld_association_bank_updated', handleBankUpdate);
-    window.addEventListener('storage', handleBankUpdate);
-    return () => {
-      window.removeEventListener('lpld_association_bank_updated', handleBankUpdate);
-      window.removeEventListener('storage', handleBankUpdate);
-    };
-  }, []);
-
   const whatsappAdminNumber = (bank.adminWhatsAppPhone || '5492235320777').replace(/\D/g, '');
 
   const generateWhatsAppMessage = () => {
@@ -311,6 +310,8 @@ ${createdRegistration.dietaryRestrictions ? `⚠️ *Menú/Dieta:* ${createdRegi
 Adjunto a continuación el comprobante de pago para la acreditación oficial. ¡Muchas gracias!`;
     return encodeURIComponent(text);
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto">

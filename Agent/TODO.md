@@ -1,3 +1,13 @@
+- [x] **Corrección de Violación a las Reglas de Hooks de React en `GrandTournamentEnrollModal.tsx` (Client-Side Crash en "+ INSCRIPCIÓN RÁPIDA"):**
+  * **Diagnóstico de Causa Raíz:**
+    - `GrandTournamentEnrollModal.tsx` contenía un retorno prematuro condicional `if (!isOpen) return null;` en la línea 92, mientras que en la línea 275 se invocaban `useState<AssociationBankAccount>` y su respectivo `useEffect`.
+    - Al cargar la página principal, el modal se montaba con `isOpen = false`, ejecutando únicamente los primeros 14 hooks.
+    - Al presionar el botón `+ INSCRIPCIÓN RÁPIDA`, `isOpen` pasaba a `true`, sobrepasando el retorno anticipado y ejecutando hooks adicionales, lo que violaba la regla estricta de React ("Rendered more hooks than during the previous render" - Error minificado #310 / #418) y provocaba el pantallazo de error `Application error: a client-side exception has occurred`.
+  * **Resolución Técnica:**
+    - Reubicación de `bank` y su `useEffect` de sincronización con la cuenta bancaria de Vitrina 4 al bloque principal incondicional superior junto al resto de hooks de estado.
+    - Desplazamiento de la guarda `if (!isOpen) return null;` inmediatamente antes del `return (` del JSX principal.
+    - Verificación con TypeScript (`npx tsc --noEmit`) con código de salida 0 sin advertencias.
+
 - [x] **Sincronización Reactiva de Cuenta Bancaria en Formulario de Inscripción y Blindaje Exclusivo de SuperAdmin en `/asociacion`:**
   * **Datos Bancarios de Vitrina 4 en Formulario In-App (`GrandTournamentEnrollModal.tsx`):**
     - Desacoplamiento de la constante estática `DEFAULT_ASSOCIATION_BANK_ACCOUNT` reemplazándola por el hook reactivo `getStoredAssociationBankAccount()`.

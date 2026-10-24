@@ -1,5 +1,18 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 42] - 2026-10-24
+- **Objetivo:** Resolver el error crítico de cliente (`Application error: a client-side exception has occurred` / `Minified React error #310 / #418`) al hacer click en el botón `+ INSCRIPCIÓN RÁPIDA` del Head Banner en la página principal.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Violación de las Reglas de Hooks de React:* En `GrandTournamentEnrollModal.tsx`, se encontraba un retorno temprano condicional `if (!isOpen) return null;` en la línea 92. Posteriormente, en la línea 275, se declaraban hooks de estado y efecto adicionales (`const [bank, setBank] = useState(...)` y `useEffect(...)`) para la sincronización con Vitrina 4.
+  2. *Mecanismo del Fallo:* En el primer render de la landing page con el banner montado y el modal cerrado (`isOpen = false`), la ejecución retornaba `null` en la línea 92, registrando 14 hooks. Al presionar el botón `+ INSCRIPCIÓN RÁPIDA`, el estado `isOpen` pasaba a `true`, saltándose el retorno prematuro y ejecutando los hooks de la línea 275. React detectó una cantidad diferente de hooks respecto al render anterior ("Rendered more hooks than during the previous render"), provocando la excepción inmediata en el cliente.
+- **Realizado:**
+  - **Reubicación Incondicional de Hooks (`GrandTournamentEnrollModal.tsx`):**
+    * Se trasladaron `bank` y su `useEffect` de escucha de eventos (`lpld_association_bank_updated` y `storage`) al bloque principal superior de hooks, garantizando que se ejecuten en idéntico orden en cada render.
+    * Se eliminó el `if (!isOpen) return null;` prematuro de la línea 92.
+    * Se colocó la guarda condicional `if (!isOpen) return null;` inmediatamente antes del `return (` del JSX principal (después de todas las funciones auxiliares seguras).
+- **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Formulario de inscripción rápida 100% operativo, abriéndose fluidamente sin excepciones de React en el cliente.
+
 ## [Sesión 41] - 2026-10-24
 - **Objetivo:** Conectar reactivamente los datos de la cuenta bancaria de Vitrina 4 de SuperAdmin (Mercado Pago, Alias `dardeus.mp`, CVU, CUIT, WhatsApp) al formulario unificado in-app de inscripción para el Gran Torneo Oficial, y resolver la seguridad de permisos del botón "Administrar Asociación" y acciones directivas en `/asociacion` asegurando que aparezcan única y exclusivamente a Mariano Deux (SuperAdmin) con integración al panel SuperAdmin.
 - **Diagnóstico y Análisis Consultivo:**

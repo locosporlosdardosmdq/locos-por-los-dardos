@@ -1,3 +1,22 @@
+- [x] **Filtros Dependientes por Ámbito, Liga y Fecha del Evento + Sincronización Cloud Centralizada de Inscripciones en Supabase (`/api/inscripciones`):**
+  * **Confirmación y Resolución del Caso Héctor Giménez:**
+    - Verificado que Héctor Valentín Giménez ("THE CASHIER") sí completó el formulario con éxito el 24/10/2026 18:11 hs (ID `reg_1792876311590_dfu7`) en su propio dispositivo.
+    - Causa raíz identificada: el padrón de SuperAdmin leía únicamente el `localStorage` del navegador local de Mariano, mientras que los registros de competidores externos quedaban aislados en sus dispositivos y únicamente se sincronizaban parcialmente como `enrolledPlayers` en la tabla de torneos de Supabase.
+    - Creada la tabla en PostgreSQL Supabase `grand_tournament_registrations` con soporte íntegro para todos los campos logísticos (DNI, procedencia, acompañantes, cena de bienvenida, dietas, modalidad domingo, pago).
+    - Desarrollado el endpoint REST `/api/inscripciones` con soporte GET, POST, PATCH y DELETE con reconciliación automática de torneos.
+    - Sincronización automática periódica (10s) en el panel SuperAdmin, garantizando que cualquier competidor que se inscriba desde cualquier celular del país aparezca instantáneamente en la pantalla de Mariano.
+  * **Sistema de Filtros Dependientes (3 Niveles):**
+    - **Nivel 1 (Ámbito):** `Todos los Circuitos`, `Liga Nacional Oficial (x2 Pts)`, `Ligas Locales (Mar del Plata / Regionales)` y `Torneos Abiertos & Especiales`.
+    - **Nivel 2 (Liga Madre):** Filtro dependiente del ámbito seleccionado que lista las ligas pertinentes (ej: Liga Nacional 2026 vs Liga Marplatense 2026).
+    - **Nivel 3 (Fecha del Evento):** Selector dependiente de la liga y ámbito que lista las fechas presenciales ordenadas cronológicamente, indicando próximas fechas activas, estado y fecha del evento.
+  * **Centro de Control del Formulario de la Fecha:**
+    - Botón `[👁️ Ver Formulario de Inscripción]`: Abre el modal oficial in-app cargado con los datos de esa fecha para previsualizarlo o inscribir manualmente.
+    - Botón `[🔗 Copiar Link]`: Genera y copia al portapapeles la URL directa de inscripción (`?inscribir=ID_FECHA`).
+    - Botón `[📲 Difundir por WhatsApp]`: Genera mensaje con texto formateado de invitación oficial y enlace directo.
+    - Botón `[📌 Fijar en Portada]`: Asocia la fecha con la Vitrina 1 de la portada para el botón `+ INSCRIPCIÓN RÁPIDA`.
+    - Modal de Ficha Individual de Inscripción `[👁️ Ficha]` para cada competidor del listado.
+  * **Validación de Compilación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Padrón Maestro de Inscriptos Presenciales y Logística Sede en Panel SuperAdmin (`/superadmin` & `PresencialEnrollmentsManager.tsx`):**
   * **Ubicación Destacada y Centralizada en SuperAdmin:**
     - Creada la pestaña principal prioritaria `📋 Inscriptos Presencial` como Pestaña 1 del panel (`activeTab = 'ENROLLMENTS'`), accesible inmediatamente al ingresar a `/superadmin` o vía query param `?tab=inscriptos`.

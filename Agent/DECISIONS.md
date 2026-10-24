@@ -1152,6 +1152,34 @@
      - Exportación a CSV/Excel con codificación BOM UTF-8 y versión lista para imprimir.
 - **Motivo:** Brinda a la dirigencia el control operativo absoluto de la sede y recepción de delegaciones provinciales e internacionales con máxima ergonomía y cero margen de error en la logística del sábado y domingo.
 
+---
+
+## [ADR-054] Sincronización Centralizada de Inscripciones en Supabase PostgreSQL y Filtros Dependientes por Ámbito, Liga y Fecha
+
+- **Fecha:** 2026-10-24
+- **Estado:** ACEPTADA
+- **Contexto:**
+  1. *Incidente de Sincronización (Caso Héctor Giménez):* El competidor Héctor Valentín Giménez completó el formulario oficial desde su propio dispositivo, pero no aparecía en el padrón de SuperAdmin en la pantalla de Mariano Deux. La auditoría confirmó que el formulario se ejecutó con éxito en el cliente y guardó al jugador en la nube (`enrolledPlayers` de `tournaments` en Supabase), pero el padrón de SuperAdmin consultaba únicamente el `localStorage` del navegador local de Mariano, careciendo de un canal de sincronización bidireccional en la nube para el padrón logístico.
+  2. *Jerarquía de Torneos y Fechas:* Al existir múltiples ligas y circuitos (Liga Nacional con puntos dobles x2, Ligas Locales de Mar del Plata/clubes y Torneos Abiertos), el SuperAdmin necesitaba filtros dependientes para acotar la visualización por Ámbito -> Liga Madre -> Fecha Específica.
+  3. *Acceso y Difusión del Formulario por Fecha:* El organizador requería ver el formulario oficial tal como lo ve el competidor para cualquier fecha del calendario, copiar enlaces directos para afiches o redes y difundir por WhatsApp.
+- **Decisión:**
+  1. **Persistencia Central en PostgreSQL (`grand_tournament_registrations` & `/api/inscripciones`):**
+     - Creación de la tabla `grand_tournament_registrations` en Supabase con todas las columnas logísticas y payload `data JSONB`.
+     - Creación del endpoint REST `/api/inscripciones` con endpoints GET, POST, PATCH y DELETE, y reconciliación automática con torneos existentes.
+     - Sincronización en vivo cada 10s en SuperAdmin para recibir de forma inmediata las inscripciones de competidores desde cualquier rincón del país.
+  2. **Filtros Dependientes en 3 Niveles (`PresencialEnrollmentsManager.tsx`):**
+     - Nivel 1: Ámbito (Todos, Liga Nacional ⚡x2, Ligas Locales 📍, Torneos Abiertos 🏆).
+     - Nivel 2: Liga Madre (filtrada según el ámbito seleccionado).
+     - Nivel 3: Fecha del Evento (lista de torneos presenciales correspondientes, ordenados cronológicamente).
+  3. **Centro de Control del Formulario de la Fecha:**
+     - Botón `[👁️ Ver Formulario de Inscripción]`: Abre el modal oficial in-app cargado con los datos de esa fecha para auditarlo o inscribir manualmente.
+     - Botón `[🔗 Copiar Link]`: Copia la URL directa (`?inscribir=ID_FECHA`).
+     - Botón `[📲 Difundir por WhatsApp]`: Mensaje pre-redactado listo para grupos.
+     - Botón `[📌 Fijar en Portada]`: Asocia la fecha con la Vitrina 1 de la landing page.
+     - Modal de Ficha Individual de Inscripción `[👁️ Ficha]` para cada competidor.
+- **Motivo:** Garantiza que el 100% de las inscripciones remotas queden respaldadas en la base de datos central y visibles en tiempo real para la dirigencia, con un control de filtros profesional para todo el calendario deportivo.
+
+
 
 
 

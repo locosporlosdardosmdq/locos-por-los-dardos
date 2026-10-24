@@ -1,5 +1,23 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 45] - 2026-10-24
+- **Objetivo:** Resolver el caso de inscripción de Héctor Giménez ("THE CASHIER"), implementar la persistencia centralizada en PostgreSQL de Supabase mediante `/api/inscripciones`, y desarrollar el sistema de filtros dependientes (Ámbito -> Liga -> Fecha del Evento) y el centro de control del formulario de inscripción por fecha presencial.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Auditoría y Confirmación de Héctor Giménez:* Se consultó directamente la base de datos de PostgreSQL en Supabase. Se confirmó fehacientemente que Héctor Valentín Giménez ("THE CASHIER") sí completó el formulario exitosamente hoy 24/10/2026 a las 18:11 hs Argentina (ID: `reg_1792876311590_dfu7`), y su inscripción llegó a la nube en la lista de jugadores de `torneo-open-mdq-2026`.
+  2. *Causa Raíz del Desfase Visual en SuperAdmin:* El formulario en el cliente guardaba la ficha logística detallada en el `localStorage` del dispositivo del usuario (en este caso el de Héctor), y el panel de SuperAdmin leía únicamente el `localStorage` del navegador local de Mariano. Al no existir un endpoint cloud centralizado para el padrón logístico de la sede, las inscripciones de competidores externos no se sincronizaban en la pantalla de Mariano.
+  3. *Persistencia Centralizada y Reconciliación:* Se creó la tabla `grand_tournament_registrations` en Supabase PostgreSQL y el endpoint REST `/api/inscripciones` (GET, POST, PATCH, DELETE) con reconciliación de torneos existentes. SuperAdmin ahora sincroniza en caliente cada 10s con la base de datos central.
+  4. *Filtros Dependientes en 3 Niveles:* Se reestructuró la selección en: 1. Ámbito (`Nacional`, `Local`, `Abiertos`), 2. Liga Madre (filtrada según el ámbito), 3. Fecha del Evento (ordenada cronológicamente).
+  5. *Acceso al Formulario por Fecha:* Se incorporó el Centro de Control de la Fecha con botones para previsualizar/abrir el formulario in-app (`GrandTournamentEnrollModal`), copiar link directo (`?inscribir=ID`), difundir por WhatsApp, fijar en portada y ver la ficha individual de cada inscripto.
+- **Realizado:**
+  - Creación de la tabla `grand_tournament_registrations` en Supabase PostgreSQL.
+  - Sincronización oficial del registro de Héctor Giménez en la tabla central de la base de datos.
+  - Creación de la ruta API `src/app/api/inscripciones/route.ts`.
+  - Integración de funciones cloud en `src/lib/storage.ts` (`fetchGrandTournamentRegistrationsFromCloud` y `saveGrandTournamentRegistrationToCloud`).
+  - Sincronización en vivo automática en `src/app/superadmin/page.tsx` con Supabase PostgreSQL.
+  - Rediseño de `src/components/superadmin/PresencialEnrollmentsManager.tsx` con filtros dependientes de 3 niveles, centro de control de formulario de la fecha y modal de ficha individual.
+- **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Padrón 100% conectado a la nube en tiempo real, inscripciones externas visibles de inmediato y sistema de filtros dependientes operativo.
+
 ## [Sesión 44] - 2026-10-24
 - **Objetivo:** Implementar la visualización integral y gestión del formulario de inscripción en el Panel SuperAdmin: padrón de competidores, ciudad, provincia y país de procedencia, acompañantes en sede, comensales de la cena/asado del sábado con alertas de celiaquía/dietas, y organización cronológica de múltiples fechas presenciales (resaltando la fecha oficial inmediatamente próxima vs el historial).
 - **Diagnóstico y Análisis Consultivo:**

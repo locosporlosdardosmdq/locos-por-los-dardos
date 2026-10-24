@@ -536,7 +536,38 @@ export const MOCK_RANKINGS: PlayerProfile[] = [
 ];
 
 // Ligas Oficiales de Dardos (Nacional y Locales)
-export const DEFAULT_LEAGUES: League[] = [];
+export const DEFAULT_LEAGUES: League[] = [
+  {
+    id: 'league-national-argentina',
+    slug: 'liga-nacional-oficial-argentina',
+    name: 'Liga Nacional Oficial de Dardos Argentina 2026',
+    scope: 'NATIONAL',
+    description: 'Circuito federal con fechas presenciales puntuables x2 y clasificación internacional PDC.',
+    season: '2026',
+    organizerClub: 'Locos por los Dardos Argentina',
+    isOfficialNational: true,
+    doublePointsOnPresential: true,
+    activeTournamentsCount: 2,
+    standings: [],
+    createdAt: '2026-01-01T00:00:00.000Z'
+  },
+  {
+    id: 'league-mdq-2026',
+    slug: 'liga-marplatense-dardos-2026',
+    name: 'Liga Marplatense de Dardos 2026',
+    scope: 'LOCAL',
+    description: 'Circuito local oficial con sede en la Sociedad de Fomento Nueva Pompeya.',
+    season: '2026',
+    organizerClub: 'Darderos Mar del Plata',
+    city: 'Mar del Plata',
+    province: 'Buenos Aires',
+    isOfficialNational: false,
+    doublePointsOnPresential: true,
+    activeTournamentsCount: 2,
+    standings: [],
+    createdAt: '2026-01-01T00:00:00.000Z'
+  }
+];
 
 // JERARQUÍA OFICIAL DE ORGANIGRAMA DIRECTIVO
 export type AuthorityTier = 'PRESIDENCIA' | 'MESA_DIRECTIVA' | 'SECRETARIAS' | 'VOCALES';

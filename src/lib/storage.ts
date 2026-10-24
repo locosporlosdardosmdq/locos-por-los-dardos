@@ -745,8 +745,11 @@ export function saveStoredGrandTournamentRegistrations(registrations: GrandTourn
 
 export function addGrandTournamentRegistration(reg: GrandTournamentRegistration): GrandTournamentRegistration[] {
   const current = getStoredGrandTournamentRegistrations();
-  // Evitar duplicados por DNI o pasaporte
-  const existingIdx = current.findIndex(r => r.dniOrPassport.trim().toLowerCase() === reg.dniOrPassport.trim().toLowerCase());
+  // Evitar duplicados por DNI o pasaporte o ID
+  const existingIdx = current.findIndex(r => 
+    r.id === reg.id || 
+    (r.dniOrPassport && reg.dniOrPassport && r.dniOrPassport.trim().toLowerCase() === reg.dniOrPassport.trim().toLowerCase())
+  );
   let updated: GrandTournamentRegistration[];
   if (existingIdx >= 0) {
     updated = [...current];
@@ -755,8 +758,44 @@ export function addGrandTournamentRegistration(reg: GrandTournamentRegistration)
     updated = [reg, ...current];
   }
   saveStoredGrandTournamentRegistrations(updated);
+  
+  // Sincronizar en segundo plano con Supabase PostgreSQL
+  saveGrandTournamentRegistrationToCloud(reg).catch(err => {
+    console.warn('[Storage] Fallback local activo, error en sync cloud:', err);
+  });
+
   return updated;
 }
+
+export async function fetchGrandTournamentRegistrationsFromCloud(tournamentId?: string): Promise<GrandTournamentRegistration[]> {
+  try {
+    const url = tournamentId ? `/api/inscripciones?tournamentId=${encodeURIComponent(tournamentId)}` : '/api/inscripciones';
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Error al consultar /api/inscripciones');
+    const data = await res.json();
+    if (data.success && Array.isArray(data.registrations)) {
+      return data.registrations;
+    }
+  } catch (err) {
+    console.warn('[Storage] Error fetching grand registrations from cloud:', err);
+  }
+  return [];
+}
+
+export async function saveGrandTournamentRegistrationToCloud(reg: GrandTournamentRegistration): Promise<boolean> {
+  try {
+    const res = await fetch('/api/inscripciones', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ registration: reg })
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[Storage] Error saving grand registration to cloud:', err);
+    return false;
+  }
+}
+
 
 
 

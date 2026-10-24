@@ -71,7 +71,8 @@ import {
   DEFAULT_ASSOCIATION_BANK_ACCOUNT,
   calculateAgeFromBirthDate,
   getAuthorityHierarchyWeight,
-  getAuthorityTierInfo
+  getAuthorityTierInfo,
+  DEFAULT_LEAGUES
 } from '@/lib/constants';
 import { 
   getCurrentPlayerProfile, 
@@ -86,7 +87,10 @@ import {
   fetchRegisteredPlayersFromCloud,
   getStoredGrandTournamentRegistrations,
   saveStoredGrandTournamentRegistrations,
-  getStoredTournaments
+  fetchGrandTournamentRegistrationsFromCloud,
+  getStoredTournaments,
+  fetchTournamentsFromCloud,
+  getStoredLeagues
 } from '@/lib/storage';
 import { 
   AssociationAuthority, 
@@ -96,7 +100,8 @@ import {
   PlayerProfile,
   GrandTournamentRegistration,
   AttendanceDays,
-  Tournament
+  Tournament,
+  League
 } from '@/lib/types';
 import { 
   INFRASTRUCTURE_METRICS, 
@@ -150,6 +155,55 @@ export default function SuperadminPage() {
   const [availableTournaments, setAvailableTournaments] = useState<Tournament[]>(() => {
     return getStoredTournaments();
   });
+
+  // Ligas registradas (Nacional y Locales)
+  const [leagues, setLeagues] = useState<League[]>(() => {
+    return getStoredLeagues(DEFAULT_LEAGUES);
+  });
+
+  // Sincronización en vivo con Supabase PostgreSQL (Inscripciones de todos los competidores)
+  useEffect(() => {
+    let isMounted = true;
+    const syncCloudData = async () => {
+      try {
+        const [cloudRegs, cloudTourneys] = await Promise.all([
+          fetchGrandTournamentRegistrationsFromCloud(),
+          fetchTournamentsFromCloud()
+        ]);
+
+        if (!isMounted) return;
+
+        if (Array.isArray(cloudTourneys) && cloudTourneys.length > 0) {
+          setAvailableTournaments(prev => {
+            const tMap = new Map<string, Tournament>();
+            prev.forEach(t => tMap.set(t.id, t));
+            cloudTourneys.forEach(t => tMap.set(t.id, t));
+            return Array.from(tMap.values());
+          });
+        }
+
+        if (Array.isArray(cloudRegs) && cloudRegs.length > 0) {
+          setGrandRegistrations(prev => {
+            const rMap = new Map<string, GrandTournamentRegistration>();
+            prev.forEach(r => rMap.set(r.id, r));
+            cloudRegs.forEach(r => rMap.set(r.id, r));
+            const merged = Array.from(rMap.values());
+            saveStoredGrandTournamentRegistrations(merged);
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('[Superadmin] Error en sincronización cloud:', err);
+      }
+    };
+
+    syncCloudData();
+    const interval = setInterval(syncCloudData, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Torneo vinculado y conteo dinámico real
   const linkedTourney = useMemo(() => {
@@ -1179,9 +1233,21 @@ export default function SuperadminPage() {
           <PresencialEnrollmentsManager
             registrations={grandRegistrations}
             tournaments={availableTournaments}
+            leagues={leagues}
+            heroSettings={showcases.heroTournament}
             onUpdateRegistrations={(updated) => {
               setGrandRegistrations(updated);
               saveStoredGrandTournamentRegistrations(updated);
+            }}
+            onUpdateHeroTournament={(updatedHero) => {
+              setShowcases(prev => {
+                const next = {
+                  ...prev,
+                  heroTournament: { ...prev.heroTournament, ...updatedHero }
+                };
+                saveStoredLandingShowcases(next);
+                return next;
+              });
             }}
           />
         )}

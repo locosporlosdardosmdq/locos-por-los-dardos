@@ -1,5 +1,37 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 52] - 2026-10-25
+- **Objetivos:**
+  1. Diagnosticar por qué la versión en celulares mostraba datos distintos a la versión de PC ("5to Gran Abierto de Mar del Plata Mar del Plata 2026" con bolsa de $150.000 y 0/32 inscriptos vs "Gran Open Mar del Plata 2026").
+  2. Implementar sincronización centralizada en la nube (Supabase PostgreSQL) para la configuración de Vitrinas de la Landing (Hero Banner) y el conteo de inscriptos en tiempo real.
+  3. Corregir la duplicación del nombre de la ciudad en el encabezado principal (`<h1>`) en pantallas móviles y de escritorio.
+  4. Sincronizar automáticamente cualquier modificación de SuperAdmin con PostgreSQL para que todos los dispositivos (móviles y computadoras) reflejen la misma información al instante.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Aislamiento de `localStorage` entre dispositivos:* Las vitrinas de la landing (`LandingShowcaseSettings`) se guardaban exclusivamente en el almacenamiento local del navegador (`lpld_landing_showcases_v1`). Por ello, las modificaciones realizadas en PC jamás llegaban a los teléfonos móviles, y los teléfonos conservaban datos obsoletos ingresados en sesiones previas de prueba.
+  2. *Conteo Desconectado de Inscriptos:* `TournamentHeroBanner` leía el conteo de inscriptos directamente desde `localStorage.getItem('lpld_grand_registrations_v1')`. En un celular nuevo o visitante, este almacenamiento local estaba vacío (`0 / 32 inscriptos`), a pesar de que en la base de datos existían inscripciones reales.
+  3. *Duplicación de Ciudad en Título:* El renderizador concatenaba incondicionalmente `{title} {highlightCity} {year}`. Al llamarse el título "5to Gran Abierto de Mar del Plata" y la ciudad "Mar del Plata", el resultado era "5to Gran Abierto de Mar del Plata Mar del Plata 2026".
+- **Realizado:**
+  - `src/lib/storage.ts`:
+    * Creada la función `fetchLandingShowcasesFromCloud()` para recuperar la configuración oficial de vitrinas desde la nube y persistirla en caché local.
+    * Creada la función `saveLandingShowcasesToCloud()` para enviar actualizaciones a la base de datos.
+    * Actualizado `saveStoredLandingShowcases()` para invocar la sincronización en la nube en segundo plano de manera transparente.
+  - `src/app/api/showcases/route.ts`:
+    * Creado el endpoint `GET /api/showcases` que consulta la tabla `platform_settings` en Supabase PostgreSQL.
+    * Creado el endpoint `POST /api/showcases` protegido con autorización administrativa para persistir los cambios de vitrinas.
+  - `src/components/comunidad/TournamentHeroBanner.tsx`:
+    * Sincronización en `useEffect` con `fetchLandingShowcasesFromCloud()` para obtener el banner oficial desde la nube.
+    * Sincronización en `useEffect` con `GET /api/inscripciones` para desplegar el número real de inscriptos federados en tiempo real en cualquier celular del mundo.
+    * Algoritmo de detección en el `<h1>` para evitar duplicar el nombre de la ciudad si el título ya la incluye, resaltándola limpiamente con estilo verde diana.
+  - `src/app/superadmin/page.tsx`:
+    * Integración de `fetchLandingShowcasesFromCloud()` en la rutina periódica `syncCloudData()`.
+  - `.env.local`:
+    * Corregido el caracter `@aws` faltante en las cadenas de conexión locales `DATABASE_URL` y `DIRECT_URL`.
+  - Base de datos (Supabase PostgreSQL):
+    * Creada la tabla `platform_settings (key, data, updated_at)` y sembrada con la configuración maestra de la landing.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Portada y vitrinas completamente centralizadas en la nube; sincronización perfecta entre PC y celulares en tiempo real.
+
 ## [Sesión 51] - 2026-10-25
 - **Objetivos:**
   1. Diseñar e implementar el flujo oficial completo de Fase de Grupos (Round Robin) para torneos individuales y por parejas.

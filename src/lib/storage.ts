@@ -719,8 +719,42 @@ export function saveStoredLandingShowcases(settings: LandingShowcaseSettings): v
   try {
     localStorage.setItem(SHOWCASE_KEYS.SHOWCASES, JSON.stringify(settings));
     window.dispatchEvent(new CustomEvent('lpld_showcases_updated', { detail: settings }));
+    // Sincronización transparente con Supabase PostgreSQL
+    saveLandingShowcasesToCloud(settings).catch(() => {});
   } catch (err) {
     console.warn('[Storage] Error al guardar vitrinas de la landing:', err);
+  }
+}
+
+export async function fetchLandingShowcasesFromCloud(): Promise<LandingShowcaseSettings | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch('/api/showcases');
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.success && data.showcases) {
+      localStorage.setItem(SHOWCASE_KEYS.SHOWCASES, JSON.stringify(data.showcases));
+      window.dispatchEvent(new CustomEvent('lpld_showcases_updated', { detail: data.showcases }));
+      return data.showcases;
+    }
+  } catch (err) {
+    console.warn('[Storage] Error al obtener vitrinas de la nube:', err);
+  }
+  return null;
+}
+
+export async function saveLandingShowcasesToCloud(settings: LandingShowcaseSettings): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    const res = await fetch('/api/showcases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ showcases: settings })
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[Storage] Error al persistir vitrinas en la nube:', err);
+    return false;
   }
 }
 

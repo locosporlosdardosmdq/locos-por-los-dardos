@@ -19,7 +19,12 @@ import {
   Pause,
   Play
 } from 'lucide-react';
-import { getStoredLandingShowcases, DEFAULT_LANDING_SHOWCASES, getStoredGrandTournamentRegistrations } from '@/lib/storage';
+import { 
+  getStoredLandingShowcases, 
+  DEFAULT_LANDING_SHOWCASES, 
+  getStoredGrandTournamentRegistrations,
+  fetchLandingShowcasesFromCloud
+} from '@/lib/storage';
 import { LandingShowcaseSettings } from '@/lib/types';
 import { GrandTournamentEnrollModal } from './GrandTournamentEnrollModal';
 
@@ -45,6 +50,23 @@ export const TournamentHeroBanner: React.FC = () => {
   });
 
   useEffect(() => {
+    // 1. Sincronizar vitrinas centrales desde Supabase PostgreSQL
+    fetchLandingShowcasesFromCloud().then((cloud) => {
+      if (cloud?.heroTournament) {
+        setHeroSettings(cloud.heroTournament);
+      }
+    });
+
+    // 2. Sincronizar conteo real de inscriptos desde el servidor
+    fetch('/api/inscripciones')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.registrations && Array.isArray(data.registrations)) {
+          setRealRegistrationsCount(data.registrations.length);
+        }
+      })
+      .catch(() => {});
+
     const handleUpdate = (e: any) => {
       if (e.detail?.heroTournament) {
         setHeroSettings(e.detail.heroTournament);
@@ -117,9 +139,36 @@ export const TournamentHeroBanner: React.FC = () => {
               </span>
             </div>
 
-            {/* Título Principal */}
+            {/* Título Principal con Detección Inteligente de Ciudad para no Duplicar */}
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-              {heroSettings.title} <span className="text-[#00b853]">{heroSettings.highlightCity}</span> {heroSettings.year}
+              {(() => {
+                const rawTitle = heroSettings.title || '';
+                const city = heroSettings.highlightCity || '';
+                const year = heroSettings.year || '';
+
+                if (city && rawTitle.toLowerCase().includes(city.toLowerCase())) {
+                  const regex = new RegExp(`(${city})`, 'gi');
+                  const parts = rawTitle.split(regex);
+                  return (
+                    <>
+                      {parts.map((part, idx) =>
+                        part.toLowerCase() === city.toLowerCase() ? (
+                          <span key={idx} className="text-[#00b853]">{part}</span>
+                        ) : (
+                          part
+                        )
+                      )}
+                      {year && !rawTitle.includes(year) ? ` ${year}` : ''}
+                    </>
+                  );
+                }
+
+                return (
+                  <>
+                    {rawTitle} {city && <span className="text-[#00b853]">{city}</span>} {year}
+                  </>
+                );
+              })()}
             </h1>
             <p className="text-sm sm:text-base text-[#efe7d8] leading-relaxed">
               {heroSettings.description}

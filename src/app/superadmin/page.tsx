@@ -82,6 +82,7 @@ import {
   saveStoredAssociationBankAccount,
   getStoredLandingShowcases, 
   saveStoredLandingShowcases,
+  fetchLandingShowcasesFromCloud,
   DEFAULT_LANDING_SHOWCASES,
   fetchRegisteredPlayersFromCloud,
   getStoredGrandTournamentRegistrations,
@@ -166,12 +167,17 @@ export default function SuperadminPage() {
     let isMounted = true;
     const syncCloudData = async () => {
       try {
-        const [cloudRegs, cloudTourneys] = await Promise.all([
+        const [cloudRegs, cloudTourneys, cloudShowcases] = await Promise.all([
           fetchGrandTournamentRegistrationsFromCloud(),
-          fetchTournamentsFromCloud()
+          fetchTournamentsFromCloud(),
+          fetchLandingShowcasesFromCloud()
         ]);
 
         if (!isMounted) return;
+
+        if (cloudShowcases) {
+          setShowcases(cloudShowcases);
+        }
 
         if (Array.isArray(cloudTourneys) && cloudTourneys.length > 0) {
           setAvailableTournaments(prev => {

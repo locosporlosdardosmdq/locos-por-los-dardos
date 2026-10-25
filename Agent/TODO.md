@@ -1,3 +1,21 @@
+- [x] **Vista Agrupada de Zonas y Partidas en Fase de Grupos, Alternador Rápido de Formato y Blindaje de Playoffs:**
+  * **Vista Agrupada Multi-Zona por Defecto (`selectedGroupIndex === -1`):**
+    - Añadido el modo "Ver Todas las Zonas (Vista Agrupada)" con botón selector dedicado `[👁️ Ver Todas las Zonas]`.
+    - Despliega cada zona (Zona A, Zona B, etc.) en bloques completos e independientes con:
+      * Encabezado oficial con identificador de zona y cantidad de clasificados.
+      * Tarjetas de competidores sorteados en la zona.
+      * Tabla oficial de posiciones (Pos, PJ, G, P, LF, LC, Dif, Pts).
+      * Grilla de partidas agrupadas de esa zona específica con anotador en vivo y carga rápida de resultados.
+    - Soporte atómico en `activeDispatchMatch` vinculando `{ match, zoneIndex }` para evitar cruce de resultados entre zonas.
+  * **Alternador Rápido de Formato (1 Clic):**
+    - Botón `[Cambiar a Fase de Grupos]` o `[Pasar a KO Simple]` en la cabecera del torneo junto a `[✏️ Editar Torneo]`.
+    - Transición instantánea y segura que limpia partidos ficticios de eliminación simple, cambia el formato a `ROUND_ROBIN`, persiste a la nube y conmuta a la pestaña de grupos.
+  * **Blindaje y Aislamiento de la Llave de Playoffs (`ROUND_ROBIN`):**
+    - Pestaña primaria en torneos de grupos: `Fase de Grupos (Zonas & Partidas)`.
+    - Pestaña secundaria: `Llave de Playoffs`.
+    - Si los playoffs aún no se han armado, muestra tarjeta explicativa con botón directo de navegación a la fase de grupos en lugar de un árbol eliminatorio falso de 32 casilleros.
+    - En la edición de torneos, se bloquea la autogeneración de llaves eliminatorias de 32 slots si el formato es `ROUND_ROBIN`.
+
 - [x] **Flujo Completo de Fase de Grupos: Sorteo de Parejas/Grupos, Fixture Independiente por Zona y Armado de Llave de Playoffs (Cross-Seeding):**
   * **Soporte de Modalidad Parejas en Grupos (`isDoubles`):**
     - En torneos de parejas, la unidad de competición en los grupos son duplas (ej: "Juan Dogan & Gabriel Rubio").

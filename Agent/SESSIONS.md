@@ -25,16 +25,20 @@
     * Selector dinámico de clasificados por grupo (`qualifiersCount`).
     * Función `generatePlayoffCrossMatches` que arma el cuadro eliminatorio con cruce olímpico (1ºA vs 2ºB, etc.) y punteros deterministas.
     * Guardado automático y manual mediante `onSaveGroupData`.
+    * Vista completa agrupada (`selectedGroupIndex === -1`) para desplegar simultáneamente todas las zonas con sus integrantes, tablas y partidas agrupadas.
+    * Conexión de `activeDispatchMatch` con su `zoneIndex` para actualización atómica de marcadores.
   - `src/components/torneos/TournamentManager.tsx`:
     * `useEffect` para preseleccionar la pestaña `GROUPS` en torneos `ROUND_ROBIN` mientras no se haya generado la llave de playoffs.
     * `handleAdvanceGroupPlayoffs`: recibe los partidos de playoff generados, los asigna como `matches` del torneo, los persiste en la nube y navega automáticamente a la pestaña `BRACKET`.
     * `handleSaveGroupData`: persiste la estructura de zonas y partidos en `groupStageData`.
+    * `handleToggleTournamentFormat`: botón rápido en cabecera para alternar entre Eliminación Simple y Fase de Grupos con 1 clic sin tener que ingresar a modales.
+    * Adaptación dinámica de pestañas de navegación: en torneos `ROUND_ROBIN` se exponen `Fase de Grupos (Zonas & Partidas)` (principal) y `Llave de Playoffs` (secundaria con aviso informativo hasta que se armen los cruces), erradicando las llaves dummy de 32 casilleros.
     * Paso de `isDoubles`, `savedGroupData`, `onAdvanceToBracket` y `onSaveGroupData` a `<TournamentGroupStage>`.
   - `Agent/TODO.md`: Actualizada la lista de tareas con el workflow de sorteo, parejas y playoffs completado `[x]`.
   - `Agent/DECISIONS.md`: Registrado `ADR-061`.
 - **Validación:**
   - `npx tsc --noEmit` completado exitosamente con 0 errores (código 0).
-- **Estado del Proyecto:** Workflow oficial de torneos por grupos (Round Robin) completamente operativo, con sorteo de parejas a ciegas, distribución transparente de zonas, fixtures aislados y generación deportiva de playoffs.
+- **Estado del Proyecto:** Workflow oficial de torneos por grupos (Round Robin) completamente operativo, con sorteo de parejas a ciegas, distribución transparente de zonas, vista agrupada simultánea de todas las zonas, fixtures aislados y generación deportiva de playoffs.
 
 ## [Sesión 50] - 2026-10-25
 - **Objetivos:**

@@ -93,7 +93,8 @@ import {
   Pencil,
   Lock,
   Unlock,
-  Play
+  Play,
+  Layers
 } from 'lucide-react';
 
 import { 
@@ -1095,7 +1096,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           legTarget,
           distanceMode: distMode
         });
-      } else {
+      } else if (updatedTourney.format === 'SINGLE_ELIMINATION') {
         rawMatches = generateSingleElimination(participants, {
           bracketSize,
           seeding: 'RANKED',
@@ -1103,6 +1104,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           legTarget,
           distanceMode: distMode
         });
+      } else {
+        // En Fase de Grupos (ROUND_ROBIN), la llave eliminatoria se arma únicamente
+        // al concluir los grupos con los clasificados reales.
+        rawMatches = [];
       }
 
       const namespacedMatches = rawMatches.map((m) => ({
@@ -1113,6 +1118,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       }));
 
       finalTourney.matches = namespacedMatches;
+    }
+
+    if (finalTourney.format === 'ROUND_ROBIN') {
+      setTournamentSubTab('GROUPS');
     }
 
     setTournaments((prev) => {
@@ -1265,6 +1274,64 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       saveTournamentToCloud(updatedTourney);
       return next;
     });
+  };
+
+  // Alternar rápidamente formato del torneo (Eliminación Simple vs Fase de Grupos)
+  const handleToggleTournamentFormat = (targetFormat: TournamentFormat) => {
+    if (!currentTournament) return;
+    const isSwitchingToGroups = targetFormat === 'ROUND_ROBIN';
+    const msg = isSwitchingToGroups
+      ? `¿Deseas cambiar el formato de "${currentTournament.title}" a Fase de Grupos (Round Robin + Playoffs)? Se reseteará la llave previa para que organices las zonas y juegues los partidos de grupos.`
+      : `¿Deseas cambiar el formato de "${currentTournament.title}" a Eliminación Simple? Se regenerará la llave tradicional de cuadro eliminatorio.`;
+
+    if (!confirm(msg)) return;
+
+    let newMatches: TournamentBracketMatch[] = [];
+    if (!isSwitchingToGroups) {
+      const participants = (currentTournament.enrolledPlayers && currentTournament.enrolledPlayers.length > 0)
+        ? currentTournament.enrolledPlayers.map((p, idx) => ({
+            id: p.id,
+            name: p.name,
+            nickname: p.nickname,
+            avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
+            seed: p.seed || idx + 1,
+            nationality: p.nationality || 'Argentina',
+            countryCode: p.countryCode || 'AR'
+          }))
+        : createTournamentParticipants(currentTournament.maxParticipants, currentUser || undefined);
+
+      const bracketSize = getNextPowerOfTwo(currentTournament.maxParticipants || participants.length);
+      const raw = generateSingleElimination(participants, {
+        bracketSize,
+        seeding: 'RANKED',
+        includeThirdPlace: true,
+        legTarget: currentTournament.bestOfLegs || 3,
+        distanceMode: currentTournament.roundLegsConfig?.distanceMode || 'LEGS'
+      });
+      newMatches = raw.map((m) => ({
+        ...m,
+        id: `${currentTournament.id}-${m.id}`,
+        nextMatchId: m.nextMatchId ? `${currentTournament.id}-${m.nextMatchId}` : undefined,
+        loserNextMatchId: m.loserNextMatchId ? `${currentTournament.id}-${m.loserNextMatchId}` : undefined
+      }));
+    }
+
+    const updatedTourney: Tournament = {
+      ...currentTournament,
+      format: targetFormat,
+      groupsCount: isSwitchingToGroups ? (currentTournament.groupsCount || 2) : currentTournament.groupsCount,
+      qualifiersPerGroup: isSwitchingToGroups ? (currentTournament.qualifiersPerGroup || 2) : currentTournament.qualifiersPerGroup,
+      matches: newMatches
+    };
+
+    setTournaments((prev) => {
+      const next = prev.map((t) => (t.id === currentTournament.id ? updatedTourney : t));
+      saveStoredTournaments(next);
+      saveTournamentToCloud(updatedTourney);
+      return next;
+    });
+
+    setTournamentSubTab(isSwitchingToGroups ? 'GROUPS' : 'BRACKET');
   };
 
   // Lanzar partido de Bracket en el Anotador
@@ -2052,6 +2119,29 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                             <Pencil className="w-4 h-4" />
                             <span>Editar Torneo</span>
                           </button>
+
+                          {/* Botón rápido para alternar formato Eliminación Simple vs Fase de Grupos */}
+                          {currentTournament.format === 'ROUND_ROBIN' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleTournamentFormat('SINGLE_ELIMINATION')}
+                              className="px-3 py-2 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all"
+                              title="Cambiar formato a Eliminación Simple (Cuadro KO)"
+                            >
+                              <Layers className="w-4 h-4 text-purple-400" />
+                              <span>Pasar a KO Simple</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleTournamentFormat('ROUND_ROBIN')}
+                              className="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all"
+                              title="Cambiar formato a Fase de Grupos (Round Robin + Playoffs)"
+                            >
+                              <Users className="w-4 h-4 text-emerald-400" />
+                              <span>Cambiar a Fase de Grupos</span>
+                            </button>
+                          )}
                         </>
                       )}
 
@@ -2070,28 +2160,46 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                   {/* Pestañas de Navegación del Torneo */}
                   <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                     <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
-                      <button
-                        type="button"
-                        onClick={() => setTournamentSubTab('BRACKET')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                          tournamentSubTab === 'BRACKET'
-                            ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
-                            : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
-                        }`}
-                      >
-                        Cuadro Eliminatorio (Brackets)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTournamentSubTab('GROUPS')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                          tournamentSubTab === 'GROUPS'
-                            ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
-                            : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
-                        }`}
-                      >
-                        Fase de Grupos (Round Robin)
-                      </button>
+                      {currentTournament.format === 'ROUND_ROBIN' ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setTournamentSubTab('GROUPS')}
+                            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                              tournamentSubTab === 'GROUPS'
+                                ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
+                                : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
+                            }`}
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            <span>Fase de Grupos (Zonas & Partidas)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTournamentSubTab('BRACKET')}
+                            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                              tournamentSubTab === 'BRACKET'
+                                ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
+                                : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
+                            }`}
+                          >
+                            <Trophy className="w-3.5 h-3.5" />
+                            <span>Llave de Playoffs</span>
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setTournamentSubTab('BRACKET')}
+                          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                            tournamentSubTab === 'BRACKET'
+                              ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
+                              : 'bg-[#111622] text-slate-400 hover:text-white border border-slate-800'
+                          }`}
+                        >
+                          Cuadro Eliminatorio (Brackets)
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setTournamentSubTab('PLAYERS')}
@@ -2132,10 +2240,16 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                         <div>
                           <h3 className="text-base font-black text-white flex items-center gap-2">
                             <Trophy className="w-5 h-5 text-[#00e676]" />
-                            <span>Cuadro Eliminatorio Oficial en Tiempo Real</span>
+                            <span>
+                              {currentTournament.format === 'ROUND_ROBIN' 
+                                ? 'Llave de Playoffs • Cruces Eliminatorios Finales' 
+                                : 'Cuadro Eliminatorio Oficial en Tiempo Real'}
+                            </span>
                           </h3>
                           <p className="text-xs text-slate-400">
-                            Toca cualquier partido activo para abrir el Anotador en Vivo. {canManageTournament(currentTournament) && 'Como organizador o administrador, pulsa Asignación Automática (Nakka N01) o toca cualquier slot para sembrarlo manualmente.'}
+                            {currentTournament.format === 'ROUND_ROBIN'
+                              ? 'Cruces eliminatorios olímpicos (1ºA vs 2ºB, etc.) generados a partir de los clasificados de la Fase de Grupos.'
+                              : `Toca cualquier partido activo para abrir el Anotador en Vivo. ${canManageTournament(currentTournament) ? 'Como organizador o administrador, pulsa Asignación Automática (Nakka N01) o toca cualquier slot para sembrarlo manualmente.' : ''}`}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2151,7 +2265,31 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                         </div>
                       </div>
 
-                      {currentTournament.matches && currentTournament.matches.length > 0 ? (
+                      {currentTournament.format === 'ROUND_ROBIN' && (!currentTournament.matches || currentTournament.matches.length === 0 || !currentTournament.groupStageData?.playoffsArmados) ? (
+                        <div className="bg-[#0f1422] border-2 border-emerald-500/40 rounded-3xl p-8 sm:p-12 text-center space-y-4 shadow-2xl">
+                          <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-[#00e676]">
+                            <Trophy className="w-8 h-8" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-black text-white">
+                              Llave de Playoffs • Fase Eliminatoria Final
+                            </h3>
+                            <p className="text-sm text-slate-300 max-w-lg mx-auto mt-2">
+                              Este torneo se disputa primero por <strong>Fase de Grupos (Round Robin)</strong>. Los cruces eliminatorios (Playoffs) se generarán automáticamente al concluir las zonas con los clasificados correspondientes (1ºA vs 2ºB, 1ºB vs 2ºA).
+                            </p>
+                          </div>
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setTournamentSubTab('GROUPS')}
+                              className="px-6 py-3 rounded-2xl bg-[#00e676] hover:bg-[#00c853] text-[#07090e] font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-[#00e676]/25 active:scale-95 inline-flex items-center gap-2"
+                            >
+                              <Users className="w-4 h-4" />
+                              <span>Ir a Fase de Grupos para Sortear y Jugar Partidas ➔</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : currentTournament.matches && currentTournament.matches.length > 0 ? (
                         <TournamentBracket
                           matches={currentTournament.matches}
                           onSelectMatch={(m) => setSelectedBracketMatch(m)}

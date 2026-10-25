@@ -91,7 +91,7 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
 }) => {
   const isDoublesTournament = isDoubles || tournamentTitle.toLowerCase().includes('pareja') || tournamentTitle.toLowerCase().includes('dupla');
 
-  const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
+  const [selectedGroupIndex, setSelectedGroupIndex] = useState<number>(-1); // -1 = Ver Todas las Zonas (Vista Agrupada Completa)
   const [qualifiersCount, setQualifiersCount] = useState<number>(qualifiersPerGroup);
   const [isDrawn, setIsDrawn] = useState<boolean>(() => !!savedGroupData?.isDrawn);
 
@@ -197,35 +197,20 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
     alert(`¡Sorteo de Grupos realizado con éxito! Se distribuyeron ${competitorPool.length} participantes equitativamente en ${groupsCount} zonas.`);
   };
 
-  // Obtener datos de la zona actualmente seleccionada
-  const currentZoneData = zonesState[selectedGroupIndex] || {
-    players: [],
-    matches: []
-  };
-
-  const groupPlayers = currentZoneData.players;
-  const groupMatches = currentZoneData.matches;
-
-  // Partido seleccionado para el dispatcher modal
-  const [activeDispatchMatch, setActiveDispatchMatch] = useState<GroupMatch | null>(null);
-
-  // Ordenar posiciones por puntos y diferencia de legs (+/-)
-  const sortedStandings = [...groupPlayers].sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    const diffB = b.legsFor - b.legsAgainst;
-    const diffA = a.legsFor - a.legsAgainst;
-    if (diffB !== diffA) return diffB - diffA;
-    return b.legsFor - a.legsFor;
-  });
+  // Partido seleccionado para el dispatcher modal con su zona de origen
+  const [activeDispatchMatch, setActiveDispatchMatch] = useState<{ match: GroupMatch; zoneIndex: number } | null>(null);
 
   const handleSaveQuickResult = (scoreP1: number, scoreP2: number, winnerId: string) => {
     if (!activeDispatchMatch) return;
-    if (activeDispatchMatch.status === 'FINISHED') return;
+    if (activeDispatchMatch.match.status === 'FINISHED') return;
+
+    const targetZone = activeDispatchMatch.zoneIndex;
+    const matchId = activeDispatchMatch.match.id;
 
     setZonesState((prev) => {
-      const current = prev[selectedGroupIndex] || currentZoneData;
+      const current = prev[targetZone] || { players: [], matches: [] };
       const updatedMatches = current.matches.map((m) =>
-        m.id === activeDispatchMatch.id
+        m.id === matchId
           ? {
               ...m,
               scoreP1,
@@ -237,7 +222,7 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
       );
 
       const updatedPlayers = current.players.map((p) => {
-        if (p.id === activeDispatchMatch.player1Id) {
+        if (p.id === activeDispatchMatch.match.player1Id) {
           const isWinner = winnerId === p.id;
           return {
             ...p,
@@ -249,7 +234,7 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
             points: p.points + (isWinner ? 2 : 0)
           };
         }
-        if (p.id === activeDispatchMatch.player2Id) {
+        if (p.id === activeDispatchMatch.match.player2Id) {
           const isWinner = winnerId === p.id;
           return {
             ...p,
@@ -266,7 +251,7 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
 
       const nextZonesState = {
         ...prev,
-        [selectedGroupIndex]: {
+        [targetZone]: {
           players: updatedPlayers,
           matches: updatedMatches
         }
@@ -392,6 +377,18 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
       {/* SELECTOR DE PESTAÑAS POR ZONA */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-black border border-slate-800">
+          <button
+            type="button"
+            onClick={() => setSelectedGroupIndex(-1)}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+              selectedGroupIndex === -1
+                ? 'bg-[#00e676] text-[#07090e] shadow-lg shadow-[#00e676]/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Ver Todas las Zonas (Vista Agrupada)</span>
+          </button>
           {Array.from({ length: groupsCount }).map((_, idx) => (
             <button
               key={idx}
@@ -450,193 +447,216 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
         </div>
       </div>
 
-      {/* COMPOSICIÓN DE LA ZONA SELECCIONADA */}
-      <div className="bg-[#0f1422] border border-slate-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#00e676]" />
-            <span className="text-xs font-black text-white uppercase tracking-wider">
-              Composición de la Zona {String.fromCharCode(65 + selectedGroupIndex)} ({groupPlayers.length} {isDoublesTournament ? 'Parejas' : 'Competidores'}):
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400">
-            Todos juegan contra todos dentro de esta zona
-          </span>
-        </div>
+      {/* RENDERIZADO DE ZONAS Y SUS PARTIDAS AGRUPADAS */}
+      <div className="space-y-6">
+        {(selectedGroupIndex === -1 ? Array.from({ length: groupsCount }).map((_, idx) => idx) : [selectedGroupIndex]).map((zoneIdx) => {
+          const zoneData = zonesState[zoneIdx] || { players: [], matches: [] };
+          const players = zoneData.players;
+          const matches = zoneData.matches;
+          const sorted = [...players].sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            const diffB = b.legsFor - b.legsAgainst;
+            const diffA = a.legsFor - a.legsAgainst;
+            if (diffB !== diffA) return diffB - diffA;
+            return b.legsFor - a.legsFor;
+          });
+          const zoneLetter = String.fromCharCode(65 + zoneIdx);
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
-          {groupPlayers.map((p, idx) => (
-            <div 
-              key={p.id}
-              className="bg-[#07090e] border border-slate-800 rounded-xl px-3 py-2 flex items-center gap-2.5"
-            >
-              <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-300 font-black text-[10px] flex items-center justify-center flex-shrink-0">
-                {idx + 1}
-              </span>
-              <div className="truncate">
-                <span className="text-xs font-black text-white block truncate">
-                  {p.name}
+          return (
+            <div key={zoneIdx} className="space-y-4 bg-[#0a0e17] border border-slate-800/80 rounded-3xl p-4 sm:p-6 shadow-xl">
+              {/* Cabecera de Zona */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-[#00e676] border border-emerald-500/40 flex items-center justify-center font-black text-sm">
+                    {zoneLetter}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                      <span>Zona {zoneLetter} • Partidas y Posiciones</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      {players.length} {isDoublesTournament ? 'Parejas' : 'Competidores'} • Round Robin individual (todos contra todos en la zona)
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/30">
+                  Clasifican los {qualifiersCount} mejores
                 </span>
-                {p.avg && (
-                  <span className="text-[10px] text-slate-400 block font-mono">
-                    AVG {p.avg.toFixed(1)}
-                  </span>
-                )}
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* TABLA DE POSICIONES OFICIAL DEL GRUPO */}
-      <div className="bg-[#0f1422] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-[#07090e]">
-          <h4 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-[#00e676]" />
-            <span>Tabla de Posiciones • Zona {String.fromCharCode(65 + selectedGroupIndex)}</span>
-          </h4>
-          <span className="text-[11px] text-slate-400 font-bold">
-            Pasan a Playoffs los {qualifiersCount} mejores clasificados
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-[#07090e]/60 border-b border-slate-800 text-[11px] font-black uppercase tracking-wider text-slate-400">
-              <tr>
-                <th className="py-3 px-3 text-center w-12">Pos</th>
-                <th className="py-3 px-4">{isDoublesTournament ? 'Pareja / Dupla' : 'Jugador'}</th>
-                <th className="py-3 px-3 text-center">PJ</th>
-                <th className="py-3 px-3 text-center">G</th>
-                <th className="py-3 px-3 text-center">P</th>
-                <th className="py-3 px-3 text-center">LF</th>
-                <th className="py-3 px-3 text-center">LC</th>
-                <th className="py-3 px-3 text-center">+/-</th>
-                <th className="py-3 px-4 text-center font-black text-[#00e676]">Pts</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/80 font-bold">
-              {sortedStandings.map((p, idx) => {
-                const diff = p.legsFor - p.legsAgainst;
-                const isClassified = idx < qualifiersCount;
-
-                return (
-                  <tr
-                    key={p.id}
-                    className={`transition-colors ${
-                      isClassified ? 'bg-[#00e676]/5 hover:bg-[#00e676]/10' : 'hover:bg-[#111622]'
-                    }`}
-                  >
-                    <td className="py-3.5 px-3 text-center">
-                      <span
-                        className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${
-                          idx === 0
-                            ? 'bg-[#eab308] text-black shadow-sm shadow-[#eab308]/40'
-                            : idx === 1 && qualifiersCount >= 2
-                            ? 'bg-slate-300 text-black'
-                            : idx === 2 && qualifiersCount >= 3
-                            ? 'bg-amber-700 text-white'
-                            : isClassified
-                            ? 'bg-emerald-500/80 text-black font-extrabold'
-                            : 'bg-slate-800 text-slate-400'
-                        }`}
-                      >
+              {/* COMPOSICIÓN DE LA ZONA */}
+              <div className="bg-[#0f1422] border border-slate-800/80 rounded-2xl p-3.5">
+                <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-[#00e676]" />
+                  <span>Integrantes sorteados en la Zona {zoneLetter}:</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                  {players.map((p, idx) => (
+                    <div
+                      key={p.id}
+                      className="bg-[#07090e] border border-slate-800 rounded-xl px-3 py-2 flex items-center gap-2.5"
+                    >
+                      <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-300 font-black text-[10px] flex items-center justify-center flex-shrink-0">
                         {idx + 1}
                       </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-black text-white">
-                      <div className="flex items-center gap-2">
-                        <span>{p.name}</span>
-                        {isClassified && (
-                          <span className="text-[10px] bg-[#00e676]/20 text-[#00e676] px-2 py-0.5 rounded-full font-bold border border-[#00e676]/30">
-                            ✓ Clasifica ({idx + 1}º)
+                      <div className="truncate">
+                        <span className="text-xs font-black text-white block truncate">
+                          {p.name}
+                        </span>
+                        {p.avg && (
+                          <span className="text-[10px] text-slate-400 block font-mono">
+                            AVG {p.avg.toFixed(1)}
                           </span>
                         )}
                       </div>
-                    </td>
-                    <td className="py-3.5 px-3 text-center text-slate-400">{p.matchesPlayed}</td>
-                    <td className="py-3.5 px-3 text-center text-[#00e676]">{p.matchesWon}</td>
-                    <td className="py-3.5 px-3 text-center text-[#ef4444]">{p.matchesLost}</td>
-                    <td className="py-3.5 px-3 text-center">{p.legsFor}</td>
-                    <td className="py-3.5 px-3 text-center">{p.legsAgainst}</td>
-                    <td
-                      className={`py-3.5 px-3 text-center font-black ${
-                        diff > 0 ? 'text-[#00e676]' : diff < 0 ? 'text-[#ef4444]' : 'text-slate-400'
-                      }`}
-                    >
-                      {diff > 0 ? `+${diff}` : diff}
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-black text-[#00e676] text-sm">
-                      {p.points}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-      {/* GRILLA DE ENFRENTAMIENTOS Y CRUCES DE PARTIDOS */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-            <Target className="w-4 h-4 text-[#ef4444]" />
-            <span>Partidos de la Zona {String.fromCharCode(65 + selectedGroupIndex)} (Toca para jugar en vivo o cargar resultado)</span>
-          </h4>
-          <span className="text-[11px] text-slate-400">
-            Al mejor de {bestOfLegs} legs (1º a {Math.ceil(bestOfLegs / 2)})
-          </span>
-        </div>
+              {/* TABLA DE POSICIONES OFICIAL */}
+              <div className="bg-[#0f1422] border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-[#07090e]/80 border-b border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      <tr>
+                        <th className="py-2.5 px-3 text-center w-12">Pos</th>
+                        <th className="py-2.5 px-3">{isDoublesTournament ? 'Pareja / Dupla' : 'Jugador'}</th>
+                        <th className="py-2.5 px-2 text-center">PJ</th>
+                        <th className="py-2.5 px-2 text-center">G</th>
+                        <th className="py-2.5 px-2 text-center">P</th>
+                        <th className="py-2.5 px-2 text-center">LF</th>
+                        <th className="py-2.5 px-2 text-center">LC</th>
+                        <th className="py-2.5 px-2 text-center">+/-</th>
+                        <th className="py-2.5 px-3 text-center font-black text-[#00e676]">Pts</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/80 font-bold">
+                      {sorted.map((p, idx) => {
+                        const diff = p.legsFor - p.legsAgainst;
+                        const isClassified = idx < qualifiersCount;
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {groupMatches.map((m) => {
-            const isFinished = m.status === 'FINISHED';
+                        return (
+                          <tr
+                            key={p.id}
+                            className={`transition-colors ${
+                              isClassified ? 'bg-[#00e676]/5 hover:bg-[#00e676]/10' : 'hover:bg-[#111622]'
+                            }`}
+                          >
+                            <td className="py-2.5 px-3 text-center">
+                              <span
+                                className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-black ${
+                                  idx === 0
+                                    ? 'bg-[#eab308] text-black shadow-sm shadow-[#eab308]/40'
+                                    : idx === 1 && qualifiersCount >= 2
+                                    ? 'bg-slate-300 text-black'
+                                    : idx === 2 && qualifiersCount >= 3
+                                    ? 'bg-amber-700 text-white'
+                                    : isClassified
+                                    ? 'bg-emerald-500/80 text-black font-extrabold'
+                                    : 'bg-slate-800 text-slate-400'
+                                }`}
+                              >
+                                {idx + 1}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-black text-white">
+                              <div className="flex items-center gap-2">
+                                <span>{p.name}</span>
+                                {isClassified && (
+                                  <span className="text-[9px] bg-[#00e676]/20 text-[#00e676] px-1.5 py-0.2 rounded-full font-bold border border-[#00e676]/30">
+                                    ✓ Clasifica ({idx + 1}º)
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-2 text-center text-slate-400">{p.matchesPlayed}</td>
+                            <td className="py-2.5 px-2 text-center text-[#00e676]">{p.matchesWon}</td>
+                            <td className="py-2.5 px-2 text-center text-[#ef4444]">{p.matchesLost}</td>
+                            <td className="py-2.5 px-2 text-center">{p.legsFor}</td>
+                            <td className="py-2.5 px-2 text-center">{p.legsAgainst}</td>
+                            <td
+                              className={`py-2.5 px-2 text-center font-black ${
+                                diff > 0 ? 'text-[#00e676]' : diff < 0 ? 'text-[#ef4444]' : 'text-slate-400'
+                              }`}
+                            >
+                              {diff > 0 ? `+${diff}` : diff}
+                            </td>
+                            <td className="py-2.5 px-3 text-center font-black text-[#00e676] text-xs">
+                              {p.points}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-            return (
-              <div
-                key={m.id}
-                onClick={() => setActiveDispatchMatch(m)}
-                className={`p-3.5 rounded-2xl border transition-all cursor-pointer group shadow-md ${
-                  isFinished
-                    ? 'bg-[#0f1422] border-slate-800 hover:border-slate-600'
-                    : 'bg-[#0f1422] border-[#ef4444]/40 hover:border-[#00e676]'
-                }`}
-              >
-                <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
-                  <span className="font-bold">Legs al mejor de {bestOfLegs}</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full font-black text-[10px] ${
-                      isFinished
-                        ? 'bg-slate-800 text-slate-400'
-                        : 'bg-[#ef4444]/20 text-[#ef4444] animate-pulse'
-                    }`}
-                  >
-                    {isFinished ? 'FINALIZADO' : 'POR JUGAR'}
+              {/* PARTIDAS AGRUPADAS DE LA ZONA */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Target className="w-4 h-4 text-[#ef4444]" />
+                    <span>Partidas Agrupadas • Zona {zoneLetter} (Toca para jugar o anotar)</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-400">
+                    Al mejor de {bestOfLegs} legs (primero a {Math.ceil(bestOfLegs / 2)})
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between font-black text-sm">
-                  <div className="truncate flex-1">
-                    <span className={m.winnerId === m.player1Id ? 'text-[#00e676]' : 'text-white'}>
-                      {m.player1Name}
-                    </span>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {matches.map((m) => {
+                    const isFinished = m.status === 'FINISHED';
 
-                  <div className="px-3 py-1 rounded-xl bg-[#07090e] border border-slate-800 text-center mx-2 text-xs font-black">
-                    {isFinished ? `${m.scoreP1} - ${m.scoreP2}` : 'vs'}
-                  </div>
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => setActiveDispatchMatch({ match: m, zoneIndex: zoneIdx })}
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer group shadow-md ${
+                          isFinished
+                            ? 'bg-[#0f1422] border-slate-800 hover:border-slate-600'
+                            : 'bg-[#0f1422] border-[#ef4444]/40 hover:border-[#00e676]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5">
+                          <span className="font-bold">Legs al mejor de {bestOfLegs}</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full font-black text-[9px] ${
+                              isFinished
+                                ? 'bg-slate-800 text-slate-400'
+                                : 'bg-[#ef4444]/20 text-[#ef4444] animate-pulse'
+                            }`}
+                          >
+                            {isFinished ? 'FINALIZADO' : 'POR JUGAR'}
+                          </span>
+                        </div>
 
-                  <div className="truncate flex-1 text-right">
-                    <span className={m.winnerId === m.player2Id ? 'text-[#00e676]' : 'text-white'}>
-                      {m.player2Name}
-                    </span>
-                  </div>
+                        <div className="flex items-center justify-between font-black text-xs sm:text-sm">
+                          <div className="truncate flex-1">
+                            <span className={m.winnerId === m.player1Id ? 'text-[#00e676]' : 'text-white'}>
+                              {m.player1Name}
+                            </span>
+                          </div>
+
+                          <div className="px-2.5 py-1 rounded-xl bg-[#07090e] border border-slate-800 text-center mx-1.5 text-xs font-black">
+                            {isFinished ? `${m.scoreP1} - ${m.scoreP2}` : 'vs'}
+                          </div>
+
+                          <div className="truncate flex-1 text-right">
+                            <span className={m.winnerId === m.player2Id ? 'text-[#00e676]' : 'text-white'}>
+                              {m.player2Name}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* DISPATCHER MODAL */}
@@ -644,14 +664,14 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
         <MatchDispatcherModal
           isOpen={!!activeDispatchMatch}
           onClose={() => setActiveDispatchMatch(null)}
-          matchTitle={`Fase de Grupos • Zona ${String.fromCharCode(65 + selectedGroupIndex)}`}
-          player1Name={activeDispatchMatch.player1Name}
-          player2Name={activeDispatchMatch.player2Name}
-          player1Id={activeDispatchMatch.player1Id}
-          player2Id={activeDispatchMatch.player2Id}
+          matchTitle={`Fase de Grupos • Zona ${String.fromCharCode(65 + activeDispatchMatch.zoneIndex)}`}
+          player1Name={activeDispatchMatch.match.player1Name}
+          player2Name={activeDispatchMatch.match.player2Name}
+          player1Id={activeDispatchMatch.match.player1Id}
+          player2Id={activeDispatchMatch.match.player2Id}
           bestOfLegs={bestOfLegs}
-          onLaunchLiveMatch={() => onLaunchMatch(activeDispatchMatch, 'LIVE')}
-          onLaunchOnlineMatch={() => onLaunchMatch(activeDispatchMatch, 'ONLINE')}
+          onLaunchLiveMatch={() => onLaunchMatch(activeDispatchMatch.match, 'LIVE')}
+          onLaunchOnlineMatch={() => onLaunchMatch(activeDispatchMatch.match, 'ONLINE')}
           onSaveQuickResult={handleSaveQuickResult}
         />
       )}

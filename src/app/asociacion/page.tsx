@@ -15,8 +15,10 @@ import {
 import { 
   getStoredAssociationAuthorities, 
   saveStoredAssociationAuthorities,
+  fetchAssociationAuthoritiesFromCloud,
   getStoredAssociationBankAccount,
   saveStoredAssociationBankAccount,
+  fetchAssociationBankAccountFromCloud,
   getCurrentPlayerProfile,
   fetchRegisteredPlayersFromCloud
 } from '@/lib/storage';
@@ -94,8 +96,21 @@ export default function AsociacionPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
-  // Escuchar actualizaciones de perfil y storage
+  // Escuchar actualizaciones de perfil y storage y sincronizar desde la nube
   useEffect(() => {
+    fetchAssociationBankAccountFromCloud().then((cloudBank) => {
+      if (cloudBank) {
+        setBankAccount(cloudBank);
+        setBankForm(cloudBank);
+      }
+    });
+
+    fetchAssociationAuthoritiesFromCloud().then((cloudAuths) => {
+      if (cloudAuths && Array.isArray(cloudAuths) && cloudAuths.length > 0) {
+        setAuthorities(cloudAuths);
+      }
+    });
+
     const handleProfileUpdate = (e: any) => {
       if (e.detail) setCurrentUser(e.detail);
     };

@@ -756,12 +756,12 @@ export const DEFAULT_ASSOCIATION_AUTHORITIES: AssociationAuthority[] = [
 
 // DATOS BANCARIOS OFICIALES DE LA ASOCIACIÓN PARA INSCRIPCIONES
 export const DEFAULT_ASSOCIATION_BANK_ACCOUNT: AssociationBankAccount = {
-  bankName: 'Banco Provincia de Buenos Aires',
+  bankName: 'Mercado Pago',
   accountType: 'Cuenta Corriente Especial',
   holderName: 'Asociación de Dardos Mar del Plata',
   cuitCuil: '30-71849201-4',
-  alias: 'DARDOS.MDQ.OFICIAL',
-  cbuCvu: '0140323501980054321098',
+  alias: 'dardeus.mp',
+  cbuCvu: '0000003100054321098',
   adminWhatsAppPhone: '5492235218765',
   adminWhatsAppName: 'Mariano Deux (ICEMAN)',
   notes: 'Enviar comprobante de transferencia por WhatsApp indicando nombre completo y torneo para confirmar el cupo en la llave.'

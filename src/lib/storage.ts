@@ -554,8 +554,42 @@ export function saveStoredAssociationAuthorities(authorities: any[]): void {
   try {
     localStorage.setItem(ASSOCIATION_KEYS.AUTHORITIES, JSON.stringify(authorities));
     window.dispatchEvent(new CustomEvent('lpld_association_updated', { detail: authorities }));
+    saveAssociationAuthoritiesToCloud(authorities).catch(() => {});
   } catch (err) {
     console.warn('[Storage] Error al guardar autoridades:', err);
+  }
+}
+
+export async function fetchAssociationAuthoritiesFromCloud(): Promise<any[] | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch('/api/config?key=association_authorities');
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.success && Array.isArray(data.data)) {
+      localStorage.setItem(ASSOCIATION_KEYS.AUTHORITIES, JSON.stringify(data.data));
+      window.dispatchEvent(new CustomEvent('lpld_association_updated', { detail: data.data }));
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('[Storage] Error al recuperar autoridades desde la nube:', err);
+  }
+  return null;
+}
+
+export async function saveAssociationAuthoritiesToCloud(authorities: any[]): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    const headers = { 'Content-Type': 'application/json', ...getAdminRequestHeaders() };
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ key: 'association_authorities', data: authorities })
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[Storage] Error al guardar autoridades en la nube:', err);
+    return false;
   }
 }
 
@@ -575,8 +609,42 @@ export function saveStoredAssociationBankAccount(account: any): void {
   try {
     localStorage.setItem(ASSOCIATION_KEYS.BANK_ACCOUNT, JSON.stringify(account));
     window.dispatchEvent(new CustomEvent('lpld_association_bank_updated', { detail: account }));
+    saveAssociationBankAccountToCloud(account).catch(() => {});
   } catch (err) {
     console.warn('[Storage] Error al guardar datos bancarios de la asociación:', err);
+  }
+}
+
+export async function fetchAssociationBankAccountFromCloud(): Promise<any | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch('/api/config?key=association_bank');
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.success && data.data) {
+      localStorage.setItem(ASSOCIATION_KEYS.BANK_ACCOUNT, JSON.stringify(data.data));
+      window.dispatchEvent(new CustomEvent('lpld_association_bank_updated', { detail: data.data }));
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('[Storage] Error al recuperar cuenta bancaria desde la nube:', err);
+  }
+  return null;
+}
+
+export async function saveAssociationBankAccountToCloud(account: any): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    const headers = { 'Content-Type': 'application/json', ...getAdminRequestHeaders() };
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ key: 'association_bank', data: account })
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[Storage] Error al guardar cuenta bancaria en la nube:', err);
+    return false;
   }
 }
 

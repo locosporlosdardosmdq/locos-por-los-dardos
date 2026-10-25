@@ -33,7 +33,8 @@ import {
   saveGrandTournamentRegistrationToCloud,
   getStoredLandingShowcases,
   saveStoredLandingShowcases,
-  getStoredAssociationBankAccount
+  getStoredAssociationBankAccount,
+  fetchAssociationBankAccountFromCloud
 } from '@/lib/storage';
 
 interface GrandTournamentEnrollModalProps {
@@ -88,6 +89,10 @@ export const GrandTournamentEnrollModal: React.FC<GrandTournamentEnrollModalProp
   });
 
   useEffect(() => {
+    fetchAssociationBankAccountFromCloud().then((cloudBank) => {
+      if (cloudBank) setBank(cloudBank);
+    });
+
     const handleBankUpdate = (e: any) => {
       if (e?.detail) {
         setBank(e.detail);

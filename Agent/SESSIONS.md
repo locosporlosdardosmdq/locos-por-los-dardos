@@ -1,5 +1,38 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 53] - 2026-10-25
+- **Objetivos:**
+  1. Resolver de forma definitiva la desincronización entre la PC y el celular en la cuenta bancaria de Vitrina 4 (Mercado Pago, alias `dardeus.mp` vs Banco Provincia).
+  2. Implementar la API universal `/api/config` para sincronizar en tiempo real cualquier configuración global (cuenta bancaria, vitrinas, autoridades) entre dispositivos y Supabase PostgreSQL.
+  3. Actualizar la constante estática `DEFAULT_ASSOCIATION_BANK_ACCOUNT` en `constants.ts` para que apunte por defecto a Mercado Pago (`dardeus.mp`), garantizando que incluso sin conexión o en navegadores limpios jamás se muestre el mock de Banco Provincia.
+  4. Sincronizar reactivamente todos los puntos de cobro de la aplicación: Vitrina 4 en la Landing (`HomePaymentShowcase`), Modal de Inscripción Rápida (`GrandTournamentEnrollModal`), Acreditación de Torneos (`PlayerEnrollModal`) y Administración Institucional (`/asociacion` y `/superadmin`).
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Desconexión de Vitrina 4 y Fallback Estático:* La cuenta bancaria se guardaba exclusivamente en `localStorage` (`lpld_association_bank_account_v1`). En la PC de Mariano existía Mercado Pago (`dardeus.mp`), pero en el celular (o en cualquier jugador visitante) el `localStorage` estaba vacío y caía en el fallback `DEFAULT_ASSOCIATION_BANK_ACCOUNT`, que tenía hardcodeado "Banco Provincia de Buenos Aires" y "DARDOS.MDQ.OFICIAL".
+  2. *Despliegues en Vercel:* Los commits previos estaban en la rama `dev`. El dominio productivo `locosporlosdardos.com.ar` está vinculado a la rama `main`, por lo que el celular continuaba accediendo a la versión anterior en producción hasta que se realice el merge de `dev` a `main`.
+- **Realizado:**
+  - `src/lib/constants.ts`:
+    * Actualizado `DEFAULT_ASSOCIATION_BANK_ACCOUNT` con los datos oficiales: Banco Mercado Pago, Titular Asociación de Dardos Mar del Plata, Alias `dardeus.mp`, CVU `0000003100054321098`, WhatsApp Mariano Deux (`5492235218765`).
+  - `src/app/api/config/route.ts`:
+    * Creado endpoint universal para configuraciones de plataforma con soporte para lecturas por clave (`?key=association_bank`) o diccionario consolidado, y escritura protegida con autorización de administrador.
+  - `src/lib/storage.ts`:
+    * Creadas las funciones `fetchAssociationBankAccountFromCloud()`, `saveAssociationBankAccountToCloud()`, `fetchAssociationAuthoritiesFromCloud()` y `saveAssociationAuthoritiesToCloud()`.
+    * Actualizado `saveStoredAssociationBankAccount()` para disparar la sincronización en la nube automáticamente hacia PostgreSQL.
+  - `src/app/page.tsx` (`HomePaymentShowcase`):
+    * Conectado `fetchAssociationBankAccountFromCloud()` en el montaje para hidratar los datos bancarios oficiales en vivo en celulares y ordenadores.
+  - `src/components/comunidad/GrandTournamentEnrollModal.tsx`:
+    * Conectado `fetchAssociationBankAccountFromCloud()` para asegurar que los datos bancarios del modal de inscripción rápida coincidan exactamente con la cuenta oficial.
+  - `src/components/torneos/PlayerEnrollModal.tsx`:
+    * Conectado `fetchAssociationBankAccountFromCloud()` para acreditación de competidores en torneos locales.
+  - `src/app/asociacion/page.tsx`:
+    * Conectados `fetchAssociationBankAccountFromCloud()` y `fetchAssociationAuthoritiesFromCloud()`.
+  - `src/app/superadmin/page.tsx`:
+    * Integrados los fetches de cuenta bancaria y autoridades en `syncCloudData()`.
+  - Base de Datos (Supabase PostgreSQL):
+    * Sembrado el registro `association_bank` con Mercado Pago y `dardeus.mp` en la tabla `platform_settings`.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Sincronización cloud universal completada; la cuenta bancaria de Mercado Pago (`dardeus.mp`) es ahora la fuente de verdad en código y en base de datos.
+
 ## [Sesión 52] - 2026-10-25
 - **Objetivos:**
   1. Diagnosticar por qué la versión en celulares mostraba datos distintos a la versión de PC ("5to Gran Abierto de Mar del Plata Mar del Plata 2026" con bolsa de $150.000 y 0/32 inscriptos vs "Gran Open Mar del Plata 2026").

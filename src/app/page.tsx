@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { TournamentHeroBanner } from '@/components/comunidad/TournamentHeroBanner';
 import { NationalRankings } from '@/components/comunidad/NationalRankings';
 import { BrandLogo } from '@/components/BrandLogo';
-import { getStoredAssociationBankAccount } from '@/lib/storage';
+import { getStoredAssociationBankAccount, fetchAssociationBankAccountFromCloud } from '@/lib/storage';
 import { DEFAULT_ASSOCIATION_BANK_ACCOUNT } from '@/lib/constants';
 import { AssociationBankAccount } from '@/lib/types';
 import { 
@@ -313,6 +313,11 @@ function HomePaymentShowcase() {
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    // Sincronizar cuenta bancaria oficial en vivo desde Supabase PostgreSQL
+    fetchAssociationBankAccountFromCloud().then((cloudBank) => {
+      if (cloudBank) setAccount(cloudBank);
+    });
+
     const handleUpdate = (e: any) => {
       if (e.detail) setAccount(e.detail);
     };

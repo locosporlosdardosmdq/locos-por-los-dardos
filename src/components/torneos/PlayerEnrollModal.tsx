@@ -2,7 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { USER_ICEMAN, DEFAULT_ASSOCIATION_BANK_ACCOUNT } from '@/lib/constants';
-import { getStoredAssociationBankAccount, getCurrentPlayerProfile, fetchRegisteredPlayersFromCloud } from '@/lib/storage';
+import { 
+  getStoredAssociationBankAccount, 
+  getCurrentPlayerProfile, 
+  fetchRegisteredPlayersFromCloud,
+  fetchAssociationBankAccountFromCloud 
+} from '@/lib/storage';
 import { Tournament, AssociationBankAccount, PlayerProfile } from '@/lib/types';
 import { WebcamSetupModal } from './WebcamSetupModal';
 import { 
@@ -55,6 +60,9 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
   }, []);
 
   useEffect(() => {
+    fetchAssociationBankAccountFromCloud().then((cloudBank) => {
+      if (cloudBank) setBankAccount(cloudBank);
+    });
     const handleBankUpdate = (e: any) => {
       if (e.detail) setBankAccount(e.detail);
     };

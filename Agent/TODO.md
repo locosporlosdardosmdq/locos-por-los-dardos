@@ -1,3 +1,20 @@
+- [x] **Flujo Completo de Fase de Grupos: Sorteo de Parejas/Grupos, Fixture Independiente por Zona y Armado de Llave de Playoffs (Cross-Seeding):**
+  * **Soporte de Modalidad Parejas en Grupos (`isDoubles`):**
+    - En torneos de parejas, la unidad de competición en los grupos son duplas (ej: "Juan Dogan & Gabriel Rubio").
+    - Se incorporó el botón `[👥 Sortear Parejas (Blind Draw)]` para conformar duplas aleatorias a partir de los inscriptos individuales.
+  * **Sorteo Oficial de Grupos / Zonas (`[🎲 Sortear Grupos]`):**
+    - Botón de sorteo aleatorio con algoritmo Fisher-Yates para distribuir a los competidores (jugadores o parejas) equitativamente entre las zonas configuradas (`groupsCount`).
+    - Visualización destacada de los integrantes de cada zona.
+  * **Fixture Round Robin Independiente por Zona:**
+    - Cada grupo juega exclusivamente entre sus propios integrantes de forma 100% aislada.
+    - Tabla de posiciones oficial computada estrictamente dentro de cada zona (PJ, G, P, LF, LC, +/-, PTS).
+  * **Armado Automático de la Llave de Playoffs (Cross-Seeding Olímpico):**
+    - Botón `[🏆 Armar Llave de Playoffs]` toma a los N clasificados de cada zona (ej: 2 primeros) y genera el cuadro eliminatorio con cruce olímpico (1ºA vs 2ºB, 1ºB vs 2ºA, etc.) con punteros `nextMatchId` exactos y notas de instancia.
+  * **Pestaña Inicial Reactiva:**
+    - Torneos en formato `ROUND_ROBIN` abren automáticamente en la pestaña `FASE DE GRUPOS (ROUND ROBIN)` hasta que los playoffs sean armados.
+  * **Persistencia Integral:**
+    - Guardado del sorteo y resultados de grupos en `currentTournament.groupStageData` sincronizado en Supabase PostgreSQL.
+
 - [x] **Blindaje de Seguridad, Mitigación de Vulnerabilidades y Estabilidad de Producción (Auditoría Crítica 2026-10-25):**
   * **C1 - Remoción de Credenciales Hardcodeadas (`src/lib/db.ts`):**
     - Se eliminó la cadena de conexión con credenciales embebidas de Supabase.

@@ -320,6 +320,7 @@ export interface Tournament {
     isBye?: boolean;
     enrolledAt?: string;
   }>;
+  groupStageData?: any;
 }
 
 export type AssociationScope = 'MDQ' | 'ARGENTINA';

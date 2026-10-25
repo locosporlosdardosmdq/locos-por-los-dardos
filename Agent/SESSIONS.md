@@ -1,5 +1,41 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 51] - 2026-10-25
+- **Objetivos:**
+  1. Diseñar e implementar el flujo oficial completo de Fase de Grupos (Round Robin) para torneos individuales y por parejas.
+  2. Implementar el Sorteo a Ciegas de Parejas (Blind Draw) cuando la modalidad es por parejas (`isDoubles` o categoría `PAREJAS`).
+  3. Implementar el Sorteo Oficial de Grupos (`[🎲 Sortear Grupos]`) para distribuir aleatoriamente a los competidores (individuales o duplas) en las zonas configuradas.
+  4. Mostrar de forma transparente los integrantes que componen cada grupo (Zona A, Zona B, etc.).
+  5. Asegurar que cada grupo dispute su fixture Round Robin de forma 100% aislada e individual del resto de los grupos con su propia tabla de posiciones.
+  6. Implementar el armado automático de la Llave de Playoffs (`[Armar Llave de Playoffs]`) cruzando olímpicamente a los clasificados (1ºA vs 2ºB, 1ºB vs 2ºA, etc.) y transicionando al Cuadro Eliminatorio.
+  7. Abrir por defecto en la pestaña `FASE DE GRUPOS (ROUND ROBIN)` para torneos en formato `ROUND_ROBIN` mientras la llave de playoffs no esté armada.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Apertura de Torneos por Grupos:* Al ingresar a un torneo de formato `ROUND_ROBIN`, el componente `TournamentManager` seleccionaba por defecto la subtab `BRACKET`, mostrando una llave eliminatoria ficticia de 32 jugadores que confundía a los usuarios antes de que se sortearan las zonas.
+  2. *Soporte de Parejas en Grupos:* En torneos de dobles (ej. Abierto Internacional modalidad Parejas), los inscriptos son personas individuales que deben ser emparejadas antes de sortear los grupos. Se diseñó el generador `handleBlindDrawPairs` que une aleatoriamente a los jugadores en duplas identificadas ("Jugador 1 & Jugador 2") con avatares dobles.
+  3. *Fixture Independiente por Zona:* Cada grupo debe tener su propio conjunto de partidos Round Robin exclusivamente entre sus miembros, calculando partidos jugados, ganados, perdidos, legs a favor, legs en contra y puntos (2 por victoria).
+  4. *Generación de Playoffs desde Grupos:* El armado del bracket final no debe ser previo ni genérico, sino posterior al desarrollo de las zonas, tomando los N mejores posicionados de cada zona y sembrándolos en un cuadro eliminatorio real con enlaces deterministas `nextMatchId`.
+- **Realizado:**
+  - `src/lib/types.ts`: Añadido campo opcional `groupStageData?: any;` a la interfaz `Tournament` para persistir estado de grupos, duplas y cruces.
+  - `src/components/torneos/TournamentGroupStage.tsx`:
+    * Detección de modalidad por parejas (`isDoubles`).
+    * Botón `[🎲 Sortear Parejas (Blind Draw)]` que combina aleatoriamente a los inscriptos individuales en duplas oficiales.
+    * Botón `[🎲 Sortear Grupos]` con algoritmo Fisher-Yates para distribuir equitativamente a los participantes entre las zonas (Zona A, Zona B, etc.).
+    * Componente visual de miembros de grupo (chips con avatares y nombres de competidores o duplas asignadas).
+    * Fixtures Round Robin aislados por zona con marcadores interactivos y tabla de posiciones oficial.
+    * Selector dinámico de clasificados por grupo (`qualifiersCount`).
+    * Función `generatePlayoffCrossMatches` que arma el cuadro eliminatorio con cruce olímpico (1ºA vs 2ºB, etc.) y punteros deterministas.
+    * Guardado automático y manual mediante `onSaveGroupData`.
+  - `src/components/torneos/TournamentManager.tsx`:
+    * `useEffect` para preseleccionar la pestaña `GROUPS` en torneos `ROUND_ROBIN` mientras no se haya generado la llave de playoffs.
+    * `handleAdvanceGroupPlayoffs`: recibe los partidos de playoff generados, los asigna como `matches` del torneo, los persiste en la nube y navega automáticamente a la pestaña `BRACKET`.
+    * `handleSaveGroupData`: persiste la estructura de zonas y partidos en `groupStageData`.
+    * Paso de `isDoubles`, `savedGroupData`, `onAdvanceToBracket` y `onSaveGroupData` a `<TournamentGroupStage>`.
+  - `Agent/TODO.md`: Actualizada la lista de tareas con el workflow de sorteo, parejas y playoffs completado `[x]`.
+  - `Agent/DECISIONS.md`: Registrado `ADR-061`.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código 0).
+- **Estado del Proyecto:** Workflow oficial de torneos por grupos (Round Robin) completamente operativo, con sorteo de parejas a ciegas, distribución transparente de zonas, fixtures aislados y generación deportiva de playoffs.
+
 ## [Sesión 50] - 2026-10-25
 - **Objetivos:**
   1. Revisar críticamente el documento de auditoría de seguridad y código (`auditoria_critica_2026-10-25.md`).

@@ -465,6 +465,16 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
   const currentTournament = tournaments.find((t) => t.id === selectedTournamentId) || null;
 
+  // En torneos de Fase de Grupos, iniciar por defecto en la pestaña de grupos si aún no hay cruces de playoffs armados
+  useEffect(() => {
+    if (currentTournament?.format === 'ROUND_ROBIN' && tournamentSubTab === 'BRACKET') {
+      const hasPlayoffsWithPlayers = currentTournament.matches && currentTournament.matches.some(m => m.player1 || m.player2);
+      if (!hasPlayoffsWithPlayers) {
+        setTournamentSubTab('GROUPS');
+      }
+    }
+  }, [currentTournament?.id, currentTournament?.format]);
+
   // Años disponibles en el Historial de Torneos
   const availableHistoryYears = useMemo(() => {
     const years = new Set<string>();
@@ -1214,6 +1224,41 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       ...currentTournament,
       qualifiersPerGroup: count
     };
+    setTournaments((prev) => {
+      const next = prev.map((t) => (t.id === currentTournament.id ? updatedTourney : t));
+      saveStoredTournaments(next);
+      saveTournamentToCloud(updatedTourney);
+      return next;
+    });
+  };
+
+  // Armar llave eliminatoria de playoffs a partir de los clasificados de la fase de grupos
+  const handleAdvanceGroupPlayoffs = (qualifiedPlayers: any[], playoffMatches: TournamentBracketMatch[]) => {
+    if (!currentTournament) return;
+    const updatedTourney: Tournament = {
+      ...currentTournament,
+      matches: playoffMatches
+    };
+
+    setTournaments((prev) => {
+      const next = prev.map((t) => (t.id === currentTournament.id ? updatedTourney : t));
+      saveStoredTournaments(next);
+      saveTournamentToCloud(updatedTourney);
+      return next;
+    });
+
+    setTournamentSubTab('BRACKET');
+    alert(`¡Llave eliminatoria de playoffs armada con éxito! Se cruzaron los ${qualifiedPlayers.length} clasificados de la fase de grupos hacia la eliminación directa.`);
+  };
+
+  // Guardar estado interno de la fase de grupos (sorteo, duplas, partidos y posiciones)
+  const handleSaveGroupData = (groupData: any) => {
+    if (!currentTournament) return;
+    const updatedTourney: Tournament = {
+      ...currentTournament,
+      groupStageData: groupData
+    };
+
     setTournaments((prev) => {
       const next = prev.map((t) => (t.id === currentTournament.id ? updatedTourney : t));
       saveStoredTournaments(next);
@@ -2136,14 +2181,19 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                   {/* SUB CONTENIDO: GRUPOS */}
                   {tournamentSubTab === 'GROUPS' && (
                     <TournamentGroupStage
+                      tournamentId={currentTournament.id}
                       tournamentTitle={currentTournament.title}
                       bestOfLegs={currentTournament.bestOfLegs}
                       groupsCount={currentTournament.groupsCount || 2}
                       qualifiersPerGroup={currentTournament.qualifiersPerGroup || 2}
                       enrolledPlayers={currentTournament.enrolledPlayers || []}
+                      isDoubles={currentTournament.isDoubles || currentTournament.title.toLowerCase().includes('pareja') || currentTournament.title.toLowerCase().includes('dupla')}
+                      isAdmin={canManageTournament(currentTournament)}
+                      savedGroupData={currentTournament.groupStageData}
                       onLaunchMatch={handleLaunchGroupMatch}
-                      onAdvanceToBracket={() => setTournamentSubTab('BRACKET')}
+                      onAdvanceToBracket={handleAdvanceGroupPlayoffs}
                       onUpdateQualifiersPerGroup={handleUpdateQualifiersPerGroup}
+                      onSaveGroupData={handleSaveGroupData}
                     />
                   )}
 

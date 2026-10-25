@@ -1289,6 +1289,28 @@
   6. **Estabilidad de UI en Torneos:** `EditTournamentModal` ubica todos los hooks al inicio del componente para respetar las reglas de React, evitando reseteos por polling. `TournamentGroupStage` indexa el estado de todas las zonas para preservar resultados y fixtures al alternar pestañas.
 - **Motivo:** Protege la plataforma contra accesos no autorizados, ataques de escalación de privilegios, filtración de datos de competidores y pérdidas de estado durante eventos deportivos en vivo.
 
+---
+
+## [ADR-061] Workflow de Torneos por Grupos: Sorteo de Zonas, Parejas (Blind Draw) y Generación de Llave de Playoffs
+
+- **Fecha:** 2026-10-25
+- **Estado:** ACEPTADA
+- **Contexto:**
+  En torneos con formato de Fase de Grupos (`ROUND_ROBIN`), el flujo previo abría por defecto en una llave eliminatoria ficticia y carecía de mecanismos para:
+  1. Sortear aleatoriamente la conformación de los grupos con los jugadores inscriptos.
+  2. Gestionar la modalidad de juego por parejas (`isDoubles` o categoría `PAREJAS`), donde inscriptos individuales deben emparejarse (mediante sorteo a ciegas / Blind Draw o preasignadas) para competir como duplas en las zonas.
+  3. Ejecutar el fixture Round Robin de forma estrictamente aislada por zona.
+  4. Generar la llave de Playoffs (Cruces Olímpicos) a partir de los clasificados reales de cada zona una vez disputada la fase.
+- **Decisión:**
+  1. **Apertura de Subtab por Defecto:** Al abrir un torneo en formato `ROUND_ROBIN` que no tenga partidos eliminatorios generados, la vista predeterminada es `FASE DE GRUPOS (ROUND ROBIN)`.
+  2. **Detección y Sorteo de Parejas (`handleBlindDrawPairs`):** Si `isDoubles` es `true`, los competidores se agrupan en duplas. Se incluye el botón `[🎲 Sortear Parejas (Blind Draw)]` que mezcla el padrón de inscriptos y genera duplas oficiales ("Jugador 1 & Jugador 2") con avatares combinados.
+  3. **Sorteo Oficial de Grupos (`handleDrawGroups`):** Distribuye aleatoriamente (Fisher-Yates) a los competidores (jugadores o parejas) entre la cantidad de zonas configuradas (`groupsCount`), mostrando en chips visuales los integrantes de cada grupo.
+  4. **Fixture y Tabla Aislada por Zona:** Cada grupo computa su propio fixture todos contra todos sin interferencia externa, con tabla de posiciones oficial (Puntos [2xPG], PJ, G, P, LF, LC, Dif).
+  5. **Generación de Playoffs con Cruces Olímpicos:** El botón `[Armar Llave de Playoffs]` toma los N clasificados por zona y genera la llave eliminatoria cruzando cabezas de serie (1ºA vs 2ºB, 1ºB vs 2ºA, etc.) con punteros `nextMatchId` deterministas, transicionando automáticamente a la pestaña `CUADRO ELIMINATORIO`.
+  6. **Persistencia:** La composición de grupos, duplas y partidos se persiste en `tournament.groupStageData` tanto en memoria como en PostgreSQL de Supabase.
+- **Motivo:** Cumple integralmente el estándar competitivo oficial para certámenes individuales y por parejas.
+
+
 
 
 

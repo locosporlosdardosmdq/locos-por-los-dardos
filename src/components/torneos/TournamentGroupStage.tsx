@@ -50,20 +50,29 @@ interface TournamentGroupStageProps {
   tournamentTitle: string;
   bestOfLegs: number;
   groupsCount?: number;
+  qualifiersPerGroup?: number;
   enrolledPlayers?: GroupEnrolledPlayer[];
   onLaunchMatch: (match: GroupMatch, mode: 'LIVE' | 'ONLINE') => void;
   onAdvanceToBracket?: (qualifiedPlayers: GroupPlayer[]) => void;
+  onUpdateQualifiersPerGroup?: (count: number) => void;
 }
 
 export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
   tournamentTitle,
   bestOfLegs,
   groupsCount = 2,
+  qualifiersPerGroup = 2,
   enrolledPlayers = [],
   onLaunchMatch,
-  onAdvanceToBracket
+  onAdvanceToBracket,
+  onUpdateQualifiersPerGroup
 }) => {
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
+  const [qualifiersCount, setQualifiersCount] = useState<number>(qualifiersPerGroup);
+
+  useEffect(() => {
+    setQualifiersCount(qualifiersPerGroup);
+  }, [qualifiersPerGroup]);
 
   // Inicializar o sincronizar jugadores del grupo según los inscriptos reales
   const [groupPlayers, setGroupPlayers] = useState<GroupPlayer[]>(() => {
@@ -171,20 +180,44 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
         <div>
           <h3 className="text-base font-black text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-[#00e676]" />
-            <span>Zona {String.fromCharCode(65 + selectedGroupIndex)} • Grupo {selectedGroupIndex + 1} • Round Robin (Todos contra Todos)</span>
+            <span>Zona {String.fromCharCode(65 + selectedGroupIndex)} • Grupo {selectedGroupIndex + 1} • Round Robin</span>
           </h3>
           <p className="text-xs text-slate-400">
             Victoria = 2 pts • Criterio de desempate: 1º Puntos, 2º Dif Legs (+/-), 3º Legs a favor
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* SELECTOR: CUÁNTOS PASAN A LA SIGUIENTE INSTANCIA */}
+          <div className="flex items-center gap-2 bg-[#07090e] px-3 py-1.5 rounded-xl border border-slate-700">
+            <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5 whitespace-nowrap">
+              <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Pasan a Playoffs:</span>
+            </label>
+            <select
+              value={qualifiersCount}
+              onChange={(e) => {
+                const val = Math.max(1, Number(e.target.value));
+                setQualifiersCount(val);
+                if (onUpdateQualifiersPerGroup) {
+                  onUpdateQualifiersPerGroup(val);
+                }
+              }}
+              className="bg-[#111622] border border-emerald-500/60 rounded-lg px-2 py-0.5 text-xs font-black text-emerald-300 focus:outline-none focus:border-emerald-400 cursor-pointer"
+            >
+              <option value={1}>🥇 Solo el 1º (Puntero)</option>
+              <option value={2}>🥈 Primeros 2 (1º y 2º)</option>
+              <option value={3}>🥉 Primeros 3</option>
+              <option value={4}>🎖️ Primeros 4</option>
+            </select>
+          </div>
+
           {onAdvanceToBracket && (
             <button
-              onClick={() => onAdvanceToBracket(sortedStandings.slice(0, 2))}
+              onClick={() => onAdvanceToBracket(sortedStandings.slice(0, qualifiersCount))}
               className="px-3.5 py-2 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black text-xs flex items-center gap-1.5 transition-all shadow-md shadow-[#00e676]/20"
             >
-              <span>Cruzar a Cuadro Final</span>
+              <span>Cruzar {qualifiersCount} a Playoffs</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5]" />
             </button>
           )}
@@ -211,7 +244,7 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
             <tbody className="divide-y divide-slate-800/80 font-bold">
               {sortedStandings.map((p, idx) => {
                 const diff = p.legsFor - p.legsAgainst;
-                const isClassified = idx < 2;
+                const isClassified = idx < qualifiersCount;
 
                 return (
                   <tr
@@ -224,9 +257,13 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
                       <span
                         className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${
                           idx === 0
-                            ? 'bg-[#eab308] text-black'
-                            : idx === 1
+                            ? 'bg-[#eab308] text-black shadow-sm shadow-[#eab308]/40'
+                            : idx === 1 && qualifiersCount >= 2
                             ? 'bg-slate-300 text-black'
+                            : idx === 2 && qualifiersCount >= 3
+                            ? 'bg-amber-700 text-white'
+                            : isClassified
+                            ? 'bg-emerald-500/80 text-black font-extrabold'
                             : 'bg-slate-800 text-slate-400'
                         }`}
                       >
@@ -237,8 +274,8 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
                       <div className="flex items-center gap-2">
                         <span>{p.name}</span>
                         {isClassified && (
-                          <span className="text-[10px] bg-[#00e676]/20 text-[#00e676] px-2 py-0.5 rounded-full font-bold">
-                            Clasifica
+                          <span className="text-[10px] bg-[#00e676]/20 text-[#00e676] px-2 py-0.5 rounded-full font-bold border border-[#00e676]/30">
+                            ✓ Clasifica ({idx + 1}º)
                           </span>
                         )}
                       </div>

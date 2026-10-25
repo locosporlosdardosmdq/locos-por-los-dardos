@@ -1207,6 +1207,21 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     setActiveLiveMatchOrigin({ type: 'GROUP', id: match.id });
   };
 
+  // Actualizar cantidad de clasificados a playoffs por grupo
+  const handleUpdateQualifiersPerGroup = (count: number) => {
+    if (!currentTournament) return;
+    const updatedTourney: Tournament = {
+      ...currentTournament,
+      qualifiersPerGroup: count
+    };
+    setTournaments((prev) => {
+      const next = prev.map((t) => (t.id === currentTournament.id ? updatedTourney : t));
+      saveStoredTournaments(next);
+      saveTournamentToCloud(updatedTourney);
+      return next;
+    });
+  };
+
   // Lanzar partido de Bracket en el Anotador
   const handleLaunchBracketLive = (match: TournamentBracketMatch) => {
     if (!currentTournament || !match.player1 || !match.player2) return;
@@ -2124,9 +2139,11 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                       tournamentTitle={currentTournament.title}
                       bestOfLegs={currentTournament.bestOfLegs}
                       groupsCount={currentTournament.groupsCount || 2}
+                      qualifiersPerGroup={currentTournament.qualifiersPerGroup || 2}
                       enrolledPlayers={currentTournament.enrolledPlayers || []}
                       onLaunchMatch={handleLaunchGroupMatch}
                       onAdvanceToBracket={() => setTournamentSubTab('BRACKET')}
+                      onUpdateQualifiersPerGroup={handleUpdateQualifiersPerGroup}
                     />
                   )}
 

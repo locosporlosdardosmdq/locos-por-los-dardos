@@ -6,18 +6,21 @@
   2. Desbloquear la edición y permitir al administrador reabrir inscripciones o cambiar configuraciones preservando la integridad de la llave (`hasRealMatchesPlayed`).
   3. Permitir a usuarios no administradores ver el detalle completo de la modalidad y el padrón de inscriptos al hacer clic en cualquier fila de la tabla de torneos mediante `TournamentDetailModal`.
   4. Resolver el problema de fechas presenciales vacías `(0)` en los selectores dependientes de SuperAdmin (`PresencialEnrollmentsManager`).
-  5. Integrar y explicar la mecánica deportiva y de software para torneos en formato de grupos (Round Robin + Playoffs).
+  5. Integrar y explicar la mecánica deportiva y de software para torneos en formato de grupos (Round Robin + Playoffs), incorporando selector dinámico de clasificados por grupo (`qualifiersPerGroup`).
 - **Diagnóstico y Análisis Consultivo:**
   1. *Partidos Ficticios por Byes:* En `bracket-engine.ts`, al sembrar jugadores en cuadros de 8 o 16 con slots libres, la función de Byes ejecutaba `reportResult(..., { scoreP1: legTarget, scoreP2: 0, status: 'FINISHED' })`. Esto generaba partidos 3-0 terminados artificiales. Al chequear `matches.some(m => m.status === 'FINISHED')`, el modal de edición interpretaba que ya había partidos jugados y congelaba el formato ("Bloqueado en juego"), impidiendo además reabrir inscripciones.
   2. *Saneamiento en Supabase:* Se limpiaron los partidos ficticios con resultado 3-0 en la base de datos de Supabase PostgreSQL, reseteando el estado del Gran Abierto Internacional a `REGISTRATION_OPEN` y preservando a Juan Dogan y Gabriel Rubio 100% acreditados.
   3. *Regla de Administrador Soberano:* Si el usuario es administrador (`isAdmin`), el selector de formato nunca se congela rígidamente; si ya hay partidos jugados reales, solicita confirmación explícita para regenerar la llave conservando a los inscriptos.
   4. *Filtro de Fechas en SuperAdmin:* En `PresencialEnrollmentsManager.tsx`, el filtro de ámbito `NATIONAL` buscaba nombres con "nacional" o "argentina" estrictamente. Como los torneos presenciales decían "Gran Abierto Internacional de Mar del Plata", el filtro retornaba `(0)`. Se flexibilizó para contemplar todos los abiertos/internacionales presenciales con fallback seguro.
-  5. *Torneo por Grupos:* En `TournamentGroupStage.tsx`, los grupos estaban inicializados con mocks estáticos. Se conectó con `currentTournament.enrolledPlayers` para poblar dinámicamente las zonas y generar el fixture Round Robin entre ellos.
+  5. *Selector de Clasificados por Grupo:* Se implementó el selector `qualifiersPerGroup` tanto en `EditTournamentModal` (al configurar el formato `ROUND_ROBIN`) como en `TournamentGroupStage` (en tiempo real sobre la tabla de posiciones con opciones: 1 [solo puntero], 2 [primeros 2], 3 o 4), actualizando dinámicamente los badges verdes de clasificación y el botón `[Cruzar X a Playoffs]`.
 - **Realizado:**
   - `src/lib/types.ts`: Añadido `isBye?: boolean` a `TournamentBracketMatch`.
   - `src/lib/bracket-engine.ts`: Byes de Ronda 1 inicializados con `score: 0-0`, `status: 'SCHEDULED'` y nota "Pase Automático (BYE)". Creado y exportado `hasRealMatchesPlayed`.
-  - `src/components/torneos/EditTournamentModal.tsx`: Uso de `hasRealMatchesPlayed` y soberanía para administradores.
-  - `src/components/torneos/TournamentManager.tsx`: Conexión de `TournamentDetailModal`, click en filas `<tr>`, `e.stopPropagation()` en botones de acción y paso de `enrolledPlayers` a `TournamentGroupStage`.
+  - `src/components/torneos/EditTournamentModal.tsx`: Uso de `hasRealMatchesPlayed`, soberanía de administrador y selector de grupos/clasificados (`groupsCount` y `qualifiersPerGroup`).
+  - `src/components/torneos/TournamentManager.tsx`: Conexión de `TournamentDetailModal`, click en filas `<tr>`, `e.stopPropagation()`, paso de `enrolledPlayers` y `handleUpdateQualifiersPerGroup` a `TournamentGroupStage`.
+  - `src/components/torneos/TournamentGroupStage.tsx`: Soporte dinámico para `enrolledPlayers`, selector en vivo de clasificados por grupo (`qualifiersCount`) y actualización de badges y cruces a playoffs.
+  - `src/components/torneos/TournamentDetailModal.tsx`: Modal completo con pestañas de Modalidad y Jugadores Inscriptos.
+  - `src/components/superadmin/PresencialEnrollmentsManager.tsx`: Flexibilización de filtros de fechas presenciales con rescate ante listas vacías.
   - `src/components/torneos/TournamentDetailModal.tsx`: Modal completo con pestañas de Modalidad y Jugadores Inscriptos.
   - `src/components/superadmin/PresencialEnrollmentsManager.tsx`: Flexibilización de filtros de fechas presenciales con rescate ante listas vacías.
   - `src/components/torneos/TournamentGroupStage.tsx`: Soporte dinámico para `enrolledPlayers` con generación de cruces Round Robin.

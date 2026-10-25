@@ -76,6 +76,10 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
   const [entryFeeArs, setEntryFeeArs] = useState(tournament.entryFeeArs || 0);
   const [prizePoolArs, setPrizePoolArs] = useState(tournament.prizePoolArs || 0);
 
+  // Configuración de Grupos / Zonas (Formato ROUND_ROBIN)
+  const [groupsCount, setGroupsCount] = useState<number>(tournament.groupsCount || 2);
+  const [qualifiersPerGroup, setQualifiersPerGroup] = useState<number>(tournament.qualifiersPerGroup || 2);
+
   // Configuración de Distancia x Ronda
   const [showDetailedLegs, setShowDetailedLegs] = useState(false);
   const [quarterLegs, setQuarterLegs] = useState(tournament.roundLegsConfig?.quarterFinals || 3);
@@ -104,6 +108,8 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
       setHasCashPrizes(tournament.hasCashPrizes ?? (tournament.prizePoolArs > 0));
       setEntryFeeArs(tournament.entryFeeArs || 0);
       setPrizePoolArs(tournament.prizePoolArs || 0);
+      setGroupsCount(tournament.groupsCount || 2);
+      setQualifiersPerGroup(tournament.qualifiersPerGroup || 2);
       setQuarterLegs(tournament.roundLegsConfig?.quarterFinals || 3);
       setSemiLegs(tournament.roundLegsConfig?.semiFinals || 4);
       setFinalsLegs(tournament.roundLegsConfig?.finals || 5);
@@ -186,6 +192,8 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
       maxParticipants,
       bestOfLegs,
       roundLegsConfig,
+      groupsCount: format === 'ROUND_ROBIN' ? groupsCount : tournament.groupsCount,
+      qualifiersPerGroup: format === 'ROUND_ROBIN' ? qualifiersPerGroup : tournament.qualifiersPerGroup,
       isPaid,
       hasCashPrizes: isPaid ? hasCashPrizes : false,
       entryFeeArs: isPaid ? entryFeeArs : 0,
@@ -330,6 +338,60 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
               </select>
             </div>
           </div>
+
+          {/* CONFIGURACIÓN DE GRUPOS Y CLASIFICADOS (CUANDO FORMATO ES ROUND_ROBIN) */}
+          {format === 'ROUND_ROBIN' && (
+            <div className="bg-[#0f1422] p-4 rounded-2xl border border-emerald-500/50 space-y-3 shadow-lg">
+              <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2">
+                <span className="text-xs font-black text-white flex items-center gap-2">
+                  <Users className="w-4 h-4 text-emerald-400" />
+                  <span>Configuración de Zonas & Clasificados a Playoffs</span>
+                </span>
+                <span className="text-[10px] text-emerald-400 font-extrabold bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                  Fase de Zonas
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                    Cantidad de Grupos / Zonas:
+                  </label>
+                  <select
+                    value={groupsCount}
+                    onChange={(e) => setGroupsCount(Math.max(1, Number(e.target.value)))}
+                    className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-white font-bold text-xs focus:outline-none focus:border-emerald-400"
+                  >
+                    <option value={1}>1 Grupo Único (Liga Todos contra Todos)</option>
+                    <option value={2}>2 Grupos (Zona A y Zona B)</option>
+                    <option value={3}>3 Grupos (Zonas A, B y C)</option>
+                    <option value={4}>4 Grupos (Zonas A, B, C y D)</option>
+                    <option value={8}>8 Grupos (Zonas A hasta H)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-emerald-300 block mb-1">
+                    ¿Cuántos pasan a la siguiente instancia (Playoffs)? *
+                  </label>
+                  <select
+                    value={qualifiersPerGroup}
+                    onChange={(e) => setQualifiersPerGroup(Math.max(1, Number(e.target.value)))}
+                    className="w-full bg-[#07090e] border border-emerald-500/70 rounded-xl px-3 py-2 text-emerald-300 font-black text-xs focus:outline-none focus:border-emerald-400 shadow-inner"
+                  >
+                    <option value={1}>🥇 Solo el 1º de cada grupo (Pasan los punteros)</option>
+                    <option value={2}>🥈 Primeros 2 de cada grupo (1º y 2º [Estándar])</option>
+                    <option value={3}>🥉 Primeros 3 de cada grupo</option>
+                    <option value={4}>🎖️ Primeros 4 de cada grupo</option>
+                  </select>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400">
+                💡 Los clasificados avanzarán a los Playoffs eliminatorios mediante siembra cruzada olímpica (ej. 1º Zona A vs 2º Zona B).
+              </p>
+            </div>
+          )}
 
           {/* Sede y Ubicación */}
           <div className="bg-[#0f1422] p-3.5 rounded-2xl border border-slate-800 space-y-2.5">

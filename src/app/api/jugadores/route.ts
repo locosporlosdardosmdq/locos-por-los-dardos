@@ -3,6 +3,7 @@ import { getDbPool } from '@/lib/db';
 import { PlayerProfile } from '@/lib/types';
 import { ICEMAN_CARD_DATA } from '@/lib/players-data';
 import { calculateAgeFromBirthDate } from '@/lib/constants';
+import { isAuthorizedAdmin } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -11,7 +12,8 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const includeAll = searchParams.get('all') === 'true';
+    const isAdmin = isAuthorizedAdmin(request);
+    const includeAll = searchParams.get('all') === 'true' && isAdmin;
 
     const pool = getDbPool();
     const query = `
@@ -68,9 +70,8 @@ export async function GET(request: NextRequest) {
     const result = await pool.query(query);
 
     const players = result.rows.map((row) => {
-      const isIcemanRow = (row.nickname?.toLowerCase() === 'iceman') || 
-                          (row.email?.toLowerCase() === 'marianodeux@gmail.com') ||
-                          (row.full_name?.toLowerCase().includes('mariano deux'));
+      // Verificación estricta por email verificado de Mariano Deux
+      const isIcemanRow = row.email?.toLowerCase() === 'marianodeux@gmail.com';
       
       const cleanAvatar = row.avatar_url && !row.avatar_url.includes('iceman') ? row.avatar_url : undefined;
       const cleanPhoto = row.photo_url && !row.photo_url.includes('iceman') ? row.photo_url : undefined;
@@ -82,10 +83,10 @@ export async function GET(request: NextRequest) {
 
       return {
         id: row.id || row.user_id,
-        email: row.email || '',
+        email: isAdmin ? (row.email || '') : '',
         nickname: row.nickname || '',
         fullName: row.full_name || '',
-        phone: row.phone || '',
+        phone: isAdmin ? (row.phone || '') : '',
         province: row.province || 'Buenos Aires',
         city: row.city || 'Mar del Plata',
         nationality: row.nationality || 'Argentina',
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
         associationRole: row.association_role || '',
         birthDate: birthDateStr,
         age: computedAge,
-        role: isIcemanRow ? 'SUPERADMIN' : (row.role || 'PLAYER'),
+        role: row.role || 'PLAYER',
         club: row.club || 'Darderos Mar del Plata',
         isProfileComplete: true,
         stats: {
@@ -224,20 +225,20 @@ export async function POST(request: NextRequest) {
     if (userRes.rows.length > 0) {
       userId = userRes.rows[0].id;
     } else {
-      // Crear nuevo usuario
+      // Crear nuevo usuario (siempre con rol estándar PLAYER)
       const newUserRes = await pool.query(
         `INSERT INTO users (email, password_hash, role) 
          VALUES ($1, $2, $3) 
          RETURNING id;`,
-        [email, 'no_hash_pwa', profile.role === 'ADMIN' ? 'ADMIN' : 'PLAYER']
+        [email, 'no_hash_pwa', 'PLAYER']
       );
       userId = newUserRes.rows[0].id;
     }
 
-    // 2. Upsert en tabla `profiles`
+    // 2. Upsert en tabla `profiles` (estrictamente vinculado a este user_id, no suplantable por apodo)
     const profileRes = await pool.query(
-      `SELECT id FROM profiles WHERE user_id = $1 OR LOWER(nickname) = $2 LIMIT 1;`,
-      [userId, nickname.toLowerCase()]
+      `SELECT id FROM profiles WHERE user_id = $1 LIMIT 1;`,
+      [userId]
     );
 
     const category = profile.category || 'INTERMEDIA';
@@ -415,6 +416,16 @@ export async function PATCH(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID de jugador requerido para actualización parcial.' }, { status: 400 });
+    }
+
+    // Seguridad: Si se intenta modificar el rol o el estado federativo, requerir autorización de administrador
+    if (role || status) {
+      if (!isAuthorizedAdmin(request)) {
+        return NextResponse.json(
+          { success: false, error: 'No autorizado. Se requieren credenciales de administrador para modificar roles o estados federativos.' },
+          { status: 401 }
+        );
+      }
     }
 
     const computedPatchAge = age || (birthDate ? calculateAgeFromBirthDate(birthDate) : null);

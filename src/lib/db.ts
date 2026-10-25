@@ -10,8 +10,10 @@ function getSanitizedConnectionString(): string {
   let conn = process.env.DATABASE_URL || process.env.DIRECT_URL;
 
   if (!conn) {
-    // Fallback de desarrollo local si no se cargó el .env.local
-    conn = 'postgresql://postgres.pufyeabrvrlikbgkjplz:D25SJh5t2oMiHa2K@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true';
+    throw new Error(
+      '[CRITICAL DB CONFIG ERROR]: DATABASE_URL o DIRECT_URL no está configurada en las variables de entorno. ' +
+      'Configura la cadena de conexión en .env.local o en las variables de entorno de Vercel.'
+    );
   }
 
   // Auto-corrección de seguridad: si Vercel tiene configurada la región errónea 'aws-0-sa-east-1',

@@ -59,7 +59,6 @@ import {
 } from 'lucide-react';
 import { 
   ADMIN_EMAILS, 
-  ADMIN_MASTER_PASSWORD, 
   validateAdminCredentials, 
   isUserAdmin,
   isUserSuperAdmin,
@@ -92,6 +91,7 @@ import {
   fetchTournamentsFromCloud,
   getStoredLeagues
 } from '@/lib/storage';
+import { getAdminRequestHeaders } from '@/lib/client-auth';
 import { 
   AssociationAuthority, 
   AssociationBankAccount, 
@@ -483,7 +483,7 @@ export default function SuperadminPage() {
       };
       const res = await fetch('/api/jugadores', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminRequestHeaders(),
         body: JSON.stringify({ id: player.id, category: newCategory })
       });
       if (res.ok) {
@@ -518,7 +518,7 @@ export default function SuperadminPage() {
       setIsUpdatingStatus(player.id);
       const res = await fetch('/api/jugadores', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminRequestHeaders(),
         body: JSON.stringify({ id: player.id, status: newStatus })
       });
       if (res.ok) {
@@ -550,7 +550,7 @@ export default function SuperadminPage() {
       setIsUpdatingRole(player.id);
       const res = await fetch('/api/jugadores', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminRequestHeaders(),
         body: JSON.stringify({ id: player.id, role: newRole })
       });
       if (res.ok) {
@@ -1059,16 +1059,6 @@ export default function SuperadminPage() {
             >
               <Lock className="w-4 h-4" />
               <span>Ingresar al Panel de Superadmin</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setLoginPassword(ADMIN_MASTER_PASSWORD);
-              }}
-              className="w-full py-2 bg-[#141a29] hover:bg-[#1a2337] border border-slate-800 text-slate-400 hover:text-white rounded-xl text-[11px] font-bold transition-all"
-            >
-              Completar clave de desarrollo
             </button>
           </form>
 

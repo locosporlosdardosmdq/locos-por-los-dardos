@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDbPool } from '@/lib/db';
 import { Tournament } from '@/lib/types';
+import { isAuthorizedAdmin } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -44,6 +45,8 @@ export async function GET(request: NextRequest) {
           id: String(row.id),
           title: row.title || row.data.title,
           status: row.status || row.data.status || 'REGISTRATION_OPEN',
+          startDate: row.start_date ? new Date(row.start_date).toISOString() : (row.data.startDate || new Date().toISOString()),
+          endDate: row.end_date ? new Date(row.end_date).toISOString() : row.data.endDate,
           entryFeeArs: row.entry_fee_ars !== null ? parseFloat(row.entry_fee_ars) : (row.data.entryFeeArs || 0),
           prizePoolArs: row.prize_pool_ars !== null ? parseFloat(row.prize_pool_ars) : (row.data.prizePoolArs || 0)
         };
@@ -79,7 +82,7 @@ export async function GET(request: NextRequest) {
   } catch (err: any) {
     console.error('[API /api/torneos GET Error]:', err.message);
     return NextResponse.json(
-      { success: false, error: 'Error al consultar torneos de la base de datos.', details: err.message },
+      { success: false, error: 'Error al consultar torneos de la base de datos.' },
       { status: 500 }
     );
   }
@@ -87,6 +90,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isAuthorizedAdmin(request)) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado. Se requieren credenciales de administrador.' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const tournament: Tournament = body.tournament;
 
@@ -117,6 +127,7 @@ export async function POST(request: NextRequest) {
     const city = tournament.city || 'Mar del Plata';
     const province = tournament.province || 'Buenos Aires';
     const startDate = tournament.startDate ? new Date(tournament.startDate) : new Date();
+    const endDate = tournament.endDate ? new Date(tournament.endDate) : null;
     const status = tournament.status || 'REGISTRATION_OPEN';
     const bannerImageUrl = tournament.bannerImageUrl || '/logos/logo-mdq.png';
     const entryFeeArs = tournament.entryFeeArs || 0;
@@ -138,6 +149,7 @@ export async function POST(request: NextRequest) {
         city, 
         province, 
         start_date, 
+        end_date,
         status, 
         banner_image_url, 
         entry_fee_ars, 
@@ -145,7 +157,7 @@ export async function POST(request: NextRequest) {
         data, 
         created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
         title = EXCLUDED.title,
@@ -160,6 +172,8 @@ export async function POST(request: NextRequest) {
         venue_name = EXCLUDED.venue_name,
         city = EXCLUDED.city,
         province = EXCLUDED.province,
+        start_date = EXCLUDED.start_date,
+        end_date = EXCLUDED.end_date,
         status = EXCLUDED.status,
         banner_image_url = EXCLUDED.banner_image_url,
         entry_fee_ars = EXCLUDED.entry_fee_ars,
@@ -182,6 +196,7 @@ export async function POST(request: NextRequest) {
       city,
       province,
       startDate,
+      endDate,
       status,
       bannerImageUrl,
       entryFeeArs,
@@ -193,7 +208,7 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     console.error('[API /api/torneos POST Error]:', err.message);
     return NextResponse.json(
-      { success: false, error: 'Error guardando torneo en la nube.', details: err.message },
+      { success: false, error: 'Error guardando torneo en la base de datos.' },
       { status: 500 }
     );
   }
@@ -201,6 +216,13 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    if (!isAuthorizedAdmin(request)) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado. Se requieren credenciales de administrador.' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -218,7 +240,7 @@ export async function DELETE(request: NextRequest) {
   } catch (err: any) {
     console.error('[API /api/torneos DELETE Error]:', err.message);
     return NextResponse.json(
-      { success: false, error: 'Error al eliminar torneo de la base de datos.', details: err.message },
+      { success: false, error: 'Error al eliminar torneo de la base de datos.' },
       { status: 500 }
     );
   }

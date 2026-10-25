@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDbPool } from '@/lib/db';
 import { GrandTournamentRegistration } from '@/lib/types';
+import { isAuthorizedAdmin } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -10,6 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const tournamentId = searchParams.get('tournamentId');
+    const isAdmin = isAuthorizedAdmin(request);
 
     const pool = getDbPool();
 
@@ -63,18 +65,18 @@ export async function GET(request: NextRequest) {
           tournamentTitle: row.tournamentTitle || row.data.tournamentTitle,
           fullName: row.fullName || row.data.fullName,
           nickname: row.nickname || row.data.nickname,
-          dniOrPassport: row.dniOrPassport || row.data.dniOrPassport,
+          dniOrPassport: isAdmin ? (row.dniOrPassport || row.data.dniOrPassport || '') : '***',
           nationality: row.nationality || row.data.nationality,
           countryCode: row.countryCode || row.data.countryCode,
           city: row.city || row.data.city,
           province: row.province || row.data.province,
           club: row.club || row.data.club,
-          phoneWhatsApp: row.phoneWhatsApp || row.data.phoneWhatsApp,
-          email: row.email || row.data.email,
+          phoneWhatsApp: isAdmin ? (row.phoneWhatsApp || row.data.phoneWhatsApp || '') : '',
+          email: isAdmin ? (row.email || row.data.email || '') : '',
           attendanceDays: row.attendanceDays || row.data.attendanceDays,
-          companionsCount: Number(row.companionsCount ?? row.data.companionsCount ?? 0),
-          dinnerComensalesCount: Number(row.dinnerComensalesCount ?? row.data.dinnerComensalesCount ?? 1),
-          dietaryRestrictions: row.dietaryRestrictions || row.data.dietaryRestrictions,
+          companionsCount: isAdmin ? Number(row.companionsCount ?? row.data.companionsCount ?? 0) : 0,
+          dinnerComensalesCount: isAdmin ? Number(row.dinnerComensalesCount ?? row.data.dinnerComensalesCount ?? 1) : 0,
+          dietaryRestrictions: isAdmin ? (row.dietaryRestrictions || row.data.dietaryRestrictions) : undefined,
           competeSingles: row.competeSingles ?? row.data.competeSingles,
           competeDoubles: row.competeDoubles ?? row.data.competeDoubles,
           doublesPartnerMode: row.doublesPartnerMode || row.data.doublesPartnerMode,
@@ -89,18 +91,18 @@ export async function GET(request: NextRequest) {
         registeredAt: row.registeredAt ? new Date(row.registeredAt).toISOString() : new Date().toISOString(),
         fullName: row.fullName,
         nickname: row.nickname || row.fullName.split(' ')[0],
-        dniOrPassport: row.dniOrPassport || '',
+        dniOrPassport: isAdmin ? (row.dniOrPassport || '') : '***',
         nationality: row.nationality || 'Argentina',
         countryCode: row.countryCode || 'AR',
         city: row.city || 'Mar del Plata',
         province: row.province || 'Buenos Aires',
         club: row.club || 'Independiente',
-        email: row.email || '',
-        phoneWhatsApp: row.phoneWhatsApp || '',
+        email: isAdmin ? (row.email || '') : '',
+        phoneWhatsApp: isAdmin ? (row.phoneWhatsApp || '') : '',
         attendanceDays: row.attendanceDays || 'BOTH_DAYS',
-        companionsCount: Number(row.companionsCount || 0),
-        dinnerComensalesCount: Number(row.dinnerComensalesCount || 1),
-        dietaryRestrictions: row.dietaryRestrictions || undefined,
+        companionsCount: isAdmin ? Number(row.companionsCount || 0) : 0,
+        dinnerComensalesCount: isAdmin ? Number(row.dinnerComensalesCount || 1) : 0,
+        dietaryRestrictions: isAdmin ? (row.dietaryRestrictions || undefined) : undefined,
         notes: row.notes || undefined,
         competeSingles: row.competeSingles ?? true,
         competeDoubles: row.competeDoubles ?? false,
@@ -488,6 +490,13 @@ export async function POST(request: NextRequest) {
 // PATCH: Actualizar estado de pago o detalles de inscripción
 export async function PATCH(request: NextRequest) {
   try {
+    if (!isAuthorizedAdmin(request)) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado. Se requieren credenciales de administrador.' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { id, paymentStatus } = body;
 
@@ -504,13 +513,20 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'Estado actualizado correctamente.' });
   } catch (err: any) {
     console.error('[API /api/inscripciones PATCH Error]:', err.message);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Error al actualizar la inscripción en la base de datos.' }, { status: 500 });
   }
 }
 
 // DELETE: Eliminar inscripción
 export async function DELETE(request: NextRequest) {
   try {
+    if (!isAuthorizedAdmin(request)) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado. Se requieren credenciales de administrador.' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -524,6 +540,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'Inscripción eliminada correctamente.' });
   } catch (err: any) {
     console.error('[API /api/inscripciones DELETE Error]:', err.message);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Error al eliminar la inscripción de la base de datos.' }, { status: 500 });
   }
 }

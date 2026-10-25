@@ -57,6 +57,21 @@ interface TournamentGroupStageProps {
   onUpdateQualifiersPerGroup?: (count: number) => void;
 }
 
+interface ZoneData {
+  players: GroupPlayer[];
+  matches: GroupMatch[];
+}
+
+function initializeAllZones(enrolled: GroupEnrolledPlayer[], totalZones: number): Record<number, ZoneData> {
+  const state: Record<number, ZoneData> = {};
+  for (let i = 0; i < totalZones; i++) {
+    const players = buildGroupPlayersForZone(enrolled, i, totalZones);
+    const matches = buildRoundRobinMatches(players, i);
+    state[i] = { players, matches };
+  }
+  return state;
+}
+
 export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
   tournamentTitle,
   bestOfLegs,
@@ -74,22 +89,32 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
     setQualifiersCount(qualifiersPerGroup);
   }, [qualifiersPerGroup]);
 
-  // Inicializar o sincronizar jugadores del grupo según los inscriptos reales
-  const [groupPlayers, setGroupPlayers] = useState<GroupPlayer[]>(() => {
-    return buildGroupPlayersForZone(enrolledPlayers, selectedGroupIndex, groupsCount);
+  // Almacenar el estado de TODAS las zonas de forma independiente para que alternar entre zonas no borre resultados
+  const [zonesState, setZonesState] = useState<Record<number, ZoneData>>(() => {
+    return initializeAllZones(enrolledPlayers, groupsCount);
   });
 
-  const [groupMatches, setGroupMatches] = useState<GroupMatch[]>(() => {
-    const initialPlayers = buildGroupPlayersForZone(enrolledPlayers, selectedGroupIndex, groupsCount);
-    return buildRoundRobinMatches(initialPlayers, selectedGroupIndex);
-  });
+  const enrolledFingerprint = enrolledPlayers.map((p) => p.id).join(',');
 
-  // Reconstruir cuando cambian los jugadores inscriptos o la zona seleccionada
+  // Si cambia la estructura o cantidad de zonas, sincronizar preservando zonas existentes
   useEffect(() => {
-    const newZonePlayers = buildGroupPlayersForZone(enrolledPlayers, selectedGroupIndex, groupsCount);
-    setGroupPlayers(newZonePlayers);
-    setGroupMatches(buildRoundRobinMatches(newZonePlayers, selectedGroupIndex));
-  }, [enrolledPlayers, selectedGroupIndex, groupsCount]);
+    setZonesState((prev) => {
+      const allZonesPresent = Array.from({ length: groupsCount }).every((_, i) => !!prev[i]);
+      if (!allZonesPresent) {
+        return initializeAllZones(enrolledPlayers, groupsCount);
+      }
+      return prev;
+    });
+  }, [enrolledFingerprint, groupsCount]);
+
+  // Obtener datos de la zona actualmente seleccionada
+  const currentZoneData = zonesState[selectedGroupIndex] || {
+    players: buildGroupPlayersForZone(enrolledPlayers, selectedGroupIndex, groupsCount),
+    matches: buildRoundRobinMatches(buildGroupPlayersForZone(enrolledPlayers, selectedGroupIndex, groupsCount), selectedGroupIndex)
+  };
+
+  const groupPlayers = currentZoneData.players;
+  const groupMatches = currentZoneData.matches;
 
   // Partido seleccionado para el dispatcher modal
   const [activeDispatchMatch, setActiveDispatchMatch] = useState<GroupMatch | null>(null);
@@ -105,10 +130,12 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
 
   const handleSaveQuickResult = (scoreP1: number, scoreP2: number, winnerId: string) => {
     if (!activeDispatchMatch) return;
+    // Guardia de seguridad: evitar doble conteo si el partido ya estaba finalizado
+    if (activeDispatchMatch.status === 'FINISHED') return;
 
-    // Actualizar partido
-    setGroupMatches((prev) =>
-      prev.map((m) =>
+    setZonesState((prev) => {
+      const current = prev[selectedGroupIndex] || currentZoneData;
+      const updatedMatches = current.matches.map((m) =>
         m.id === activeDispatchMatch.id
           ? {
               ...m,
@@ -118,12 +145,9 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
               winnerId
             }
           : m
-      )
-    );
+      );
 
-    // Actualizar estadísticas del grupo
-    setGroupPlayers((prev) =>
-      prev.map((p) => {
+      const updatedPlayers = current.players.map((p) => {
         if (p.id === activeDispatchMatch.player1Id) {
           const isWinner = winnerId === p.id;
           return {
@@ -149,8 +173,38 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
           };
         }
         return p;
-      })
-    );
+      });
+
+      return {
+        ...prev,
+        [selectedGroupIndex]: {
+          players: updatedPlayers,
+          matches: updatedMatches
+        }
+      };
+    });
+  };
+
+  // Función para cruzar los mejores clasificados de TODAS las zonas hacia la llave de playoffs
+  const handleAdvanceAllToPlayoffs = () => {
+    if (!onAdvanceToBracket) return;
+
+    const allQualifiedPlayers: GroupPlayer[] = [];
+    for (let i = 0; i < groupsCount; i++) {
+      const zoneData = zonesState[i];
+      if (zoneData) {
+        const sorted = [...zoneData.players].sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          const diffB = b.legsFor - b.legsAgainst;
+          const diffA = a.legsFor - a.legsAgainst;
+          if (diffB !== diffA) return diffB - diffA;
+          return b.legsFor - a.legsFor;
+        });
+        allQualifiedPlayers.push(...sorted.slice(0, qualifiersCount));
+      }
+    }
+
+    onAdvanceToBracket(allQualifiedPlayers);
   };
 
   return (
@@ -214,10 +268,10 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
 
           {onAdvanceToBracket && (
             <button
-              onClick={() => onAdvanceToBracket(sortedStandings.slice(0, qualifiersCount))}
+              onClick={handleAdvanceAllToPlayoffs}
               className="px-3.5 py-2 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black text-xs flex items-center gap-1.5 transition-all shadow-md shadow-[#00e676]/20"
             >
-              <span>Cruzar {qualifiersCount} a Playoffs</span>
+              <span>Cruzar Clasificados a Playoffs ({qualifiersCount} x Zona)</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5]" />
             </button>
           )}

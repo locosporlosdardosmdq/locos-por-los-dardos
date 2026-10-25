@@ -1,3 +1,37 @@
+- [x] **Blindaje de Seguridad, Mitigación de Vulnerabilidades y Estabilidad de Producción (Auditoría Crítica 2026-10-25):**
+  * **C1 - Remoción de Credenciales Hardcodeadas (`src/lib/db.ts`):**
+    - Se eliminó la cadena de conexión con credenciales embebidas de Supabase.
+    - Se estableció el requerimiento estricto de variables de entorno (`DATABASE_URL` / `DIRECT_URL`), lanzando excepción en tiempo de ejecución si faltan.
+  * **C2 & C5 - Autenticación y Autorización en Servidor (`src/lib/server-auth.ts`, `client-auth.ts`):**
+    - Implementación de `isAuthorizedAdmin()` para validar requests contra variables seguras de entorno (`ADMIN_PIN`, `ADMIN_MASTER_PASSWORD`, `CRON_SECRET`).
+    - Eliminado el botón de autocompletado de contraseña de desarrollo en `/superadmin`.
+    - Blindaje de endpoints mutadores: `POST/DELETE /api/torneos`, `PATCH/DELETE /api/inscripciones`, `PATCH /api/jugadores` (rol/estado) retornan `401 Unauthorized` ante requests no autorizadas.
+  * **C3 - Prevención de Account Takeover y Escalación de Privilegios (`/api/jugadores`):**
+    - Eliminada la asignación dinámica de rol `SUPERADMIN` basada en nickname, nombre o email. El rol proviene estrictamente de `row.role` en base de datos.
+    - Eliminado `OR LOWER(nickname) = $2` en creación de perfiles para evitar que nuevos registros usurpen perfiles de administradores existentes.
+    - Creación de nuevos usuarios forzada a rol `PLAYER`.
+  * **C4 - Protección de PII (Datos Personales):**
+    - En `/api/jugadores` (GET público): enmascaramiento de `email` y `phone` para consultas no administrativas.
+    - En `/api/inscripciones` (GET público): enmascaramiento de DNI/Pasaporte, WhatsApp, email, comensales y restricciones dietéticas para llamadas públicas.
+  * **C6 - Sanitización de Errores Internos:**
+    - Errores de SQL o base de datos ya no se propagan al cliente con `err.message` en `/api/torneos`, `/api/inscripciones`, `/api/salas` ni `/api/webhook/mercadopago`.
+  * **C7 - Persistencia del Webhook de Mercado Pago (`/api/webhook/mercadopago`):**
+    - Integración de persistencia real en PostgreSQL para `orders` (`payment_status = 'APPROVED'`) y `grand_tournament_registrations` (`payment_status = 'CONFIRMED'`) al recibir notificaciones de pago aprobado.
+    - Soporte híbrido para query params y JSON body de Mercado Pago v2.
+  * **A2 - Fechas en Upsert de Torneos (`/api/torneos`):**
+    - Agregado `start_date` y `end_date` en la cláusula `ON CONFLICT (id) DO UPDATE SET`.
+  * **A8 - Corrección de Hooks en `EditTournamentModal.tsx`:**
+    - Mapeo incondicional de todos los hooks de React (`useMemo`, `useState`) antes de cualquier retorno condicional, evitando violaciones a las Reglas de los Hooks.
+    - Sincronización del formulario restringida a `[isOpen, tournament?.id]` para evitar reseteos involuntarios durante el polling de torneos.
+  * **A9 - Fase de Grupos Multi-Zona (`TournamentGroupStage.tsx`):**
+    - Estado indexado por zona (`zonesState: Record<number, ZoneData>`) para evitar pérdida de resultados al navegar entre pestañas de zonas.
+    - Guarda contra doble conteo de victorias/puntos en partidos ya finalizados (`FINISHED`).
+    - Avance consolidado a playoffs para todos los clasificados de todas las zonas.
+  * **Limpieza de Repositorio:**
+    - Purgados scripts auxiliares `descargar.js` y `descargar.js.txt` del árbol de Git.
+  * **Validación:**
+    - `npx tsc --noEmit` completado con 0 errores (código de salida 0).
+
 - [x] **Corrección de Byes Ficticios 3-0, Desbloqueo de Edición de Llaves y Reapertura de Inscripciones (`bracket-engine.ts` y Supabase):**
   * **Diagnóstico de Bloqueo:**
     - Al crear o sembrar llaves eliminatorias con 2 jugadores (Dogan y Rubio), el motor ejecutaba `reportResult` con score 3-0 para cada slot de Bye.

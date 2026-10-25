@@ -47,49 +47,47 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
   isAdmin = false,
   onSaveTournament
 }) => {
-  if (!isOpen || !tournament) return null;
-
   // Detectar si el torneo ya tiene desarrollo deportivo iniciado por humanos (excluyendo Byes)
   const hasMatchesPlayed = useMemo(() => {
-    return hasRealMatchesPlayed(tournament);
+    return tournament ? hasRealMatchesPlayed(tournament) : false;
   }, [tournament]);
 
-  const enrolledCount = tournament.enrolledPlayers?.length || tournament.registeredCount || 1;
+  const enrolledCount = tournament?.enrolledPlayers?.length || tournament?.registeredCount || 1;
 
   // Estados locales del formulario
-  const [title, setTitle] = useState(tournament.title);
-  const [description, setDescription] = useState(tournament.description);
-  const [status, setStatus] = useState<TournamentStatus>(tournament.status);
-  const [type, setType] = useState<TournamentType>(tournament.type);
-  const [format, setFormat] = useState<TournamentFormat>(tournament.format);
-  const [competitionMode, setCompetitionMode] = useState<CompetitionMode>(tournament.competitionMode || 'STANDALONE_DAY');
-  const [leagueId, setLeagueId] = useState<string>(tournament.leagueId || 'league-local-mdq');
-  const [nationalStageType, setNationalStageType] = useState<NationalStageType>(tournament.nationalStageType || 'ONLINE');
-  const [venueName, setVenueName] = useState(tournament.venueName);
-  const [city, setCity] = useState(tournament.city);
-  const [province, setProvince] = useState(tournament.province);
-  const [startDate, setStartDate] = useState(tournament.startDate ? tournament.startDate.slice(0, 16) : '');
-  const [maxParticipants, setMaxParticipants] = useState(tournament.maxParticipants);
-  const [bestOfLegs, setBestOfLegs] = useState(tournament.bestOfLegs);
-  const [isPaid, setIsPaid] = useState<boolean>(tournament.isPaid !== false && tournament.entryFeeArs > 0);
-  const [hasCashPrizes, setHasCashPrizes] = useState<boolean>(tournament.hasCashPrizes ?? (tournament.prizePoolArs > 0));
-  const [entryFeeArs, setEntryFeeArs] = useState(tournament.entryFeeArs || 0);
-  const [prizePoolArs, setPrizePoolArs] = useState(tournament.prizePoolArs || 0);
+  const [title, setTitle] = useState(tournament?.title || '');
+  const [description, setDescription] = useState(tournament?.description || '');
+  const [status, setStatus] = useState<TournamentStatus>(tournament?.status || 'REGISTRATION_OPEN');
+  const [type, setType] = useState<TournamentType>(tournament?.type || 'PRESENCIAL');
+  const [format, setFormat] = useState<TournamentFormat>(tournament?.format || 'SINGLE_ELIMINATION');
+  const [competitionMode, setCompetitionMode] = useState<CompetitionMode>(tournament?.competitionMode || 'STANDALONE_DAY');
+  const [leagueId, setLeagueId] = useState<string>(tournament?.leagueId || 'league-local-mdq');
+  const [nationalStageType, setNationalStageType] = useState<NationalStageType>(tournament?.nationalStageType || 'ONLINE');
+  const [venueName, setVenueName] = useState(tournament?.venueName || '');
+  const [city, setCity] = useState(tournament?.city || 'Mar del Plata');
+  const [province, setProvince] = useState(tournament?.province || 'Buenos Aires');
+  const [startDate, setStartDate] = useState(tournament?.startDate ? tournament.startDate.slice(0, 16) : '');
+  const [maxParticipants, setMaxParticipants] = useState(tournament?.maxParticipants || 32);
+  const [bestOfLegs, setBestOfLegs] = useState(tournament?.bestOfLegs || 5);
+  const [isPaid, setIsPaid] = useState<boolean>(tournament ? (tournament.isPaid !== false && tournament.entryFeeArs > 0) : false);
+  const [hasCashPrizes, setHasCashPrizes] = useState<boolean>(tournament ? (tournament.hasCashPrizes ?? (tournament.prizePoolArs > 0)) : false);
+  const [entryFeeArs, setEntryFeeArs] = useState(tournament?.entryFeeArs || 0);
+  const [prizePoolArs, setPrizePoolArs] = useState(tournament?.prizePoolArs || 0);
 
   // Configuración de Grupos / Zonas (Formato ROUND_ROBIN)
-  const [groupsCount, setGroupsCount] = useState<number>(tournament.groupsCount || 2);
-  const [qualifiersPerGroup, setQualifiersPerGroup] = useState<number>(tournament.qualifiersPerGroup || 2);
+  const [groupsCount, setGroupsCount] = useState<number>(tournament?.groupsCount || 2);
+  const [qualifiersPerGroup, setQualifiersPerGroup] = useState<number>(tournament?.qualifiersPerGroup || 2);
 
   // Configuración de Distancia x Ronda
   const [showDetailedLegs, setShowDetailedLegs] = useState(false);
-  const [quarterLegs, setQuarterLegs] = useState(tournament.roundLegsConfig?.quarterFinals || 3);
-  const [semiLegs, setSemiLegs] = useState(tournament.roundLegsConfig?.semiFinals || 4);
-  const [finalsLegs, setFinalsLegs] = useState(tournament.roundLegsConfig?.finals || 5);
-  const [grandFinalLegs, setGrandFinalLegs] = useState(tournament.roundLegsConfig?.grandFinal || 5);
+  const [quarterLegs, setQuarterLegs] = useState(tournament?.roundLegsConfig?.quarterFinals || 3);
+  const [semiLegs, setSemiLegs] = useState(tournament?.roundLegsConfig?.semiFinals || 4);
+  const [finalsLegs, setFinalsLegs] = useState(tournament?.roundLegsConfig?.finals || 5);
+  const [grandFinalLegs, setGrandFinalLegs] = useState(tournament?.roundLegsConfig?.grandFinal || 5);
 
-  // Sincronizar estado cuando cambia el torneo seleccionado
+  // Sincronizar estado cuando se abre el modal o cambia el ID del torneo (no resetear en polling)
   useEffect(() => {
-    if (tournament) {
+    if (isOpen && tournament) {
       setTitle(tournament.title);
       setDescription(tournament.description);
       setStatus(tournament.status);
@@ -115,10 +113,11 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
       setFinalsLegs(tournament.roundLegsConfig?.finals || 5);
       setGrandFinalLegs(tournament.roundLegsConfig?.grandFinal || 5);
     }
-  }, [tournament]);
+  }, [isOpen, tournament?.id]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tournament) return;
     if (!title.trim()) {
       alert('El nombre del torneo no puede estar vacío.');
       return;
@@ -209,6 +208,8 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
     onSaveTournament(updatedTourney, shouldRegenerateMatches);
     onClose();
   };
+
+  if (!isOpen || !tournament) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">

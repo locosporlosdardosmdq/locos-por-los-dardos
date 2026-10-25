@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { GrandTournamentRegistration, Tournament, League, LandingShowcaseSettings } from '@/lib/types';
 import { getCountryFlag } from '@/lib/constants';
 import { saveStoredGrandTournamentRegistrations, saveGrandTournamentRegistrationToCloud } from '@/lib/storage';
+import { getAdminRequestHeaders } from '@/lib/client-auth';
 import { GrandTournamentEnrollModal } from '@/components/comunidad/GrandTournamentEnrollModal';
 import { 
   Users, 
@@ -360,7 +361,7 @@ export const PresencialEnrollmentsManager: React.FC<PresencialEnrollmentsManager
         // Sync con la nube
         fetch('/api/inscripciones', {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAdminRequestHeaders(),
           body: JSON.stringify({ id: regId, paymentStatus: nextStatus })
         }).catch(e => console.warn('Error patching payment status in cloud:', e));
         return updatedReg;
@@ -382,7 +383,8 @@ export const PresencialEnrollmentsManager: React.FC<PresencialEnrollmentsManager
     if (onUpdateRegistrations) onUpdateRegistrations(updated);
 
     fetch(`/api/inscripciones?id=${encodeURIComponent(regId)}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: getAdminRequestHeaders()
     }).catch(e => console.warn('Error deleting in cloud:', e));
   };
 

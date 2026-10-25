@@ -1272,6 +1272,24 @@
   3. Se establece el modelo deportivo de cruce olímpico (Cross-Seeding): los 2 primeros de cada grupo avanzan a los Playoffs cruzándose el 1º de una zona contra el 2º de la otra (1ºA vs 2ºB y 1ºB vs 2ºA), evitando que se crucen entre sí hasta la Gran Final para premiar el mérito deportivo.
 - **Motivo:** Brinda flexibilidad total a los organizadores para torneos relámpago, ligas cortas y campeonatos federados.
 
+---
+
+## [ADR-060] Blindaje de Seguridad del Servidor, Autorización RBAC, Enmascaramiento PII y Persistencia de Webhooks
+
+- **Fecha:** 2026-10-25
+- **Estado:** ACEPTADA
+- **Contexto:**
+  La auditoría crítica de seguridad (2026-10-25) detectó: (1) Credenciales hardcodeadas de base de datos en código fuente; (2) Ausencia de validación de identidad/rol en endpoints REST mutadores (`POST`, `PATCH`, `DELETE`); (3) Exposición de datos personales sensibles (PII: DNI, teléfono, email, dietas) en llamadas públicas; (4) Posibilidad de escalación de privilegios o account takeover al derivar roles o matchear perfiles por apodo/nombre; (5) Webhook de Mercado Pago sin persistencia de transacciones; (6) Violación de Reglas de los Hooks en modales de torneos.
+- **Decisión:**
+  1. **Remoción de Credenciales y Validación Estricta de Entorno:** Se eliminó cualquier connection string embebido en `src/lib/db.ts`. Se exige la presencia estricta de `DATABASE_URL` o `DIRECT_URL`, lanzando error inmediato si no están configuradas.
+  2. **Autorización en Servidor (`src/lib/server-auth.ts`):** Todas las operaciones mutadoras (`POST/DELETE /api/torneos`, `PATCH/DELETE /api/inscripciones`, `PATCH /api/jugadores` de rol y estado) validan obligatoriamente la autorización mediante tokens/PIN en cabeceras de servidor (`x-admin-pin` o Bearer secret), retornando `401 Unauthorized` si no coinciden con las variables de entorno (`ADMIN_PIN`, `ADMIN_MASTER_PASSWORD`, `CRON_SECRET`).
+  3. **Enmascaramiento de PII:** Las rutas públicas `GET /api/jugadores` y `GET /api/inscripciones` enmascaran automáticamente emails, teléfonos, documentos (DNI/Pasaporte) y datos dietéticos, haciéndolos accesibles únicamente para administradores autorizados.
+  4. **Roles desde Base de Datos e Inmutabilidad de Cuentas:** El rol administrativo (`SUPERADMIN`, `ADMIN`, `PLAYER`) se obtiene exclusivamente de la columna `users.role` en PostgreSQL, eliminando cualquier lógica basada en apodos, nombres o emails hardcodeados. En creación de nuevos usuarios, el rol asignado es siempre `PLAYER`.
+  5. **Persistencia de Mercado Pago:** El handler `/api/webhook/mercadopago` actualiza el estado de las órdenes en la tabla `orders` (`payment_status = 'APPROVED' | 'REJECTED'`) y confirma las inscripciones de torneos en `grand_tournament_registrations` (`payment_status = 'CONFIRMED'`) de forma idempotente y con manejo sanitizado de excepciones.
+  6. **Estabilidad de UI en Torneos:** `EditTournamentModal` ubica todos los hooks al inicio del componente para respetar las reglas de React, evitando reseteos por polling. `TournamentGroupStage` indexa el estado de todas las zonas para preservar resultados y fixtures al alternar pestañas.
+- **Motivo:** Protege la plataforma contra accesos no autorizados, ataques de escalación de privilegios, filtración de datos de competidores y pérdidas de estado durante eventos deportivos en vivo.
+
+
 
 
 

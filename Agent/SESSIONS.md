@@ -1,5 +1,36 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 50] - 2026-10-25
+- **Objetivos:**
+  1. Revisar críticamente el documento de auditoría de seguridad y código (`auditoria_critica_2026-10-25.md`).
+  2. Implementar los blindajes de seguridad críticos (C1–C7): eliminar credenciales hardcodeadas, añadir autorización del lado servidor en endpoints mutadores, prevenir usurpación de cuentas (account takeover), proteger datos personales (PII), sanitizar errores internos y conectar la persistencia del webhook de Mercado Pago.
+  3. Resolver bugs prioritarios (A2, A8, A9): corregir fechas en upsert de torneos, normalizar hooks en `EditTournamentModal` para evitar reseteos de formulario por polling y estructurar la fase de grupos multi-zona persistente en `TournamentGroupStage`.
+  4. Purgar scripts obsoletos del repositorio (`descargar.js`, `descargar.js.txt`).
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Seguridad de Servidor vs Seguridad de Cliente:* Se comprobó que el control de acceso residía casi exclusivamente en el frontend (localStorage, emails hardcodeados, botones con PIN embebido). Cualquier cliente REST podía manipular la base de datos sin autorización.
+  2. *Protección de PII y Roles Inmutables:* Endpoints como `/api/jugadores` y `/api/inscripciones` exponían DNI, teléfonos y correos a cualquiera y otorgaban rol SUPERADMIN dinámicamente según apodos o nombres. Se blindaron ambos endpoints para requerir cabeceras administrativas antes de revelar PII o conceder permisos.
+  3. *Reglas de los Hooks:* `EditTournamentModal` contenía un early return condicional antes de hooks de React, violando las reglas oficiales y provocando desincronizaciones de estado durante el polling. Se unificaron los hooks al inicio del componente.
+  4. *Webhook de Mercado Pago:* La ruta recibía notificaciones pero no persistía el pago en base de datos. Se conectó con el pool de Supabase para actualizar tanto `orders` (`payment_status = 'APPROVED'`) como `grand_tournament_registrations` (`payment_status = 'CONFIRMED'`).
+- **Realizado:**
+  - `src/lib/db.ts`: Eliminado connection string de fallback con credenciales Supabase. Lanzamiento estricto de excepción si falta `DATABASE_URL`/`DIRECT_URL`.
+  - `src/lib/server-auth.ts`: Creado helper de validación en servidor `isAuthorizedAdmin()` para verificar cabeceras `x-admin-pin` y Bearer tokens contra variables de entorno seguras.
+  - `src/lib/client-auth.ts`: Creado helper de cliente `getAdminRequestHeaders()` para adjuntar credenciales seguras en llamadas administrativas.
+  - `src/app/api/jugadores/route.ts`: Enmascaramiento de PII en GET; rol derivado exclusivamente de `row.role`; creación de usuarios forzada a rol `PLAYER`; eliminación de usurpación por nickname; protección de `PATCH` con `isAuthorizedAdmin()`.
+  - `src/app/api/torneos/route.ts`: Requerimiento de `isAuthorizedAdmin()` para `POST` y `DELETE`; inclusión de `start_date` y `end_date` en la cláusula de upsert (`ON CONFLICT (id) DO UPDATE SET`); sanitización de respuestas de error.
+  - `src/app/api/inscripciones/route.ts`: Enmascaramiento de PII para llamadas públicas en `GET`; blindaje de `PATCH` y `DELETE` con `isAuthorizedAdmin()`; sanitización de errores SQL.
+  - `src/app/api/salas/route.ts`: Sanitización de error en respuesta (eliminado `details: err.message`).
+  - `src/app/api/webhook/mercadopago/route.ts`: Persistencia en PostgreSQL para órdenes e inscripciones al confirmar pagos; soporte de query params y JSON body; sanitización de errores.
+  - `src/app/superadmin/page.tsx`: Eliminado botón de autocompletado de PIN de desarrollo; agregado de `getAdminRequestHeaders()` en peticiones administrativas.
+  - `src/components/superadmin/PresencialEnrollmentsManager.tsx`: Integración de cabeceras administrativas en operaciones `PATCH` y `DELETE` de inscripciones.
+  - `src/lib/storage.ts`: Envío de cabeceras de administración en guardado/borrado de torneos y consulta completa de jugadores/inscripciones.
+  - `src/components/torneos/EditTournamentModal.tsx`: Reubicación de hooks al inicio del componente; sincronización de formulario limitada a `[isOpen, tournament?.id]`; guard `if (!tournament) return;` en submit.
+  - `src/components/torneos/TournamentGroupStage.tsx`: Estado multi-zona indexado (`zonesState: Record<number, ZoneData>`); guardia contra doble conteo en partidos finalizados; avance de todos los clasificados de todas las zonas a playoffs.
+  - Purgados scripts auxiliares `descargar.js` y `descargar.js.txt` de Git.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+  - Verificada la sanitización en todas las rutas API críticas.
+- **Estado del Proyecto:** Plataforma blindada a nivel servidor, PII protegido, control RBAC inmutable, webhooks persistidos y modales de torneos estables.
+
 ## [Sesión 49] - 2026-10-25
 - **Objetivos:**
   1. Corregir generación indebida de partidos ficticios 3-0 ("Finalizados") causados por Byes automáticos en llaves con pocos inscriptos (Dogan y Rubio) que bloqueaban la edición de la llave y congelaban el modal de administración.

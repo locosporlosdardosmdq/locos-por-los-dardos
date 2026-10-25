@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Acción no soportada.' }, { status: 400 });
   } catch (err: any) {
-    return NextResponse.json({ error: 'Error procesando solicitud de sala.', details: err.message }, { status: 500 });
+    console.error('[API /api/salas Error]:', err);
+    return NextResponse.json({ error: 'Error procesando solicitud de sala.' }, { status: 500 });
   }
 }

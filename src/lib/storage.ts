@@ -4,6 +4,7 @@
  */
 
 import { MatchConfig, LandingShowcaseSettings, GrandTournamentRegistration } from './types';
+import { getAdminRequestHeaders } from './client-auth';
 
 export interface SavedMatch {
   id: string;
@@ -328,7 +329,9 @@ export function clearCurrentPlayerSession(): void {
 export async function fetchRegisteredPlayersFromCloud(includeAll = false): Promise<any[]> {
   try {
     const url = includeAll ? '/api/jugadores?all=true' : '/api/jugadores';
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: includeAll ? getAdminRequestHeaders() : undefined
+    });
     if (!res.ok) throw new Error('Error al consultar /api/jugadores');
     const data = await res.json();
     if (data.success && Array.isArray(data.players)) {
@@ -387,7 +390,7 @@ export async function saveTournamentToCloud(tournament: any): Promise<boolean> {
   try {
     const res = await fetch('/api/torneos', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminRequestHeaders(),
       body: JSON.stringify({ tournament })
     });
     return res.ok;
@@ -400,7 +403,8 @@ export async function saveTournamentToCloud(tournament: any): Promise<boolean> {
 export async function deleteTournamentFromCloud(id: string): Promise<boolean> {
   try {
     const res = await fetch(`/api/torneos?id=${encodeURIComponent(id)}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: getAdminRequestHeaders()
     });
     return res.ok;
   } catch (err) {
@@ -772,7 +776,10 @@ export function addGrandTournamentRegistration(reg: GrandTournamentRegistration)
 export async function fetchGrandTournamentRegistrationsFromCloud(tournamentId?: string): Promise<GrandTournamentRegistration[]> {
   try {
     const url = tournamentId ? `/api/inscripciones?tournamentId=${encodeURIComponent(tournamentId)}` : '/api/inscripciones';
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, { 
+      cache: 'no-store',
+      headers: getAdminRequestHeaders()
+    });
     if (!res.ok) throw new Error('Error al consultar /api/inscripciones');
     const data = await res.json();
     if (data.success && Array.isArray(data.registrations)) {

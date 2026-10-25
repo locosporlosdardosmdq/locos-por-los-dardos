@@ -1,3 +1,18 @@
+- [x] **Purga de Usuario Dummy (`zeus@locosporlosdardos.com.ar`) y Asignación de Presidencia a `airesrvice@gmail.com`:**
+  * **Diagnóstico de Conflicto:**
+    - `zeus@locosporlosdardos.com.ar` fue un usuario dummy anterior que retenía el perfil de Gabriel Rubio ("ZEUS", AVG 65.0, AVANZADA, Presidente de la Asociación Marplatense de Dardos).
+    - Gabriel Rubio creó su cuenta legítima con `airesrvice@gmail.com`, pero el sistema le había asignado una fila secundaria provisional ("Airesrvice", AVG 45.0), causando duplicidad en el Padrón de SuperAdmin y bloqueando el reconocimiento de su perfil dirigencial.
+  * **Acciones Ejecutadas:**
+    - Purga atómica en Supabase PostgreSQL de `zeus@locosporlosdardos.com.ar` de `public.users`, `player_stats`, `auth.identities` y `auth.users`.
+    - Eliminación de la ficha temporal provisional "Airesrvice".
+    - Asignación oficial e íntegra del perfil `GABRIEL RUBIO` ("ZEUS", Presidente, AVANZADA, AVG 65.0, Mar del Plata Oficial, rol ADMIN) a la cuenta de usuario `airesrvice@gmail.com`.
+    - Actualización de `src/lib/constants.ts` (`DEFAULT_ASSOCIATION_AUTHORITIES`) con email y teléfono de Gabriel Rubio.
+  * **Validación de Compilación y Base de Datos:**
+    - Cero registros de `zeus@locosporlosdardos.com.ar` restantes.
+    - Autenticación por email `airesrvice@gmail.com` o apodo `ZEUS` retorna de inmediato la Ficha Oficial de Gabriel Rubio con promedio de 65.0 y rango de Presidente.
+    - Padrón de SuperAdmin consolidado en 14 jugadores únicos sin duplicidad.
+    - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Resolución de Error de Inicio de Sesión (`airesrvice@gmail.com`) y Bypass de Rate Limit de Supabase:**
   * **Diagnóstico de Caso `airesrvice@gmail.com`:**
     - Causa del error visual: Supabase Auth arrojó `email rate limit exceeded` (límite de 3 correos por hora del plan gratuito de Supabase saturado).

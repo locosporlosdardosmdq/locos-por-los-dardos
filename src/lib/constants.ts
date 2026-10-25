@@ -676,6 +676,8 @@ export const DEFAULT_ASSOCIATION_AUTHORITIES: AssociationAuthority[] = [
     name: 'Gabriel Rubio',
     nickname: 'ZEUS',
     roleTitle: 'Presidente',
+    email: 'airesrvice@gmail.com',
+    phoneWhatsApp: '+542236959902',
     photoUrl: '/logos/logo-mdq.png',
     avatarUrl: '/logos/logo-mdq.png',
     club: 'Darderos Mar del Plata Oficial',

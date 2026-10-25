@@ -1,5 +1,28 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 48] - 2026-10-24
+- **Objetivo:** Purgar el usuario dummy conflictivo `zeus@locosporlosdardos.com.ar` y consolidar de manera definitiva la Ficha Deportiva e Institucional de Presidente de la Asociación Marplatense de Dardos a Gabriel Rubio ("ZEUS") con su cuenta legítima `airesrvice@gmail.com`.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Conflicto Identificado:* En la base de datos de Supabase PostgreSQL coexistían dos registros:
+     - El usuario dummy `zeus@locosporlosdardos.com.ar` (`13fb5806-8d99-4d25-bedc-72068d79ac98`), que retenía el perfil de Gabriel Rubio ("ZEUS", AVG 65.0, AVANZADA, Presidente).
+     - La cuenta real `airesrvice@gmail.com` (`d3e5d5ea-b14c-4e00-ae71-f3b56ea71e4b`), que al ingresar había recibido un perfil secundario provisional ("Airesrvice", AVG 45.0, INTERMEDIA).
+  2. *Impacto en SuperAdmin y Login:* En el Padrón de SuperAdmin aparecían 2 filas para la misma persona física (una con 65.0 AVG y otra con 45.0 AVG). Además, cuando Gabriel Rubio intentaba identificarse con su correo real, el sistema no le vinculaba su presidencia ni su promedio histórico de 65.0.
+- **Acciones Ejecutadas:**
+  1. *Purga Atómica en Transacción (`BEGIN ... COMMIT`):*
+     - Eliminación de la fila provisional temporal de `profiles` (`8c28ca5f-aee3-433c-8d66-b2f7fdd97adb`).
+     - Reasignación de la ficha oficial federada (`bd0b12fe-43e0-41f0-ad22-e7843fcdd100`) directamente al ID de usuario de `airesrvice@gmail.com` con `full_name = 'GABRIEL RUBIO'`, `nickname = 'ZEUS'`, `category = 'AVANZADA'`, `initial_estimated_avg = 65.00`, `association_role = 'Presidente • Asociación Mar del Plata'`, `club = 'Darderos Mar del Plata Oficial'`, `role = 'ADMIN'`, `status = 'ACTIVE'`.
+     - Actualización de `player_stats` garantizando `overall_avg = 65.00` y `first_9_avg = 65.00`.
+     - Eliminación de `player_stats` y de `public.users` del usuario dummy `13fb5806-8d99-4d25-bedc-72068d79ac98` (`zeus@locosporlosdardos.com.ar`).
+     - Eliminación de `auth.identities` y `auth.users` de `zeus@locosporlosdardos.com.ar`.
+  2. *Actualización de Autoridades en Código:*
+     - Actualización en `src/lib/constants.ts` (`DEFAULT_ASSOCIATION_AUTHORITIES`) incorporando `email: 'airesrvice@gmail.com'` y WhatsApp oficial.
+- **Validación:**
+  - Consulta directa a Supabase: cero registros de `zeus@locosporlosdardos.com.ar` en `public.users`, `auth.users` ni `profiles`.
+  - Simulación de `/api/auth`: tanto buscando por `airesrvice@gmail.com` como por `ZEUS` se retorna de inmediato la Ficha Oficial de Gabriel Rubio, Presidente, AVG 65.0, Categoría AVANZADA.
+  - Padrón de Jugadores en `/api/jugadores`: exactamente 14 jugadores consolidados, con Gabriel Rubio en la posición #1 con 65.0 AVG sin duplicidad.
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Base de datos limpia y unificada; Gabriel Rubio ("ZEUS") reconocido como Presidente con su correo `airesrvice@gmail.com`.
+
 ## [Sesión 47] - 2026-10-24
 - **Objetivo:** Resolver el incidente de inicio de sesión del usuario `airesrvice@gmail.com` bloqueado por `email rate limit exceeded`, crear su ficha oficial en PostgreSQL de Supabase e implementar el bypass de autenticación directa y resiliente en `LoginModal.tsx` y `/api/auth`.
 - **Diagnóstico y Análisis Consultivo:**

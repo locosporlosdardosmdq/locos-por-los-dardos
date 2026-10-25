@@ -1215,6 +1215,35 @@
      - En la búsqueda por apodo, ahora se ofrece el botón `[⚡ Entrar]` de 1 clic para iniciar sesión de inmediato cuando el jugador encuentra su ficha.
 - **Motivo:** Garantiza que ningún competidor quede afuera de la plataforma por cuotas de correo de terceros ni demoras en la bandeja de entrada.
 
+---
+
+## [ADR-057] Purga de Usuario Dummy (`zeus@locosporlosdardos.com.ar`) y Unificación Oficial de Presidencia a `airesrvice@gmail.com` (Gabriel Rubio)
+
+- **Fecha:** 2026-10-24
+- **Estado:** ACEPTADA
+- **Contexto:**
+  Gabriel Rubio ("ZEUS"), Presidente de la Asociación Marplatense de Dardos, se registró en la plataforma utilizando su correo personal legítimo `airesrvice@gmail.com`.
+  Sin embargo, en la base de datos central de Supabase PostgreSQL coexistían dos entidades en conflicto:
+  1. Un usuario dummy generado previamente (`zeus@locosporlosdardos.com.ar`) que retenía la ficha histórica y deportiva de "GABRIEL RUBIO" (Apodo: "ZEUS", AVG: 65.0, Categoría: AVANZADA, Rol: Presidente).
+  2. La nueva cuenta de usuario `airesrvice@gmail.com`, a la que el sistema le había creado provisionalmente una ficha secundaria genérica ("Airesrvice", AVG: 45.0, INTERMEDIA).
+  Esto provocaba duplicidad en el Padrón de Jugadores de SuperAdmin y bloqueaba el acceso de Gabriel Rubio a su ficha deportiva y rango dirigencial oficial.
+- **Decisión:**
+  1. **Purga Transaccional Segura:** Se eliminó de manera atómica (`BEGIN ... COMMIT`) el usuario dummy `zeus@locosporlosdardos.com.ar` de `public.users`, `player_stats`, `auth.identities` y `auth.users`.
+  2. **Unificación Oficial de Ficha Deportiva e Institucional:** Se asignó la ficha federada de Gabriel Rubio (`bd0b12fe-43e0-41f0-ad22-e7843fcdd100`) directamente al ID de usuario de `airesrvice@gmail.com`:
+     - Nombre: `GABRIEL RUBIO`
+     - Apodo: `ZEUS`
+     - Email: `airesrvice@gmail.com`
+     - Rol Institucional: `Presidente • Asociación Mar del Plata`
+     - Categoría: `AVANZADA`
+     - AVG Oficial: `65.00`
+     - Club: `Darderos Mar del Plata Oficial`
+     - Rol en Plataforma: `ADMIN` (acceso y gestión)
+     - Estado: `ACTIVE`, verificado.
+  3. **Limpieza de Ficha Provisional:** Se eliminó la fila secundaria provisional creada temporalmente, dejando un único registro unificado en el Padrón.
+  4. **Autoridades Predeterminadas:** Se actualizó `DEFAULT_ASSOCIATION_AUTHORITIES` en `src/lib/constants.ts` reflejando su correo oficial `airesrvice@gmail.com` y teléfono WhatsApp.
+- **Motivo:** Garantiza la integridad de identidad federativa, elimina colisiones de autenticación y consolida el padrón deportivo de la Asociación.
+
+
 
 
 

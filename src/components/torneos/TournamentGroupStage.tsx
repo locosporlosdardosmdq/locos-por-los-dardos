@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MatchDispatcherModal } from './MatchDispatcherModal';
+import { PlayerProfile } from '@/lib/types';
 import { 
   Users, 
   Trophy, 
@@ -35,10 +36,21 @@ export interface GroupMatch {
   winnerId?: string;
 }
 
+export interface GroupEnrolledPlayer {
+  id: string;
+  name: string;
+  nickname?: string;
+  avatarUrl?: string;
+  seed?: number;
+  avg?: number;
+  isBye?: boolean;
+}
+
 interface TournamentGroupStageProps {
   tournamentTitle: string;
   bestOfLegs: number;
   groupsCount?: number;
+  enrolledPlayers?: GroupEnrolledPlayer[];
   onLaunchMatch: (match: GroupMatch, mode: 'LIVE' | 'ONLINE') => void;
   onAdvanceToBracket?: (qualifiedPlayers: GroupPlayer[]) => void;
 }
@@ -47,28 +59,28 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
   tournamentTitle,
   bestOfLegs,
   groupsCount = 2,
+  enrolledPlayers = [],
   onLaunchMatch,
   onAdvanceToBracket
 }) => {
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
 
-  // Grupo 1 inicial con jugadores de la comunidad
-  const [groupPlayers, setGroupPlayers] = useState<GroupPlayer[]>([
-    { id: 'p1', name: 'Mariano Deux (ICEMAN)', matchesPlayed: 0, matchesWon: 0, matchesLost: 0, legsFor: 0, legsAgainst: 0, points: 0 },
-    { id: 'p2', name: 'Por Acreditar #2', matchesPlayed: 0, matchesWon: 0, matchesLost: 0, legsFor: 0, legsAgainst: 0, points: 0 },
-    { id: 'p3', name: 'Por Acreditar #3', matchesPlayed: 0, matchesWon: 0, matchesLost: 0, legsFor: 0, legsAgainst: 0, points: 0 },
-    { id: 'p4', name: 'Por Acreditar #4', matchesPlayed: 0, matchesWon: 0, matchesLost: 0, legsFor: 0, legsAgainst: 0, points: 0 }
-  ]);
+  // Inicializar o sincronizar jugadores del grupo según los inscriptos reales
+  const [groupPlayers, setGroupPlayers] = useState<GroupPlayer[]>(() => {
+    return buildGroupPlayersForZone(enrolledPlayers, selectedGroupIndex, groupsCount);
+  });
 
-  // Partidos del grupo (Inicializados en 0 para disputa en vivo)
-  const [groupMatches, setGroupMatches] = useState<GroupMatch[]>([
-    { id: 'gm-1', player1Id: 'p1', player2Id: 'p2', player1Name: 'Mariano Deux (ICEMAN)', player2Name: 'Por Acreditar #2', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
-    { id: 'gm-2', player1Id: 'p3', player2Id: 'p4', player1Name: 'Por Acreditar #3', player2Name: 'Por Acreditar #4', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
-    { id: 'gm-3', player1Id: 'p1', player2Id: 'p3', player1Name: 'Mariano Deux (ICEMAN)', player2Name: 'Por Acreditar #3', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
-    { id: 'gm-4', player1Id: 'p2', player2Id: 'p4', player1Name: 'Por Acreditar #2', player2Name: 'Por Acreditar #4', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
-    { id: 'gm-5', player1Id: 'p1', player2Id: 'p4', player1Name: 'Mariano Deux (ICEMAN)', player2Name: 'Por Acreditar #4', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' },
-    { id: 'gm-6', player1Id: 'p2', player2Id: 'p3', player1Name: 'Por Acreditar #2', player2Name: 'Por Acreditar #3', scoreP1: 0, scoreP2: 0, status: 'SCHEDULED' }
-  ]);
+  const [groupMatches, setGroupMatches] = useState<GroupMatch[]>(() => {
+    const initialPlayers = buildGroupPlayersForZone(enrolledPlayers, selectedGroupIndex, groupsCount);
+    return buildRoundRobinMatches(initialPlayers, selectedGroupIndex);
+  });
+
+  // Reconstruir cuando cambian los jugadores inscriptos o la zona seleccionada
+  useEffect(() => {
+    const newZonePlayers = buildGroupPlayersForZone(enrolledPlayers, selectedGroupIndex, groupsCount);
+    setGroupPlayers(newZonePlayers);
+    setGroupMatches(buildRoundRobinMatches(newZonePlayers, selectedGroupIndex));
+  }, [enrolledPlayers, selectedGroupIndex, groupsCount]);
 
   // Partido seleccionado para el dispatcher modal
   const [activeDispatchMatch, setActiveDispatchMatch] = useState<GroupMatch | null>(null);
@@ -318,7 +330,7 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
         <MatchDispatcherModal
           isOpen={!!activeDispatchMatch}
           onClose={() => setActiveDispatchMatch(null)}
-          matchTitle="Fase de Grupos • Grupo 1"
+          matchTitle={`Fase de Grupos • Zona ${String.fromCharCode(65 + selectedGroupIndex)}`}
           player1Name={activeDispatchMatch.player1Name}
           player2Name={activeDispatchMatch.player2Name}
           player1Id={activeDispatchMatch.player1Id}
@@ -332,3 +344,65 @@ export const TournamentGroupStage: React.FC<TournamentGroupStageProps> = ({
     </div>
   );
 };
+
+// Asignar jugadores a cada zona (serpenteante o modular) y rellenar cupos mínimos de 4 por zona
+function buildGroupPlayersForZone(
+  enrolled: GroupEnrolledPlayer[],
+  zoneIndex: number,
+  totalZones: number
+): GroupPlayer[] {
+  // Filtrar jugadores correspondientes a esta zona
+  const zoneEnrolled = enrolled.filter((_, idx) => idx % totalZones === zoneIndex);
+
+  const players: GroupPlayer[] = zoneEnrolled.map((p) => ({
+    id: p.id,
+    name: p.name || p.nickname || 'Jugador',
+    matchesPlayed: 0,
+    matchesWon: 0,
+    matchesLost: 0,
+    legsFor: 0,
+    legsAgainst: 0,
+    points: 0
+  }));
+
+  // Asegurar mínimo de 4 integrantes para la zona
+  const targetCount = Math.max(4, players.length);
+  while (players.length < targetCount) {
+    const slotNum = players.length + 1;
+    players.push({
+      id: `slot-z${zoneIndex}-${slotNum}`,
+      name: `Por Acreditar #${slotNum}`,
+      matchesPlayed: 0,
+      matchesWon: 0,
+      matchesLost: 0,
+      legsFor: 0,
+      legsAgainst: 0,
+      points: 0
+    });
+  }
+
+  return players;
+}
+
+// Generar todos los cruces Round Robin (todos contra todos) del grupo
+function buildRoundRobinMatches(players: GroupPlayer[], zoneIndex: number): GroupMatch[] {
+  const matches: GroupMatch[] = [];
+  let matchCounter = 1;
+
+  for (let i = 0; i < players.length; i++) {
+    for (let j = i + 1; j < players.length; j++) {
+      matches.push({
+        id: `gm-z${zoneIndex}-${matchCounter++}`,
+        player1Id: players[i].id,
+        player2Id: players[j].id,
+        player1Name: players[i].name,
+        player2Name: players[j].name,
+        scoreP1: 0,
+        scoreP2: 0,
+        status: 'SCHEDULED'
+      });
+    }
+  }
+
+  return matches;
+}

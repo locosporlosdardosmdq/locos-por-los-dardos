@@ -211,25 +211,37 @@ export function generateSingleElimination(
     if (p2) match.player2 = { id: p2.id, name: p2.name, avatarUrl: p2.avatarUrl || '/logos/logo-mdq.png', seed: p2.seed, nationality: p2.nationality, countryCode: p2.countryCode };
   }
 
-  // 4. Resolver Byes inmediatos en la Ronda 1
+  // 4. Registrar Byes en la Ronda 1 sin simular partidos jugados ficticios con 3-0
   let updatedMatches = [...matches];
   for (const match of r1List) {
     if (match.player1 && !match.player2) {
-      // P1 gana por Bye
-      updatedMatches = reportResult(updatedMatches, match.id, {
-        scoreP1: legTarget,
-        scoreP2: 0,
-        winnerId: match.player1.id,
-        note: 'Pase Automático (BYE)'
-      });
+      match.note = 'Pase Automático (BYE)';
+      match.isBye = true;
+      match.scoreP1 = 0;
+      match.scoreP2 = 0;
+      match.status = 'SCHEDULED';
+      match.winnerId = match.player1.id;
+      if (match.nextMatchId) {
+        const next = updatedMatches.find(m => m.id === match.nextMatchId);
+        if (next) {
+          if (match.nextSlot === 1) next.player1 = { ...match.player1 };
+          else next.player2 = { ...match.player1 };
+        }
+      }
     } else if (!match.player1 && match.player2) {
-      // P2 gana por Bye
-      updatedMatches = reportResult(updatedMatches, match.id, {
-        scoreP1: 0,
-        scoreP2: legTarget,
-        winnerId: match.player2.id,
-        note: 'Pase Automático (BYE)'
-      });
+      match.note = 'Pase Automático (BYE)';
+      match.isBye = true;
+      match.scoreP1 = 0;
+      match.scoreP2 = 0;
+      match.status = 'SCHEDULED';
+      match.winnerId = match.player2.id;
+      if (match.nextMatchId) {
+        const next = updatedMatches.find(m => m.id === match.nextMatchId);
+        if (next) {
+          if (match.nextSlot === 1) next.player1 = { ...match.player2 };
+          else next.player2 = { ...match.player2 };
+        }
+      }
     }
   }
 
@@ -409,27 +421,57 @@ export function generateDoubleElimination(
     if (p2) match.player2 = { id: p2.id, name: p2.name, avatarUrl: p2.avatarUrl || '/logos/logo-mdq.png', seed: p2.seed, nationality: p2.nationality, countryCode: p2.countryCode };
   }
 
-  // --- F. RESOLUCIÓN AUTOMÁTICA DE BYES EN W-R1 ---
+  // --- F. REGISTRO DE BYES EN W-R1 (Sin resultados 3-0 ficticios) ---
   let updatedMatches = [...matches];
   for (const match of wR1) {
     if (match.player1 && !match.player2) {
-      updatedMatches = reportResult(updatedMatches, match.id, {
-        scoreP1: legTarget,
-        scoreP2: 0,
-        winnerId: match.player1.id,
-        note: 'Pase Automático (BYE)'
-      });
+      match.note = 'Pase Automático (BYE)';
+      match.isBye = true;
+      match.scoreP1 = 0;
+      match.scoreP2 = 0;
+      match.status = 'SCHEDULED';
+      match.winnerId = match.player1.id;
+      if (match.nextMatchId) {
+        const next = updatedMatches.find(m => m.id === match.nextMatchId);
+        if (next) {
+          if (match.nextSlot === 1) next.player1 = { ...match.player1 };
+          else next.player2 = { ...match.player1 };
+        }
+      }
     } else if (!match.player1 && match.player2) {
-      updatedMatches = reportResult(updatedMatches, match.id, {
-        scoreP1: 0,
-        scoreP2: legTarget,
-        winnerId: match.player2.id,
-        note: 'Pase Automático (BYE)'
-      });
+      match.note = 'Pase Automático (BYE)';
+      match.isBye = true;
+      match.scoreP1 = 0;
+      match.scoreP2 = 0;
+      match.status = 'SCHEDULED';
+      match.winnerId = match.player2.id;
+      if (match.nextMatchId) {
+        const next = updatedMatches.find(m => m.id === match.nextMatchId);
+        if (next) {
+          if (match.nextSlot === 1) next.player1 = { ...match.player2 };
+          else next.player2 = { ...match.player2 };
+        }
+      }
     }
   }
 
   return updatedMatches;
+}
+
+/**
+ * Determina de forma precisa si un torneo ya tiene partidos disputados en vivo o terminados
+ * por jugadores reales (excluyendo Byes automáticos o slots vacíos).
+ */
+export function hasRealMatchesPlayed(
+  tournamentOrMatches: { matches?: TournamentBracketMatch[] } | TournamentBracketMatch[] | undefined | null
+): boolean {
+  if (!tournamentOrMatches) return false;
+  const matches = Array.isArray(tournamentOrMatches) ? tournamentOrMatches : tournamentOrMatches.matches;
+  if (!matches || matches.length === 0) return false;
+  return matches.some(m => 
+    m.status === 'LIVE' || 
+    (m.status === 'FINISHED' && m.player1 && m.player2 && !m.note?.includes('BYE') && !m.isBye && (m.scoreP1 > 0 || m.scoreP2 > 0))
+  );
 }
 
 /**

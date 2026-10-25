@@ -56,6 +56,7 @@ import { LeagueManager } from './LeagueManager';
 import { EditTournamentModal } from './EditTournamentModal';
 import { EditLeagueModal } from './EditLeagueModal';
 import { NakkaTvBracketView } from './NakkaTvBracketView';
+import { TournamentDetailModal } from './TournamentDetailModal';
 import { DartScorer } from '@/components/anotador/DartScorer';
 import { 
   Trophy, 
@@ -102,6 +103,7 @@ import {
   computePodium, 
   resetMatchSafely, 
   getNextPowerOfTwo,
+  hasRealMatchesPlayed,
   Participant 
 } from '@/lib/bracket-engine';
 
@@ -242,6 +244,9 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
   // Estado de feedback al copiar enlaces de inscripción
   const [copiedTournamentId, setCopiedTournamentId] = useState<string | null>(null);
+
+  // Modal de Detalle de Modalidad y Lista de Inscriptos (para usuarios generales y no administradores)
+  const [tournamentForPublicDetail, setTournamentForPublicDetail] = useState<Tournament | null>(null);
 
   // Subpestañas del torneo en detalle
   const [tournamentSubTab, setTournamentSubTab] = useState<'BRACKET' | 'GROUPS' | 'PLAYERS' | 'LIVE_BOARD'>('BRACKET');
@@ -1026,14 +1031,17 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         return next;
       });
     } else if (tourney.status === 'IN_PROGRESS') {
-      // Reabrir inscripción (si no hay partidos jugados o terminados)
-      const hasPlayedMatches = tourney.matches?.some((m) => m.status === 'LIVE' || m.status === 'FINISHED');
-      if (hasPlayedMatches) {
-        alert('No es posible reabrir la inscripción porque el torneo ya cuenta con partidos disputados o en vivo.');
-        return;
+      // Reabrir inscripción (si no hay partidos jugados reales)
+      const hasRealPlayed = hasRealMatchesPlayed(tourney);
+      if (hasRealPlayed) {
+        if (!confirm('⚠️ Advertencia: Este torneo cuenta con partidos disputados. Si reabres la inscripción como Administrador, nuevos jugadores podrán anotarse y se deberán actualizar los cruces. ¿Deseas reabrir la inscripción de todas formas?')) {
+          return;
+        }
+      } else {
+        if (!confirm(`¿Deseas reabrir las inscripciones para "${tourney.title}"? Los jugadores podrán volver a anotarse.`)) {
+          return;
+        }
       }
-
-      if (confirm(`¿Deseas reabrir las inscripciones para "${tourney.title}"? Los jugadores podrán volver a anotarse.`)) {
         const updatedTourney: Tournament = {
           ...tourney,
           status: 'REGISTRATION_OPEN'
@@ -1045,7 +1053,6 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           saveTournamentToCloud(updatedTourney);
           return next;
         });
-      }
     }
   };
 
@@ -1547,7 +1554,11 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                         </thead>
                         <tbody className="divide-y divide-[#1e2a40]/60 text-xs">
                           {tournaments.map((t) => (
-                            <tr key={t.id} className="hover:bg-[#141a29]/60 transition-colors group">
+                            <tr 
+                              key={t.id} 
+                              onClick={() => setTournamentForPublicDetail(t)}
+                              className="hover:bg-[#141a29]/90 cursor-pointer transition-colors group"
+                            >
                               <td className="py-4 px-4">
                                 <div className="flex items-center gap-3">
                                   <div className="relative w-10 h-10 rounded-xl bg-black border border-[#ef4444]/40 p-1 flex-shrink-0">
@@ -1679,6 +1690,20 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
                               <td className="py-4 px-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                  {/* Botón Detalle / Inscriptos para cualquier usuario */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setTournamentForPublicDetail(t);
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-500 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                                    title="Ver Modalidad Completa y Padrón de Inscriptos"
+                                  >
+                                    <Users className="w-3.5 h-3.5 text-sky-400" />
+                                    <span className="hidden md:inline">Detalle</span>
+                                  </button>
+
                                   {/* Botón Copiar Link Directo de Inscripción */}
                                   <button
                                     type="button"
@@ -1717,7 +1742,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
                                   <button
                                     type="button"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setSelectedTournamentId(t.id);
                                       setActiveViewMode('DETAIL');
                                     }}
@@ -1733,7 +1759,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                                     <>
                                       <button
                                         type="button"
-                                        onClick={() => setTournamentToEdit(t)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setTournamentToEdit(t);
+                                        }}
                                         className="p-1.5 rounded-xl bg-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white border border-blue-500/40 transition-colors"
                                         title="Editar Torneo (Nombre, Fechas, Sede, Distancia, Premios)"
                                       >
@@ -1742,7 +1771,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
                                       <button
                                         type="button"
-                                        onClick={() => handleToggleTournamentSession(t)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleTournamentSession(t);
+                                        }}
                                         className={`p-1.5 rounded-xl border transition-colors ${
                                           t.status === 'REGISTRATION_OPEN'
                                             ? 'bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black border-amber-500/40'
@@ -1763,7 +1795,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
                                       <button
                                         type="button"
-                                        onClick={() => handleArchiveTournamentToHistory(t)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleArchiveTournamentToHistory(t);
+                                        }}
                                         className="p-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black border border-amber-500/40 transition-colors"
                                         title="Finalizar Torneo y Archivar a Historial"
                                       >
@@ -1771,7 +1806,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => handleDeleteTournament(t.id, t.title)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteTournament(t.id, t.title);
+                                        }}
                                         className="p-1.5 rounded-xl bg-[#ef4444]/20 hover:bg-[#ef4444] text-[#ef4444] hover:text-white border border-[#ef4444]/40 transition-colors"
                                         title="Eliminar Torneo"
                                       >
@@ -2086,6 +2124,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                       tournamentTitle={currentTournament.title}
                       bestOfLegs={currentTournament.bestOfLegs}
                       groupsCount={currentTournament.groupsCount || 2}
+                      enrolledPlayers={currentTournament.enrolledPlayers || []}
                       onLaunchMatch={handleLaunchGroupMatch}
                       onAdvanceToBracket={() => setTournamentSubTab('BRACKET')}
                     />
@@ -3392,6 +3431,24 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           />
         </div>
       )}
+
+      {/* MODAL: DETALLE DE MODALIDAD Y JUGADORES INSCRIPTOS (PÚBLICO / JUGADORES) */}
+      <TournamentDetailModal
+        isOpen={Boolean(tournamentForPublicDetail)}
+        onClose={() => setTournamentForPublicDetail(null)}
+        tournament={tournamentForPublicDetail}
+        currentUser={currentUser}
+        onEnrollClick={(t) => {
+          setTournamentForPublicDetail(null);
+          setSelectedTournamentId(t.id);
+          setShowEnrollModal(true);
+        }}
+        onViewBracketClick={(t) => {
+          setTournamentForPublicDetail(null);
+          setSelectedTournamentId(t.id);
+          setActiveViewMode('DETAIL');
+        }}
+      />
     </div>
   );
 };

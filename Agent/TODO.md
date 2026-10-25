@@ -1,3 +1,20 @@
+- [x] **Corrección de Byes Ficticios 3-0, Desbloqueo de Edición de Llaves y Reapertura de Inscripciones (`bracket-engine.ts` y Supabase):**
+  * **Diagnóstico de Bloqueo:**
+    - Al crear o sembrar llaves eliminatorias con 2 jugadores (Dogan y Rubio), el motor ejecutaba `reportResult` con score 3-0 para cada slot de Bye.
+    - Esto provocaba que el sistema considerara que había partidos jugados terminados (`status: FINISHED`), congelando el formato de competición ("Bloqueado en juego") y mostrando partidos inexistentes.
+  * **Soluciones Implementadas:**
+    - Los Byes de Ronda 1 ahora se inicializan con marcador `0-0`, `status: 'SCHEDULED'` y nota "Pase Automático (BYE)".
+    - Se creó la función `hasRealMatchesPlayed()` que distingue partidos reales jugados de Byes automáticos.
+    - El modal de edición (`EditTournamentModal.tsx`) ya no se congela por Byes, y para administradores (`isAdmin`) siempre permite editar o regenerar el cuadro previa confirmación.
+    - Se purgó directamente en Supabase PostgreSQL los marcadores ficticios y se reseteó el estado de inscripción a `REGISTRATION_OPEN`.
+  * **Modal de Detalle para No Administradores (`TournamentDetailModal.tsx`):**
+    - Clic en cualquier fila de la tabla de torneos o botón `[Detalle]` abre un modal con desglose completo de modalidad, sede, premios y padrón de inscriptos con banderas, AVG y categorías.
+  * **Filtros de Fechas en SuperAdmin (`PresencialEnrollmentsManager.tsx`):**
+    - Flexibilización de filtros para reconocer torneos presenciales abiertos e internacionales, eliminando el fallo de lista vacía `(0)`.
+  * **Fase de Grupos (Round Robin + Playoffs):**
+    - `TournamentGroupStage.tsx` ahora se alimenta de los `enrolledPlayers` reales del torneo y genera el fixture Round Robin por zona con cruces a playoffs.
+  * **Validación:** `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Purga de Usuario Dummy (`zeus@locosporlosdardos.com.ar`) y Asignación de Presidencia a `airesrvice@gmail.com`:**
   * **Diagnóstico de Conflicto:**
     - `zeus@locosporlosdardos.com.ar` fue un usuario dummy anterior que retenía el perfil de Gabriel Rubio ("ZEUS", AVG 65.0, AVANZADA, Presidente de la Asociación Marplatense de Dardos).

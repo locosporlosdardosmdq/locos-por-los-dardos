@@ -187,6 +187,7 @@ export interface TournamentBracketMatch {
   nextSlot?: 1 | 2;
   loserNextMatchId?: string;
   loserNextSlot?: 1 | 2;
+  isBye?: boolean;
 }
 
 export interface PodiumPlace {

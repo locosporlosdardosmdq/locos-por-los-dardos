@@ -11,6 +11,7 @@ import {
   RoundLegsConfig,
   League
 } from '@/lib/types';
+import { hasRealMatchesPlayed } from '@/lib/bracket-engine';
 import { 
   X, 
   Trophy, 
@@ -48,9 +49,9 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
 }) => {
   if (!isOpen || !tournament) return null;
 
-  // Detectar si el torneo ya tiene desarrollo deportivo iniciado
+  // Detectar si el torneo ya tiene desarrollo deportivo iniciado por humanos (excluyendo Byes)
   const hasMatchesPlayed = useMemo(() => {
-    return tournament.matches?.some((m) => m.status === 'LIVE' || m.status === 'FINISHED') || false;
+    return hasRealMatchesPlayed(tournament);
   }, [tournament]);
 
   const enrolledCount = tournament.enrolledPlayers?.length || tournament.registeredCount || 1;
@@ -123,7 +124,20 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
     }
 
     const formatChanged = format !== tournament.format;
-    const shouldRegenerateMatches = !hasMatchesPlayed && formatChanged;
+    let shouldRegenerateMatches = !hasMatchesPlayed && formatChanged;
+
+    if (formatChanged && hasMatchesPlayed) {
+      if (isAdmin) {
+        const ok = confirm(
+          `⚠️ Advertencia de Administrador:\n\nHas modificado el Formato de Competición a "${format}".\nAl guardar, se regenerará la llave/cuadro eliminatorio conservando todos los jugadores inscriptos (${enrolledCount}) y reiniciando los partidos.\n\n¿Deseas continuar?`
+        );
+        if (!ok) return;
+        shouldRegenerateMatches = true;
+      } else {
+        alert('No es posible cambiar el formato de un torneo que ya tiene partidos disputados.');
+        return;
+      }
+    }
 
     const selectedLeague = competitionMode === 'LOCAL_LEAGUE'
       ? leagues.find((l) => l.id === leagueId)
@@ -220,14 +234,18 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
           <div className="p-3 bg-amber-500/10 border-b border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-300">
             <Lock className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
             <div>
-              <strong>Torneo con partidos disputados o en vivo:</strong> Por estabilidad e integridad del certamen, el <strong>Formato de Competición</strong> queda congelado para no romper el cuadro ni los resultados ya jugados. Puedes editar libremente nombres, sedes, fechas, premios y estado.
+              <strong>Torneo con partidos disputados o en vivo:</strong> {isAdmin ? (
+                <span>Como <strong>Administrador</strong> tienes potestad de modificar el formato si lo requieres; al guardarlo se te solicitará confirmación y se regenerará la llave conservando todos los inscriptos.</span>
+              ) : (
+                <span>Por estabilidad e integridad del certamen, el <strong>Formato de Competición</strong> queda congelado para no romper el cuadro ni los resultados ya jugados.</span>
+              )}
             </div>
           </div>
         ) : (
           <div className="p-3 bg-blue-500/10 border-b border-blue-500/30 flex items-start gap-2.5 text-xs text-blue-300">
             <Sparkles className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
             <div>
-              <strong>Torneo en fase previa (0 partidos jugados):</strong> Puedes modificar cualquier parámetro. Si cambias de Formato (ej. a Doble Eliminación), la llave se regenerará con los inscriptos actuales.
+              <strong>Torneo en fase previa (0 partidos jugados):</strong> Puedes modificar cualquier parámetro. Si cambias de Formato (ej. a Doble Eliminación o Grupos), la llave se regenerará con los inscriptos actuales.
             </div>
           </div>
         )}
@@ -291,24 +309,24 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
               <label className="text-slate-300 font-bold block mb-1 flex items-center justify-between">
                 <span>Formato de Competición</span>
                 {hasMatchesPlayed && (
-                  <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
-                    <Lock className="w-3 h-3" /> Bloqueado en juego
+                  <span className={`text-[10px] font-bold flex items-center gap-1 ${isAdmin ? 'text-blue-400' : 'text-amber-400'}`}>
+                    <Lock className="w-3 h-3" /> {isAdmin ? 'Edición con Reseteo de Llave' : 'Bloqueado en juego'}
                   </span>
                 )}
               </label>
               <select
                 value={format}
-                disabled={hasMatchesPlayed}
+                disabled={hasMatchesPlayed && !isAdmin}
                 onChange={(e) => setFormat(e.target.value as any)}
                 className={`w-full rounded-xl px-3 py-2 font-bold focus:outline-none ${
-                  hasMatchesPlayed
+                  hasMatchesPlayed && !isAdmin
                     ? 'bg-[#1a2234] border border-slate-800 text-slate-400 cursor-not-allowed opacity-80'
                     : 'bg-[#111827] border border-slate-700 text-white focus:border-blue-500'
                 }`}
               >
                 <option value="SINGLE_ELIMINATION">Eliminación Simple (Cuadro KO)</option>
                 <option value="DOUBLE_ELIMINATION">Doble Eliminación (Winners & Losers)</option>
-                <option value="ROUND_ROBIN">Fase de Grupos (Liga)</option>
+                <option value="ROUND_ROBIN">Fase de Grupos (Liga / Round Robin + Playoffs)</option>
               </select>
             </div>
           </div>

@@ -75,6 +75,7 @@ Plataforma integral deportiva, red social, gestor de torneos en vivo y tienda e-
   * `MatchDispatcherModal.tsx`: Menú contextual de lanzamiento de partido (Partida Online, Anotador en Vivo de Club, o Registrar Resultados).
   * `PlayerEnrollModal.tsx`: Modal de inscripción y acreditación de competidores con contraseña de participante y toggle de webcam.
   * `SlotAssignModal.tsx`: Modal de asignación manual slot a slot en la primera ronda de la llave (estilo Nakka N01), con soporte de lista de inscriptos, asignación de Byes automáticos y vaciado de slots.
+  * `TournamentDetailModal.tsx`: Modal completo de consulta para usuarios no administradores y competidores, con desglose de la modalidad (formato, legs, baremo x2, premios, sede) y padrón de jugadores inscriptos (con avatar, nacionalidad, AVG y seed), disponible al hacer clic sobre cualquier fila de la tabla o botón de detalle.
   * `NakkaTvBracketView.tsx`: Pantalla completa optimizada para TV de 32'' sin scroll (estilo Nakka N01), sincronización en tiempo real (3.5s + storage events), temas Dark (LPLD) y Light (Classic Nakka Green), y visualización de rondas completas para ~24 competidores.
   * `ranking/MortalKombatStats.tsx`: Cartelera Arcade estilo Mortal Kombat con cartas coleccionables de luchadores para el **Top 5 Cierres Más Altos** y el **Club del 180**, fotos de perfil oficiales, halos de fuego y formulario de registro de récords.
 * **`comunidad/`:**

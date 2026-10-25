@@ -1243,6 +1243,35 @@
   4. **Autoridades Predeterminadas:** Se actualizó `DEFAULT_ASSOCIATION_AUTHORITIES` en `src/lib/constants.ts` reflejando su correo oficial `airesrvice@gmail.com` y teléfono WhatsApp.
 - **Motivo:** Garantiza la integridad de identidad federativa, elimina colisiones de autenticación y consolida el padrón deportivo de la Asociación.
 
+---
+
+## [ADR-058] Tratamiento de Byes en Grafos de Cuadros Eliminatorios vs Partidos Disputados Reales
+
+- **Fecha:** 2026-10-25
+- **Estado:** ACEPTADA
+- **Contexto:**
+  Al inicializar una llave eliminatoria con cupos incompletos (por ejemplo, 2 jugadores inscriptos en un cuadro de 8 o 16), el motor de llaves ejecutaba automáticamente `reportResult` con marcador ficticio 3-0 para cada slot libre (Bye).
+  Esto provocaba que el sistema considerara que ya existían partidos "Finalizados" reales, congelando el formato en `EditTournamentModal` ("Bloqueado en juego") y bloqueando la reapertura de inscripciones.
+- **Decisión:**
+  1. Los slots con Pase Automático (Bye) en Ronda 1 se inicializan con marcador `0-0`, `status: 'SCHEDULED'`, `isBye: true` y nota explicativa "Pase Automático (BYE)".
+  2. Se implementa la función pura `hasRealMatchesPlayed(tournamentOrMatches)` que comprueba si algún partido realmente se disputó (`status === 'FINISHED' && !isBye && (scoreP1 > 0 || scoreP2 > 0)`).
+  3. Los administradores siempre conservan soberanía para modificar el formato o reabrir inscripciones; si hay partidos disputados, el sistema advierte y solicita confirmación explícita para regenerar la llave conservando a los jugadores inscriptos.
+- **Motivo:** Preserva la estabilidad y la integridad de los grafos eliminatorios sin generar resultados artificiales ni bloquear administrativamente el torneo.
+
+---
+
+## [ADR-059] Arquitectura de Torneos Híbridos (Fase de Grupos Round Robin + Cruces Cross-Seeding a Playoffs)
+
+- **Fecha:** 2026-10-25
+- **Estado:** ACEPTADA
+- **Contexto:**
+  Muchos torneos oficiales y certámenes de fin de semana (estilo Grand Slam of Darts o Copa Mundial PDC) se desarrollan mediante una fase inicial por grupos (zonas de 3 o 4 competidores) seguida de una fase eliminatoria directa (playoffs).
+- **Decisión:**
+  1. `TournamentGroupStage.tsx` se conecta con `currentTournament.enrolledPlayers` para distribuir dinámicamente a los inscriptos en zonas (A, B, C, etc.) con cupos mínimos de 4 integrantes.
+  2. Se computa la tabla de posiciones oficial: 2 pts por victoria, criterio de desempate por diferencia de legs (+/-) y legs a favor.
+  3. Se establece el modelo deportivo de cruce olímpico (Cross-Seeding): los 2 primeros de cada grupo avanzan a los Playoffs cruzándose el 1º de una zona contra el 2º de la otra (1ºA vs 2ºB y 1ºB vs 2ºA), evitando que se crucen entre sí hasta la Gran Final para premiar el mérito deportivo.
+- **Motivo:** Brinda flexibilidad total a los organizadores para torneos relámpago, ligas cortas y campeonatos federados.
+
 
 
 

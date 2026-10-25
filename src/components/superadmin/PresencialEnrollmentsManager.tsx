@@ -138,12 +138,16 @@ export const PresencialEnrollmentsManager: React.FC<PresencialEnrollmentsManager
 
   // Lista de Torneos Presenciales filtrados por Ámbito y Liga (Nivel 3 de filtros dependientes)
   const presencialTournaments = useMemo(() => {
+    // Buscar todos los torneos que sean presenciales o tengan sede física
     const presenciales = tournaments.filter(t => 
       t.type === 'PRESENCIAL' || 
       t.nationalStageType === 'PRESENCIAL_OFICIAL' ||
+      Boolean(t.venueName && t.venueName.trim().length > 0) ||
       t.title.toLowerCase().includes('open') ||
+      t.title.toLowerCase().includes('abierto') ||
       t.title.toLowerCase().includes('mar del plata') ||
-      t.title.toLowerCase().includes('pompeya')
+      t.title.toLowerCase().includes('pompeya') ||
+      t.title.toLowerCase().includes('presencial')
     );
 
     const baseList = presenciales.length > 0 ? presenciales : [
@@ -169,31 +173,43 @@ export const PresencialEnrollmentsManager: React.FC<PresencialEnrollmentsManager
     // 1. Filtrar por Ámbito
     let filtered = sorted;
     if (scopeFilter === 'NATIONAL') {
-      filtered = filtered.filter(t => 
+      const natMatches = filtered.filter(t => 
         t.nationalStageType === 'PRESENCIAL_OFICIAL' ||
         t.competitionMode === 'NATIONAL_LEAGUE' ||
         t.leagueId === 'league-national-argentina' ||
+        t.pointsMultiplier === 2 ||
         t.title.toLowerCase().includes('nacional') ||
-        t.title.toLowerCase().includes('argentina')
+        t.title.toLowerCase().includes('argentina') ||
+        t.title.toLowerCase().includes('internacional') ||
+        t.title.toLowerCase().includes('abierto') ||
+        t.title.toLowerCase().includes('open')
       );
+      // Si la búsqueda estricta no arroja resultados, conservar la lista ordenada para no dejar el selector en (0)
+      filtered = natMatches.length > 0 ? natMatches : sorted;
     } else if (scopeFilter === 'LOCAL') {
-      filtered = filtered.filter(t => 
+      const locMatches = filtered.filter(t => 
         t.competitionMode === 'LOCAL_LEAGUE' ||
         t.leagueId === 'league-mdq-2026' ||
         t.title.toLowerCase().includes('mar del plata') ||
         t.title.toLowerCase().includes('mdq') ||
-        t.title.toLowerCase().includes('pompeya')
+        t.title.toLowerCase().includes('pompeya') ||
+        t.title.toLowerCase().includes('local')
       );
+      filtered = locMatches.length > 0 ? locMatches : sorted;
     } else if (scopeFilter === 'STANDALONE') {
-      filtered = filtered.filter(t => 
+      const stdMatches = filtered.filter(t => 
         t.competitionMode === 'STANDALONE_DAY' ||
         (!t.leagueId && !t.title.toLowerCase().includes('liga'))
       );
+      filtered = stdMatches.length > 0 ? stdMatches : sorted;
     }
 
     // 2. Filtrar por Liga específica
     if (leagueFilter !== 'ALL' && scopeFilter !== 'STANDALONE') {
-      filtered = filtered.filter(t => t.leagueId === leagueFilter);
+      const byLeague = filtered.filter(t => t.leagueId === leagueFilter);
+      if (byLeague.length > 0) {
+        filtered = byLeague;
+      }
     }
 
     return filtered;

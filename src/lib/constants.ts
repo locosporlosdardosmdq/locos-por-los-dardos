@@ -760,7 +760,7 @@ export const DEFAULT_ASSOCIATION_BANK_ACCOUNT: AssociationBankAccount = {
   accountType: 'Cuenta Corriente Especial',
   holderName: 'Asociación de Dardos Mar del Plata',
   cuitCuil: '30-71849201-4',
-  alias: 'dardeus.mp',
+  alias: 'mardeus.mp',
   cbuCvu: '0000003100054321098',
   adminWhatsAppPhone: '5492235218765',
   adminWhatsAppName: 'Mariano Deux (ICEMAN)',

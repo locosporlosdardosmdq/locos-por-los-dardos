@@ -1,6 +1,26 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
-## [Sesión 53] - 2026-10-25
+## [Sesión 54] - 2026-10-25
+- **Objetivos:**
+  1. Diagnosticar la aparición de Juan Dogan en el torneo mientras en el directorio `/jugadores` figuraba únicamente Mariano Deux (ICEMAN).
+  2. Verificar la integridad de los 13 jugadores federados en la base de datos de Supabase PostgreSQL.
+  3. Corregir el alias bancario oficial de Mercado Pago de `dardeus.mp` a `mardeus.mp` (error tipográfico identificado por el usuario) en `constants.ts` y en la tabla `platform_settings` de Supabase.
+  4. Robustecer la sanitización de cadenas de conexión y el ciclo de vida del pool en `src/lib/db.ts` para entornos serverless (Vercel).
+  5. Implementar el endpoint de diagnóstico `/api/diagnostic` para monitoreo de conectividad en producción.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Integridad de Jugadores:* Ningún jugador fue eliminado de la base de datos. La tabla `profiles` contiene los 13 registros activos (Juan Dogan, Gabriel Rubio, Victor Albaitero, Damian Logghe, Gabriel Gimenez, Gonzalo, Juan Barciulli, Héctor Valentín Giménez, Celeste Cicciotti, Eduardo Bureaux, Eduardo Mazzola, Lucas Rubio y Mariano Deux). Juan Dogan y Gabriel Rubio además están formalmente inscriptos en el torneo `torneo-open-mdq-2026-parejas`.
+  2. *Causa de la Visualización en `/jugadores`:* En producción (Vercel), las llamadas serverless a `/api/jugadores` devolvían código 503 por errores de pooler/conexión, provocando que el componente de cliente recurriera al fallback de contingencia en memoria `CANONICAL_PLAYERS` (que solo contenía la ficha de ICEMAN).
+  3. *Alias Mercado Pago:* El alias correcto solicitado es `mardeus.mp`. Al quedar guardado en `localStorage` de la notebook de Mariano se veía bien en su PC, pero cualquier dispositivo nuevo o móvil sin almacenamiento local cargaba `dardeus.mp`. Se actualizó tanto la base de datos como el código fuente.
+- **Realizado:**
+  - `src/lib/constants.ts`: Actualizado `DEFAULT_ASSOCIATION_BANK_ACCOUNT.alias` a `'mardeus.mp'`.
+  - Supabase PostgreSQL: Actualizado el registro `platform_settings` con `alias = 'mardeus.mp'`.
+  - `src/lib/db.ts`: Sanitización estricta de comillas, saltos de línea, prioridad y manejo de pooler serverless (`max: 2`, `idleTimeout: 10000ms`, reseteo de pool ante error fatal).
+  - `src/app/api/diagnostic/route.ts`: Endpoint seguro de diagnóstico de variables de entorno y conectividad con Supabase.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores.
+  - Script de verificación ejecutado contra PostgreSQL confirmando los 13 perfiles activos y el alias actualizado.
+- **Estado del Proyecto:** Datos bancarios corregidos en base de datos y constantes; conectividad e infraestructura preparadas para despliegue en producción.
+
 - **Objetivos:**
   1. Resolver de forma definitiva la desincronización entre la PC y el celular en la cuenta bancaria de Vitrina 4 (Mercado Pago, alias `dardeus.mp` vs Banco Provincia).
   2. Implementar la API universal `/api/config` para sincronizar en tiempo real cualquier configuración global (cuenta bancaria, vitrinas, autoridades) entre dispositivos y Supabase PostgreSQL.

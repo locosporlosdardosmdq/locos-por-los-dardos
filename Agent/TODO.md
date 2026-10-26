@@ -1,3 +1,15 @@
+- [x] **Restauración de Directorio Federal y Corrección de Alias Oficial `mardeus.mp`:**
+  * **Verificación de Padrón en Base de Datos:**
+    - Verificados los 13 perfiles activos intactos en PostgreSQL Supabase (Juan Dogan, Gabriel Rubio, Victor Albaitero, Damian Logghe, Gabriel Gimenez, Gonzalo, Juan Barciulli, Héctor Valentín Giménez, Celeste Cicciotti, Eduardo Bureaux, Eduardo Mazzola, Lucas Rubio y Mariano Deux).
+    - Verificada la acreditación formal de Juan Dogan y Gabriel Rubio en el torneo de parejas.
+  * **Corrección de Alias Mercado Pago a `mardeus.mp`:**
+    - Corregido el alias por defecto en `DEFAULT_ASSOCIATION_BANK_ACCOUNT` (`constants.ts`).
+    - Actualizado el registro de configuración en `platform_settings` de Supabase a `mardeus.mp`.
+  * **Robustecimiento de Conexión Serverless en `db.ts`:**
+    - Sanitización de comillas dobles/simples y caracteres `\r\n` en `DATABASE_URL` y `DIRECT_URL`.
+    - Ajuste de parámetros de pool para Vercel Serverless (`max: 2`, `idleTimeout: 10s`, reseteo automático de pool ante errores fatales).
+    - Creado endpoint `/api/diagnostic` para monitoreo de conexión en tiempo real.
+
 - [x] **Vista Agrupada de Zonas y Partidas en Fase de Grupos, Alternador Rápido de Formato y Blindaje de Playoffs:**
   * **Vista Agrupada Multi-Zona por Defecto (`selectedGroupIndex === -1`):**
     - Añadido el modo "Ver Todas las Zonas (Vista Agrupada)" con botón selector dedicado `[👁️ Ver Todas las Zonas]`.

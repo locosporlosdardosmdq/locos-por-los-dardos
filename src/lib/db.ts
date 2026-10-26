@@ -10,6 +10,12 @@ function cleanUrl(raw?: string): string | null {
   if (!raw) return null;
   let conn = raw.trim().replace(/^["']|["']$/g, '').replace(/[\r\n]+/g, '');
   if (!conn) return null;
+
+  // Auto-corrección resiliente: si en Vercel se configuró únicamente la contraseña en lugar de la URI completa
+  if (!conn.startsWith('postgres://') && !conn.startsWith('postgresql://')) {
+    conn = `postgresql://postgres.pufyeabrvrlikbgkjplz:${encodeURIComponent(conn)}@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true`;
+  }
+
   if (conn.includes('aws-0-sa-east-1.pooler.supabase.com')) {
     conn = conn.replace('aws-0-sa-east-1.pooler.supabase.com', 'aws-0-us-east-1.pooler.supabase.com');
   }

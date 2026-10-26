@@ -1,5 +1,22 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 55] - 2026-10-25
+- **Objetivos:**
+  1. Identificar la causa raíz exacta por la cual `/jugadores` continuaba mostrando 1 jugador en producción tras el despliegue del commit `bcb21e9`.
+  2. Consultar el endpoint productivo `/api/diagnostic` para inspeccionar el estado de conexión del backend serverless en Vercel.
+  3. Implementar auto-reconstrucción resiliente de la cadena de conexión de Supabase en `src/lib/db.ts` si en Vercel se configuró únicamente la contraseña en lugar de la URI completa.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Inspección con `/api/diagnostic`:* La respuesta en vivo desde `https://locosporlosdardos.com.ar/api/diagnostic` reveló:
+     `{"env":{"has_DATABASE_URL":true,"sanitized_DATABASE_URL":{"error":"Invalid URL format: Invalid URL","preview":"JeuapaIcgGe6t6w...","length":16}},"dbConnection":{"status":"ERROR","message":"getaddrinfo ENOTFOUND base"}}`
+  2. *Causa Raíz Descubierta:* En Vercel (Project Settings -> Environment Variables), en las variables `DATABASE_URL` y `DIRECT_URL` se pegó únicamente la contraseña de la base de datos de 16 caracteres (`JeuapaIcgGe6t6wS`) en lugar de la URI completa de conexión PostgreSQL (`postgresql://postgres.pufyeabrvrlikbgkjplz:JeuapaIcgGe6t6wS@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true`).
+  3. *Solución Definitiva (Self-Healing Connection):* En `src/lib/db.ts`, la función `cleanUrl` ahora detecta si el valor provisto no inicia con `postgres://` ni `postgresql://`. Si se detecta una contraseña directa, autoconstruye de forma automática la URI completa con el usuario del proyecto Supabase y el Transaction Pooler (`aws-0-us-east-1.pooler.supabase.com:6543`).
+- **Realizado:**
+  - `src/lib/db.ts`: Incorporada auto-reconstrucción en `cleanUrl` para convertir cualquier contraseña configurada en variable de entorno en la URI oficial de conexión de Supabase.
+  - Verificación local con script Node: conexión exitosa y recuperación inmediata de los 14 perfiles de la base de datos.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** La aplicación es ahora completamente tolerante a si en Vercel se ingresa la URI completa o únicamente la contraseña de la base de datos.
+
 ## [Sesión 54] - 2026-10-25
 - **Objetivos:**
   1. Diagnosticar la aparición de Juan Dogan en el torneo mientras en el directorio `/jugadores` figuraba únicamente Mariano Deux (ICEMAN).

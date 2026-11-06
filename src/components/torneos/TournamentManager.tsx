@@ -127,32 +127,16 @@ import { TournamentPodiumView } from './TournamentPodiumView';
 
 // Helper para crear la lista de participantes para la siembra (Seeding)
 function createTournamentParticipants(maxCount: number, firstPlayer?: PlayerProfile): Participant[] {
-  const pList: Participant[] = [];
-
-  // Jugador 1: Admin o usuario activo con foto y bandera
-  pList.push({
-    id: firstPlayer?.id || 'user-iceman-admin',
-    name: firstPlayer?.fullName || 'Mariano Deux (ICEMAN)',
-    nickname: firstPlayer?.nickname || 'ICEMAN',
-    avatarUrl: firstPlayer?.avatarUrl || '/images/iceman-perfil.png',
+  if (!firstPlayer) return [];
+  return [{
+    id: firstPlayer.id || 'user-iceman-admin',
+    name: firstPlayer.fullName || firstPlayer.nickname || 'Mariano Deux (ICEMAN)',
+    nickname: firstPlayer.nickname || 'ICEMAN',
+    avatarUrl: firstPlayer.avatarUrl || '/images/iceman-perfil.png',
     seed: 1,
-    nationality: firstPlayer?.nationality || 'Argentina',
-    countryCode: firstPlayer?.countryCode || 'AR'
-  });
-
-  // Demás cupos abiertos para acreditación
-  for (let i = 2; i <= maxCount; i++) {
-    pList.push({
-      id: `slot-${i}`,
-      name: `Por Acreditar #${i}`,
-      avatarUrl: '/logos/logo-mdq.png',
-      seed: i,
-      nationality: 'Argentina',
-      countryCode: 'AR'
-    });
-  }
-
-  return pList;
+    nationality: firstPlayer.nationality || 'Argentina',
+    countryCode: firstPlayer.countryCode || 'AR'
+  }];
 }
 
 // Generador de Eliminación Simple puro (Challonge/N01) con punteros y Byes
@@ -166,12 +150,15 @@ function generateDefaultBracket(
   const participants = createTournamentParticipants(maxCount, firstPlayer);
   const distMode = roundLegs?.distanceMode || 'LEGS';
   const qfVal = roundLegs?.quarterFinals || defaultLegs;
+  const bracketSize = getNextPowerOfTwo(maxCount);
 
   const rawMatches = generateSingleElimination(participants, {
+    bracketSize,
     seeding: 'RANKED',
     includeThirdPlace: true,
     legTarget: qfVal,
-    distanceMode: distMode
+    distanceMode: distMode,
+    resolveByes: false // En creación durante inscripción abierta, los cupos incompletos no avanzan prematuramente
   });
 
   return rawMatches.map((m) => ({
@@ -193,11 +180,14 @@ function generateDoubleEliminationBracket(
   const participants = createTournamentParticipants(maxCount, firstPlayer);
   const distMode = roundLegs?.distanceMode || 'LEGS';
   const qfVal = roundLegs?.quarterFinals || defaultLegs;
+  const bracketSize = getNextPowerOfTwo(maxCount);
 
   const rawMatches = generateDoubleElimination(participants, {
+    bracketSize,
     seeding: 'RANKED',
     legTarget: qfVal,
-    distanceMode: distMode
+    distanceMode: distMode,
+    resolveByes: false // En creación durante inscripción abierta, los cupos incompletos no avanzan prematuramente
   });
 
   return rawMatches.map((m) => ({
@@ -701,7 +691,17 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       return;
     }
 
-    const bracketSize = getNextPowerOfTwo(currentTournament.maxParticipants || participants.length);
+    const isOpen = currentTournament.status === 'REGISTRATION_OPEN';
+    const hasFullQuota = Boolean(currentTournament.maxParticipants && participants.length >= currentTournament.maxParticipants);
+
+    // Dimensionamiento matemático:
+    // Si la sesión está en progreso o el cupo se completó, la llave se consolida con los participantes reales y resuelve Byes oficiales.
+    // Si la inscripción sigue abierta y faltan cupos, se dimensiona al cupo máximo pero SIN resolver Byes prematuramente.
+    const bracketSize = (!isOpen || hasFullQuota)
+      ? getNextPowerOfTwo(participants.length)
+      : getNextPowerOfTwo(currentTournament.maxParticipants || participants.length);
+
+    const resolveByes = !isOpen || hasFullQuota;
     const legTarget = currentTournament.bestOfLegs || 3;
     const distMode = currentTournament.roundLegsConfig?.distanceMode || 'LEGS';
 
@@ -711,7 +711,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         bracketSize,
         seeding: isRandom ? 'RANDOM' : 'RANKED',
         legTarget,
-        distanceMode: distMode
+        distanceMode: distMode,
+        resolveByes
       });
     } else {
       rawMatches = generateSingleElimination(participants, {
@@ -719,7 +720,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         seeding: isRandom ? 'RANDOM' : 'RANKED',
         includeThirdPlace: true,
         legTarget,
-        distanceMode: distMode
+        distanceMode: distMode,
+        resolveByes
       });
     }
 
@@ -1023,16 +1025,65 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     }
 
     if (tourney.status === 'REGISTRATION_OPEN') {
-      const hasEnrolled = (tourney.enrolledPlayers && tourney.enrolledPlayers.length > 0) || (tourney.registeredCount && tourney.registeredCount > 0);
+      const enrolled = tourney.enrolledPlayers || [];
+      const hasEnrolled = enrolled.length > 0 || (tourney.registeredCount && tourney.registeredCount > 0);
       if (!hasEnrolled) {
-        if (!confirm('Este torneo no cuenta con jugadores inscriptos aún. ¿Deseas iniciarlo de todas formas con los slots por acreditar?')) {
+        if (!confirm('Este torneo no cuenta con jugadores inscriptos aún. ¿Deseas iniciarlo de todas formas?')) {
           return;
+        }
+      }
+
+      // Consolidar la llave definitiva resolviendo Byes oficiales según los inscriptos reales
+      let updatedMatches = tourney.matches;
+      if (enrolled.length > 0 && tourney.format !== 'ROUND_ROBIN') {
+        const participants: Participant[] = enrolled.map((p, idx) => ({
+          id: p.id,
+          name: p.name,
+          nickname: p.nickname,
+          avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
+          seed: p.seed || idx + 1,
+          nationality: p.nationality || 'Argentina',
+          countryCode: p.countryCode || 'AR'
+        }));
+
+        const bracketSize = getNextPowerOfTwo(participants.length);
+        const legTarget = tourney.bestOfLegs || 3;
+        const distMode = tourney.roundLegsConfig?.distanceMode || 'LEGS';
+
+        let rawMatches: TournamentBracketMatch[] = [];
+        if (tourney.format === 'DOUBLE_ELIMINATION') {
+          rawMatches = generateDoubleElimination(participants, {
+            bracketSize,
+            seeding: 'RANKED',
+            legTarget,
+            distanceMode: distMode,
+            resolveByes: true
+          });
+        } else {
+          rawMatches = generateSingleElimination(participants, {
+            bracketSize,
+            seeding: 'RANKED',
+            includeThirdPlace: true,
+            legTarget,
+            distanceMode: distMode,
+            resolveByes: true
+          });
+        }
+
+        if (rawMatches.length > 0) {
+          updatedMatches = rawMatches.map((m) => ({
+            ...m,
+            id: m.id.startsWith(tourney.id) ? m.id : `${tourney.id}-${m.id}`,
+            nextMatchId: m.nextMatchId ? (m.nextMatchId.startsWith(tourney.id) ? m.nextMatchId : `${tourney.id}-${m.nextMatchId}`) : undefined,
+            loserNextMatchId: m.loserNextMatchId ? (m.loserNextMatchId.startsWith(tourney.id) ? m.loserNextMatchId : `${tourney.id}-${m.loserNextMatchId}`) : undefined
+          }));
         }
       }
 
       const updatedTourney: Tournament = {
         ...tourney,
-        status: 'IN_PROGRESS'
+        status: 'IN_PROGRESS',
+        matches: updatedMatches
       };
 
       setTournaments((prev) => {
@@ -1053,17 +1104,67 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           return;
         }
       }
-        const updatedTourney: Tournament = {
-          ...tourney,
-          status: 'REGISTRATION_OPEN'
-        };
 
-        setTournaments((prev) => {
-          const next = prev.map((t) => (t.id === tourney.id ? updatedTourney : t));
-          saveStoredTournaments(next);
-          saveTournamentToCloud(updatedTourney);
-          return next;
-        });
+      // Al reabrir sin partidos jugados, restituir la llave abierta esperando inscripciones
+      let updatedMatches = tourney.matches;
+      const enrolled = tourney.enrolledPlayers || [];
+      if (enrolled.length > 0 && tourney.format !== 'ROUND_ROBIN' && !hasRealPlayed) {
+        const participants: Participant[] = enrolled.map((p, idx) => ({
+          id: p.id,
+          name: p.name,
+          nickname: p.nickname,
+          avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
+          seed: p.seed || idx + 1,
+          nationality: p.nationality || 'Argentina',
+          countryCode: p.countryCode || 'AR'
+        }));
+
+        const bracketSize = getNextPowerOfTwo(tourney.maxParticipants || participants.length);
+        const legTarget = tourney.bestOfLegs || 3;
+        const distMode = tourney.roundLegsConfig?.distanceMode || 'LEGS';
+
+        let rawMatches: TournamentBracketMatch[] = [];
+        if (tourney.format === 'DOUBLE_ELIMINATION') {
+          rawMatches = generateDoubleElimination(participants, {
+            bracketSize,
+            seeding: 'RANKED',
+            legTarget,
+            distanceMode: distMode,
+            resolveByes: false
+          });
+        } else {
+          rawMatches = generateSingleElimination(participants, {
+            bracketSize,
+            seeding: 'RANKED',
+            includeThirdPlace: true,
+            legTarget,
+            distanceMode: distMode,
+            resolveByes: false
+          });
+        }
+
+        if (rawMatches.length > 0) {
+          updatedMatches = rawMatches.map((m) => ({
+            ...m,
+            id: m.id.startsWith(tourney.id) ? m.id : `${tourney.id}-${m.id}`,
+            nextMatchId: m.nextMatchId ? (m.nextMatchId.startsWith(tourney.id) ? m.nextMatchId : `${tourney.id}-${m.nextMatchId}`) : undefined,
+            loserNextMatchId: m.loserNextMatchId ? (m.loserNextMatchId.startsWith(tourney.id) ? m.loserNextMatchId : `${tourney.id}-${m.loserNextMatchId}`) : undefined
+          }));
+        }
+      }
+
+      const updatedTourney: Tournament = {
+        ...tourney,
+        status: 'REGISTRATION_OPEN',
+        matches: updatedMatches
+      };
+
+      setTournaments((prev) => {
+        const next = prev.map((t) => (t.id === tourney.id ? updatedTourney : t));
+        saveStoredTournaments(next);
+        saveTournamentToCloud(updatedTourney);
+        return next;
+      });
     }
   };
 
@@ -1084,7 +1185,14 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           }))
         : createTournamentParticipants(updatedTourney.maxParticipants, currentUser || undefined);
 
-      const bracketSize = getNextPowerOfTwo(updatedTourney.maxParticipants || participants.length);
+      const isOpen = updatedTourney.status === 'REGISTRATION_OPEN';
+      const hasFullQuota = Boolean(updatedTourney.maxParticipants && participants.length >= updatedTourney.maxParticipants);
+
+      const bracketSize = (!isOpen || hasFullQuota)
+        ? getNextPowerOfTwo(participants.length)
+        : getNextPowerOfTwo(updatedTourney.maxParticipants || participants.length);
+
+      const resolveByes = !isOpen || hasFullQuota;
       const legTarget = updatedTourney.bestOfLegs || 3;
       const distMode = updatedTourney.roundLegsConfig?.distanceMode || 'LEGS';
 
@@ -1094,7 +1202,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           bracketSize,
           seeding: 'RANKED',
           legTarget,
-          distanceMode: distMode
+          distanceMode: distMode,
+          resolveByes
         });
       } else if (updatedTourney.format === 'SINGLE_ELIMINATION') {
         rawMatches = generateSingleElimination(participants, {
@@ -1102,7 +1211,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           seeding: 'RANKED',
           includeThirdPlace: true,
           legTarget,
-          distanceMode: distMode
+          distanceMode: distMode,
+          resolveByes
         });
       } else {
         // En Fase de Grupos (ROUND_ROBIN), la llave eliminatoria se arma únicamente

@@ -1,3 +1,16 @@
+- [x] **Corrección Matemática y de Ciclo de Vida de BYEs en Llaves Incompletas (12 Participantes / 16 Slots):**
+  * **Motor Puro de Llaves (`src/lib/bracket-engine.ts`):**
+    - Agregada bandera `resolveByes?: boolean` (por defecto `true`) a `SingleEliminationOptions` y `DoubleEliminationOptions`.
+    - En `generateSingleElimination` y `generateDoubleElimination`, el auto-avance de jugadores a Ronda 2 (Cuartos de Final) y la asignación del cartel `Pase Automático (BYE)` se ejecuta únicamente si `resolveByes !== false`.
+    - En `reportResult`, implementada detección automática de Byes en el Cuadro de Perdedores (`Losers Bracket`) para Doble Eliminación: cuando el rival en Losers provenía de un partido de Winners que fue BYE, el perdedor recibe automáticamente un pase por BYE y avanza a Losers Ronda 2 sin quedar trabado.
+  * **Gestor de Torneos (`src/components/torneos/TournamentManager.tsx`):**
+    - Eliminados los placeholders sintéticos `"Por Acreditar #2..#N"`. Al crear torneos en `REGISTRATION_OPEN`, el cuadro nace limpio con `resolveByes: false`, manteniendo al creador/inscriptos en Ronda 1 esperando rival sin promoverlos prematuramente a Cuartos de Final.
+    - En `handleAutoAssignBracket` (botón *"⚡ Asignación Automática"*): si la inscripción sigue abierta (`REGISTRATION_OPEN`) y faltan jugadores, la llave se dimensiona al cupo máximo esperado pero con `resolveByes: false`. Si el cupo está completo o la sesión está en progreso, la llave se consolida con `resolveByes: true` y dimensionamiento a los participantes reales (`getNextPowerOfTwo(participants.length)`).
+    - En `handleToggleTournamentSession` (botón *"🔒 Iniciar Sesión (Cerrar Cupo)"*): se consolida automáticamente la llave definitiva con los inscriptos reales y `resolveByes: true`, resolviendo de forma justa y equitativa los $B - N$ Byes oficiales (ej. 4 Byes para 12 participantes). Al reabrir la inscripción sin partidos jugados, la llave vuelve a modo abierto sin pases automáticos.
+  * **Validación Matemática & Tipado:**
+    - Test suite en scratch (`test-bracket-math.ts`) validando los 3 escenarios: 4/12 en abierto (0 Byes, 0 jugadores en Cuartos), 12/12 en progreso (4 Byes exactos y 4 partidos reales en Octavos), y Doble Eliminación con 12 inscriptos (avance automático de perdedores huérfanos a Losers R2).
+    - `npx tsc --noEmit` completado exitosamente con 0 errores.
+
 - [x] **Estabilización Crítica Pre-Torneo (16 Participantes) y Resolución de Hallazgos de Auditoría:**
   * **Motor de Torneos & Llaves de 16 Jugadores (`TournamentManager.tsx`):**
     - Sincronización completa de resultados de Fase de Grupos al Anotador Oficial (`handleTournamentMatchFinished` para `type === 'GROUP'`).

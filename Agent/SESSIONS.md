@@ -1,5 +1,33 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 57] - 2026-11-06
+- **Objetivos:**
+  1. Analizar críticamente el reporte arquitectónico sobre el comportamiento de llaves eliminatorias con cantidades de inscriptos no potencia de 2 (específicamente torneos de 12 participantes en cuadros de 16).
+  2. Implementar los 4 cambios estructurales solicitados para controlar el ciclo de vida de los Byes en `src/lib/bracket-engine.ts` y `src/components/torneos/TournamentManager.tsx`.
+  3. Resolver el avance prematuro de jugadores a Cuartos de Final mientras la inscripción está abierta (`REGISTRATION_OPEN`).
+  4. Soportar la consolidación matemática oficial de Byes al cerrar el cupo ("🔒 Iniciar Sesión (Cerrar Cupo)") y la propagación de Byes automáticos en el Cuadro de Perdedores (`Losers Bracket`) en Doble Eliminación.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Avance Prematuro en Registro Abierto:* Al crear o sortear llaves con cupo para 12 jugadores (`bracketSize = 16`), `generateSingleElimination` detectaba que los slots 9 a 16 estaban vacíos y declaraba de inmediato un `Pase Automático (BYE)` para los primeros inscriptos (Seeds 1 al 8), copiándolos a Cuartos de Final antes de que los demás participantes se anotaran.
+  2. *Placeholders Ficticios:* `createTournamentParticipants` poblaba la llave con `"Por Acreditar #2..#N"`, generando ruido en lugar de dejar casilleros limpios `"Por definir"`.
+  3. *Bloqueo en Doble Eliminación:* Si en Winners R1 un partido era BYE, el perdedor del partido hermano que caía a Losers R1 quedaba huérfano esperando a un jugador que jamás descendería.
+- **Realizado:**
+  - `src/lib/bracket-engine.ts`:
+    * Añadido `resolveByes?: boolean` en `SingleEliminationOptions` y `DoubleEliminationOptions`, y tipo combinado `BracketConfig`.
+    * En `generateSingleElimination` y `generateDoubleElimination`, el cómputo de Byes a la siguiente ronda quedó condicionado a `resolveByes !== false`.
+    * En `reportResult`, implementada detección de Byes hermanos en `Losers Bracket`: cuando el slot opuesto proviene de un partido de Winners que fue BYE, el perdedor recibe automáticamente `isBye: true` y avanza a Losers Ronda 2.
+  - `src/components/torneos/TournamentManager.tsx`:
+    * En `createTournamentParticipants`, `generateDefaultBracket` y `generateDoubleEliminationBracket`, eliminados los placeholders ficticios y configurado `resolveByes: false` para torneos en creación.
+    * En `handleAutoAssignBracket`, si la inscripción está abierta y el cupo incompleto, dimensiona la llave sin resolver Byes prematuros; si el cupo está completo o la sesión está en progreso, dimensiona al total de jugadores y resuelve Byes oficiales.
+    * En `handleToggleTournamentSession`, al pulsar *"🔒 Iniciar Sesión (Cerrar Cupo)"*, consolida automáticamente la llave con los inscriptos reales y `resolveByes: true` (otorgando exactamente los $16 - 12 = 4$ Byes en Octavos). Al reabrir inscripción sin partidos jugados, vuelve a modo abierto sin Byes prematuros.
+    * En `handleSaveEditedTournament`, alineado el cálculo de dimensionamiento y `resolveByes`.
+- **Validación:**
+  - Script de prueba unitaria matemática en scratch (`test-bracket-math.ts`) validó con 100% de éxito:
+    * 4 inscriptos en torneo de 12 abierto: 0 Byes, 0 jugadores en Cuartos.
+    * 12 inscriptos en torneo de 12 cerrado: 4 Byes exactos y 4 partidos reales en Octavos; 4 jugadores esperando en Cuartos.
+    * Doble Eliminación con 12 inscriptos: perdedor huérfano avanza automáticamente por BYE a Losers R2.
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Motor de llaves eliminatorias 100% robusto, equitativo y fiel al estándar Challonge / Nakka N01 tanto para potencias de 2 exactas (8, 16, 32) como para números no ideales (12 participantes).
+
 ## [Sesión 56] - 2026-11-05
 - **Objetivos:**
   1. Evaluar críticamente el informe de auditoría `Agent/AUDITORIA_2026-11-05.md` en el contexto del torneo presencial de 16 jugadores de mañana.

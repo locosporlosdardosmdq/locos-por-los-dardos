@@ -36,6 +36,7 @@ export interface SingleEliminationOptions {
   legTarget?: number;
   setTarget?: number;
   distanceMode?: 'LEGS' | 'SETS';
+  resolveByes?: boolean;
 }
 
 export interface DoubleEliminationOptions {
@@ -45,7 +46,10 @@ export interface DoubleEliminationOptions {
   legTarget?: number;
   setTarget?: number;
   distanceMode?: 'LEGS' | 'SETS';
+  resolveByes?: boolean;
 }
+
+export type BracketConfig = SingleEliminationOptions & DoubleEliminationOptions;
 
 /**
  * Calcula la potencia de 2 más cercana hacia arriba (4, 8, 16, 32, 64)
@@ -120,8 +124,12 @@ export function generateSingleElimination(
   participants: Participant[],
   options: SingleEliminationOptions = {}
 ): TournamentBracketMatch[] {
-  const bracketSize = options.bracketSize || getNextPowerOfTwo(participants.length);
-  const seeded = seedParticipants(participants, bracketSize, options.seeding || 'RANKED');
+  const bracketSize = options.bracketSize 
+    ? getNextPowerOfTwo(options.bracketSize) 
+    : getNextPowerOfTwo(participants.length || 8);
+  const seeded = participants.length > 0 
+    ? seedParticipants(participants, bracketSize, options.seeding || 'RANKED')
+    : new Array(bracketSize).fill(null);
   const numRounds = Math.log2(bracketSize);
   const matches: TournamentBracketMatch[] = [];
 
@@ -212,34 +220,37 @@ export function generateSingleElimination(
   }
 
   // 4. Registrar Byes en la Ronda 1 sin simular partidos jugados ficticios con 3-0
+  // Solo se resuelven y avanzan a la Ronda 2 si resolveByes !== false (por defecto true)
   let updatedMatches = [...matches];
-  for (const match of r1List) {
-    if (match.player1 && !match.player2) {
-      match.note = 'Pase Automático (BYE)';
-      match.isBye = true;
-      match.scoreP1 = 0;
-      match.scoreP2 = 0;
-      match.status = 'SCHEDULED';
-      match.winnerId = match.player1.id;
-      if (match.nextMatchId) {
-        const next = updatedMatches.find(m => m.id === match.nextMatchId);
-        if (next) {
-          if (match.nextSlot === 1) next.player1 = { ...match.player1 };
-          else next.player2 = { ...match.player1 };
+  if (options.resolveByes !== false) {
+    for (const match of r1List) {
+      if (match.player1 && !match.player2) {
+        match.note = 'Pase Automático (BYE)';
+        match.isBye = true;
+        match.scoreP1 = 0;
+        match.scoreP2 = 0;
+        match.status = 'SCHEDULED';
+        match.winnerId = match.player1.id;
+        if (match.nextMatchId) {
+          const next = updatedMatches.find(m => m.id === match.nextMatchId);
+          if (next) {
+            if (match.nextSlot === 1) next.player1 = { ...match.player1 };
+            else next.player2 = { ...match.player1 };
+          }
         }
-      }
-    } else if (!match.player1 && match.player2) {
-      match.note = 'Pase Automático (BYE)';
-      match.isBye = true;
-      match.scoreP1 = 0;
-      match.scoreP2 = 0;
-      match.status = 'SCHEDULED';
-      match.winnerId = match.player2.id;
-      if (match.nextMatchId) {
-        const next = updatedMatches.find(m => m.id === match.nextMatchId);
-        if (next) {
-          if (match.nextSlot === 1) next.player1 = { ...match.player2 };
-          else next.player2 = { ...match.player2 };
+      } else if (!match.player1 && match.player2) {
+        match.note = 'Pase Automático (BYE)';
+        match.isBye = true;
+        match.scoreP1 = 0;
+        match.scoreP2 = 0;
+        match.status = 'SCHEDULED';
+        match.winnerId = match.player2.id;
+        if (match.nextMatchId) {
+          const next = updatedMatches.find(m => m.id === match.nextMatchId);
+          if (next) {
+            if (match.nextSlot === 1) next.player1 = { ...match.player2 };
+            else next.player2 = { ...match.player2 };
+          }
         }
       }
     }
@@ -256,8 +267,12 @@ export function generateDoubleElimination(
   participants: Participant[],
   options: DoubleEliminationOptions = {}
 ): TournamentBracketMatch[] {
-  const bracketSize = options.bracketSize || getNextPowerOfTwo(participants.length);
-  const seeded = seedParticipants(participants, bracketSize, options.seeding || 'RANKED');
+  const bracketSize = options.bracketSize 
+    ? getNextPowerOfTwo(options.bracketSize) 
+    : getNextPowerOfTwo(participants.length || 8);
+  const seeded = participants.length > 0 
+    ? seedParticipants(participants, bracketSize, options.seeding || 'RANKED')
+    : new Array(bracketSize).fill(null);
   const numWinnersRounds = Math.log2(bracketSize);
   const legTarget = options.legTarget || 3;
   const distanceMode = options.distanceMode || 'LEGS';
@@ -422,34 +437,37 @@ export function generateDoubleElimination(
   }
 
   // --- F. REGISTRO DE BYES EN W-R1 (Sin resultados 3-0 ficticios) ---
+  // Solo se resuelven y avanzan a Winners Ronda 2 si resolveByes !== false (por defecto true)
   let updatedMatches = [...matches];
-  for (const match of wR1) {
-    if (match.player1 && !match.player2) {
-      match.note = 'Pase Automático (BYE)';
-      match.isBye = true;
-      match.scoreP1 = 0;
-      match.scoreP2 = 0;
-      match.status = 'SCHEDULED';
-      match.winnerId = match.player1.id;
-      if (match.nextMatchId) {
-        const next = updatedMatches.find(m => m.id === match.nextMatchId);
-        if (next) {
-          if (match.nextSlot === 1) next.player1 = { ...match.player1 };
-          else next.player2 = { ...match.player1 };
+  if (options.resolveByes !== false) {
+    for (const match of wR1) {
+      if (match.player1 && !match.player2) {
+        match.note = 'Pase Automático (BYE)';
+        match.isBye = true;
+        match.scoreP1 = 0;
+        match.scoreP2 = 0;
+        match.status = 'SCHEDULED';
+        match.winnerId = match.player1.id;
+        if (match.nextMatchId) {
+          const next = updatedMatches.find(m => m.id === match.nextMatchId);
+          if (next) {
+            if (match.nextSlot === 1) next.player1 = { ...match.player1 };
+            else next.player2 = { ...match.player1 };
+          }
         }
-      }
-    } else if (!match.player1 && match.player2) {
-      match.note = 'Pase Automático (BYE)';
-      match.isBye = true;
-      match.scoreP1 = 0;
-      match.scoreP2 = 0;
-      match.status = 'SCHEDULED';
-      match.winnerId = match.player2.id;
-      if (match.nextMatchId) {
-        const next = updatedMatches.find(m => m.id === match.nextMatchId);
-        if (next) {
-          if (match.nextSlot === 1) next.player1 = { ...match.player2 };
-          else next.player2 = { ...match.player2 };
+      } else if (!match.player1 && match.player2) {
+        match.note = 'Pase Automático (BYE)';
+        match.isBye = true;
+        match.scoreP1 = 0;
+        match.scoreP2 = 0;
+        match.status = 'SCHEDULED';
+        match.winnerId = match.player2.id;
+        if (match.nextMatchId) {
+          const next = updatedMatches.find(m => m.id === match.nextMatchId);
+          if (next) {
+            if (match.nextSlot === 1) next.player1 = { ...match.player2 };
+            else next.player2 = { ...match.player2 };
+          }
         }
       }
     }
@@ -531,6 +549,36 @@ export function reportResult(
         loserMatch.player1 = { ...loser };
       } else {
         loserMatch.player2 = { ...loser };
+      }
+
+      // Detectar si el otro slot de loserMatch proviene de un partido de Winners que fue un BYE (sin perdedor real)
+      const siblingSlot = current.loserNextSlot === 1 ? 2 : 1;
+      const siblingWinnerMatch = updated.find(
+        m => m.loserNextMatchId === loserMatch.id && m.loserNextSlot === siblingSlot
+      );
+
+      const siblingIsBye = siblingWinnerMatch && (
+        siblingWinnerMatch.isBye || 
+        (!siblingWinnerMatch.player1 && !siblingWinnerMatch.player2)
+      );
+
+      if (siblingIsBye) {
+        loserMatch.isBye = true;
+        loserMatch.note = 'Pase Automático (BYE)';
+        loserMatch.winnerId = loser.id;
+        loserMatch.status = 'SCHEDULED';
+
+        // Auto-avanzar al perdedor al siguiente partido de Losers
+        if (loserMatch.nextMatchId) {
+          const nextLoserMatch = updated.find(m => m.id === loserMatch.nextMatchId);
+          if (nextLoserMatch) {
+            if (loserMatch.nextSlot === 1) {
+              nextLoserMatch.player1 = { ...loser };
+            } else {
+              nextLoserMatch.player2 = { ...loser };
+            }
+          }
+        }
       }
     }
   }

@@ -1335,6 +1335,19 @@
   7. Se protegió `/api/diagnostic` con `isAuthorizedAdmin()`, se redactaron previews de credenciales en diagnósticos y bitácoras, y se validó estrictamente el dominio `google.com` en `sync/google-form`.
 - **Motivo:** Garantiza operatividad sin fallas, estabilidad de llaves y fluidez operativa en la acreditación y desarrollo del torneo de 16 jugadores.
 
+---
+
+### [ADR-063] - 2026-11-06: Ciclo de Vida y Resolución Estricta de Byes en Llaves No-Potencia de 2 (Challonge / Nakka N01 Pattern)
+- **Contexto:** En torneos configurados para cantidades de participantes que no son potencia de 2 exacta (por ejemplo, 12 jugadores en un cuadro de 16), durante la fase de inscripción abierta (`REGISTRATION_OPEN`) los primeros inscriptos (como el organizador o los primeros 4 en anotarse) recibían automáticamente un `Pase Automático (BYE)` y aparecían ya promovidos a Cuartos de Final. Esto se debía a que `generateSingleElimination` no diferenciaba entre un cupo vacío pendiente de inscripción y un BYE definitivo por cierre de cupo. Además, al crear torneos se inyectaban placeholders ficticios (`Por Acreditar #2..#N`), y en Doble Eliminación los perdedores que caían a Losers R1 quedaban huérfanos sin avanzar si su contrincante en Losers provenía de un partido de Winners que fue BYE.
+- **Decisión:**
+  1. Se introdujo el parámetro `resolveByes?: boolean` (por defecto `true`) en `SingleEliminationOptions` y `DoubleEliminationOptions`.
+  2. En `generateSingleElimination` y `generateDoubleElimination`, el cómputo de Byes y la copia de jugadores a la siguiente ronda solo se ejecuta cuando `resolveByes !== false`.
+  3. En `TournamentManager.tsx`, los torneos nacen limpios sin placeholders ficticios y con `resolveByes: false`, manteniendo a los inscriptos en Ronda 1 esperando rival sin poblar Cuartos de Final antes de tiempo.
+  4. La consolidación definitiva de Byes ($B - N$, donde para 12 jugadores son exactamente 4 Byes y 4 partidos reales en Octavos) se ejecuta al cerrar la inscripción mediante el botón *"🔒 Iniciar Sesión (Cerrar Cupo)"* o al completar el cupo máximo con *"⚡ Asignación Automática"*.
+  5. En `reportResult` se añadió detección de Byes heredados en Doble Eliminación: si un competidor cae a Losers y su rival proviene de un partido de Winners que fue BYE, recibe un pase por BYE automático y avanza directamente a Losers R2.
+- **Motivo:** Garantiza equidad matemática absoluta, coherencia visual en tiempo real durante la inscripción y fluidez reglamentaria idéntica a Challonge y Nakka N01 Tournament.
+
+
 
 
 

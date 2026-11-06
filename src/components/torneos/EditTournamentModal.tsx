@@ -213,7 +213,7 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-[#0b101d] border-2 border-blue-500/40 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl shadow-blue-500/10 overflow-hidden">
+      <div className="bg-[#0b101d] border-2 border-blue-500/40 rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl shadow-blue-500/10 overflow-hidden">
         {/* Cabecera */}
         <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-[#080c16]">
           <div className="flex items-center gap-3">
@@ -311,6 +311,7 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
               >
                 <option value="PRESENCIAL">Presencial (En Club)</option>
                 <option value="ONLINE">Online Conectado (WebRTC)</option>
+                <option value="MIXTO">Mixto / Híbrido (Presencial + Online)</option>
               </select>
             </div>
 

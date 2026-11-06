@@ -1,3 +1,24 @@
+- [x] **Soporte de Modalidad Mixta (Presencial + Online estilo Nakka) y Rediseño de Modales (+50% Ancho):**
+  * **Modelo de Datos y Tipos (`src/lib/types.ts` & `TournamentGroupStage.tsx`):**
+    - `TournamentType` ampliado para admitir `'PRESENCIAL' | 'ONLINE' | 'MIXTO'`.
+    - Agregados campos `playedModality?: 'PRESENCIAL' | 'ONLINE'` y `onlineRoomCode?: string` a `TournamentBracketMatch` y `GroupMatch`.
+    - Agregada bandera `autoStartPlaying?: boolean` a `MatchConfig`.
+  * **Lanzamiento de Partidas en Despachador (`TournamentManager.tsx`):**
+    - Diferenciación real de lanzamiento en `handleLaunchBracketMatch` y `handleLaunchGroupMatch` según el modo seleccionado (`LIVE` vs `ONLINE`).
+    - En `LIVE` (Presencial en Club), envía `autoStartPlaying: true` y publica estado para TV del club.
+    - En `ONLINE` (Remota Conectada), genera sala WebRTC sincronizada con código `LPD-XXXX` y nombres precargados.
+    - Registro de la modalidad jugada en `handleUpdateMatchScore` y `handleTournamentMatchFinished`.
+  * **Anotador & Configuración de Juego (`DartScorer.tsx`, `MatchGameSettings.tsx`):**
+    - En `DartScorer`, si `initialConfig.autoStartPlaying` es true, salta directamente a la diana en `viewState = 'PLAYING'` con los competidores del torneo.
+    - En `MatchGameSettings`, respeta los competidores del torneo sin sobreescribirlos con el perfil local, y abre automáticamente la sala remota ante `isOnlineRoom`.
+  * **Ampliación de Ventanas Modales (+50% de Ancho) & UI:**
+    - Modal "Crear Nuevo Torneo" ampliado de `max-w-lg` (512px) a `max-w-3xl` (768px, +50%). Opciones de liga dispuestas en grilla horizontal de 3 columnas (`md:grid-cols-3`).
+    - Modal "Editar Torneo" ampliado a `max-w-3xl` con soporte de modalidad `MIXTO`.
+    - Modal Despachador de Partidas (`MatchDispatcherModal.tsx`) ampliado de `max-w-sm` (384px) a `max-w-xl` (576px, +50%), organizando *Anotador en Vivo* y *Partida Online* en 2 columnas paritarias.
+    - Badges visuales de `MIXTO` implementados en tabla general y cabecera del torneo.
+  * **Validación:**
+    - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Corrección Matemática y de Ciclo de Vida de BYEs en Llaves Incompletas (12 Participantes / 16 Slots):**
   * **Motor Puro de Llaves (`src/lib/bracket-engine.ts`):**
     - Agregada bandera `resolveByes?: boolean` (por defecto `true`) a `SingleEliminationOptions` y `DoubleEliminationOptions`.

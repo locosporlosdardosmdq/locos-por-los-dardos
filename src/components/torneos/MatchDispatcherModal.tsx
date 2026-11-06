@@ -62,14 +62,14 @@ export const MatchDispatcherModal: React.FC<MatchDispatcherModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 select-none animate-in fade-in duration-150">
-      <div className="w-full max-w-sm bg-[#07090e] border border-[#ef4444]/40 rounded-3xl p-5 space-y-4 shadow-2xl shadow-black/95">
+      <div className="w-full max-w-xl bg-[#07090e] border border-[#ef4444]/40 rounded-3xl p-6 space-y-5 shadow-2xl shadow-black/95">
         {/* Cabecera del Cruce */}
         <div className="flex items-center justify-between pb-3 border-b border-[#ef4444]/20">
           <div>
             <span className="text-[10px] font-bold text-[#ef4444] uppercase tracking-wider block">
               {matchTitle}
             </span>
-            <h3 className="text-sm font-black text-white">
+            <h3 className="text-base font-black text-white">
               {player1Name} <span className="text-slate-500">vs</span> {player2Name}
             </h3>
           </div>
@@ -82,63 +82,75 @@ export const MatchDispatcherModal: React.FC<MatchDispatcherModalProps> = ({
         </div>
 
         {mode === 'SELECT' ? (
-          <div className="space-y-2.5">
-            {/* Opción 1: Online (Conectado / Remoto) */}
-            <button
-              onClick={() => {
-                onLaunchOnlineMatch();
-                onClose();
-              }}
-              className="w-full p-3.5 rounded-2xl bg-[#111622] hover:bg-[#182030] border border-[#0284c7]/40 hover:border-[#0284c7] flex items-center gap-3.5 transition-all text-left group shadow-sm"
-            >
-              <div className="w-10 h-10 rounded-xl bg-[#0284c7]/20 border border-[#0284c7]/40 flex items-center justify-center text-[#0284c7] group-hover:scale-105 transition-transform">
-                <Globe className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-sm font-black text-white group-hover:text-[#0284c7] transition-colors">
-                  Partida Online
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Opción 1: Live Presencial (En el Club / Diana) */}
+              <button
+                onClick={() => {
+                  onLaunchLiveMatch();
+                  onClose();
+                }}
+                className="w-full p-4 rounded-2xl bg-[#111622] hover:bg-[#182030] border border-[#00e676]/40 hover:border-[#00e676] flex flex-col gap-2.5 transition-all text-left group shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#00e676]/20 border border-[#00e676]/40 flex items-center justify-center text-[#00e676] group-hover:scale-105 transition-transform flex-shrink-0">
+                    <Target className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-black text-white group-hover:text-[#00e676] transition-colors">
+                      Anotador en Vivo
+                    </div>
+                    <span className="text-[10px] font-bold text-[#00e676] uppercase tracking-wider">
+                      Presencial en Club
+                    </span>
+                  </div>
                 </div>
                 <div className="text-xs text-slate-400">
-                  Sala remota con video, cámara de diana y sincronización
+                  Marcador táctil de pista, árbitro oficial con audio y transmisión a TV.
                 </div>
-              </div>
-            </button>
+              </button>
 
-            {/* Opción 2: Live Presencial (En el Club / Diana) */}
-            <button
-              onClick={() => {
-                onLaunchLiveMatch();
-                onClose();
-              }}
-              className="w-full p-3.5 rounded-2xl bg-[#111622] hover:bg-[#182030] border border-[#00e676]/40 hover:border-[#00e676] flex items-center gap-3.5 transition-all text-left group shadow-sm"
-            >
-              <div className="w-10 h-10 rounded-xl bg-[#00e676]/20 border border-[#00e676]/40 flex items-center justify-center text-[#00e676] group-hover:scale-105 transition-transform">
-                <Target className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-sm font-black text-white group-hover:text-[#00e676] transition-colors">
-                  Anotador en Vivo (En el Club)
+              {/* Opción 2: Online (Conectado / Remoto) */}
+              <button
+                onClick={() => {
+                  onLaunchOnlineMatch();
+                  onClose();
+                }}
+                className="w-full p-4 rounded-2xl bg-[#111622] hover:bg-[#182030] border border-[#0284c7]/40 hover:border-[#0284c7] flex flex-col gap-2.5 transition-all text-left group shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#0284c7]/20 border border-[#0284c7]/40 flex items-center justify-center text-[#0284c7] group-hover:scale-105 transition-transform flex-shrink-0">
+                    <Globe className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-black text-white group-hover:text-[#0284c7] transition-colors">
+                      Partida Online
+                    </div>
+                    <span className="text-[10px] font-bold text-[#0284c7] uppercase tracking-wider">
+                      Remota Conectada
+                    </span>
+                  </div>
                 </div>
                 <div className="text-xs text-slate-400">
-                  Marcador táctil de pista, árbitro oficial y transmisión a TV
+                  Sala remota con video WebRTC, cámara de diana y sincronización de turnos.
                 </div>
-              </div>
-            </button>
+              </button>
+            </div>
 
             {/* Opción 3: Registrar Resultados Directos */}
             <button
               onClick={() => setMode('QUICK_RESULT')}
               className="w-full p-3.5 rounded-2xl bg-[#111622] hover:bg-[#182030] border border-[#ef4444]/40 hover:border-[#ef4444] flex items-center gap-3.5 transition-all text-left group shadow-sm"
             >
-              <div className="w-10 h-10 rounded-xl bg-[#ef4444]/20 border border-[#ef4444]/40 flex items-center justify-center text-[#ef4444] group-hover:scale-105 transition-transform">
-                <FileEdit className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-xl bg-[#ef4444]/20 border border-[#ef4444]/40 flex items-center justify-center text-[#ef4444] group-hover:scale-105 transition-transform flex-shrink-0">
+                <FileEdit className="w-4 h-4" />
               </div>
-              <div>
+              <div className="flex-1">
                 <div className="text-sm font-black text-white group-hover:text-[#ef4444] transition-colors">
-                  Registrar Resultados
+                  Registrar Resultados Directos
                 </div>
                 <div className="text-xs text-slate-400">
-                  Carga manual directa de legs ganados (WO o planilla)
+                  Carga manual directa de legs ganados (WO, planilla o cierre administrativo)
                 </div>
               </div>
             </button>

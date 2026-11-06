@@ -125,6 +125,7 @@ export interface MatchConfig {
   isOnlineRoom?: boolean;
   onlineRoomCode?: string;
   localPlayerIndex?: 0 | 1;
+  autoStartPlaying?: boolean;
 }
 
 export interface DartThrow {
@@ -150,7 +151,7 @@ export interface CricketMarkState {
   [sector: string]: number; // sector '15','16','17','18','19','20','25' -> count 0..3
 }
 
-export type TournamentType = 'PRESENCIAL' | 'ONLINE';
+export type TournamentType = 'PRESENCIAL' | 'ONLINE' | 'MIXTO';
 export type TournamentFormat = 'SINGLE_ELIMINATION' | 'ROUND_ROBIN' | 'DOUBLE_ELIMINATION' | 'HYBRID';
 export type TournamentStatus = 'UPCOMING' | 'REGISTRATION_OPEN' | 'IN_PROGRESS' | 'COMPLETED';
 
@@ -188,6 +189,8 @@ export interface TournamentBracketMatch {
   loserNextMatchId?: string;
   loserNextSlot?: 1 | 2;
   isBye?: boolean;
+  playedModality?: 'PRESENCIAL' | 'ONLINE';
+  onlineRoomCode?: string;
 }
 
 export interface PodiumPlace {

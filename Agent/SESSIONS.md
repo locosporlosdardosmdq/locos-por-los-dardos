@@ -1,5 +1,45 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 58] - 2026-11-06
+- **Objetivos:**
+  1. Analizar e implementar soporte para torneos y fechas mixtas / híbridas (convivencia de partidas presenciales y online en un mismo certamen al estilo Nakka N01).
+  2. Rediseñar ergonómicamente y ensanchar un 50% las ventanas modales operativas (`MatchDispatcherModal`, creación y edición de torneos).
+  3. Desacoplar el lanzamiento de partidos desde el modal hacia el Anotador en Vivo (`autoStartPlaying: true`) o hacia la Sala Online remota con código autogenerado y precarga de jugadores del torneo.
+  4. Garantizar la trazabilidad de la modalidad jugada (`playedModality: 'PRESENCIAL' | 'ONLINE'`) tanto en fases eliminatorias (Brackets) como en fase de grupos (Round Robin).
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Limitación de Modalidad Binaria:* Anteriormente el sistema restringía los torneos a `PRESENCIAL` u `ONLINE`. En la práctica comunitaria, un torneo presencial en club puede tener jugadores que compiten a distancia contra tableros remotos, o una liga con fechas mixtas.
+  2. *Falso Selector en Dispatcher:* En `MatchDispatcherModal`, ambos botones ("Anotador en Vivo" y "Partida Online") invocaban la misma función interna sin distinguir la modalidad ni crear la sala remota.
+  3. *Espacio Desperdiciado en Pantalla:* Los modales estaban limitados a `max-w-sm` (384px) y `max-w-lg` (512px), dejando hasta un 70% de espacio desaprovechado en pantallas de escritorio y tablets de club.
+- **Realizado:**
+  - `src/lib/types.ts`:
+    * Ampliado `TournamentType` con `'MIXTO'`: `'PRESENCIAL' | 'ONLINE' | 'MIXTO'`.
+    * Añadido `autoStartPlaying?: boolean` en `MatchConfig`.
+    * Añadidos `playedModality?: 'PRESENCIAL' | 'ONLINE'` y `onlineRoomCode?: string` en `TournamentBracketMatch`.
+  - `src/components/torneos/TournamentGroupStage.tsx`:
+    * Añadidos `playedModality` y `onlineRoomCode` en `GroupMatch`.
+  - `src/components/anotador/MatchGameSettings.tsx`:
+    * Acepta `initialConfig?: Partial<MatchConfig>`.
+    * Respeta `player1` y `player2` iniciales provenientes del torneo, evitando sobreescribir con el perfil local del dispositivo.
+  - `src/components/anotador/DartScorer.tsx`:
+    * Soporta `autoStartPlaying: true` iniciando directamente en la diana y publicando el broadcast a TV.
+  - `src/components/torneos/TournamentManager.tsx`:
+    * Soporte para `activeLiveMatchOrigin` con `modality`.
+    * `handleLaunchBracketMatch` y `handleLaunchGroupMatch` diferencian `'LIVE'` (Anotador) de `'ONLINE'` (Sala remota autogenerada `LPD-XXXX`).
+    * Persistencia de `playedModality` al finalizar la partida o actualizar tanteador.
+    * Modal de creación ampliado un 50% (`max-w-3xl`) con selector de liga en 3 columnas y opción `MIXTO`.
+    * Insignias visuales de "Mixto / Híbrido" en la lista de torneos y banner de detalle.
+  - `src/components/torneos/EditTournamentModal.tsx`:
+    * Modal ampliado a `max-w-3xl` (+50%) y opción `MIXTO` en el desplegable.
+  - `src/components/torneos/MatchDispatcherModal.tsx`:
+    * Modal ampliado de `max-w-sm` a `max-w-xl` (+50%) con disposición en 2 columnas para Presencial y Online, más registro directo abajo.
+  - `Agent/DECISIONS.md`:
+    * Registrado `[ADR-064] Soporte de Torneos y Fechas Mixtas (Presencial + Online) estilo Nakka N01 y Ampliación Ergonómica de Modales (+50%)`.
+  - `Agent/TODO.md`:
+    * Tareas completadas y marcadas.
+- **Validación:**
+  - `npx tsc --noEmit` completado con 0 errores (código 0).
+- **Estado del Proyecto:** Plataforma con soporte pleno para torneos híbridos/mixtos presencial + online y modales ergonómicos ensanchados.
+
 ## [Sesión 57] - 2026-11-06
 - **Objetivos:**
   1. Analizar críticamente el reporte arquitectónico sobre el comportamiento de llaves eliminatorias con cantidades de inscriptos no potencia de 2 (específicamente torneos de 12 participantes en cuadros de 16).

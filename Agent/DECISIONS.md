@@ -1347,6 +1347,19 @@
   5. En `reportResult` se añadió detección de Byes heredados en Doble Eliminación: si un competidor cae a Losers y su rival proviene de un partido de Winners que fue BYE, recibe un pase por BYE automático y avanza directamente a Losers R2.
 - **Motivo:** Garantiza equidad matemática absoluta, coherencia visual en tiempo real durante la inscripción y fluidez reglamentaria idéntica a Challonge y Nakka N01 Tournament.
 
+---
+
+### [ADR-064] - 2026-11-06: Torneos Mixtos Híbridos (Presencial + Online por Cruce Estilo Nakka) y Optimización Ergonómica de Modales (+50% Ancho)
+- **Contexto:** En torneos federados y ligas oficiales pueden coexistir fechas o cruces donde determinados jugadores compiten presencialmente en el club y otros en simultáneo de forma online conectada (cámara y diana WebRTC). Anteriormente, el despachador de partidos ejecutaba el mismo flujo local sin importar qué botón tocara el usuario, y el formulario de creación de torneos estaba confinado a un ancho angosto (`max-w-lg`, 512px) que provocaba amontonamiento y scroll excesivo.
+- **Decisión:**
+  1. Se expandió `TournamentType` con la opción `'MIXTO'`, y se añadieron los atributos `playedModality?: 'PRESENCIAL' | 'ONLINE'` y `onlineRoomCode?: string` a nivel de cruce individual (`TournamentBracketMatch` y `GroupMatch`).
+  2. En `TournamentManager.tsx`, se independizó la lógica de lanzamiento: `LIVE` inicializa el anotador oficial en la diana (`autoStartPlaying: true`) transmitiendo a la TV, mientras que `ONLINE` autoconfigura la sala remota sincronizada.
+  3. En `DartScorer.tsx` y `MatchGameSettings.tsx`, se protegió la identidad de los competidores del torneo evitando que sean sobreescritos por el perfil local al montar la partida, y se abrió paso automático al tablero o sala según el modo despachado.
+  4. Se amplió el ancho del modal de creación y edición de torneos a `max-w-3xl` (768px, +50%), reordenando las opciones de liga en grilla horizontal de 3 columnas (`md:grid-cols-3`).
+  5. Se amplió el despachador `MatchDispatcherModal.tsx` a `max-w-xl` (576px, +50%), disponiendo las opciones de juego en 2 columnas paritarias y legibles.
+- **Motivo:** Permite total flexibilidad competitiva, fidelidad reglamentaria idéntica a Nakka N01 / DartConnect y una experiencia visual de administración ágil y espaciosa en pantallas de escritorio y tablets.
+
+
 
 
 

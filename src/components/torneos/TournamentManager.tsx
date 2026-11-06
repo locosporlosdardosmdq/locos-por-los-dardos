@@ -367,7 +367,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
   // Partida en vivo activa en el Anotador Oficial
   const [activeLiveMatchConfig, setActiveLiveMatchConfig] = useState<MatchConfig | null>(null);
-  const [activeLiveMatchOrigin, setActiveLiveMatchOrigin] = useState<{ type: 'BRACKET' | 'GROUP'; id: string } | null>(null);
+  const [activeLiveMatchOrigin, setActiveLiveMatchOrigin] = useState<{ type: 'BRACKET' | 'GROUP'; id: string; modality?: 'PRESENCIAL' | 'ONLINE' } | null>(null);
 
   // Modal de asignación de slots estilo Nakka N01
   const [slotAssignTarget, setSlotAssignTarget] = useState<{ match: TournamentBracketMatch; slotIndex: 1 | 2 } | null>(null);
@@ -485,7 +485,14 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   const currentHistoryTournament = filteredHistoryTournaments.find((t) => t.id === selectedHistoryTournamentId) || filteredHistoryTournaments[0] || historyTournaments[0] || null;
 
   // Actualizar resultado en el Cuadro Eliminatorio (en caliente con Pure Engine)
-  const handleUpdateMatchScore = (matchId: string, p1Score: number, p2Score: number, winnerId?: string, note?: string) => {
+  const handleUpdateMatchScore = (
+    matchId: string, 
+    p1Score: number, 
+    p2Score: number, 
+    winnerId?: string, 
+    note?: string,
+    modality?: 'PRESENCIAL' | 'ONLINE'
+  ) => {
     if (!selectedTournamentId) return;
 
     setTournaments((prev) => {
@@ -495,11 +502,17 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         let updatedMatches: TournamentBracketMatch[];
         if (winnerId) {
           // Motor puro: enrutamiento exacto por punteros (nextMatchId / loserNextMatchId)
-          updatedMatches = reportResult(t.matches, matchId, {
+          const reported = reportResult(t.matches, matchId, {
             scoreP1: p1Score,
             scoreP2: p2Score,
             winnerId,
             note
+          });
+          updatedMatches = reported.map((m) => {
+            if (m.id === matchId && modality) {
+              return { ...m, playedModality: modality };
+            }
+            return m;
           });
         } else {
           // Partido en vivo sin ganador definitivo todavía
@@ -510,7 +523,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                 scoreP1: p1Score,
                 scoreP2: p2Score,
                 note: note !== undefined ? note : m.note,
-                status: 'LIVE' as const
+                status: 'LIVE' as const,
+                playedModality: modality || m.playedModality
               };
             }
             return m;
@@ -1313,9 +1327,14 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     // Vacío en producción
   };
 
-  // Lanzar partido de Grupo en el Anotador
+  // Lanzar partido de Grupo en el Anotador (Presencial u Online)
   const handleLaunchGroupMatch = (match: GroupMatch, mode: 'LIVE' | 'ONLINE') => {
     if (!currentTournament) return;
+
+    const roomCode = mode === 'ONLINE'
+      ? (match.onlineRoomCode || `LPD-${match.id.slice(-4).toUpperCase()}`)
+      : undefined;
+
     const config: MatchConfig = {
       gameType: 'X01',
       startingScore: (currentTournament.startingScore as any) || 501,
@@ -1333,11 +1352,14 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       player2: { id: match.player2Id, name: match.player2Name },
       player1Name: match.player1Name,
       player2Name: match.player2Name,
-      tournamentTitle: currentTournament.title
+      tournamentTitle: `${currentTournament.title} (${mode === 'ONLINE' ? 'Online' : 'Presencial'})`,
+      isOnlineRoom: mode === 'ONLINE',
+      onlineRoomCode: roomCode,
+      autoStartPlaying: mode === 'LIVE'
     };
 
     setActiveLiveMatchConfig(config);
-    setActiveLiveMatchOrigin({ type: 'GROUP', id: match.id });
+    setActiveLiveMatchOrigin({ type: 'GROUP', id: match.id, modality: mode === 'ONLINE' ? 'ONLINE' : 'PRESENCIAL' });
   };
 
   // Actualizar cantidad de clasificados a playoffs por grupo
@@ -1448,32 +1470,44 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     setTournamentSubTab(isSwitchingToGroups ? 'GROUPS' : 'BRACKET');
   };
 
-  // Lanzar partido de Bracket en el Anotador
-  const handleLaunchBracketLive = (match: TournamentBracketMatch) => {
+  // Lanzar partido de Bracket en el Anotador (Presencial u Online)
+  const handleLaunchBracketMatch = (match: TournamentBracketMatch, mode: 'LIVE' | 'ONLINE' = 'LIVE') => {
     if (!currentTournament || !match.player1 || !match.player2) return;
+
+    const roomCode = mode === 'ONLINE'
+      ? (match.onlineRoomCode || `LPD-${match.id.slice(-4).toUpperCase()}`)
+      : undefined;
 
     const config: MatchConfig = {
       gameType: 'X01',
       startingScore: (currentTournament.startingScore as any) || 501,
       outMode: currentTournament.outMode || 'DOUBLE_OUT',
       inputFormat: 'SCORE',
-      distanceType: 'LEGS',
-      bestOfSets: 1,
-      bestOfLegs: currentTournament.bestOfLegs,
+      distanceType: match.distanceMode || currentTournament.roundLegsConfig?.distanceMode || 'LEGS',
+      bestOfSets: match.setTarget || 1,
+      bestOfLegs: match.legTarget || currentTournament.bestOfLegs || 3,
       doubleIn: false,
       twoClearLegs: false,
       isDoubles: false,
       isVsCpu: false,
       cpuDifficulty: 'MEDIUM',
-      player1: { id: match.player1.id, name: match.player1.name },
-      player2: { id: match.player2.id, name: match.player2.name },
+      player1: { id: match.player1.id, name: match.player1.name, avatarUrl: match.player1.avatarUrl },
+      player2: { id: match.player2.id, name: match.player2.name, avatarUrl: match.player2.avatarUrl },
       player1Name: match.player1.name,
       player2Name: match.player2.name,
-      tournamentTitle: currentTournament.title
+      tournamentTitle: `${currentTournament.title} (${mode === 'ONLINE' ? 'Online' : 'Presencial'})`,
+      isOnlineRoom: mode === 'ONLINE',
+      onlineRoomCode: roomCode,
+      autoStartPlaying: mode === 'LIVE'
     };
 
     setActiveLiveMatchConfig(config);
-    setActiveLiveMatchOrigin({ type: 'BRACKET', id: match.id });
+    setActiveLiveMatchOrigin({ type: 'BRACKET', id: match.id, modality: mode === 'ONLINE' ? 'ONLINE' : 'PRESENCIAL' });
+  };
+
+  // Alias retrocompatible
+  const handleLaunchBracketLive = (match: TournamentBracketMatch) => {
+    handleLaunchBracketMatch(match, 'LIVE');
   };
 
   // Callback cuando finaliza el partido en el Anotador Oficial
@@ -1488,7 +1522,14 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     const p2Score = result.legsWon ? result.legsWon[1] : (result.winnerIndex === 1 ? 1 : 0);
 
     if (activeLiveMatchOrigin.type === 'BRACKET') {
-      handleUpdateMatchScore(activeLiveMatchOrigin.id, p1Score, p2Score, winnerId);
+      handleUpdateMatchScore(
+        activeLiveMatchOrigin.id, 
+        p1Score, 
+        p2Score, 
+        winnerId, 
+        undefined, 
+        activeLiveMatchOrigin.modality
+      );
     } else if (activeLiveMatchOrigin.type === 'GROUP' && currentTournament?.groupStageData) {
       const matchId = activeLiveMatchOrigin.id;
       const gData = currentTournament.groupStageData;
@@ -1515,7 +1556,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                   scoreP1: p1Score,
                   scoreP2: p2Score,
                   status: 'FINISHED' as const,
-                  winnerId
+                  winnerId,
+                  playedModality: activeLiveMatchOrigin.modality
                 }
               : m
           );
@@ -1926,11 +1968,13 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
                                   <div className="flex items-center gap-1.5">
                                     <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
-                                      t.type === 'PRESENCIAL'
+                                      t.type === 'MIXTO'
+                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                        : t.type === 'PRESENCIAL'
                                         ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                         : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                                     }`}>
-                                      {t.type}
+                                      {t.type === 'MIXTO' ? 'Mixto' : t.type}
                                     </span>
                                     <span className="text-[11px] text-slate-400">
                                       501 DO • Mejor de {t.bestOfLegs} legs
@@ -2191,8 +2235,14 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
                       <div>
                         <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30">
-                            {currentTournament.type}
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                            currentTournament.type === 'MIXTO'
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : currentTournament.type === 'PRESENCIAL'
+                              ? 'bg-[#ef4444]/20 text-[#ef4444] border-[#ef4444]/30'
+                              : 'bg-sky-500/20 text-sky-300 border-sky-500/30'
+                          }`}>
+                            {currentTournament.type === 'MIXTO' ? 'Mixto (Presencial / Online)' : currentTournament.type}
                           </span>
                           {(() => {
                             const s = getTournamentStatusBadge(currentTournament.status);
@@ -2924,8 +2974,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           player1Id={selectedBracketMatch.player1?.id || 'p1'}
           player2Id={selectedBracketMatch.player2?.id || 'p2'}
           bestOfLegs={currentTournament?.bestOfLegs || 5}
-          onLaunchLiveMatch={() => handleLaunchBracketLive(selectedBracketMatch)}
-          onLaunchOnlineMatch={() => handleLaunchBracketLive(selectedBracketMatch)}
+          onLaunchLiveMatch={() => handleLaunchBracketMatch(selectedBracketMatch, 'LIVE')}
+          onLaunchOnlineMatch={() => handleLaunchBracketMatch(selectedBracketMatch, 'ONLINE')}
           onSaveQuickResult={(s1, s2, winner) => {
             handleUpdateMatchScore(selectedBracketMatch.id, s1, s2, winner);
           }}
@@ -2951,7 +3001,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md overflow-y-auto p-3 sm:p-5 flex justify-center items-start sm:items-center">
           <form
             onSubmit={handleCreateTournament}
-            className="w-full max-w-lg bg-[#07090e] border-2 border-[#ef4444] rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl my-auto max-h-[88vh] overflow-y-auto overscroll-contain touch-pan-y"
+            className="w-full max-w-3xl bg-[#07090e] border-2 border-[#ef4444] rounded-3xl p-5 sm:p-7 space-y-5 shadow-2xl my-auto max-h-[90vh] overflow-y-auto overscroll-contain touch-pan-y"
           >
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div className="flex items-center gap-2">
@@ -2982,7 +3032,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                   Modalidad del Torneo & Liga Asociada *
                 </label>
                 
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                   {/* Opción 1: Torneo de Un Día */}
                   <label
                     className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
@@ -3002,10 +3052,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                     <div>
                       <div className="text-xs font-black text-white flex items-center gap-1.5">
                         <Target className="w-3.5 h-3.5 text-[#ef4444]" />
-                        <span>Torneo de Un Día (Sin Liga Asociada)</span>
+                        <span>Torneo de Un Día (Sin Liga)</span>
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        Torneo abierto o relámpago independiente. No suma puntos a ninguna liga.
+                        Abierto o relámpago independiente.
                       </div>
                     </div>
                   </label>
@@ -3029,10 +3079,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                     <div className="w-full">
                       <div className="text-xs font-black text-white flex items-center gap-1.5">
                         <Shield className="w-3.5 h-3.5 text-[#ffe600]" />
-                        <span>Torneo Local (Suma puntos a su Liga Local)</span>
+                        <span>Torneo Local (Liga Local)</span>
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        Fecha puntuable de una liga local (ej. Liga Marplatense • Darderos MDQ).
+                        Puntuable de liga local (ej. MDQ).
                       </div>
                     </div>
                   </label>
@@ -3056,10 +3106,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                     <div>
                       <div className="text-xs font-black text-white flex items-center gap-1.5">
                         <Globe className="w-3.5 h-3.5 text-[#38bdf8]" />
-                        <span>Torneo Nacional (Única Liga Nacional Oficial)</span>
+                        <span>Liga Nacional Oficial</span>
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        Suma puntos para clasificar a torneos internacionales. Fechas presenciales duplican puntos (x2).
+                        Clasifica a torneos internacionales.
                       </div>
                     </div>
                   </label>
@@ -3167,6 +3217,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                   >
                     <option value="PRESENCIAL">Presencial (En Club)</option>
                     <option value="ONLINE">Online Conectado</option>
+                    <option value="MIXTO">Mixto / Híbrido (Presencial + Online)</option>
                   </select>
                 </div>
                 <div>

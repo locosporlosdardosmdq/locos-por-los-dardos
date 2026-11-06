@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 
 interface MatchGameSettingsProps {
+  initialConfig?: Partial<MatchConfig>;
   onStartMatch: (config: MatchConfig) => void;
   onBack?: () => void;
   voiceCallerEnabled: boolean;
@@ -46,6 +47,7 @@ interface MatchGameSettingsProps {
 }
 
 export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
+  initialConfig,
   onStartMatch,
   onBack,
   voiceCallerEnabled,
@@ -55,22 +57,27 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
   initialOnlineRoomCode
 }) => {
   // Modo de juego principal
-  const [gameType, setGameType] = useState<GameType>('X01');
+  const [gameType, setGameType] = useState<GameType>(initialConfig?.gameType || 'X01');
 
   // Modo de juego Cricket
-  const [cricketMode, setCricketMode] = useState<CricketMode>('DEFAULT');
+  const [cricketMode, setCricketMode] = useState<CricketMode>(initialConfig?.cricketMode || 'DEFAULT');
   const [showCricketModeModal, setShowCricketModeModal] = useState(false);
   const [showCricketHelpModal, setShowCricketHelpModal] = useState(false);
 
   // Modalidad Parejas (2 vs 2)
-  const [isDoubles, setIsDoubles] = useState(false);
+  const [isDoubles, setIsDoubles] = useState(initialConfig?.isDoubles || false);
 
   // Modal de Sala Online
-  const [showOnlineRoomModal, setShowOnlineRoomModal] = useState(!!initialOnlineRoomCode);
+  const [showOnlineRoomModal, setShowOnlineRoomModal] = useState(
+    Boolean(initialOnlineRoomCode || initialConfig?.isOnlineRoom)
+  );
 
   // Jugadores seleccionados
-  // Jugador 1: Por defecto SIEMPRE el usuario actualmente logueado en la aplicación
+  // Jugador 1: Toma initialConfig.player1 si proviene de torneo; sino el usuario local logueado
   const [player1, setPlayer1] = useState<ParticipantPlayer>(() => {
+    if (initialConfig?.player1) {
+      return { ...initialConfig.player1 };
+    }
     const active = getCurrentPlayerProfile(DEFAULT_NEW_PLAYER);
     return {
       id: active.id || 'player-local',
@@ -80,11 +87,16 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
     };
   });
 
-  const [player2, setPlayer2] = useState<ParticipantPlayer>({
-    id: 'guest-rival',
-    name: 'Rival / Invitado',
-    nickname: 'Rival',
-    avatarUrl: '/logos/logo-mdq.png'
+  const [player2, setPlayer2] = useState<ParticipantPlayer>(() => {
+    if (initialConfig?.player2) {
+      return { ...initialConfig.player2 };
+    }
+    return {
+      id: 'guest-rival',
+      name: 'Rival / Invitado',
+      nickname: 'Rival',
+      avatarUrl: '/logos/logo-mdq.png'
+    };
   });
 
   // Compañeros en caso de parejas
@@ -102,8 +114,10 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
     avatarUrl: '/logos/logo-mdq.png'
   });
 
-  // Sincronizar Jugador 1 con perfil logueado al montar o actualizar
+  // Sincronizar Jugador 1 con perfil logueado al montar o actualizar solo si NO viene de un cruce de torneo
   useEffect(() => {
+    if (initialConfig?.player1) return;
+
     const active = getCurrentPlayerProfile(DEFAULT_NEW_PLAYER);
     if (active && active.fullName) {
       setPlayer1({
@@ -126,7 +140,7 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
     };
     window.addEventListener('lpld_profile_updated', handleProfileUpdate);
     return () => window.removeEventListener('lpld_profile_updated', handleProfileUpdate);
-  }, []);
+  }, [initialConfig?.player1]);
 
   // Modal de selección de jugador de la app
   const [pickingSlot, setPickingSlot] = useState<'p2' | 'p1Team' | 'p2Team' | null>(null);
@@ -137,15 +151,15 @@ export const MatchGameSettings: React.FC<MatchGameSettingsProps> = ({
   const [inputFormat, setInputFormat] = useState<'SCORE' | 'DART_BY_DART'>('SCORE');
 
   // Distancia
-  const [distanceType, setDistanceType] = useState<'LEGS' | 'SETS'>('LEGS');
-  const [setsCount, setSetsCount] = useState<number>(1);
-  const [legsCount, setLegsCount] = useState<number>(3);
+  const [distanceType, setDistanceType] = useState<'LEGS' | 'SETS'>(initialConfig?.distanceType || 'LEGS');
+  const [setsCount, setSetsCount] = useState<number>(initialConfig?.bestOfSets || 1);
+  const [legsCount, setLegsCount] = useState<number>(initialConfig?.bestOfLegs || 3);
 
   // Configuración X01
-  const [startScore, setStartScore] = useState<170 | 301 | 501 | 701>(501);
-  const [doubleIn, setDoubleIn] = useState(false);
-  const [doubleOut, setDoubleOut] = useState(true);
-  const [twoClearLegs, setTwoClearLegs] = useState(false);
+  const [startScore, setStartScore] = useState<170 | 301 | 501 | 701>(initialConfig?.startingScore || 501);
+  const [doubleIn, setDoubleIn] = useState(initialConfig?.doubleIn || false);
+  const [doubleOut, setDoubleOut] = useState(initialConfig?.outMode !== 'SINGLE_OUT');
+  const [twoClearLegs, setTwoClearLegs] = useState(initialConfig?.twoClearLegs || false);
   const [untilAllFinished, setUntilAllFinished] = useState(false);
 
   // Cricket Whiteboard View

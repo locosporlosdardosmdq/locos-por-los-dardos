@@ -55,8 +55,36 @@ export const DartScorer: React.FC<DartScorerProps> = ({
   };
 
   const [activeConfig, setActiveConfig] = useState<MatchConfig>(defaultMatchConfig);
-  const [viewState, setViewState] = useState<'SETTINGS' | 'PLAYING'>('SETTINGS');
+  const [viewState, setViewState] = useState<'SETTINGS' | 'PLAYING'>(() => {
+    if (initialConfig?.autoStartPlaying) return 'PLAYING';
+    return 'SETTINGS';
+  });
   const [standbySession, setStandbySession] = useState<ActiveMatchSession | null>(null);
+
+  useEffect(() => {
+    if (initialConfig) {
+      setActiveConfig((prev) => ({ ...prev, ...initialConfig }));
+      if (initialConfig.autoStartPlaying) {
+        setViewState('PLAYING');
+        matchBroadcast.publish({
+          matchId: `match-${Date.now()}`,
+          gameType: initialConfig.gameType || 'X01',
+          player1Name: initialConfig.player1?.name || 'Jugador 1',
+          player1Score: initialConfig.startingScore || 501,
+          player1Avg: 0,
+          player1Legs: 0,
+          player2Name: initialConfig.player2?.name || 'Jugador 2',
+          player2Score: initialConfig.startingScore || 501,
+          player2Avg: 0,
+          player2Legs: 0,
+          currentTurnIndex: 0,
+          lastScore: 0,
+          lastDarts: [],
+          status: 'IN_PROGRESS'
+        });
+      }
+    }
+  }, [initialConfig]);
 
   useEffect(() => {
     const session = getActiveMatchSession();
@@ -253,12 +281,13 @@ export const DartScorer: React.FC<DartScorerProps> = ({
             </div>
           )}
           <MatchGameSettings
+            initialConfig={initialConfig}
             onStartMatch={handleStartMatch}
             voiceCallerEnabled={voiceCallerEnabled}
             onToggleVoiceCaller={() => setVoiceCallerEnabled(!voiceCallerEnabled)}
             soundFxEnabled={soundFxEnabled}
             onToggleSoundFx={() => setSoundFxEnabled(!soundFxEnabled)}
-            initialOnlineRoomCode={initialOnlineRoomCode}
+            initialOnlineRoomCode={initialConfig?.onlineRoomCode || initialOnlineRoomCode}
           />
         </div>
       ) : activeConfig.gameType === 'X01' ? (

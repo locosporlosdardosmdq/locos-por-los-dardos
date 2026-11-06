@@ -41,6 +41,8 @@ export interface GroupMatch {
   scoreP2: number;
   status: 'SCHEDULED' | 'LIVE' | 'FINISHED';
   winnerId?: string;
+  playedModality?: 'PRESENCIAL' | 'ONLINE';
+  onlineRoomCode?: string;
 }
 
 export interface GroupEnrolledPlayer {

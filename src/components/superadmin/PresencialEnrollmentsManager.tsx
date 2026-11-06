@@ -882,9 +882,9 @@ export const PresencialEnrollmentsManager: React.FC<PresencialEnrollmentsManager
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#07090e] text-slate-400 uppercase text-[10px] font-black border-b border-slate-800">
+              <thead className="sticky top-0 z-10 bg-[#07090e] text-slate-400 uppercase text-[10px] font-black border-b border-slate-800 shadow-md">
                 <tr>
                   <th className="px-4 py-3">#</th>
                   <th className="px-4 py-3">Competidor &amp; Apodo</th>

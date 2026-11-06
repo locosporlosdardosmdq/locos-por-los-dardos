@@ -201,14 +201,30 @@ export default function SuperadminPage() {
         }
 
         if (Array.isArray(cloudRegs) && cloudRegs.length > 0) {
-          setGrandRegistrations(prev => {
-            const rMap = new Map<string, GrandTournamentRegistration>();
-            prev.forEach(r => rMap.set(r.id, r));
-            cloudRegs.forEach(r => rMap.set(r.id, r));
-            const merged = Array.from(rMap.values());
-            saveStoredGrandTournamentRegistrations(merged);
-            return merged;
+          // Deduplicar cloudRegs por identidad para asegurar que no haya duplicados sintéticos
+          const dedupedMap = new Map<string, GrandTournamentRegistration>();
+
+          cloudRegs.forEach(r => {
+            const cleanName = (r.fullName || '').replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+            const cleanNick = (r.nickname || (r.fullName && r.fullName.includes('(') ? r.fullName.match(/\(([^)]+)\)/)?.[1] : '') || '').trim().toLowerCase();
+            const key = cleanNick || cleanName || r.id;
+
+            const existing = dedupedMap.get(key);
+            if (!existing) {
+              dedupedMap.set(key, r);
+            } else {
+              // Priorizar el registro que tenga datos completos de DNI / teléfono sobre 'En Acreditación'
+              const existingIsSynthetic = existing.dniOrPassport === 'En Acreditación' || !existing.phoneWhatsApp;
+              const currentIsReal = r.dniOrPassport !== 'En Acreditación' && !!r.phoneWhatsApp;
+              if (existingIsSynthetic && currentIsReal) {
+                dedupedMap.set(key, r);
+              }
+            }
           });
+
+          const canonicalList = Array.from(dedupedMap.values());
+          setGrandRegistrations(canonicalList);
+          saveStoredGrandTournamentRegistrations(canonicalList);
         }
       } catch (err) {
         console.warn('[Superadmin] Error en sincronización cloud:', err);

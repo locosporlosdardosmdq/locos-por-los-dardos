@@ -271,7 +271,7 @@ export function saveCurrentPlayerProfile(profile: any): void {
     // Sincronizar asíncronamente con Supabase en la nube
     fetch('/api/jugadores', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAdminRequestHeaders() },
       body: JSON.stringify({ profile })
     }).then(async (res) => {
       if (!res.ok) {
@@ -816,7 +816,7 @@ export async function saveLandingShowcasesToCloud(settings: LandingShowcaseSetti
   try {
     const res = await fetch('/api/showcases', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAdminRequestHeaders() },
       body: JSON.stringify({ showcases: settings })
     });
     return res.ok;
@@ -903,7 +903,7 @@ export async function saveGrandTournamentRegistrationToCloud(reg: GrandTournamen
   try {
     const res = await fetch('/api/inscripciones', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAdminRequestHeaders() },
       body: JSON.stringify({ registration: reg })
     });
     if (!res.ok) return { success: false };

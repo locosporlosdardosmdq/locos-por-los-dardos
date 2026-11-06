@@ -1146,13 +1146,16 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     if (!canManageTournament(tourney)) return;
 
     if (confirm(`¿Deseas finalizar el torneo "${tourney.title}" y moverlo al Historial Oficial de Torneos?`)) {
-      // Determinar campeón si hay partido final
-      const finalMatch = tourney.matches?.find((m) => m.round === 3 && m.matchIndex === 0);
-      const champion = finalMatch?.winnerId && finalMatch.player1 && finalMatch.player2
-        ? (finalMatch.winnerId === finalMatch.player1.id ? finalMatch.player1 : finalMatch.player2)
+      // Determinar campeón y podio dinámicamente según la cantidad de jugadores y formato
+      const podium = tourney.matches && tourney.matches.length > 0
+        ? computePodium(tourney.matches, (tourney.format as any) || 'SINGLE_ELIMINATION')
+        : {};
+
+      const champion = podium.first
+        ? { id: podium.first.id, name: podium.first.name, avatarUrl: podium.first.avatarUrl }
         : null;
-      const runnerUp = champion && finalMatch?.player1 && finalMatch?.player2
-        ? (champion.id === finalMatch.player1.id ? finalMatch.player2 : finalMatch.player1)
+      const runnerUp = podium.second
+        ? { id: podium.second.id, name: podium.second.name, avatarUrl: podium.second.avatarUrl }
         : null;
 
       const archived: Tournament = {
@@ -1179,12 +1182,13 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       setHistoryTournaments(updatedHistory);
       saveStoredTournamentHistory(updatedHistory);
 
-      // Remover de activos
+      // Remover de activos localmente y en la nube
       setTournaments((prev) => {
         const filtered = prev.filter((t) => t.id !== tourney.id);
         saveStoredTournaments(filtered);
         return filtered;
       });
+      deleteTournamentFromCloud(tourney.id).catch(() => {});
 
       setSelectedTournamentId(null);
       setActiveViewMode('TABLE');
@@ -1375,6 +1379,80 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
     if (activeLiveMatchOrigin.type === 'BRACKET') {
       handleUpdateMatchScore(activeLiveMatchOrigin.id, p1Score, p2Score, winnerId);
+    } else if (activeLiveMatchOrigin.type === 'GROUP' && currentTournament?.groupStageData) {
+      const matchId = activeLiveMatchOrigin.id;
+      const gData = currentTournament.groupStageData;
+      const zonesState = gData.zonesState || {};
+
+      let targetZoneKey: number | null = null;
+      for (const key of Object.keys(zonesState)) {
+        const zNum = Number(key);
+        if (zonesState[zNum]?.matches?.some((m: any) => m.id === matchId)) {
+          targetZoneKey = zNum;
+          break;
+        }
+      }
+
+      if (targetZoneKey !== null) {
+        const currentZone = zonesState[targetZoneKey];
+        const matchObj = currentZone.matches.find((m: any) => m.id === matchId);
+
+        if (matchObj && matchObj.status !== 'FINISHED') {
+          const updatedMatches = currentZone.matches.map((m: any) =>
+            m.id === matchId
+              ? {
+                  ...m,
+                  scoreP1: p1Score,
+                  scoreP2: p2Score,
+                  status: 'FINISHED' as const,
+                  winnerId
+                }
+              : m
+          );
+
+          const updatedPlayers = currentZone.players.map((p: any) => {
+            if (p.id === matchObj.player1Id) {
+              const isWinner = winnerId === p.id;
+              return {
+                ...p,
+                matchesPlayed: p.matchesPlayed + 1,
+                matchesWon: isWinner ? p.matchesWon + 1 : p.matchesWon,
+                matchesLost: !isWinner ? p.matchesLost + 1 : p.matchesLost,
+                legsFor: p.legsFor + p1Score,
+                legsAgainst: p.legsAgainst + p2Score,
+                points: p.points + (isWinner ? 2 : 0)
+              };
+            }
+            if (p.id === matchObj.player2Id) {
+              const isWinner = winnerId === p.id;
+              return {
+                ...p,
+                matchesPlayed: p.matchesPlayed + 1,
+                matchesWon: isWinner ? p.matchesWon + 1 : p.matchesWon,
+                matchesLost: !isWinner ? p.matchesLost + 1 : p.matchesLost,
+                legsFor: p.legsFor + p2Score,
+                legsAgainst: p.legsAgainst + p1Score,
+                points: p.points + (isWinner ? 2 : 0)
+              };
+            }
+            return p;
+          });
+
+          const nextZonesState = {
+            ...zonesState,
+            [targetZoneKey]: {
+              players: updatedPlayers,
+              matches: updatedMatches
+            }
+          };
+
+          handleSaveGroupData({
+            ...gData,
+            zonesState: nextZonesState,
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
     }
 
     setActiveLiveMatchConfig(null);

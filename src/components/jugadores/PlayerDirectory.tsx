@@ -166,7 +166,7 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
       }
       return 0;
     });
-  }, [searchTerm, selectedProvince, selectedCategory, rankingMode, onlyMdqLeague]);
+  }, [playersList, searchTerm, selectedProvince, selectedCategory, rankingMode, onlyMdqLeague]);
 
   return (
     <div className="space-y-6">

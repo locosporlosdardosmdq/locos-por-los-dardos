@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { getDbPool } from '@/lib/db';
+import { isAuthorizedAdmin } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
+  if (!isAuthorizedAdmin(request)) {
+    return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+  }
+
   const dbUrl = process.env.DATABASE_URL || '';
   const directUrl = process.env.DIRECT_URL || '';
 
@@ -26,7 +31,7 @@ export async function GET(request: NextRequest) {
     } catch (e: any) {
       return {
         error: 'Invalid URL format: ' + e.message,
-        preview: url.substring(0, 15) + '...',
+        preview: '[REDACTED]',
         length: url.length
       };
     }

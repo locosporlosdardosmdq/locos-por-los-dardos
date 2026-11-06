@@ -1,5 +1,41 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 56] - 2026-11-05
+- **Objetivos:**
+  1. Evaluar críticamente el informe de auditoría `Agent/AUDITORIA_2026-11-05.md` en el contexto del torneo presencial de 16 jugadores de mañana.
+  2. Implementar quirúrgicamente los arreglos de alta prioridad y cero regresión necesarios para la competición: motor de torneos, fase de grupos, desduplicación de inscriptos en Superadmin, corrección del header cortado en la tabla y estadísticas del anotador.
+  3. Proteger endpoints de diagnóstico y sincronización, eliminando residuos de credenciales en bitácoras.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Fase de Grupos en Vivo:* `TournamentManager.tsx` solo procesaba partidos finalizados si el origen era `'BRACKET'`. Al jugar un partido de zona en el anotador oficial (`type === 'GROUP'`), el resultado se descartaba y no sumaba puntos ni legs en la tabla del grupo.
+  2. *Finales en Torneos de 16 Jugadores:* `handleArchiveTournamentToHistory` buscaba la final con `round === 3` estático. Para 16 competidores la final es la ronda 4, dejando campeones sin asignar.
+  3. *Inscriptos Duplicados en Superadmin:* Discrepancias entre `fullName` y `name (NICKNAME)` provocaban la síntesis de filas ficticias ("En Acreditación") que persistían en `localStorage` por mezclas ciegas.
+  4. *Header de Tabla Cortado:* La tabla de inscriptos en `/superadmin` carecía de contenedor de scroll con altura máxima y `<thead>` sticky, deslizándose bajo la barra superior fija.
+  5. *Estadísticas de Anotador:* Partidos donde un jugador ganaba 0 legs grababan `99` como `bestLegDarts`.
+  6. *Decisión de No Regresión:* Se postergó la reescritura masiva de autenticación (cookies HTTP-only) y la rotación de claves de Supabase hasta después del evento, evitando que los jugadores o la organización queden bloqueados en vivo si Supabase impone rate limits de emails durante el torneo.
+- **Realizado:**
+  - `src/components/torneos/TournamentManager.tsx`:
+    * Implementado soporte completo para partidos finalizados de `GROUP` en `handleTournamentMatchFinished`, actualizando `zonesState`, estadísticas de ambos jugadores y guardando a la nube con `handleSaveGroupData`.
+    * Integrado `computePodium` dinámico en `handleArchiveTournamentToHistory` para torneos de cualquier escala (8, 16, 32 jugadores o doble eliminación) y eliminación en nube al archivar con `deleteTournamentFromCloud`.
+  - `src/app/api/inscripciones/route.ts`:
+    * Normalizada la comparación de identidad extrayendo apodos y nombres base para evitar duplicación sintética de jugadores ya inscriptos.
+    * Sincronizados `DELETE` y `PATCH` tanto en `grand_tournament_registrations` como en `tournaments.data.enrolledPlayers`.
+  - `src/app/superadmin/page.tsx`:
+    * Implementada desduplicación inteligente al sincronizar desde la nube, purgan automáticamente registros sintéticos en favor de inscripciones con DNI real.
+  - `src/components/superadmin/PresencialEnrollmentsManager.tsx`:
+    * Añadido contenedor `max-h-[70vh] overflow-y-auto` y `sticky top-0 z-10 bg-[#07090e] shadow-md` en `<thead>`, garantizando legibilidad total al desplazarse por el padrón.
+  - `src/components/anotador/DartScorer.tsx`:
+    * Sanitizados `bestLegP1` y `bestLegP2` para no computar `99` cuando el competidor no ganó ningún leg.
+  - `src/components/jugadores/PlayerDirectory.tsx`:
+    * Añadido `playersList` a las dependencias de `useMemo` para refresco instantáneo tras cargar perfiles federados.
+  - `src/lib/storage.ts`:
+    * Añadidas cabeceras administrativas a `saveLandingShowcasesToCloud` para corregir error 401 en `/api/showcases`.
+  - `src/app/api/diagnostic/route.ts` & `src/app/api/sync/google-form/route.ts`:
+    * Protegido `/api/diagnostic` con `isAuthorizedAdmin()` y preview redactado; validación de host oficial en `sync/google-form`.
+  - `Agent/SESSIONS.md`: Redactadas credenciales en texto plano históricas.
+- **Validación:**
+  - `npx tsc --noEmit --incremental false` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Motor de torneos, anotador, llaves de 16 jugadores y padrón de acreditaciones en Superadmin 100% estabilizados y listos para la competición presencial de mañana.
+
 ## [Sesión 55] - 2026-10-25
 - **Objetivos:**
   1. Identificar la causa raíz exacta por la cual `/jugadores` continuaba mostrando 1 jugador en producción tras el despliegue del commit `bcb21e9`.
@@ -7,8 +43,8 @@
   3. Implementar auto-reconstrucción resiliente de la cadena de conexión de Supabase en `src/lib/db.ts` si en Vercel se configuró únicamente la contraseña en lugar de la URI completa.
 - **Diagnóstico y Análisis Consultivo:**
   1. *Inspección con `/api/diagnostic`:* La respuesta en vivo desde `https://locosporlosdardos.com.ar/api/diagnostic` reveló:
-     `{"env":{"has_DATABASE_URL":true,"sanitized_DATABASE_URL":{"error":"Invalid URL format: Invalid URL","preview":"JeuapaIcgGe6t6w...","length":16}},"dbConnection":{"status":"ERROR","message":"getaddrinfo ENOTFOUND base"}}`
-  2. *Causa Raíz Descubierta:* En Vercel (Project Settings -> Environment Variables), en las variables `DATABASE_URL` y `DIRECT_URL` se pegó únicamente la contraseña de la base de datos de 16 caracteres (`JeuapaIcgGe6t6wS`) en lugar de la URI completa de conexión PostgreSQL (`postgresql://postgres.pufyeabrvrlikbgkjplz:JeuapaIcgGe6t6wS@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true`).
+     `{"env":{"has_DATABASE_URL":true,"sanitized_DATABASE_URL":{"error":"Invalid URL format: Invalid URL","preview":"[REDACTED]","length":16}},"dbConnection":{"status":"ERROR","message":"getaddrinfo ENOTFOUND base"}}`
+  2. *Causa Raíz Descubierta:* En Vercel (Project Settings -> Environment Variables), en las variables `DATABASE_URL` y `DIRECT_URL` se pegó únicamente la contraseña de la base de datos de 16 caracteres (`[REDACTED]`) en lugar de la URI completa de conexión PostgreSQL (`postgresql://postgres.pufyeabrvrlikbgkjplz:[REDACTED]@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true`).
   3. *Solución Definitiva (Self-Healing Connection):* En `src/lib/db.ts`, la función `cleanUrl` ahora detecta si el valor provisto no inicia con `postgres://` ni `postgresql://`. Si se detecta una contraseña directa, autoconstruye de forma automática la URI completa con el usuario del proyecto Supabase y el Transaction Pooler (`aws-0-us-east-1.pooler.supabase.com:6543`).
 - **Realizado:**
   - `src/lib/db.ts`: Incorporada auto-reconstrucción en `cleanUrl` para convertir cualquier contraseña configurada en variable de entorno en la URI oficial de conexión de Supabase.

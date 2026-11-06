@@ -123,10 +123,20 @@ export async function GET(request: NextRequest) {
         const tData = tRow.data;
         if (tData && Array.isArray(tData.enrolledPlayers)) {
           tData.enrolledPlayers.forEach((p: any) => {
-            const alreadyInList = registrations.some(
-              r => r.id === p.id || 
-              (r.fullName.toLowerCase() === (p.name || '').toLowerCase() && p.name)
-            );
+            const cleanPName = (p.name || '').replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+            const cleanPNick = (p.nickname || (p.name && p.name.includes('(') ? p.name.match(/\(([^)]+)\)/)?.[1] : '') || '').trim().toLowerCase();
+
+            const alreadyInList = registrations.some(r => {
+              const cleanRName = (r.fullName || '').replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+              const cleanRNick = (r.nickname || (r.fullName && r.fullName.includes('(') ? r.fullName.match(/\(([^)]+)\)/)?.[1] : '') || '').trim().toLowerCase();
+
+              const idMatch = r.id === p.id;
+              const nameMatch = cleanPName && cleanRName && cleanPName === cleanRName;
+              const nickMatch = cleanPNick && cleanRNick && cleanPNick === cleanRNick;
+              const emailMatch = p.email && r.email && p.email.toLowerCase() === r.email.toLowerCase();
+
+              return idMatch || nameMatch || nickMatch || emailMatch;
+            });
 
             if (!alreadyInList && p.name) {
               const syntheticReg: GrandTournamentRegistration = {
@@ -510,6 +520,30 @@ export async function PATCH(request: NextRequest) {
       [paymentStatus, id]
     );
 
+    // Sincronizar estado de pago en tournaments.data.enrolledPlayers si corresponde
+    try {
+      const tourneyRes = await pool.query(`SELECT id, data FROM tournaments`);
+      for (const tRow of tourneyRes.rows) {
+        const tData = tRow.data;
+        if (tData && Array.isArray(tData.enrolledPlayers)) {
+          let touched = false;
+          const updatedEnrolled = tData.enrolledPlayers.map((p: any) => {
+            if (p.id === id || p.name === id) {
+              touched = true;
+              return { ...p, paymentStatus };
+            }
+            return p;
+          });
+          if (touched) {
+            const updatedData = { ...tData, enrolledPlayers: updatedEnrolled };
+            await pool.query(`UPDATE tournaments SET data = $1 WHERE id = $2`, [JSON.stringify(updatedData), tRow.id]);
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn('[API /api/inscripciones PATCH sync tournaments]:', e.message);
+    }
+
     return NextResponse.json({ success: true, message: 'Estado actualizado correctamente.' });
   } catch (err: any) {
     console.error('[API /api/inscripciones PATCH Error]:', err.message);
@@ -536,6 +570,27 @@ export async function DELETE(request: NextRequest) {
 
     const pool = getDbPool();
     await pool.query(`DELETE FROM grand_tournament_registrations WHERE id = $1`, [id]);
+
+    // Sincronizar también con enrolledPlayers en tournaments para evitar resurrección sintética
+    try {
+      const tourneyRes = await pool.query(`SELECT id, data FROM tournaments`);
+      for (const tRow of tourneyRes.rows) {
+        const tData = tRow.data;
+        if (tData && Array.isArray(tData.enrolledPlayers)) {
+          const filtered = tData.enrolledPlayers.filter((p: any) => p.id !== id && p.name !== id);
+          if (filtered.length !== tData.enrolledPlayers.length) {
+            const updatedData = {
+              ...tData,
+              registeredCount: filtered.length,
+              enrolledPlayers: filtered
+            };
+            await pool.query(`UPDATE tournaments SET data = $1 WHERE id = $2`, [JSON.stringify(updatedData), tRow.id]);
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn('[API /api/inscripciones DELETE sync tournaments]:', e.message);
+    }
 
     return NextResponse.json({ success: true, message: 'Inscripción eliminada correctamente.' });
   } catch (err: any) {

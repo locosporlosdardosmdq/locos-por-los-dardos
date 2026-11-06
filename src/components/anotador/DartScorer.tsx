@@ -161,8 +161,8 @@ export const DartScorer: React.FC<DartScorerProps> = ({
       count180sP2: result.count180s ? result.count180s[1] : 0,
       highFinishP1: result.highestCheckout ? result.highestCheckout[0] : 0,
       highFinishP2: result.highestCheckout ? result.highestCheckout[1] : 0,
-      bestLegP1: result.bestLegDarts ? result.bestLegDarts[0] : 0,
-      bestLegP2: result.bestLegDarts ? result.bestLegDarts[1] : 0,
+      bestLegP1: result.bestLegDarts && result.bestLegDarts[0] < 99 && (result.legsWon ? result.legsWon[0] : 0) > 0 ? result.bestLegDarts[0] : 0,
+      bestLegP2: result.bestLegDarts && result.bestLegDarts[1] < 99 && (result.legsWon ? result.legsWon[1] : 0) > 0 ? result.bestLegDarts[1] : 0,
       mprP1: result.mprP1 || '0.00',
       mprP2: result.mprP2 || '0.00'
     };

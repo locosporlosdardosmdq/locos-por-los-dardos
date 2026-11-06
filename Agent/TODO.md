@@ -1,3 +1,22 @@
+- [x] **Estabilización Crítica Pre-Torneo (16 Participantes) y Resolución de Hallazgos de Auditoría:**
+  * **Motor de Torneos & Llaves de 16 Jugadores (`TournamentManager.tsx`):**
+    - Sincronización completa de resultados de Fase de Grupos al Anotador Oficial (`handleTournamentMatchFinished` para `type === 'GROUP'`).
+    - Finalización dinámica de torneos con `computePodium` (soporte exacto de 8, 16 y 32 competidores) y eliminación en nube al archivar.
+  * **Padrón de Inscriptos & Superadmin (`PresencialEnrollmentsManager.tsx`, `/api/inscripciones`, `superadmin/page.tsx`):**
+    - Desduplicación inteligente por identidad normalizada de competidores (erradicada la fila fantasma "En Acreditación" de Mariano Deux).
+    - Sincronización bidireccional en `DELETE` y `PATCH` de inscripciones impactando `grand_tournament_registrations` y `tournaments.data.enrolledPlayers`.
+    - Cabecera fija `sticky top-0 z-10 bg-[#07090e]` y contenedor `max-h-[70vh] overflow-y-auto` en la tabla de acreditación para evitar solapamiento visual bajo el header de Superadmin.
+  * **Anotador, Estadísticas & Directorio:**
+    - Sanitización de `bestLegDarts` en `DartScorer.tsx` (evita computar `99` ante 0 legs ganados).
+    - `playersList` agregado a dependencias de `useMemo` en `PlayerDirectory.tsx`.
+    - Envío de cabeceras de autorización en `saveLandingShowcasesToCloud` (`storage.ts`).
+  * **Seguridad y Resguardo Inmediato:**
+    - Blindaje de `/api/diagnostic` con `isAuthorizedAdmin()` y preview redactado.
+    - Validación de URL estricta de Google (`*.google.com`, `forms.gle`) en `sync/google-form`.
+    - Redacción de credenciales en bitácoras históricas.
+  * **Validación de Compilación:**
+    - `npx tsc --noEmit --incremental false` completado con 0 errores (código 0).
+
 - [x] **Restauración de Directorio Federal y Corrección de Alias Oficial `mardeus.mp`:**
   * **Verificación de Padrón en Base de Datos:**
     - Verificados los 13 perfiles activos intactos en PostgreSQL Supabase (Juan Dogan, Gabriel Rubio, Victor Albaitero, Damian Logghe, Gabriel Gimenez, Gonzalo, Juan Barciulli, Héctor Valentín Giménez, Celeste Cicciotti, Eduardo Bureaux, Eduardo Mazzola, Lucas Rubio y Mariano Deux).

@@ -15,7 +15,24 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Detectar si es un enlace de Google Sheets (Planilla de Respuestas)
-    const isGoogleSheet = url.includes('docs.google.com/spreadsheets') || url.includes('sheet');
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return NextResponse.json({
+        success: false,
+        error: 'El enlace proporcionado no es una URL válida.'
+      }, { status: 400 });
+    }
+
+    if (parsedUrl.protocol !== 'https:' || (!parsedUrl.hostname.endsWith('google.com') && !parsedUrl.hostname.endsWith('forms.gle'))) {
+      return NextResponse.json({
+        success: false,
+        error: 'Solo se permiten enlaces oficiales de Google (docs.google.com o forms.gle).'
+      }, { status: 400 });
+    }
+
+    const isGoogleSheet = parsedUrl.hostname.includes('docs.google.com') && parsedUrl.pathname.includes('/spreadsheets');
     
     if (isGoogleSheet) {
       let csvUrl = url;

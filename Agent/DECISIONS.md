@@ -1310,6 +1310,32 @@
   6. **Persistencia:** La composición de grupos, duplas y partidos se persiste en `tournament.groupStageData` tanto en memoria como en PostgreSQL de Supabase.
 - **Motivo:** Cumple integralmente el estándar competitivo oficial para certámenes individuales y por parejas.
 
+---
+
+## [ADR-062] Estabilización y Blindaje Crítico Pre-Torneo (Fase de Grupos en Vivo, Llaves de 16 Jugadores, Desduplicación en Superadmin y Header Sticky)
+
+- **Fecha:** 2026-11-05
+- **Estado:** ACEPTADA
+- **Contexto:**
+  De cara a la competición presencial de 16 jugadores en Mar del Plata:
+  1. En `TournamentManager.tsx`, al jugar un partido de fase de grupos en el Anotador en Vivo (`DartScorer`), el callback `handleTournamentMatchFinished` solo contemplaba la rama `BRACKET` y descartaba el resultado si `type === 'GROUP'`.
+  2. En `TournamentManager.tsx`, la finalización y archivado de torneos en el historial buscaba con ronda fija `round === 3`, fallando para torneos de 16 competidores (cuya final es la ronda 4).
+  3. En `/superadmin`, las inscripciones del torneo presencial reconciliaban a `Mariano Deux (ICEMAN)` generando filas duplicadas ("En Acreditación") debido a discrepancias en el string del nombre y falta de desduplicación canónica en cliente.
+  4. La tabla de inscriptos en `/superadmin` carecía de altura máxima con scroll propio y de cabecera fija (`sticky`), provocando que los encabezados quedaran rebanados bajo la barra superior al desplazarse.
+  5. En `DartScorer.tsx`, si un jugador no ganaba ningún leg en un partido, el marcador de estadísticas grababa erróneamente `bestLegDarts = 99`.
+  6. En `PlayerDirectory.tsx`, el `useMemo` de jugadores omitía `playersList` en sus dependencias, provocando visualización de lista vacía/desactualizada hasta pulsar un filtro.
+  7. El endpoint `/api/diagnostic` exponía un preview de credenciales y carecía de validación de administrador, y `sync/google-form` carecía de validación estricta de host.
+- **Decisión:**
+  1. En `TournamentManager.tsx`, se implementó la rama de actualización para `type === 'GROUP'` en `handleTournamentMatchFinished`, actualizando el partido en `groupStageData`, las estadísticas de ambos jugadores (PJ, G, P, LF, LC, Puntos) y persistiendo a Supabase con `handleSaveGroupData`.
+  2. Se integró `computePodium()` en `handleArchiveTournamentToHistory()`, garantizando la detección del campeón y subcampeón para cualquier tamaño de cuadro (8, 16 o 32 jugadores), y se añadió `deleteTournamentFromCloud()` para evitar que torneos archivados resuciten en la lista de activos.
+  3. En `src/app/api/inscripciones/route.ts` se normalizó la comparación de identidad extrayendo el apodo y limpiando paréntesis, y en `superadmin/page.tsx` se implementó deduplicación por clave de identidad que purga automáticamente del `localStorage` los registros sintéticos viejos en favor de las inscripciones con DNI real.
+  4. En `PresencialEnrollmentsManager.tsx` se fijó `max-h-[70vh] overflow-y-auto` y `<thead className="sticky top-0 z-10 bg-[#07090e] shadow-md">`.
+  5. En `DartScorer.tsx`, se sanitizó `bestLegP1` y `bestLegP2` para exigir `< 99` y al menos 1 leg ganado antes de registrar un hito de dardo.
+  6. En `PlayerDirectory.tsx`, se añadió `playersList` a las dependencias de `useMemo`.
+  7. Se protegió `/api/diagnostic` con `isAuthorizedAdmin()`, se redactaron previews de credenciales en diagnósticos y bitácoras, y se validó estrictamente el dominio `google.com` en `sync/google-form`.
+- **Motivo:** Garantiza operatividad sin fallas, estabilidad de llaves y fluidez operativa en la acreditación y desarrollo del torneo de 16 jugadores.
+
+
 
 
 

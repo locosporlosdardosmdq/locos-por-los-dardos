@@ -32,8 +32,15 @@
     * Modal ampliado a `max-w-3xl` (+50%) y opción `MIXTO` en el desplegable.
   - `src/components/torneos/MatchDispatcherModal.tsx`:
     * Modal ampliado de `max-w-sm` a `max-w-xl` (+50%) con disposición en 2 columnas para Presencial y Online, más registro directo abajo.
+  - `src/components/torneos/TournamentManager.tsx` (Gestión de Bajas de Inscriptos):
+    * Implementada función `handleRemovePlayer` con confirmación y control de permisos (organizador/admin o el propio usuario).
+    * Añadido botón de baja (`Trash2`) con hover y confirmación en cada tarjeta de jugador en la pestaña de Inscriptos (`tournamentSubTab === 'PLAYERS'`).
+    * Añadido botón de auto-desinscripción (`UserMinus`, *"Darse de Baja"*) en la cabecera cuando el usuario logueado ya está inscripto y la inscripción permanece abierta.
+    * Limpieza referencial automática de slots en partidos no jugados de la llave (`matches`) y grupos (`groupStageData`), decremento de `registeredCount` y sincronización con Supabase y `DELETE /api/inscripciones`.
+    * Corregido `tournamentEnrolledList` con `Array.isArray` para soportar listas vacías (`[]`) sin regenerar jugadores de fallback sintéticos.
   - `Agent/DECISIONS.md`:
-    * Registrado `[ADR-064] Soporte de Torneos y Fechas Mixtas (Presencial + Online) estilo Nakka N01 y Ampliación Ergonómica de Modales (+50%)`.
+    * Registrado `[ADR-064]` (Modalidad Mixta Nakka y Modales +50%).
+    * Registrado `[ADR-065]` (Gestión de Bajas y Desinscripción de Jugadores en Torneos).
   - `Agent/TODO.md`:
     * Tareas completadas y marcadas.
 - **Validación:**

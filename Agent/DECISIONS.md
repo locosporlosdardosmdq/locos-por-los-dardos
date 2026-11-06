@@ -1359,6 +1359,19 @@
   5. Se amplió el despachador `MatchDispatcherModal.tsx` a `max-w-xl` (576px, +50%), disponiendo las opciones de juego en 2 columnas paritarias y legibles.
 - **Motivo:** Permite total flexibilidad competitiva, fidelidad reglamentaria idéntica a Nakka N01 / DartConnect y una experiencia visual de administración ágil y espaciosa en pantallas de escritorio y tablets.
 
+---
+
+### [ADR-065] - 2026-11-06: Gestión de Bajas y Desinscripción de Jugadores en Torneos
+- **Contexto:** En torneos en fase de inscripción o pre-competencia, no existía un mecanismo para remover o dar de baja a un participante inscripto (sea por cancelación de asistencia de un jugador o corrección administrativa del organizador). Además, la lista de inscriptos utilizaba un memo que ante un arreglo vacío `[]` regeneraba automáticamente un competidor de fallback sintético.
+- **Decisión:**
+  1. En `TournamentManager.tsx`, se incorporó la función `handleRemovePlayer(playerId, playerName)` con control de permisos: solo administradores del torneo (`canManageTournament`) o el propio jugador pueden gestionar la baja.
+  2. Se agregó un botón de eliminación (`Trash2`) con hover y confirmación en cada tarjeta de jugador de la pestaña *Inscriptos*, y un botón *"Darse de Baja"* en la cabecera del torneo si el usuario logueado ya figura inscripto en inscripción abierta.
+  3. Se garantiza la integridad referencial: al dar de baja a un competidor, se lo remueve de `enrolledPlayers`, se actualiza `registeredCount`, y se limpian sus asignaciones en partidos de la llave (`matches`) o zonas de grupos (`groupStageData.zonesState`) que aún no hayan sido disputados (con puntaje 0-0 y sin ganador registrado). Si el jugador ya contaba con partidos jugados, se solicita confirmación explícita alertando sobre la necesidad de reasignación manual.
+  4. Se corrigió la condición del memo `tournamentEnrolledList` utilizando `Array.isArray(currentTournament.enrolledPlayers)` para permitir estados legítimos con 0 inscriptos (`[]`) sin regenerar jugadores de fallback sintéticos.
+  5. Sincronización en la nube: se dispara actualización integral a Supabase (`saveTournamentToCloud`) y llamada a `DELETE /api/inscripciones` con cabeceras de autorización de administrador (`getAdminRequestHeaders()`).
+- **Motivo:** Otorga autonomía completa a organizadores y jugadores para gestionar cupos de manera flexible, limpia y segura antes del inicio del torneo sin generar inconsistencias en los cuadros de juego.
+
+
 
 
 

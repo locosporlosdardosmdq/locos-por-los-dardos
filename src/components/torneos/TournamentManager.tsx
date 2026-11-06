@@ -41,6 +41,7 @@ import {
   deleteTournamentFromCloud
 } from '@/lib/storage';
 import { matchBroadcast, BroadcastMatchPayload } from '@/lib/broadcast';
+import { getAdminRequestHeaders } from '@/lib/client-auth';
 import { findCanonicalPlayer } from '@/lib/players-data';
 import { UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
 import { PlayerDetailModal } from '@/components/jugadores/PlayerDetailModal';
@@ -94,7 +95,8 @@ import {
   Lock,
   Unlock,
   Play,
-  Layers
+  Layers,
+  UserMinus
 } from 'lucide-react';
 
 import { 
@@ -592,7 +594,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   // Inscriptos del torneo actual (por torneo específico, con soporte fallback)
   const tournamentEnrolledList = useMemo(() => {
     if (!currentTournament) return [];
-    if (currentTournament.enrolledPlayers && currentTournament.enrolledPlayers.length > 0) {
+    if (Array.isArray(currentTournament.enrolledPlayers)) {
       return currentTournament.enrolledPlayers;
     }
     return [
@@ -610,6 +612,12 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       }
     ];
   }, [currentTournament, currentUser]);
+
+  const isCurrentUserEnrolled = useMemo(() => {
+    return tournamentEnrolledList.some(
+      (p) => p.id === currentUser.id || p.name?.toLowerCase() === currentUser.fullName?.toLowerCase()
+    );
+  }, [tournamentEnrolledList, currentUser]);
 
   // Inscripción y acreditación de jugadores al torneo
   const handleEnrollPlayer = (playerData: { name: string; pin: string; useWebcam: boolean }) => {
@@ -685,6 +693,110 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     }
 
     setShowEnrollModal(false);
+  };
+
+  // Dar de baja / quitar a un jugador inscripto del torneo
+  const handleRemovePlayer = (playerId: string, playerName: string) => {
+    if (!currentTournament) return;
+
+    const isAdmin = canManageTournament(currentTournament);
+    const isSelf = currentUser.id === playerId || currentUser.fullName?.toLowerCase() === playerName.toLowerCase();
+
+    if (!isAdmin && !isSelf) {
+      alert('Solo los administradores del torneo o el propio jugador pueden gestionar la baja.');
+      return;
+    }
+
+    // Verificar si el jugador ya jugó algún partido con resultados
+    const hasPlayedMatches = currentTournament.matches?.some(
+      (m) =>
+        (m.player1?.id === playerId || m.player1?.name?.toLowerCase() === playerName.toLowerCase() ||
+         m.player2?.id === playerId || m.player2?.name?.toLowerCase() === playerName.toLowerCase()) &&
+        (m.scoreP1 > 0 || m.scoreP2 > 0 || Boolean(m.winnerId))
+    );
+
+    const confirmMsg = hasPlayedMatches
+      ? `El jugador "${playerName}" ya cuenta con resultados registrados en el cuadro. ¿Deseas removerlo de la lista de inscriptos? Deberás reasignar sus partidos manualmente si fuera necesario.`
+      : `¿Estás seguro de que deseas quitar a "${playerName}" de los inscriptos de este torneo?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    setTournaments((prev) => {
+      const updated = prev.map((t) => {
+        if (t.id !== currentTournament.id) return t;
+
+        const currentEnrolled = Array.isArray(t.enrolledPlayers) ? t.enrolledPlayers : tournamentEnrolledList;
+        const newEnrolled = currentEnrolled.filter(
+          (p) => p.id !== playerId && p.name?.toLowerCase() !== playerName.toLowerCase()
+        );
+
+        // Limpiar también de los partidos de la llave que aún no se hayan jugado
+        let updatedMatches = t.matches;
+        if (updatedMatches && Array.isArray(updatedMatches)) {
+          updatedMatches = updatedMatches.map((m) => {
+            let p1 = m.player1;
+            let p2 = m.player2;
+            let changed = false;
+
+            if (p1 && (p1.id === playerId || p1.name?.toLowerCase() === playerName.toLowerCase()) && !m.winnerId && m.scoreP1 === 0 && m.scoreP2 === 0) {
+              p1 = undefined;
+              changed = true;
+            }
+            if (p2 && (p2.id === playerId || p2.name?.toLowerCase() === playerName.toLowerCase()) && !m.winnerId && m.scoreP1 === 0 && m.scoreP2 === 0) {
+              p2 = undefined;
+              changed = true;
+            }
+
+            if (changed) {
+              return {
+                ...m,
+                player1: p1,
+                player2: p2,
+                status: 'SCHEDULED' as const
+              };
+            }
+            return m;
+          });
+        }
+
+        // Si hay fase de grupos guardada, removerlo también de las duplas o zonas
+        let updatedGroupData = t.groupStageData;
+        if (updatedGroupData && updatedGroupData.zonesState) {
+          const newZonesState = { ...updatedGroupData.zonesState };
+          Object.keys(newZonesState).forEach((k) => {
+            const keyNum = Number(k);
+            if (newZonesState[keyNum]?.players) {
+              newZonesState[keyNum] = {
+                ...newZonesState[keyNum],
+                players: newZonesState[keyNum].players.filter(
+                  (p: any) => p.id !== playerId && p.name?.toLowerCase() !== playerName.toLowerCase()
+                )
+              };
+            }
+          });
+          updatedGroupData = { ...updatedGroupData, zonesState: newZonesState };
+        }
+
+        return {
+          ...t,
+          enrolledPlayers: newEnrolled,
+          registeredCount: newEnrolled.length,
+          matches: updatedMatches,
+          groupStageData: updatedGroupData
+        };
+      });
+
+      saveStoredTournaments(updated);
+      const updatedTourney = updated.find((t) => t.id === currentTournament.id);
+      if (updatedTourney) saveTournamentToCloud(updatedTourney);
+      return updated;
+    });
+
+    // Sincronizar eliminación en la nube para inscripciones federadas
+    fetch(`/api/inscripciones?id=${encodeURIComponent(playerId)}`, {
+      method: 'DELETE',
+      headers: getAdminRequestHeaders()
+    }).catch((err) => console.warn('[Desinscripción Cloud Error]:', err));
   };
 
   // Motor Nakka N01: Asignación Automática de la Llave
@@ -2303,14 +2415,27 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                       </a>
 
                       {currentTournament.status === 'REGISTRATION_OPEN' ? (
-                        <button
-                          type="button"
-                          onClick={() => setShowEnrollModal(true)}
-                          className="px-3.5 py-2 bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#00e676]/20 transition-all"
-                        >
-                          <Users className="w-4 h-4" />
-                          <span>+ Inscribirme</span>
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setShowEnrollModal(true)}
+                            className="px-3.5 py-2 bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#00e676]/20 transition-all"
+                          >
+                            <Users className="w-4 h-4" />
+                            <span>+ {isCurrentUserEnrolled ? 'Acreditar Jugador' : 'Inscribirme'}</span>
+                          </button>
+                          {isCurrentUserEnrolled && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePlayer(currentUser.id, currentUser.fullName)}
+                              className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-red-500/30 transition-all"
+                              title="Darse de baja de este torneo"
+                            >
+                              <UserMinus className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Darse de Baja</span>
+                            </button>
+                          )}
+                        </div>
                       ) : (
                         <div className="px-3 py-2 bg-slate-800/80 border border-slate-700 text-slate-300 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-not-allowed">
                           <Lock className="w-3.5 h-3.5 text-amber-400" />
@@ -2593,29 +2718,62 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {tournamentEnrolledList.map((p, idx) => (
-                          <div
-                            key={p.id}
-                            className="p-3 rounded-2xl bg-[#07090e] border border-slate-800 flex items-center justify-between"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-xl bg-[#111622] border border-[#ef4444]/40 flex items-center justify-center font-black text-xs text-[#ef4444]">
-                                {idx + 1}
+                      {tournamentEnrolledList.length === 0 ? (
+                        <div className="text-center py-12 bg-[#07090e] border border-slate-800 rounded-2xl p-6 text-slate-400">
+                          <Users className="w-10 h-10 mx-auto text-slate-600 mb-2" />
+                          <p className="font-bold text-sm text-slate-300">Aún no hay jugadores inscriptos en este torneo.</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Usa el botón "+ Acreditar Nuevo" o comparte el enlace para registrar competidores.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {tournamentEnrolledList.map((p, idx) => {
+                            const canDelete = Boolean(
+                              canManageTournament(currentTournament) ||
+                              currentUser.id === p.id ||
+                              currentUser.fullName?.toLowerCase() === p.name.toLowerCase()
+                            );
+
+                            return (
+                              <div
+                                key={p.id}
+                                className="p-3 rounded-2xl bg-[#07090e] border border-slate-800 flex items-center justify-between group hover:border-slate-700 transition-colors"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-9 h-9 shrink-0 rounded-xl bg-[#111622] border border-[#ef4444]/40 flex items-center justify-center font-black text-xs text-[#ef4444]">
+                                    {idx + 1}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-black text-white truncate">{p.name}</div>
+                                    <div className="text-[10px] text-slate-400 truncate">@{p.nickname} • AVG {p.avg}</div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {p.hasWebcam && (
+                                    <span className="p-1 rounded-lg bg-[#00e676]/10 text-[#00e676]" title="Webcam Habilitada">
+                                      <Video className="w-3.5 h-3.5" />
+                                    </span>
+                                  )}
+                                  {canDelete && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemovePlayer(p.id, p.name);
+                                      }}
+                                      className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/25 text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-500/40 transition-all hover:scale-105"
+                                      title={`Quitar a "${p.name}" del torneo`}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
-                              <div>
-                                <div className="text-xs font-black text-white">{p.name}</div>
-                                <div className="text-[10px] text-slate-400">@{p.nickname} • AVG {p.avg}</div>
-                              </div>
-                            </div>
-                            {p.hasWebcam && (
-                              <span className="p-1 rounded-lg bg-[#00e676]/10 text-[#00e676]" title="Webcam Habilitada">
-                                <Video className="w-3.5 h-3.5" />
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
 

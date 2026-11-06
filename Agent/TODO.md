@@ -1,3 +1,16 @@
+- [x] **Gestión de Bajas y Desinscripción de Jugadores en Torneos (`TournamentManager.tsx`):**
+  * **Pestaña Inscriptos (`tournamentSubTab === 'PLAYERS'`):**
+    - Agregado botón de eliminación (`Trash2`) en cada tarjeta de jugador inscripto para administradores (`canManageTournament`) o el propio usuario.
+    - Confirmación previa con salvaguarda si el jugador ya posee partidos disputados con tanteador o victoria.
+    - Estado vacío pulido cuando no hay inscriptos, invitando a acreditar nuevos participantes.
+  * **Cabecera del Torneo:**
+    - Detección reactiva de usuario inscripto (`isCurrentUserEnrolled`).
+    - Botón de auto-desinscripción (*"Darse de Baja"*) junto a la acreditación cuando la inscripción está abierta.
+  * **Consistencia e Integridad Referencial:**
+    - Limpieza automática de slots no disputados en el cuadro eliminatorio (`matches`) y zonas de grupos (`groupStageData.zonesState`).
+    - Actualización de `registeredCount` y sincronización con Supabase / localStorage (`saveTournamentToCloud` y `DELETE /api/inscripciones`).
+    - Corregido el memo `tournamentEnrolledList` con `Array.isArray` para permitir listas vacías `[]` sin regenerar el fallback sintético.
+
 - [x] **Soporte de Modalidad Mixta (Presencial + Online estilo Nakka) y Rediseño de Modales (+50% Ancho):**
   * **Modelo de Datos y Tipos (`src/lib/types.ts` & `TournamentGroupStage.tsx`):**
     - `TournamentType` ampliado para admitir `'PRESENCIAL' | 'ONLINE' | 'MIXTO'`.

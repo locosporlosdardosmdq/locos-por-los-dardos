@@ -12,13 +12,12 @@
     - Reemplazado el slot artificial `AR ? Por definir [0]` por el cartel limpio `— PASE LIBRE (BYE) —`.
     - Suprimido el casillero de tanteador en `0` para el slot de Bye y el texto "▶ Tocar para abrir partida".
     - Atenuación suave (`opacity-75`) de las tarjetas de Bye para distinguir claramente los cruces disputables de los pases directos.
-  * **Asesor Inteligente de Formato de Torneo (`TournamentFormatAdvisor.tsx`):**
+  * **Asesor Inteligente de Formato de Torneo & Estimador Dinámico de Tiempos por AVG (`TournamentFormatAdvisor.tsx`):**
     - Creado componente interactivo con el motor matemático de recomendaciones de Challonge y Nakka para cualquier número de inscriptos ($N \ge 3$).
-    - Comparativa lado a lado de 3 modalidades:
-      1. *Fase de Grupos + Playoffs:* Destacado para $N$ no potencias de 2 (ej. 5 a 7, 9 a 14) garantizando múltiples partidos por jugador (3 a 5), 0 Byes en zonas y cruces olímpicos en Playoffs.
-      2. *Doble Eliminación (Winners & Losers):* Recomendado para $N \in [8, 12, 16]$, garantizando revancha para todos los eliminados.
-      3. *Eliminación Simple (KO):* Máxima velocidad y sencillez para cuadros con cupos exactos (8, 16, 32).
-    - Desglose de métricas: cantidad de partidos totales, partidos mínimos garantizados por jugador, cantidad de Byes generados, tiempo estimado de duración del torneo (en dianas simultáneas) y botón de aplicación en 1 clic (`handleApplyAdvisorRecommendation`) que reconfigura el certamen en la nube y regenera la llave o zonas automáticamente.
+    - **Resolución Dinámica de AVG por Jugador:** Cruza los inscriptos del torneo con el padrón de jugadores en la nube (`communityPlayers`), priorizando las estadísticas dinámicas reales registradas en la App (`stats.overallAvg` si `stats.matchesPlayed > 0`) y utilizando el AVG declarado en su perfil (`estimatedAvg`) como segundo nivel, con visor desplegable para auditar qué AVG e indicador (`⚡ Stats App` vs `📋 Declarado`) aplica a cada competidor.
+    - **Conmutador de Modo de AVG (`Automático Inscriptos` vs `Setear AVG Único Manual`):** Permite alternar entre el promedio dinámico real del plantel o fijar manualmente un único valor de AVG promedio para todos los jugadores (mediante slider, input numérico directo y botones rápidos: `35 Principiante`, `45 Intermedio`, `55 Avanzado`, `70 Pro`).
+    - **Simulador de Canchas y Distancia:** Controles en tiempo real para elegir cantidad de dianas simultáneas (`1 a 4 Dianas`) y distancia base (`1º a 2, 3, 4 o 5 legs`), contemplando además el puntaje de salida (`301/501/701`), modo de cierre (`DOUBLE_OUT` con penalización realista de visitas al doble vs `SINGLE_OUT`) y configuración por rondas (`roundLegsConfig`).
+    - **Desglose en Cada Cuadro de Opción:** Muestra duración total en horas y minutos (`~Xh Ym`) calculada por oleadas de canchas, desglose por fases (`Zonas + Playoffs` o `Rondas previas + Final`), minutos estimados por partido y minutos por leg, más botón de aplicación en 1 clic (`handleApplyAdvisorRecommendation`).
   * **Validación:**
     - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
 

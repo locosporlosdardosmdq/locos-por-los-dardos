@@ -2621,9 +2621,15 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                     <div className="pt-1">
                       <TournamentFormatAdvisor
                         enrolledCount={tournamentEnrolledList.length}
+                        enrolledPlayers={tournamentEnrolledList}
+                        communityPlayers={communityPlayers}
                         currentFormat={currentTournament.format}
                         currentGroupsCount={currentTournament.groupStageData?.groupsCount || currentTournament.groupsCount || 2}
                         currentQualifiersPerGroup={currentTournament.groupStageData?.qualifiersPerGroup || currentTournament.qualifiersPerGroup || 2}
+                        startingScore={currentTournament.startingScore || 501}
+                        outMode={currentTournament.outMode || 'DOUBLE_OUT'}
+                        bestOfLegs={currentTournament.bestOfLegs || 3}
+                        roundLegsConfig={currentTournament.roundLegsConfig}
                         onApplyFormat={handleApplyAdvisorRecommendation}
                       />
                     </div>

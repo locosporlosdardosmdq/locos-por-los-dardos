@@ -25,11 +25,13 @@
   - `src/components/torneos/NakkaTvBracketView.tsx`:
     * Reemplazado slot de Byes por `— PASE LIBRE (BYE) —` y casilla de tanteador limpia `—`.
   - `src/components/torneos/TournamentFormatAdvisor.tsx`:
-    * Nuevo componente con motor de recomendación matemática (Grupos + Playoffs, Doble Eliminación, KO Simple) con desglose de partidos, Byes, duración estimada y botón de 1 clic.
+    * Nuevo componente con motor de recomendación matemática (Grupos + Playoffs, Doble Eliminación, KO Simple) y **Estimador Dinámico de Duración por AVG**.
+    * Cruza los inscriptos del torneo con `communityPlayers` (priorizando `stats.overallAvg` de partidas reales jugadas en la App sobre `estimatedAvg` declarado en perfil).
+    * Conmutador interactivo entre modo `Automático Inscriptos` y modo `Setear AVG Único Manual` (con slider, input numérico directo y botones de nivel `35/45/55/70 AVG`), selector de dianas simultáneas (`1 a 4 dianas`) y distancia en legs (`1º a 2, 3, 4 o 5 legs`), mostrando en cada tarjeta el tiempo total en horas/minutos, desglose por fases, minutos por partido y minutos por leg.
   - `src/components/torneos/TournamentManager.tsx`:
     * En `handleAutoAssignBracket`: dimensionamiento exacto a `getNextPowerOfTwo(participants.length)` y `resolveByes = true` para que los pases directos avancen de inmediato a Cuartos.
     * Implementado `handleApplyAdvisorRecommendation(rec)` con actualización en caliente y persistencia a Supabase.
-    * Renderizado de `<TournamentFormatAdvisor ... />` para organizadores y administradores.
+    * Renderizado de `<TournamentFormatAdvisor ... />` inyectando `enrolledPlayers`, `communityPlayers`, `startingScore`, `outMode`, `bestOfLegs` y `roundLegsConfig`.
 - **Validación:**
   - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
 - **Estado del Proyecto:** Motor de llaves optimizado al estándar Nakka N01 y Challonge, árbol de conectores ortogonales activo, visualización de Byes depurada y recomendador inteligente de formatos plenamente operativo.

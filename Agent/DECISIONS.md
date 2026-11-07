@@ -1417,9 +1417,11 @@
      - Centrado vertical de rondas con altura mínima uniforme (`r1Count * 156px`) y `justify-around`, posicionando cada partido de Ronda $R+1$ en el baricentro exacto de sus dos alimentadores de Ronda $R$.
   3. **Depuración de Slots de Byes (`TournamentBracket.tsx` & `NakkaTvBracketView.tsx`):**
      - Eliminada la simulación `AR ? Por definir [0]`. Se renderiza el slot limpio `— PASE LIBRE (BYE) —`, se suprime el tanteador y se aplica atenuación sutil (`opacity-75`).
-  4. **Asesor Inteligente de Formato (`TournamentFormatAdvisor.tsx`):**
+  4. **Asesor Inteligente de Formato & Estimador Dinámico de Tiempos por AVG (`TournamentFormatAdvisor.tsx`):**
      - Componente interactivo que analiza el número de participantes ($N \ge 3$) y genera la terna de formatos con métricas comparativas: partidos mínimos por jugador, Byes generados, tiempo estimado de torneo y botón de aplicación directa en 1 clic (`handleApplyAdvisorRecommendation`).
-- **Motivo:** Garantiza máxima actividad deportiva desde el primer minuto en cualquier tamaño de llave, brinda una lectura visual profesional de la progresión idéntica a Nakka y Challonge, y orienta al organizador para maximizar la diversión y los partidos de los jugadores.
+     - **Motor Físico-Matemático de Tiempos por AVG:** Cruza cada inscripto con `communityPlayers`, priorizando sus estadísticas dinámicas reales registradas en la App (`stats.overallAvg` cuando `stats.matchesPlayed > 0`) y tomando su `estimatedAvg` declarado en perfil como segundo nivel. Modela las visitas necesarias para cubrir `startingScore` (301/501/701), aplica la penalización realista de visitas en el anillo de dobles (`DOUBLE_OUT`), pondera el aumento de AVG en instancias finales (`topHalfAvg`) y calcula las oleadas secuenciales según la cantidad de dianas simultáneas disponibles en el club (1 a 4 dianas) y la distancia en legs por ronda (`roundLegsConfig`).
+     - **Modo Manual de Simulación:** Incluye un conmutador para fijar manualmente un único AVG promedio global para todos los jugadores (mediante slider, input numérico directo o presets `35/45/55/70 AVG`), permitiendo simular escenarios de duración antes o durante la inscripción.
+- **Motivo:** Garantiza máxima actividad deportiva desde el primer minuto en cualquier tamaño de llave, brinda una lectura visual profesional de la progresión idéntica a Nakka y Challonge, y orienta al organizador con precisión cronométrica para planificar el uso de canchas y horarios del club.
 
 
 

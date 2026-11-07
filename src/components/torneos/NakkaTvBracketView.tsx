@@ -381,6 +381,7 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
                         const isP1Winner = match.winnerId && match.player1 && match.winnerId === match.player1.id;
                         const isP2Winner = match.winnerId && match.player2 && match.winnerId === match.player2.id;
                         const isLive = match.status === 'LIVE';
+                        const isBye = Boolean(match.isBye || (match.note && match.note.toUpperCase().includes('BYE')));
 
                         return (
                           <div
@@ -415,7 +416,13 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
                                   {getCountryFlag(match.player1?.countryCode || match.player1?.nationality || 'AR')}
                                 </span>
                                 <span className="truncate font-bold">
-                                  {match.player1 ? match.player1.name : <span className="text-slate-500 italic">Por definir</span>}
+                                  {match.player1 ? (
+                                    match.player1.name
+                                  ) : isBye ? (
+                                    <span className="text-slate-500 italic select-none">— PASE LIBRE (BYE) —</span>
+                                  ) : (
+                                    <span className="text-slate-500 italic">Por definir</span>
+                                  )}
                                 </span>
                                 {match.player1 && (
                                   <span className="text-[10px] text-slate-400 font-normal hidden xl:inline">
@@ -428,7 +435,7 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
                                   ? 'bg-[#00e676] text-black border-[#00e676]'
                                   : (isDark ? 'bg-[#07090e] text-slate-200 border-slate-700' : 'bg-slate-100 text-slate-800 border-slate-300')
                               }`}>
-                                {match.status === 'SCHEDULED' && !match.scoreP1 && !match.scoreP2 ? '-' : match.scoreP1}
+                                {!match.player1 && isBye ? '—' : (match.status === 'SCHEDULED' && !match.scoreP1 && !match.scoreP2 ? '-' : match.scoreP1)}
                               </div>
                             </div>
 
@@ -446,7 +453,13 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
                                   {getCountryFlag(match.player2?.countryCode || match.player2?.nationality || 'AR')}
                                 </span>
                                 <span className="truncate font-bold">
-                                  {match.player2 ? match.player2.name : <span className="text-slate-500 italic">Por definir</span>}
+                                  {match.player2 ? (
+                                    match.player2.name
+                                  ) : isBye ? (
+                                    <span className="text-slate-500 italic select-none">— PASE LIBRE (BYE) —</span>
+                                  ) : (
+                                    <span className="text-slate-500 italic">Por definir</span>
+                                  )}
                                 </span>
                                 {match.player2 && (
                                   <span className="text-[10px] text-slate-400 font-normal hidden xl:inline">
@@ -459,7 +472,7 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
                                   ? 'bg-[#00e676] text-black border-[#00e676]'
                                   : (isDark ? 'bg-[#07090e] text-slate-200 border-slate-700' : 'bg-slate-100 text-slate-800 border-slate-300')
                               }`}>
-                                {match.status === 'SCHEDULED' && !match.scoreP1 && !match.scoreP2 ? '-' : match.scoreP2}
+                                {!match.player2 && isBye ? '—' : (match.status === 'SCHEDULED' && !match.scoreP1 && !match.scoreP2 ? '-' : match.scoreP2)}
                               </div>
                             </div>
                           </div>

@@ -58,6 +58,7 @@ import { EditTournamentModal } from './EditTournamentModal';
 import { EditLeagueModal } from './EditLeagueModal';
 import { NakkaTvBracketView } from './NakkaTvBracketView';
 import { TournamentDetailModal } from './TournamentDetailModal';
+import { TournamentFormatAdvisor, TournamentFormatRecommendation } from './TournamentFormatAdvisor';
 import { DartScorer } from '@/components/anotador/DartScorer';
 import { 
   Trophy, 
@@ -107,7 +108,8 @@ import {
   resetMatchSafely, 
   getNextPowerOfTwo,
   hasRealMatchesPlayed,
-  Participant 
+  Participant,
+  SeedingMode 
 } from '@/lib/bracket-engine';
 
 // Helper de traducción y estilo visual de estados de torneo en español (sin cortes)
@@ -817,25 +819,21 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       return;
     }
 
-    const isOpen = currentTournament.status === 'REGISTRATION_OPEN';
-    const hasFullQuota = Boolean(currentTournament.maxParticipants && participants.length >= currentTournament.maxParticipants);
-
-    // Dimensionamiento matemático:
-    // Si la sesión está en progreso o el cupo se completó, la llave se consolida con los participantes reales y resuelve Byes oficiales.
-    // Si la inscripción sigue abierta y faltan cupos, se dimensiona al cupo máximo pero SIN resolver Byes prematuramente.
-    const bracketSize = (!isOpen || hasFullQuota)
-      ? getNextPowerOfTwo(participants.length)
-      : getNextPowerOfTwo(currentTournament.maxParticipants || participants.length);
-
-    const resolveByes = !isOpen || hasFullQuota;
+    // Dimensionamiento matemático Nakka N01 / Challonge:
+    // Al presionar "Asignación Automática", dimensionamos la llave a la potencia de 2 exacta de los inscriptos reales
+    // y resolvemos los Byes inmediatamente (resolveByes = true) para que los competidores con pase libre
+    // avancen de inmediato a la siguiente ronda (Cuartos) y todos los partidos queden listos para jugar sin slots varados ("Por definir").
+    const bracketSize = getNextPowerOfTwo(participants.length);
+    const resolveByes = true;
     const legTarget = currentTournament.bestOfLegs || 3;
     const distMode = currentTournament.roundLegsConfig?.distanceMode || 'LEGS';
+    const seedingMode: SeedingMode = isRandom ? 'COMPACT' : 'RANKED';
 
     let rawMatches: TournamentBracketMatch[] = [];
     if (currentTournament.format === 'DOUBLE_ELIMINATION') {
       rawMatches = generateDoubleElimination(participants, {
         bracketSize,
-        seeding: isRandom ? 'RANDOM' : 'RANKED',
+        seeding: seedingMode,
         legTarget,
         distanceMode: distMode,
         resolveByes
@@ -843,7 +841,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     } else {
       rawMatches = generateSingleElimination(participants, {
         bracketSize,
-        seeding: isRandom ? 'RANDOM' : 'RANKED',
+        seeding: seedingMode,
         includeThirdPlace: true,
         legTarget,
         distanceMode: distMode,
@@ -1580,6 +1578,104 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     });
 
     setTournamentSubTab(isSwitchingToGroups ? 'GROUPS' : 'BRACKET');
+  };
+
+  // Aplicar formato recomendado por el Asesor Inteligente (Challonge / Nakka Standard)
+  const handleApplyAdvisorRecommendation = (rec: TournamentFormatRecommendation) => {
+    if (!currentTournament) return;
+
+    // Si ya hay partidos disputados reales con anotación, advertir al organizador
+    const hasMatchesPlayed = (currentTournament.matches || []).some(
+      (m) => (m.scoreP1 > 0 || m.scoreP2 > 0) && !m.isBye
+    );
+    if (hasMatchesPlayed) {
+      if (!confirm('⚠️ El torneo ya cuenta con partidos disputados con anotación. Cambiar de formato reconfigurará la estructura de juego. ¿Deseas continuar?')) {
+        return;
+      }
+    }
+
+    const participants: Participant[] = tournamentEnrolledList.map((p, idx) => ({
+      id: p.id,
+      name: p.name,
+      nickname: p.nickname,
+      avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
+      seed: p.seed || idx + 1,
+      nationality: p.nationality || 'Argentina',
+      countryCode: p.countryCode || 'AR'
+    }));
+
+    if (rec.format === 'ROUND_ROBIN') {
+      const gCount = rec.groupsCount || 2;
+      const qCount = rec.qualifiersPerGroup || 2;
+      const updatedTourney: Tournament = {
+        ...currentTournament,
+        format: 'ROUND_ROBIN',
+        groupsCount: gCount,
+        qualifiersPerGroup: qCount,
+        groupStageData: {
+          groupsCount: gCount,
+          qualifiersPerGroup: qCount,
+          zonesState: {}
+        },
+        matches: []
+      };
+
+      setTournaments((prev) => {
+        const next = prev.map((t) => (t.id === currentTournament.id ? updatedTourney : t));
+        saveStoredTournaments(next);
+        saveTournamentToCloud(updatedTourney);
+        return next;
+      });
+      setTournamentSubTab('GROUPS');
+      alert(`✨ Formato aplicado con éxito: Fase de Grupos (${gCount} zonas, clasifican los ${qCount} primeros a Playoffs). ¡Ahora puedes sortear los grupos en la pestaña correspondiente!`);
+    } else {
+      // SINGLE_ELIMINATION o DOUBLE_ELIMINATION
+      const bracketSize = getNextPowerOfTwo(participants.length > 0 ? participants.length : (currentTournament.maxParticipants || 8));
+      const legTarget = currentTournament.bestOfLegs || 3;
+      const distMode = currentTournament.roundLegsConfig?.distanceMode || 'LEGS';
+
+      let rawMatches: TournamentBracketMatch[] = [];
+      if (rec.format === 'DOUBLE_ELIMINATION') {
+        rawMatches = generateDoubleElimination(participants, {
+          bracketSize,
+          seeding: 'COMPACT',
+          legTarget,
+          distanceMode: distMode,
+          resolveByes: true
+        });
+      } else {
+        rawMatches = generateSingleElimination(participants, {
+          bracketSize,
+          seeding: 'COMPACT',
+          includeThirdPlace: true,
+          legTarget,
+          distanceMode: distMode,
+          resolveByes: true
+        });
+      }
+
+      const namespacedMatches = rawMatches.map((m) => ({
+        ...m,
+        id: m.id.startsWith(currentTournament.id) ? m.id : `${currentTournament.id}-${m.id}`,
+        nextMatchId: m.nextMatchId ? (m.nextMatchId.startsWith(currentTournament.id) ? m.nextMatchId : `${currentTournament.id}-${m.nextMatchId}`) : undefined,
+        loserNextMatchId: m.loserNextMatchId ? (m.loserNextMatchId.startsWith(currentTournament.id) ? m.loserNextMatchId : `${currentTournament.id}-${m.loserNextMatchId}`) : undefined
+      }));
+
+      const updatedTourney: Tournament = {
+        ...currentTournament,
+        format: rec.format,
+        matches: namespacedMatches
+      };
+
+      setTournaments((prev) => {
+        const next = prev.map((t) => (t.id === currentTournament.id ? updatedTourney : t));
+        saveStoredTournaments(next);
+        saveTournamentToCloud(updatedTourney);
+        return next;
+      });
+      setTournamentSubTab('BRACKET');
+      alert(`✨ Formato aplicado con éxito: ${rec.title}. Llave de ${bracketSize} slots generada con Byes compactados y partidos listos para jugar.`);
+    }
   };
 
   // Lanzar partido de Bracket en el Anotador (Presencial u Online)
@@ -2519,6 +2615,19 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                       </button>
                     </div>
                   </div>
+
+                  {/* Asesor Inteligente de Formato de Torneo (Challonge / Nakka Standard) */}
+                  {canManageTournament(currentTournament) && tournamentEnrolledList.length >= 3 && (
+                    <div className="pt-1">
+                      <TournamentFormatAdvisor
+                        enrolledCount={tournamentEnrolledList.length}
+                        currentFormat={currentTournament.format}
+                        currentGroupsCount={currentTournament.groupStageData?.groupsCount || currentTournament.groupsCount || 2}
+                        currentQualifiersPerGroup={currentTournament.groupStageData?.qualifiersPerGroup || currentTournament.qualifiersPerGroup || 2}
+                        onApplyFormat={handleApplyAdvisorRecommendation}
+                      />
+                    </div>
+                  )}
 
                   {/* Pestañas de Navegación del Torneo */}
                   <div className="flex items-center justify-between border-b border-slate-800 pb-2">

@@ -1399,6 +1399,28 @@
   4. **Racionalización de Polling & Robots:** En `superadmin/page.tsx`, las configuraciones de vitrina, banco y autoridades se cargan 1 sola vez al montar y el intervalo de refresco se espació a 45s con guarda `document.hidden`. En `NakkaTvBracketView.tsx`, el intervalo se espació a 8s con guarda `document.hidden`. Se creó `public/robots.txt` bloqueando scrapers agresivos (`AhrefsBot`, `SemrushBot`, etc.) y rutas privadas.
 - **Motivo:** Reduce el consumo de datos de origen en más de un 95%, garantizando la operación permanente, fluida y sin costo en el plan gratuito de Vercel.
 
+---
+
+### [ADR-068] - 2026-11-07: Emparejamiento Compacto de Byes, Conectores Ortogonales Nakka/Challonge y Motor Recomendador de Formatos
+- **Contexto:**
+  1. *Dispersión de Byes y Partidos Inertes:* En torneos con cupo incompleto (ej. 9 inscriptos sobre un cuadro de 16 slots), la siembra tradicional separaba los Byes entre extremos. Al ejecutarse la asignación automática sin resolver Byes en inscripción abierta (`resolveByes = false`), los 7 jugadores con pase libre quedaban inmovilizados en Octavos de Final enfrentando a "Por definir" con marcador en `0`, dejando una única partida jugable (Partida #2) en todo el certamen.
+  2. *Ausencia de Líneas Conectoras en la Llave:* El cuadro mostraba tarjetas flotantes aisladas sin las líneas de árbol ortogonales estilo Nakka N01 y Challonge, dificultando seguir el camino de los ganadores hacia rondas posteriores.
+  3. *Incertidumbre de Formato según Inscriptos:* Los organizadores carecían de una herramienta orientativa que les indicara matemáticamente si para la cantidad de jugadores presentes convenía armar Fase de Grupos + Playoffs, Doble Eliminación o Eliminación Simple.
+- **Decisión:**
+  1. **Algoritmo de Byes Compactos (`seedCompact` en `src/lib/bracket-engine.ts`):**
+     - En el modo `'COMPACT'`, los Byes se agrupan en pares contiguos (ej. Partidas 2 y 3, 6 y 7 en un cuadro de 16).
+     - Ambos competidores con Byes contiguos avanzan simultáneamente a la Ronda 2 (Cuartos de Final) y conforman un cruce listo para jugar inmediatamente.
+     - En `TournamentManager.tsx`, el botón *"⚡ Asignación Automática"* calcula `bracketSize = getNextPowerOfTwo(participants.length)` y fuerza `resolveByes = true`, dejando la llave lista para jugar con los inscriptos reales.
+  2. **Árbol de Conectores Ortogonales (`TournamentBracket.tsx`):**
+     - Implementado el componente de renderizado `renderMatchWithConnectors` que dibuja conectores SVG/CSS: brazo horizontal de salida de 24px, segmento vertical continuo que abraza los dos partidos emparejados, y brazo de entrada al partido siguiente.
+     - Colores dinámicos: verde neón (`#00e676`) cuando el ganador ya avanzó, o gris pizarra si está pendiente.
+     - Centrado vertical de rondas con altura mínima uniforme (`r1Count * 156px`) y `justify-around`, posicionando cada partido de Ronda $R+1$ en el baricentro exacto de sus dos alimentadores de Ronda $R$.
+  3. **Depuración de Slots de Byes (`TournamentBracket.tsx` & `NakkaTvBracketView.tsx`):**
+     - Eliminada la simulación `AR ? Por definir [0]`. Se renderiza el slot limpio `— PASE LIBRE (BYE) —`, se suprime el tanteador y se aplica atenuación sutil (`opacity-75`).
+  4. **Asesor Inteligente de Formato (`TournamentFormatAdvisor.tsx`):**
+     - Componente interactivo que analiza el número de participantes ($N \ge 3$) y genera la terna de formatos con métricas comparativas: partidos mínimos por jugador, Byes generados, tiempo estimado de torneo y botón de aplicación directa en 1 clic (`handleApplyAdvisorRecommendation`).
+- **Motivo:** Garantiza máxima actividad deportiva desde el primer minuto en cualquier tamaño de llave, brinda una lectura visual profesional de la progresión idéntica a Nakka y Challonge, y orienta al organizador para maximizar la diversión y los partidos de los jugadores.
+
 
 
 

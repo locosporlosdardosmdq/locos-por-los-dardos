@@ -27,7 +27,7 @@ export interface Participant {
 }
 
 export type BracketFormat = 'SINGLE_ELIMINATION' | 'DOUBLE_ELIMINATION';
-export type SeedingMode = 'RANKED' | 'RANDOM' | 'MANUAL';
+export type SeedingMode = 'RANKED' | 'RANDOM' | 'COMPACT' | 'MANUAL';
 
 export interface SingleEliminationOptions {
   bracketSize?: 4 | 8 | 16 | 32 | 64;
@@ -84,6 +84,95 @@ export function getSeededOrder(size: number): number[] {
 }
 
 /**
+ * Siembra compacta de club: agrupa Byes en pares hermanos para maximizar partidos inmediatos en Ronda 1 y Ronda 2.
+ */
+export function seedCompact(
+  participants: Participant[],
+  bracketSize: number
+): (Participant | null)[] {
+  const N = participants.length;
+  if (N >= bracketSize) {
+    return participants.slice(0, bracketSize).map((p, idx) => ({
+      ...p,
+      seed: p.seed ?? idx + 1
+    }));
+  }
+
+  if (N <= 1) {
+    const slots = new Array(bracketSize).fill(null);
+    if (N === 1) slots[0] = { ...participants[0], seed: 1 };
+    return slots;
+  }
+
+  const numMatches = bracketSize / 2;
+  const numPairs = numMatches / 2;
+  const numFull = N - numMatches;
+  const numByes = bracketSize - N;
+  const numByePairs = Math.floor(numByes / 2);
+  const isOdd = numByes % 2 === 1;
+
+  const pairTypes: ('FULL' | 'BYE' | 'ODD')[] = [];
+  let byePairsLeft = numByePairs;
+  let oddLeft = isOdd ? 1 : 0;
+  let fullPairsLeft = Math.floor(numFull / 2);
+
+  // Distribución balanceada entre la mitad superior y la mitad inferior
+  for (let p = 0; p < numPairs; p++) {
+    if (p % 2 === 0 && fullPairsLeft > 0) {
+      pairTypes.push('FULL');
+      fullPairsLeft--;
+    } else if (byePairsLeft > 0) {
+      pairTypes.push('BYE');
+      byePairsLeft--;
+    } else if (oddLeft > 0) {
+      pairTypes.push('ODD');
+      oddLeft--;
+    } else if (fullPairsLeft > 0) {
+      pairTypes.push('FULL');
+      fullPairsLeft--;
+    } else {
+      pairTypes.push('BYE');
+    }
+  }
+
+  const slots: (Participant | null)[] = new Array(bracketSize).fill(null);
+  let pIdx = 0;
+
+  for (let p = 0; p < numPairs; p++) {
+    const type = pairTypes[p];
+    const m1 = p * 2;
+    const m2 = p * 2 + 1;
+    if (type === 'FULL') {
+      if (pIdx < N) slots[m1 * 2] = { ...participants[pIdx], seed: pIdx + 1 };
+      pIdx++;
+      if (pIdx < N) slots[m1 * 2 + 1] = { ...participants[pIdx], seed: pIdx + 1 };
+      pIdx++;
+      if (pIdx < N) slots[m2 * 2] = { ...participants[pIdx], seed: pIdx + 1 };
+      pIdx++;
+      if (pIdx < N) slots[m2 * 2 + 1] = { ...participants[pIdx], seed: pIdx + 1 };
+      pIdx++;
+    } else if (type === 'BYE') {
+      if (pIdx < N) slots[m1 * 2] = { ...participants[pIdx], seed: pIdx + 1 };
+      pIdx++;
+      slots[m1 * 2 + 1] = null;
+      if (pIdx < N) slots[m2 * 2] = { ...participants[pIdx], seed: pIdx + 1 };
+      pIdx++;
+      slots[m2 * 2 + 1] = null;
+    } else if (type === 'ODD') {
+      if (pIdx < N) slots[m1 * 2] = { ...participants[pIdx], seed: pIdx + 1 };
+      pIdx++;
+      if (pIdx < N) slots[m1 * 2 + 1] = { ...participants[pIdx], seed: pIdx + 1 };
+      pIdx++;
+      if (pIdx < N) slots[m2 * 2] = { ...participants[pIdx], seed: pIdx + 1 };
+      pIdx++;
+      slots[m2 * 2 + 1] = null;
+    }
+  }
+
+  return slots;
+}
+
+/**
  * Siembra a los participantes según el modo elegido y rellena con Byes si faltan jugadores.
  */
 export function seedParticipants(
@@ -95,6 +184,10 @@ export function seedParticipants(
 
   if (mode === 'RANDOM') {
     list.sort(() => Math.random() - 0.5);
+    return seedCompact(list, bracketSize);
+  } else if (mode === 'COMPACT') {
+    list.sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999));
+    return seedCompact(list, bracketSize);
   } else if (mode === 'RANKED') {
     list.sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999));
   }

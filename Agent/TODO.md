@@ -1,3 +1,27 @@
+- [x] **Motor de Emparejamiento Compacto de Byes, Árbol Conector Nakka/Challonge y Asesor Inteligente de Formatos (`bracket-engine.ts`, `TournamentBracket.tsx`, `TournamentFormatAdvisor.tsx`, `TournamentManager.tsx`, `NakkaTvBracketView.tsx`):**
+  * **Emparejamiento Compacto de Byes (`bracket-engine.ts`):**
+    - Incorporado el modo `'COMPACT'` en `SeedingMode` y la función `seedCompact(participants, bracketSize)`.
+    - Agrupación deliberada de Byes en pares contiguos para que ambos jugadores con pase libre avancen de inmediato a la siguiente ronda (Cuartos de Final) y conformen cruces listos para jugar desde el minuto cero, erradicando la dispersión de jugadores solitarios en Octavos con "Por definir".
+    - En `handleAutoAssignBracket` de `TournamentManager.tsx`: dimensionamiento dinámico a la potencia de 2 exacta de los participantes reales (`getNextPowerOfTwo(participants.length)`) y resolución obligatoria de Byes (`resolveByes = true`).
+  * **Árbol Conector Ortogonal Estilo Nakka N01 & Challonge (`TournamentBracket.tsx`):**
+    - Implementadas líneas conectoras ortogonales nítidas (`renderMatchWithConnectors`) compuestas por tramos horizontales de salida (24px), columna vertical continua que abraza los dos partidos emparejados, y tramo horizontal de entrada al cruce de la siguiente ronda.
+    - Soporte de conector recto para rondas de Losers en Doble Eliminación con igual cantidad de partidos.
+    - Colores dinámicos en los conectores: verde brillante (`#00e676`) cuando el ganador ya avanzó a la siguiente ronda, y gris pizarra oscuro para cruces pendientes.
+    - Centrado vertical matemático simétrico por columna de ronda mediante contenedor flexible con altura mínima calibrada (`r1Count * 156px`) y `justify-around`, posicionando cada partido de Ronda $R+1$ exactamente en el punto medio de sus dos alimentadores de Ronda $R$.
+  * **Depuración Visual de Slots con BYE (`TournamentBracket.tsx` & `NakkaTvBracketView.tsx`):**
+    - Reemplazado el slot artificial `AR ? Por definir [0]` por el cartel limpio `— PASE LIBRE (BYE) —`.
+    - Suprimido el casillero de tanteador en `0` para el slot de Bye y el texto "▶ Tocar para abrir partida".
+    - Atenuación suave (`opacity-75`) de las tarjetas de Bye para distinguir claramente los cruces disputables de los pases directos.
+  * **Asesor Inteligente de Formato de Torneo (`TournamentFormatAdvisor.tsx`):**
+    - Creado componente interactivo con el motor matemático de recomendaciones de Challonge y Nakka para cualquier número de inscriptos ($N \ge 3$).
+    - Comparativa lado a lado de 3 modalidades:
+      1. *Fase de Grupos + Playoffs:* Destacado para $N$ no potencias de 2 (ej. 5 a 7, 9 a 14) garantizando múltiples partidos por jugador (3 a 5), 0 Byes en zonas y cruces olímpicos en Playoffs.
+      2. *Doble Eliminación (Winners & Losers):* Recomendado para $N \in [8, 12, 16]$, garantizando revancha para todos los eliminados.
+      3. *Eliminación Simple (KO):* Máxima velocidad y sencillez para cuadros con cupos exactos (8, 16, 32).
+    - Desglose de métricas: cantidad de partidos totales, partidos mínimos garantizados por jugador, cantidad de Byes generados, tiempo estimado de duración del torneo (en dianas simultáneas) y botón de aplicación en 1 clic (`handleApplyAdvisorRecommendation`) que reconfigura el certamen en la nube y regenera la llave o zonas automáticamente.
+  * **Validación:**
+    - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Blindaje Integral de Cuota Vercel Hobby y Optimización de Ancho de Banda (Fast Origin Transfer):**
   * **Compresión Extrema y Limpieza de Assets en `public/`:**
     - Reducción drástica de imágenes principales: `logo-iceman.png` (de 6.69 MB a 85.8 KB, -98.7%), `logo-mdq.png` (de 1.77 MB a 81.1 KB, -95.4%), `medidas-cancha.jpg` (de 2.35 MB a 102.9 KB, -95.6%), `gallery-venue-pompeya.jpg` (119 KB) y `gallery-trophies.jpg` (93 KB).

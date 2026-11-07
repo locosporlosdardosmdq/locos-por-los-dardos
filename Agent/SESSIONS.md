@@ -1,5 +1,39 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 61] - 2026-11-07
+- **Objetivos:**
+  1. Analizar críticamente las indicaciones del Arquitecto Argon sobre emparejamiento de Byes, árboles conectores y formato de torneos.
+  2. Implementar el algoritmo de Byes compactos en `src/lib/bracket-engine.ts` (`seedCompact` y modo de siembra `'COMPACT'`).
+  3. Dibujar el árbol de conectores ortogonales de llaves estilo Nakka N01 / Challonge (`renderMatchWithConnectors`) en `src/components/torneos/TournamentBracket.tsx`.
+  4. Depurar la visualización de Byes eliminando slots sintéticos (`Por definir [0]`) tanto en `TournamentBracket.tsx` como en la pantalla TV de 32" (`NakkaTvBracketView.tsx`).
+  5. Crear el Asesor Inteligente de Formato de Torneos (`src/components/torneos/TournamentFormatAdvisor.tsx`) con lógica matemática de recomendaciones y botón de aplicación en 1 clic.
+  6. Actualizar `handleAutoAssignBracket` en `TournamentManager.tsx` para dimensionar a la potencia de 2 exacta de inscriptos y resolver Byes de inmediato.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *El Problema de los Byes Dispersos:* Con 9 inscriptos sobre un cuadro de 16, la siembra estándar dispersaba los 7 Byes en 7 partidos de Octavos, dejando a 7 jugadores solos ("Por definir") y únicamente 1 cruce jugable (Partida #2). Al estar la inscripción abierta (`REGISTRATION_OPEN`), `resolveByes = false` impedía que los jugadores avanzaran a Cuartos de Final.
+  2. *Solución Matemática de Byes Compactos:* Agrupar Byes en pares contiguos (ej. Partidas 2 y 3, 6 y 7). Ambos Byes avanzan de inmediato a Cuartos de Final y se enfrentan entre sí, garantizando que todos los jugadores tengan partidos activos para jugar inmediatamente (4 en Octavos y 2 en Cuartos).
+  3. *Conectores Ortogonales y Simetría:* Se implementaron conectores SVG/CSS con brazo de salida horizontal (24px), columna vertical continua que abraza los cruces emparejados y brazo de entrada a la siguiente ronda, con altura mínima calibrada (`r1Count * 156px`) y `justify-around` para alinear matemáticamente cada partido de Ronda $R+1$ al centro de sus dos alimentadores.
+  4. *Asesor de Formato:* Evalúa la cantidad real de inscriptos ($N$) y compara simultáneamente Grupos + Playoffs, Doble Eliminación y KO Simple, mostrando partidos mínimos por jugador, Byes generados, tiempo estimado de duración y aplicación en 1 clic.
+- **Realizado:**
+  - `src/lib/bracket-engine.ts`:
+    * Añadido `'COMPACT'` a `SeedingMode`.
+    * Implementada la función `seedCompact(participants, bracketSize)`.
+    * Actualizado `seedParticipants`: los modos `'RANDOM'` y `'COMPACT'` agrupan Byes en pares contiguos y balancean las mitades del cuadro.
+  - `src/components/torneos/TournamentBracket.tsx`:
+    * Depuración visual de Byes: reemplazado `AR ? Por definir [0]` por `— PASE LIBRE (BYE) —`, retirado el tanteador `0` y atenuación suave `opacity-75`.
+    * Implementado `renderMatchWithConnectors`: conectores ortogonales dinámicos (`#00e676` si ya avanzó, slate si está pendiente).
+    * Centrado vertical simétrico por columna mediante `minHeight = r1Count * 156px` y `justify-around`.
+  - `src/components/torneos/NakkaTvBracketView.tsx`:
+    * Reemplazado slot de Byes por `— PASE LIBRE (BYE) —` y casilla de tanteador limpia `—`.
+  - `src/components/torneos/TournamentFormatAdvisor.tsx`:
+    * Nuevo componente con motor de recomendación matemática (Grupos + Playoffs, Doble Eliminación, KO Simple) con desglose de partidos, Byes, duración estimada y botón de 1 clic.
+  - `src/components/torneos/TournamentManager.tsx`:
+    * En `handleAutoAssignBracket`: dimensionamiento exacto a `getNextPowerOfTwo(participants.length)` y `resolveByes = true` para que los pases directos avancen de inmediato a Cuartos.
+    * Implementado `handleApplyAdvisorRecommendation(rec)` con actualización en caliente y persistencia a Supabase.
+    * Renderizado de `<TournamentFormatAdvisor ... />` para organizadores y administradores.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Motor de llaves optimizado al estándar Nakka N01 y Challonge, árbol de conectores ortogonales activo, visualización de Byes depurada y recomendador inteligente de formatos plenamente operativo.
+
 ## [Sesión 60] - 2026-11-07
 - **Objetivos:**
   1. Implementar la auditoría crítica y especificación técnica del Arquitecto Argon para erradicar el consumo de *Fast Origin Transfer* en Vercel Hobby.

@@ -105,7 +105,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
     const isP1Winner = m.winnerId && m.player1 && m.winnerId === m.player1.id;
     const isP2Winner = m.winnerId && m.player2 && m.winnerId === m.player2.id;
     const isFinished = m.status === 'FINISHED';
-    const isPlayable = m.player1 && m.player2 && !isFinished;
+    const isBye = Boolean(m.isBye || (m.note && m.note.toUpperCase().includes('BYE')));
+    const isPlayable = Boolean(m.player1 && m.player2 && !isFinished && !isBye);
 
     return (
       <div
@@ -124,6 +125,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
             ? 'bg-[#0f1422] border-slate-800 hover:border-slate-700'
             : isPlayable
             ? 'bg-[#0f1422] border-[#ef4444]/40 hover:border-[#00e676]'
+            : isBye
+            ? 'bg-[#07090e] border-slate-800/80 opacity-75 hover:opacity-100'
             : 'bg-[#07090e] border-slate-800/80 opacity-70 hover:opacity-100'
         }`}
       >
@@ -140,7 +143,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
                 1º a {m.legTarget} Legs
               </span>
             ) : null}
-            {m.note && (
+            {m.note && !isBye && (
               <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/40">
                 {m.note}
               </span>
@@ -157,6 +160,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               <span className="text-slate-400 flex items-center gap-1 font-semibold text-[10px]">
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#00e676]" />
                 Finalizado
+              </span>
+            ) : isBye ? (
+              <span className="text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full font-black text-[9px] uppercase tracking-wider">
+                PASE LIBRE (BYE)
               </span>
             ) : (
               <span className="flex items-center gap-1 text-slate-500 text-[10px]">
@@ -183,47 +190,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
         </div>
 
         {/* Jugador 1 */}
-        <div
-          className={`flex items-center justify-between p-2 rounded-xl mb-1.5 transition-all ${
-            isP1Winner
-              ? 'bg-[#00e676]/15 border border-[#00e676]/50 text-white font-black'
-              : 'bg-[#111622] text-slate-200'
-          }`}
-        >
-          <div 
-            onClick={(e) => {
-              if (m.player1 && onSelectPlayer) {
-                e.stopPropagation();
-                onSelectPlayer(m.player1.id || m.player1.name);
-              } else if (isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && m.status === 'SCHEDULED') {
-                e.stopPropagation();
-                onAssignSlot(m, 1);
-              }
-            }}
-            title={m.player1 ? "Ver ficha y estadísticas del jugador" : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? "Click para asignar jugador" : undefined}
-            className={`flex items-center gap-2 truncate ${m.player1 ? 'cursor-pointer hover:text-[#00e676]' : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? 'cursor-pointer hover:text-blue-400' : ''}`}
-          >
-            <span className="text-sm select-none" title={m.player1?.nationality || 'Argentina'}>
-              {getCountryFlag(m.player1?.countryCode || m.player1?.nationality || 'AR')}
+        {!m.player1 && isBye ? (
+          <div className="flex items-center justify-between p-2 rounded-xl bg-[#090d16]/70 border border-dashed border-slate-800 text-slate-500 text-xs mb-1.5 select-none">
+            <span className="text-[11px] italic tracking-wide text-slate-500 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500/50" />
+              <span>— PASE DIRECTO (BYE) —</span>
             </span>
-            {m.player1?.avatarUrl ? (
-              <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-black">
-                <Image src={m.player1.avatarUrl} alt={m.player1.name} fill className="object-contain" />
-              </div>
-            ) : (
-              <div className="w-6 h-6 rounded-full bg-slate-800 text-[10px] flex items-center justify-center font-bold text-slate-400">
-                {m.player1?.name ? m.player1.name.slice(0, 1) : '?'}
-              </div>
-            )}
-            <span className="text-xs truncate font-bold">
-              {m.player1 ? m.player1.name : (
-                <span className="text-slate-500 italic">Por definir</span>
-              )}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && (
+            {isAdmin && isEditMode && onAssignSlot && (m.round === 1 || isEditMode) && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -231,68 +204,106 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
                   onAssignSlot(m, 1);
                 }}
                 className="p-1 rounded-md bg-blue-500/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[9px] font-bold flex items-center gap-0.5"
-                title="Asignar / Cambiar Jugador en Slot 1"
+                title="Asignar Jugador a este Slot vacío"
               >
                 <UserPlus className="w-3 h-3" />
+                <span className="text-[9px]">Asignar</span>
               </button>
             )}
-            {m.distanceMode === 'SETS' && (
-              <span className="font-mono font-bold text-xs text-[#ffe600] px-1.5 py-0.5 rounded bg-[#ffe600]/10 border border-[#ffe600]/30" title="Sets ganados">
-                {m.scoreSetsP1 || 0}S
-              </span>
-            )}
-            <span
-              className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
-                isP1Winner ? 'bg-[#00e676] text-[#07090e]' : 'bg-[#07090e] text-white border border-slate-800'
-              }`}
-            >
-              {m.scoreP1}
-            </span>
           </div>
-        </div>
+        ) : (
+          <div
+            className={`flex items-center justify-between p-2 rounded-xl mb-1.5 transition-all ${
+              isP1Winner
+                ? 'bg-[#00e676]/15 border border-[#00e676]/50 text-white font-black'
+                : 'bg-[#111622] text-slate-200'
+            }`}
+          >
+            <div 
+              onClick={(e) => {
+                if (m.player1 && onSelectPlayer) {
+                  e.stopPropagation();
+                  onSelectPlayer(m.player1.id || m.player1.name);
+                } else if (isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && m.status === 'SCHEDULED') {
+                  e.stopPropagation();
+                  onAssignSlot(m, 1);
+                }
+              }}
+              title={m.player1 ? "Ver ficha y estadísticas del jugador" : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? "Click para asignar jugador" : undefined}
+              className={`flex items-center gap-2 truncate ${m.player1 ? 'cursor-pointer hover:text-[#00e676]' : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? 'cursor-pointer hover:text-blue-400' : ''}`}
+            >
+              <span className="text-sm select-none" title={m.player1?.nationality || 'Argentina'}>
+                {getCountryFlag(m.player1?.countryCode || m.player1?.nationality || 'AR')}
+              </span>
+              {m.player1?.avatarUrl ? (
+                <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-black">
+                  <Image src={m.player1.avatarUrl} alt={m.player1.name} fill className="object-contain" />
+                </div>
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-slate-800 text-[10px] flex items-center justify-center font-bold text-slate-400">
+                  {m.player1?.name ? m.player1.name.slice(0, 1) : '?'}
+                </div>
+              )}
+              <span className="text-xs truncate font-bold flex items-center gap-1.5">
+                {m.player1 ? (
+                  <>
+                    <span>{m.player1.name}</span>
+                    {isBye && !m.player2 && (
+                      <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 select-none">
+                        ✓ BYE
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-slate-500 italic">Por definir</span>
+                )}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAssignSlot(m, 1);
+                  }}
+                  className="p-1 rounded-md bg-blue-500/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[9px] font-bold flex items-center gap-0.5"
+                  title="Asignar / Cambiar Jugador en Slot 1"
+                >
+                  <UserPlus className="w-3 h-3" />
+                </button>
+              )}
+              {m.distanceMode === 'SETS' && (
+                <span className="font-mono font-bold text-xs text-[#ffe600] px-1.5 py-0.5 rounded bg-[#ffe600]/10 border border-[#ffe600]/30" title="Sets ganados">
+                  {m.scoreSetsP1 || 0}S
+                </span>
+              )}
+              {isBye && !m.player2 ? (
+                <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-[#07090e] text-slate-500 border border-slate-800 select-none">
+                  —
+                </span>
+              ) : (
+                <span
+                  className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
+                    isP1Winner ? 'bg-[#00e676] text-[#07090e]' : 'bg-[#07090e] text-white border border-slate-800'
+                  }`}
+                >
+                  {m.scoreP1}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Jugador 2 */}
-        <div
-          className={`flex items-center justify-between p-2 rounded-xl transition-all ${
-            isP2Winner
-              ? 'bg-[#00e676]/15 border border-[#00e676]/50 text-white font-black'
-              : 'bg-[#111622] text-slate-200'
-          }`}
-        >
-          <div 
-            onClick={(e) => {
-              if (m.player2 && onSelectPlayer) {
-                e.stopPropagation();
-                onSelectPlayer(m.player2.id || m.player2.name);
-              } else if (isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && m.status === 'SCHEDULED') {
-                e.stopPropagation();
-                onAssignSlot(m, 2);
-              }
-            }}
-            title={m.player2 ? "Ver ficha y estadísticas del jugador" : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? "Click para asignar jugador" : undefined}
-            className={`flex items-center gap-2 truncate ${m.player2 ? 'cursor-pointer hover:text-[#00e676]' : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? 'cursor-pointer hover:text-blue-400' : ''}`}
-          >
-            <span className="text-sm select-none" title={m.player2?.nationality || 'Argentina'}>
-              {getCountryFlag(m.player2?.countryCode || m.player2?.nationality || 'AR')}
+        {!m.player2 && isBye ? (
+          <div className="flex items-center justify-between p-2 rounded-xl bg-[#090d16]/70 border border-dashed border-slate-800 text-slate-500 text-xs select-none">
+            <span className="text-[11px] italic tracking-wide text-slate-500 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500/50" />
+              <span>— PASE DIRECTO (BYE) —</span>
             </span>
-            {m.player2?.avatarUrl ? (
-              <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-black">
-                <Image src={m.player2.avatarUrl} alt={m.player2.name} fill className="object-contain" />
-              </div>
-            ) : (
-              <div className="w-6 h-6 rounded-full bg-slate-800 text-[10px] flex items-center justify-center font-bold text-slate-400">
-                {m.player2?.name ? m.player2.name.slice(0, 1) : '?'}
-              </div>
-            )}
-            <span className="text-xs truncate font-bold">
-              {m.player2 ? m.player2.name : (
-                <span className="text-slate-500 italic">Por definir</span>
-              )}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && (
+            {isAdmin && isEditMode && onAssignSlot && (m.round === 1 || isEditMode) && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -300,25 +311,97 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
                   onAssignSlot(m, 2);
                 }}
                 className="p-1 rounded-md bg-blue-500/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[9px] font-bold flex items-center gap-0.5"
-                title="Asignar / Cambiar Jugador en Slot 2"
+                title="Asignar Jugador a este Slot vacío"
               >
                 <UserPlus className="w-3 h-3" />
+                <span className="text-[9px]">Asignar</span>
               </button>
             )}
-            {m.distanceMode === 'SETS' && (
-              <span className="font-mono font-bold text-xs text-[#ffe600] px-1.5 py-0.5 rounded bg-[#ffe600]/10 border border-[#ffe600]/30" title="Sets ganados">
-                {m.scoreSetsP2 || 0}S
-              </span>
-            )}
-            <span
-              className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
-                isP2Winner ? 'bg-[#00e676] text-[#07090e]' : 'bg-[#07090e] text-white border border-slate-800'
-              }`}
-            >
-              {m.scoreP2}
-            </span>
           </div>
-        </div>
+        ) : (
+          <div
+            className={`flex items-center justify-between p-2 rounded-xl transition-all ${
+              isP2Winner
+                ? 'bg-[#00e676]/15 border border-[#00e676]/50 text-white font-black'
+                : 'bg-[#111622] text-slate-200'
+            }`}
+          >
+            <div 
+              onClick={(e) => {
+                if (m.player2 && onSelectPlayer) {
+                  e.stopPropagation();
+                  onSelectPlayer(m.player2.id || m.player2.name);
+                } else if (isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && m.status === 'SCHEDULED') {
+                  e.stopPropagation();
+                  onAssignSlot(m, 2);
+                }
+              }}
+              title={m.player2 ? "Ver ficha y estadísticas del jugador" : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? "Click para asignar jugador" : undefined}
+              className={`flex items-center gap-2 truncate ${m.player2 ? 'cursor-pointer hover:text-[#00e676]' : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? 'cursor-pointer hover:text-blue-400' : ''}`}
+            >
+              <span className="text-sm select-none" title={m.player2?.nationality || 'Argentina'}>
+                {getCountryFlag(m.player2?.countryCode || m.player2?.nationality || 'AR')}
+              </span>
+              {m.player2?.avatarUrl ? (
+                <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-black">
+                  <Image src={m.player2.avatarUrl} alt={m.player2.name} fill className="object-contain" />
+                </div>
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-slate-800 text-[10px] flex items-center justify-center font-bold text-slate-400">
+                  {m.player2?.name ? m.player2.name.slice(0, 1) : '?'}
+                </div>
+              )}
+              <span className="text-xs truncate font-bold flex items-center gap-1.5">
+                {m.player2 ? (
+                  <>
+                    <span>{m.player2.name}</span>
+                    {isBye && !m.player1 && (
+                      <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 select-none">
+                        ✓ BYE
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-slate-500 italic">Por definir</span>
+                )}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAssignSlot(m, 2);
+                  }}
+                  className="p-1 rounded-md bg-blue-500/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[9px] font-bold flex items-center gap-0.5"
+                  title="Asignar / Cambiar Jugador en Slot 2"
+                >
+                  <UserPlus className="w-3 h-3" />
+                </button>
+              )}
+              {m.distanceMode === 'SETS' && (
+                <span className="font-mono font-bold text-xs text-[#ffe600] px-1.5 py-0.5 rounded bg-[#ffe600]/10 border border-[#ffe600]/30" title="Sets ganados">
+                  {m.scoreSetsP2 || 0}S
+                </span>
+              )}
+              {isBye && !m.player1 ? (
+                <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-[#07090e] text-slate-500 border border-slate-800 select-none">
+                  —
+                </span>
+              ) : (
+                <span
+                  className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
+                    isP2Winner ? 'bg-[#00e676] text-[#07090e]' : 'bg-[#07090e] text-white border border-slate-800'
+                  }`}
+                >
+                  {m.scoreP2}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Call to action si es jugable */}
         {isPlayable && (
@@ -328,6 +411,83 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               <span>Tocar para abrir partida</span>
             </span>
           </div>
+        )}
+      </div>
+    );
+  };
+
+  /**
+   * Envoltorio de partida con conectores ortogonales estilo Nakka / Challonge (├───┤)
+   */
+  const renderMatchWithConnectors = (
+    m: TournamentBracketMatch, 
+    roundNum: number, 
+    maxRound: number,
+    isLosers: boolean = false,
+    nextRoundMatchesCount?: number
+  ) => {
+    const isLastRound = roundNum === maxRound;
+    const isFirstRound = roundNum === 1;
+    const isTopInPair = m.matchIndex % 2 === 0;
+
+    const currentRoundMatches = isLosers 
+      ? losersMatches.filter(x => x.round === roundNum)
+      : winnersMatches.filter(x => x.round === roundNum);
+    const isStraightConnector = isLosers && nextRoundMatchesCount !== undefined && nextRoundMatchesCount === currentRoundMatches.length;
+
+    const hasWinner = Boolean(m.winnerId);
+    const exitLineColor = hasWinner ? 'border-[#00e676]' : 'border-slate-600/70';
+    const hasAnyPlayer = Boolean(m.player1 || m.player2);
+    const enterLineColor = hasAnyPlayer ? 'border-slate-500' : 'border-slate-700/60';
+
+    return (
+      <div 
+        key={m.id} 
+        className="flex-1 flex flex-col justify-center items-center relative w-full py-2.5 min-h-[148px]"
+      >
+        {/* Línea horizontal de entrada desde la ronda anterior (izquierda) */}
+        {!isFirstRound && (
+          <div 
+            className={`absolute top-1/2 border-t-2 ${enterLineColor} pointer-events-none z-0`}
+            style={{ left: -24, width: 24 }}
+          />
+        )}
+
+        {/* Tarjeta de partido */}
+        <div className="relative z-10 w-72">
+          {renderMatchCard(m)}
+        </div>
+
+        {/* Líneas de salida hacia la ronda siguiente (derecha) */}
+        {!isLastRound && (
+          <>
+            {isStraightConnector ? (
+              <div 
+                className={`absolute top-1/2 border-t-2 ${exitLineColor} pointer-events-none z-0`}
+                style={{ right: -24, width: 24 }}
+              />
+            ) : (
+              <>
+                {/* Brazo horizontal derecho que sale de la tarjeta */}
+                <div 
+                  className={`absolute top-1/2 border-t-2 ${exitLineColor} pointer-events-none z-0`}
+                  style={{ right: -24, width: 24 }}
+                />
+                {/* Tronco vertical que conecta el par de partidas */}
+                {isTopInPair ? (
+                  <div 
+                    className={`absolute top-1/2 bottom-0 border-r-2 ${exitLineColor} pointer-events-none z-0`}
+                    style={{ right: -24 }}
+                  />
+                ) : (
+                  <div 
+                    className={`absolute top-0 bottom-1/2 border-r-2 ${exitLineColor} pointer-events-none z-0`}
+                    style={{ right: -24 }}
+                  />
+                )}
+              </>
+            )}
+          </>
         )}
       </div>
     );
@@ -555,17 +715,21 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               </div>
 
               <div className="w-full overflow-x-auto pb-3">
-                <div className="min-w-[940px] flex items-start gap-10 justify-between px-2">
-                  {winnersRounds.map((r, idx) => {
+                <div className="min-w-[940px] flex items-stretch gap-12 justify-between px-4">
+                  {winnersRounds.map((r) => {
                     const roundList = winnersMatches.filter((m) => m.round === r);
-                    const paddingTop = idx === 0 ? '' : idx === 1 ? 'pt-10' : 'pt-20';
+                    const w1Count = winnersMatches.filter(m => m.round === 1).length || 4;
+                    const colMinHeight = Math.max(w1Count * 156, 440);
+
                     return (
-                      <div key={`w-round-${r}`} className={`flex flex-col gap-5 ${paddingTop}`}>
-                        <div className="text-xs font-black text-[#00e676] uppercase tracking-wider pb-1 border-b border-[#00e676]/20 flex items-center justify-between">
+                      <div key={`w-round-${r}`} className="flex flex-col w-72 flex-shrink-0">
+                        <div className="text-xs font-black text-[#00e676] uppercase tracking-wider pb-1 mb-2 border-b border-[#00e676]/20 flex items-center justify-between flex-shrink-0">
                           <span>{getWinnersRoundTitle(r, maxWinnersRound, roundList[0])}</span>
                           <span className="text-[10px] text-slate-500 font-normal">({roundList.length})</span>
                         </div>
-                        <div className="flex flex-col gap-5">{roundList.map(renderMatchCard)}</div>
+                        <div className="flex-1 flex flex-col justify-around relative" style={{ minHeight: colMinHeight }}>
+                          {roundList.map((m) => renderMatchWithConnectors(m, r, maxWinnersRound, false))}
+                        </div>
                       </div>
                     );
                   })}
@@ -590,17 +754,22 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               </div>
 
               <div className="w-full overflow-x-auto pb-3">
-                <div className="min-w-[940px] flex items-start gap-10 justify-between px-2">
-                  {losersRounds.map((r, idx) => {
+                <div className="min-w-[940px] flex items-stretch gap-12 justify-between px-4">
+                  {losersRounds.map((r) => {
                     const roundList = losersMatches.filter((m) => m.round === r);
-                    const paddingTop = idx === 0 ? '' : idx % 2 === 1 ? 'pt-8' : 'pt-14';
+                    const nextList = losersMatches.filter((m) => m.round === r + 1);
+                    const l1Count = losersMatches.filter(m => m.round === 1).length || 2;
+                    const colMinHeight = Math.max(l1Count * 156, 360);
+
                     return (
-                      <div key={`l-round-${r}`} className={`flex flex-col gap-5 ${paddingTop}`}>
-                        <div className="text-xs font-black text-[#ef4444] uppercase tracking-wider pb-1 border-b border-[#ef4444]/20 flex items-center justify-between">
+                      <div key={`l-round-${r}`} className="flex flex-col w-72 flex-shrink-0">
+                        <div className="text-xs font-black text-[#ef4444] uppercase tracking-wider pb-1 mb-2 border-b border-[#ef4444]/20 flex items-center justify-between flex-shrink-0">
                           <span>{getLosersRoundTitle(r, maxLosersRound, roundList[0])}</span>
                           <span className="text-[10px] text-slate-500 font-normal">({roundList.length})</span>
                         </div>
-                        <div className="flex flex-col gap-5">{roundList.map(renderMatchCard)}</div>
+                        <div className="flex-1 flex flex-col justify-around relative" style={{ minHeight: colMinHeight }}>
+                          {roundList.map((m) => renderMatchWithConnectors(m, r, maxLosersRound, true, nextList.length))}
+                        </div>
                       </div>
                     );
                   })}
@@ -632,15 +801,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
       ) : (
         /* VISTA 2: ELIMINACIÓN DIRECTA ESTÁNDAR (DINÁMICA) */
         <div className="w-full overflow-x-auto pb-4">
-          <div className="min-w-[940px] flex items-start gap-12 justify-between px-2">
-            {singleRounds.map((r, idx) => {
+          <div className="min-w-[940px] flex items-stretch gap-12 justify-between px-4">
+            {singleRounds.map((r) => {
               const roundList = matches.filter(
                 (m) => m.round === r && (!m.bracketType || m.bracketType === 'WINNERS' || (r === maxSingleRound && m.bracketType === 'FINALS')) && m.id !== 'se_third_place'
               );
-              const paddingTop = idx === 0 ? '' : idx === 1 ? 'pt-12' : idx === 2 ? 'pt-24' : 'pt-32';
+              const r1Count = matches.filter(m => m.round === 1 && m.bracketType !== 'LOSERS').length || 4;
+              const colMinHeight = Math.max(r1Count * 156, 440);
+
               return (
-                <div key={`s-round-${r}`} className={`flex flex-col gap-6 ${paddingTop}`}>
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
+                <div key={`s-round-${r}`} className="flex flex-col w-72 flex-shrink-0">
+                  <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-800 flex-shrink-0">
                     <span className="text-xs font-black text-white uppercase tracking-wider">
                       {getSingleRoundTitle(r, maxSingleRound, roundList[0])}
                     </span>
@@ -648,21 +819,25 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
                       {roundList.length} {roundList.length === 1 ? 'partido' : 'partidos'}
                     </span>
                   </div>
-                  <div className="flex flex-col gap-6">{roundList.map(renderMatchCard)}</div>
+                  <div className="flex-1 flex flex-col justify-around relative" style={{ minHeight: colMinHeight }}>
+                    {roundList.map((m) => renderMatchWithConnectors(m, r, maxSingleRound, false))}
+                  </div>
                 </div>
               );
             })}
 
             {/* PARTIDO OPCIONAL POR EL 3ER PUESTO */}
             {thirdPlaceMatch && (
-              <div className="flex flex-col gap-6 pt-24">
-                <div className="flex items-center gap-2 pb-2 border-b border-[#cd7f32]/40">
+              <div className="flex flex-col w-72 flex-shrink-0">
+                <div className="flex items-center gap-2 pb-2 mb-2 border-b border-[#cd7f32]/40 flex-shrink-0">
                   <Award className="w-4 h-4 text-[#cd7f32]" />
                   <span className="text-xs font-black text-[#cd7f32] uppercase tracking-wider">
                     3º y 4º Puesto (Bronce)
                   </span>
                 </div>
-                <div className="flex flex-col gap-6">{renderMatchCard(thirdPlaceMatch)}</div>
+                <div className="flex-1 flex flex-col justify-center items-center relative min-h-[300px]">
+                  {renderMatchCard(thirdPlaceMatch)}
+                </div>
               </div>
             )}
           </div>

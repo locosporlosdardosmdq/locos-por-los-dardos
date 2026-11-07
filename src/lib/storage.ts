@@ -363,10 +363,36 @@ export function getStoredTournaments(fallback: any[] = []): any[] {
   }
 }
 
+function sanitizePlayerAvatar(p?: any) {
+  if (!p) return p;
+  if (typeof p.avatarUrl === 'string' && (p.avatarUrl.startsWith('data:image/') || p.avatarUrl.length > 500)) {
+    const { avatarUrl, ...rest } = p;
+    return rest;
+  }
+  return p;
+}
+
+export function sanitizeTournamentPayload(t: any) {
+  if (!t || typeof t !== 'object') return t;
+  const clean = { ...t };
+  if (Array.isArray(clean.enrolledPlayers)) {
+    clean.enrolledPlayers = clean.enrolledPlayers.map((p: any) => sanitizePlayerAvatar(p));
+  }
+  if (Array.isArray(clean.matches)) {
+    clean.matches = clean.matches.map((m: any) => ({
+      ...m,
+      player1: sanitizePlayerAvatar(m.player1),
+      player2: sanitizePlayerAvatar(m.player2),
+    }));
+  }
+  return clean;
+}
+
 export function saveStoredTournaments(tournaments: any[]): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(TOURNAMENT_KEYS.ACTIVE, JSON.stringify(tournaments));
+    const sanitized = Array.isArray(tournaments) ? tournaments.map(sanitizeTournamentPayload) : tournaments;
+    localStorage.setItem(TOURNAMENT_KEYS.ACTIVE, JSON.stringify(sanitized));
   } catch (err) {
     console.warn('[Storage] Error guardando torneos activos:', err);
   }
@@ -374,7 +400,7 @@ export function saveStoredTournaments(tournaments: any[]): void {
 
 export async function fetchTournamentsFromCloud(): Promise<any[]> {
   try {
-    const res = await fetch('/api/torneos', { cache: 'no-store' });
+    const res = await fetch('/api/torneos');
     if (!res.ok) throw new Error('Error al consultar /api/torneos');
     const data = await res.json();
     if (data.success && Array.isArray(data.tournaments)) {
@@ -388,10 +414,11 @@ export async function fetchTournamentsFromCloud(): Promise<any[]> {
 
 export async function saveTournamentToCloud(tournament: any): Promise<boolean> {
   try {
+    const cleanTournament = sanitizeTournamentPayload(tournament);
     const res = await fetch('/api/torneos', {
       method: 'POST',
       headers: getAdminRequestHeaders(),
-      body: JSON.stringify({ tournament })
+      body: JSON.stringify({ tournament: cleanTournament })
     });
     return res.ok;
   } catch (err) {

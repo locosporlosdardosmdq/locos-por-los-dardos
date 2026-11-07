@@ -56,6 +56,7 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
     window.addEventListener('storage', handleUpdate);
 
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const res = await fetch(`/api/torneos?id=${tournament.id}`);
         if (res.ok) {
@@ -67,7 +68,7 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
       } catch {
         handleUpdate();
       }
-    }, 3500);
+    }, 8000);
 
     return () => {
       window.removeEventListener('lpld_tournaments_updated', handleUpdate);

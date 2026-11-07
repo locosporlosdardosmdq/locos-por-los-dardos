@@ -23,8 +23,12 @@ export function mapDbRowToCard(row: any): UltimateDartsCardData {
     id: row.id || row.user_id || `player-${Math.random()}`,
     name: row.full_name || row.nickname || 'Jugador Oficial',
     nickname: row.nickname || row.full_name || 'Jugador',
-    avatarUrl: isIcemanRow ? (row.avatar_url || '/images/iceman-perfil.png') : (cleanAvatar || '/logos/logo-mdq.png'),
-    photoUrl: isIcemanRow ? (row.photo_url || '/images/iceman-perfil.png') : cleanPhoto,
+    avatarUrl: isIcemanRow 
+      ? (row.avatar_url || '/images/iceman-perfil.png') 
+      : (cleanAvatar || cleanPhoto || '/logos/logo-mdq.png'),
+    photoUrl: isIcemanRow 
+      ? (row.photo_url || '/images/iceman-perfil.png') 
+      : (cleanPhoto && cleanPhoto.startsWith('data:image/') && (cleanPhoto === cleanAvatar || !cleanAvatar) ? undefined : cleanPhoto),
     logoUrl: row.logo_url || (isIcemanRow ? '/logos/logo-iceman-card.png' : undefined),
     nationality: row.nationality || 'Argentina',
     countryCode: row.country_code || 'AR',

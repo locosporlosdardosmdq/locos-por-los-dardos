@@ -3,8 +3,7 @@ import { getDbPool } from '@/lib/db';
 import { DEFAULT_LANDING_SHOWCASES } from '@/lib/storage';
 import { isAuthorizedAdmin } from '@/lib/server-auth';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 // GET: Obtener configuración de vitrinas de la landing centralizada en Supabase PostgreSQL
 export async function GET() {
@@ -14,17 +13,21 @@ export async function GET() {
       "SELECT data FROM platform_settings WHERE key = 'landing_showcases' LIMIT 1;"
     );
 
+    const headers = {
+      'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+    };
+
     if (result.rows.length > 0 && result.rows[0].data) {
       return NextResponse.json({
         success: true,
         showcases: result.rows[0].data
-      });
+      }, { headers });
     }
 
     return NextResponse.json({
       success: true,
       showcases: DEFAULT_LANDING_SHOWCASES
-    });
+    }, { headers });
   } catch (error: any) {
     console.error('[API /api/showcases GET Error]:', error.message);
     // Fallback silencioso a las vitrinas por defecto para resiliencia
@@ -32,6 +35,10 @@ export async function GET() {
       success: true,
       showcases: DEFAULT_LANDING_SHOWCASES,
       warning: 'Fallback to defaults'
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
+      }
     });
   }
 }

@@ -167,29 +167,37 @@ export default function SuperadminPage() {
   // Sincronización en vivo con Supabase PostgreSQL (Inscripciones de todos los competidores)
   useEffect(() => {
     let isMounted = true;
-    const syncCloudData = async () => {
+
+    // Carga inicial de configuraciones de plataforma (se ejecuta 1 sola vez)
+    const loadPlatformSettingsOnce = async () => {
       try {
-        const [cloudRegs, cloudTourneys, cloudShowcases, cloudBank, cloudAuths] = await Promise.all([
-          fetchGrandTournamentRegistrationsFromCloud(),
-          fetchTournamentsFromCloud(),
+        const [cloudShowcases, cloudBank, cloudAuths] = await Promise.all([
           fetchLandingShowcasesFromCloud(),
           fetchAssociationBankAccountFromCloud(),
           fetchAssociationAuthoritiesFromCloud()
         ]);
 
         if (!isMounted) return;
-
-        if (cloudShowcases) {
-          setShowcases(cloudShowcases);
-        }
-
-        if (cloudBank) {
-          setBankAccount(cloudBank);
-        }
-
+        if (cloudShowcases) setShowcases(cloudShowcases);
+        if (cloudBank) setBankAccount(cloudBank);
         if (cloudAuths && Array.isArray(cloudAuths) && cloudAuths.length > 0) {
           setAuthorities(cloudAuths);
         }
+      } catch (err) {
+        console.warn('[Superadmin] Error en carga inicial de settings:', err);
+      }
+    };
+
+    // Sincronización periódica liviana (solo inscripciones y torneos en juego)
+    const syncCloudData = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      try {
+        const [cloudRegs, cloudTourneys] = await Promise.all([
+          fetchGrandTournamentRegistrationsFromCloud(),
+          fetchTournamentsFromCloud()
+        ]);
+
+        if (!isMounted) return;
 
         if (Array.isArray(cloudTourneys) && cloudTourneys.length > 0) {
           setAvailableTournaments(prev => {
@@ -231,8 +239,11 @@ export default function SuperadminPage() {
       }
     };
 
+    loadPlatformSettingsOnce();
     syncCloudData();
-    const interval = setInterval(syncCloudData, 10000);
+
+    // Intervalo espaciado a 45 segundos para respetar cuota Hobby de Vercel
+    const interval = setInterval(syncCloudData, 45000);
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -723,11 +734,11 @@ export default function SuperadminPage() {
         return;
       }
 
-      // Optimizar en canvas para evitar sobrecargar localStorage
+      // Optimizar en canvas para evitar sobrecargar localStorage y base de datos
       const img = new window.Image();
       img.onload = () => {
-        const maxWidth = 1920;
-        const maxHeight = 1080;
+        const maxWidth = 1200;
+        const maxHeight = 720;
         let width = img.width;
         let height = img.height;
 
@@ -747,7 +758,10 @@ export default function SuperadminPage() {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          let compressedDataUrl = canvas.toDataURL('image/webp', 0.75);
+          if (!compressedDataUrl.startsWith('data:image/webp')) {
+            compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+          }
           handleAddGalleryImage(compressedDataUrl);
         } else {
           handleAddGalleryImage(result);

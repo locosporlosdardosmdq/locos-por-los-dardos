@@ -5,8 +5,7 @@ import { ICEMAN_CARD_DATA } from '@/lib/players-data';
 import { calculateAgeFromBirthDate } from '@/lib/constants';
 import { isAuthorizedAdmin } from '@/lib/server-auth';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 // Mapeo de perfiles desde la base de datos PostgreSQL de Supabase
 export async function GET(request: NextRequest) {
@@ -91,8 +90,12 @@ export async function GET(request: NextRequest) {
         city: row.city || 'Mar del Plata',
         nationality: row.nationality || 'Argentina',
         countryCode: row.country_code || 'AR',
-        avatarUrl: isIcemanRow ? (row.avatar_url || '/images/iceman-perfil.png') : cleanAvatar,
-        photoUrl: isIcemanRow ? (row.photo_url || '/images/iceman-perfil.png') : cleanPhoto,
+        avatarUrl: isIcemanRow 
+          ? (row.avatar_url || '/images/iceman-perfil.png') 
+          : (cleanAvatar || cleanPhoto),
+        photoUrl: isIcemanRow 
+          ? (row.photo_url || '/images/iceman-perfil.png') 
+          : (cleanPhoto && cleanPhoto.startsWith('data:image/') && (cleanPhoto === cleanAvatar || !cleanAvatar) ? undefined : cleanPhoto),
         logoUrl: row.logo_url || (isIcemanRow ? '/logos/logo-iceman-card.png' : undefined),
         estimatedAvg: parseFloat(row.initial_estimated_avg || '45.0'),
         category: row.category || 'INTERMEDIA',
@@ -185,7 +188,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, players }, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+        'Cache-Control': includeAll
+          ? 'private, no-cache, no-store, max-age=0'
+          : 'public, s-maxage=60, stale-while-revalidate=300'
       }
     });
   } catch (err: any) {

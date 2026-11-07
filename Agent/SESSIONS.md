@@ -1,5 +1,53 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 60] - 2026-11-07
+- **Objetivos:**
+  1. Implementar la auditoría crítica y especificación técnica del Arquitecto Argon para erradicar el consumo de *Fast Origin Transfer* en Vercel Hobby.
+  2. Comprimir físicamente in-place los assets pesados en `public/` y suprimir duplicados de audio.
+  3. Erradicar el antipatrón de Base64 gigante en perfiles y evitar su clonación en el JSONB de torneos.
+  4. Implementar validación condicional `ETag` (304 Not Modified) y cabeceras de caché distribuida en APIs de lectura.
+  5. Domar el polling de `/superadmin` y `NakkaTvBracketView.tsx`, y crear `public/robots.txt` para bloquear crawlers agresivos.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Desmitificación de Tráfico:* Las 53K peticiones y 20K invocaciones serverless eran consumo despreciable (2% y 5% de cupo). El factor de riesgo era el peso promedio por respuesta (~600 KB a 1 MB).
+  2. *Corrección de Diagnóstico:* En `next.config.mjs` la directiva `images: { unoptimized: true }` ya estaba activa; se preservó para evitar que Vercel levante funciones serverless de optimización y se activó `compress: true` para compresión gzip/brotli automática de respuestas API/SSR.
+  3. *Inmediatez en Torneos:* Para no congelar los marcadores en vivo con cachés ciegas, `/api/torneos` implementó validación condicional ETag (304 Not Modified con 0 bytes si no hay cambios) y soporte de filtro por ID (`?id=`), resolviendo simultáneamente el bug de polling de `NakkaTvBracketView.tsx`.
+- **Realizado:**
+  - `public/`:
+    * Comprimidos con Sharp in-place: `logo-iceman.png` (85.8 KB vs 6.69 MB, -98.7%), `logo-mdq.png` (81.1 KB vs 1.77 MB), `medidas-cancha.jpg` (102.9 KB vs 2.35 MB), fotos de galería (119 KB y 93 KB) y fotos de jugadores a < 75 KB.
+    * Eliminado el MP3 duplicado `public/logos/BEASTIE BOYS Sabotage.mp3` (-7.85 MB).
+    * Creado `public/robots.txt` bloqueando scrapers agresivos (`AhrefsBot`, `SemrushBot`, `MJ12bot`, `DotBot`, `PetalBot`, `Bytespider`) y rutas privadas.
+  - `next.config.mjs`:
+    * Añadido `compress: true` manteniendo `unoptimized: true`.
+  - `src/components/perfil/RegisterAndProfile.tsx`:
+    * Reducidas dimensiones de canvas de 400x520 a 240x312 px con exportación WebP 72% (~15 KB vs 450 KB, -96%).
+  - `src/app/superadmin/page.tsx`:
+    * Canvas de galería reducido a 1200x720 WebP 75%.
+    * Carga de configuraciones de plataforma (banco, vitrinas, autoridades) aislada para ejecutarse 1 sola vez al montar.
+    * Polling de inscripciones/torneos espaciado a 45s con guarda `document.hidden`.
+  - `src/app/api/jugadores/route.ts` & `src/lib/server-players.ts`:
+    * Eliminados `dynamic = 'force-dynamic'` y `revalidate = 0`.
+    * Deduplicación de `photoUrl` y `avatarUrl` cuando provienen de Base64.
+    * Cabecera `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`.
+  - `src/app/api/torneos/route.ts`:
+    * Soportado filtro por ID (`?id=`).
+    * Sanitización automática de avatares Base64 incrustados en `enrolledPlayers` y `matches`.
+    * Implementado `ETag` rápido y respuesta `304 Not Modified` ante peticiones repetidas.
+  - `src/lib/storage.ts`:
+    * Creado `sanitizeTournamentPayload` para desinflar torneos antes de guardarlos en Supabase PostgreSQL.
+    * Removido `cache: 'no-store'` de `fetchTournamentsFromCloud`.
+  - `src/app/api/showcases/route.ts` & `src/app/api/config/route.ts`:
+    * Reemplazado `force-dynamic` por `revalidate = 60` y cabeceras `Cache-Control` de borde.
+  - `src/app/jugadores/page.tsx` & `src/components/jugadores/PlayerDirectory.tsx`:
+    * ISR configurado en `revalidate = 60`.
+    * Removido cache-buster `Date.now()` y evitada la doble llamada de montaje cuando hay datos SSR.
+  - `src/components/torneos/NakkaTvBracketView.tsx`:
+    * Polling espaciado a 8s con guarda `document.hidden`.
+  - `Agent/`:
+    * Actualizado `TODO.md` y registrado `[ADR-067]` en `DECISIONS.md`.
+- **Validación:**
+  - `npx tsc --noEmit` completado con 0 errores (código 0).
+- **Estado del Proyecto:** Aplicación completamente blindada contra consumos de origen, lista para operar de forma gratuita e indefinida en Vercel Hobby.
+
 ## [Sesión 59] - 2026-11-06
 - **Objetivos:**
   1. Corregir el bug crítico en `PlayerEnrollModal.tsx` donde al intentar tipear un nombre personalizado en el modal de inscripción, la opción se desmontaba y reseteaba en la primera pulsación de tecla.

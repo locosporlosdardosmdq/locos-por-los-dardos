@@ -1,3 +1,26 @@
+- [x] **Blindaje Integral de Cuota Vercel Hobby y Optimización de Ancho de Banda (Fast Origin Transfer):**
+  * **Compresión Extrema y Limpieza de Assets en `public/`:**
+    - Reducción drástica de imágenes principales: `logo-iceman.png` (de 6.69 MB a 85.8 KB, -98.7%), `logo-mdq.png` (de 1.77 MB a 81.1 KB, -95.4%), `medidas-cancha.jpg` (de 2.35 MB a 102.9 KB, -95.6%), `gallery-venue-pompeya.jpg` (119 KB) y `gallery-trophies.jpg` (93 KB).
+    - Optimización de fotos de jugadores en `public/images/players/` y `iceman-perfil.png` a < 75 KB.
+    - Eliminado el archivo de audio duplicado de 7.85 MB (`public/logos/BEASTIE BOYS Sabotage.mp3`).
+    - Configurado `compress: true` en `next.config.mjs` para compresión gzip/brotli automática de respuestas serverless.
+  * **Erradicación del Antipatrón Base64 & Deduplicación:**
+    - En `RegisterAndProfile.tsx`, canvas optimizado de 400x520 a 240x312 con exportación en WebP 72% (~12 KB - 18 KB, -96% de peso).
+    - En `superadmin/page.tsx`, fotos de galería optimizadas a 1200x720 WebP 75%.
+    - En `api/jugadores/route.ts` y `server-players.ts`, deduplicación de `photoUrl` y `avatarUrl` cuando provienen de Base64, reduciendo a la mitad el tamaño del payload de jugadores.
+    - En `storage.ts`, sanitizador `sanitizeTournamentPayload` que neutraliza avatares Base64 incrustados en `matches` y `enrolledPlayers`, evitando JSONs monstruosos en `tournaments.data` de Supabase.
+  * **Caché Edge con `stale-while-revalidate` y Validación `ETag / 304 Not Modified`:**
+    - En `api/torneos/route.ts`: soporte de filtro por ID (`?id=`), cálculo de `ETag` y respuesta `304 Not Modified` (0 bytes transferidos) ante peticiones repetidas.
+    - En `api/jugadores/route.ts`, `api/showcases/route.ts` y `api/config/route.ts`: eliminados `force-dynamic` y `revalidate = 0`, e implementada cabecera `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`.
+    - En `jugadores/page.tsx`: revalidación ISR configurada en `revalidate = 60`.
+    - En `PlayerDirectory.tsx`: erradicado el cache-buster `?t=${Date.now()}` y `no-store`, suprimiendo la doble llamada en el montaje inicial cuando ya existen `initialPlayers`.
+  * **Racionalización de Polling y Bloqueo de Scrapers:**
+    - En `superadmin/page.tsx`: el polling de 5 APIs cada 10s se reemplazó por carga única inicial de configuraciones y un sondeo espaciado a 45s de inscripciones/torneos que se detiene cuando la pestaña está en segundo plano (`document.hidden`).
+    - En `NakkaTvBracketView.tsx`: polling espaciado de 3.5s a 8s con guarda `document.hidden`.
+    - Creado `public/robots.txt` con bloqueo explícito a scrapers agresivos (`AhrefsBot`, `SemrushBot`, `MJ12bot`, `DotBot`, `PetalBot`, `Bytespider`) y rutas dinámicas privadas.
+  * **Validación:**
+    - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Alineación Completa de Cuadro y Menú Contextual de Partidos Estilo Nakka N01 & Corrección de Inscripción Manual (`TournamentBracket.tsx`, `MatchDispatcherModal.tsx`, `PlayerEnrollModal.tsx`):**
   * **Corrección Crítica de Input Manual de Inscriptos (`PlayerEnrollModal.tsx`):**
     - Desacoplado el estado del input manual con `isCustomPlayer: boolean` y `customPlayerName: string`.

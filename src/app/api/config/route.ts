@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDbPool } from '@/lib/db';
 import { isAuthorizedAdmin } from '@/lib/server-auth';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 // GET: Recuperar configuraciones globales de la plataforma (Vitrinas, Cuenta Bancaria, Autoridades)
 export async function GET(request: NextRequest) {
@@ -12,6 +11,9 @@ export async function GET(request: NextRequest) {
     const key = searchParams.get('key');
 
     const pool = getDbPool();
+    const headers = {
+      'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+    };
 
     if (key) {
       const result = await pool.query(
@@ -24,14 +26,14 @@ export async function GET(request: NextRequest) {
           success: true,
           key,
           data: result.rows[0].data
-        });
+        }, { headers });
       }
 
       return NextResponse.json({
         success: true,
         key,
         data: null
-      });
+      }, { headers });
     }
 
     // Si no se especifica key, entregar todas las configuraciones en un diccionario
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       settings
-    });
+    }, { headers });
   } catch (error: any) {
     console.error('[API /api/config GET Error]:', error.message);
     return NextResponse.json(

@@ -3,82 +3,116 @@ import { getDbPool } from '@/lib/db';
 import { Tournament } from '@/lib/types';
 import { isAuthorizedAdmin } from '@/lib/server-auth';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Helper para desinflar avatares Base64 incrustados en torneos y ahorrar ancho de banda
+function sanitizePlayerAvatar(p?: any) {
+  if (!p) return p;
+  if (typeof p.avatarUrl === 'string' && (p.avatarUrl.startsWith('data:image/') || p.avatarUrl.length > 500)) {
+    const { avatarUrl, ...rest } = p;
+    return rest;
+  }
+  return p;
+}
 
 export async function GET(request: NextRequest) {
   try {
+    const id = request.nextUrl.searchParams.get('id');
     const pool = getDbPool();
-    const query = `
-      SELECT 
-        id, 
-        title, 
-        slug, 
-        description, 
-        tournament_type, 
-        format, 
-        starting_score, 
-        out_mode, 
-        best_of_legs, 
-        max_participants, 
-        venue_name, 
-        city, 
-        province, 
-        start_date, 
-        end_date, 
-        status, 
-        banner_image_url, 
-        entry_fee_ars, 
-        prize_pool_ars, 
-        data, 
-        created_at
-      FROM tournaments
-      ORDER BY created_at DESC;
-    `;
 
-    const result = await pool.query(query);
+    const query = id
+      ? `
+        SELECT 
+          id, title, slug, description, tournament_type, format, starting_score, 
+          out_mode, best_of_legs, max_participants, venue_name, city, province, 
+          start_date, end_date, status, banner_image_url, entry_fee_ars, prize_pool_ars, 
+          data, created_at
+        FROM tournaments
+        WHERE id::text = $1 OR slug = $1
+        LIMIT 1;
+      `
+      : `
+        SELECT 
+          id, title, slug, description, tournament_type, format, starting_score, 
+          out_mode, best_of_legs, max_participants, venue_name, city, province, 
+          start_date, end_date, status, banner_image_url, entry_fee_ars, prize_pool_ars, 
+          data, created_at
+        FROM tournaments
+        ORDER BY created_at DESC;
+      `;
+
+    const result = id ? await pool.query(query, [id]) : await pool.query(query);
 
     const tournaments: Tournament[] = result.rows.map((row) => {
+      let tData: any = null;
       if (row.data && typeof row.data === 'object' && row.data.title) {
-        return {
-          ...row.data,
-          id: String(row.id),
-          title: row.title || row.data.title,
-          status: row.status || row.data.status || 'REGISTRATION_OPEN',
-          startDate: row.start_date ? new Date(row.start_date).toISOString() : (row.data.startDate || new Date().toISOString()),
-          endDate: row.end_date ? new Date(row.end_date).toISOString() : row.data.endDate,
-          entryFeeArs: row.entry_fee_ars !== null ? parseFloat(row.entry_fee_ars) : (row.data.entryFeeArs || 0),
-          prizePoolArs: row.prize_pool_ars !== null ? parseFloat(row.prize_pool_ars) : (row.data.prizePoolArs || 0)
+        tData = { ...row.data };
+      } else {
+        tData = {
+          slug: row.slug || String(row.id),
+          title: row.title,
+          description: row.description || '',
+          type: row.tournament_type || 'PRESENCIAL',
+          format: row.format || 'SINGLE_ELIMINATION',
+          startingScore: row.starting_score || 501,
+          outMode: row.out_mode || 'DOUBLE_OUT',
+          bestOfLegs: row.best_of_legs || 5,
+          maxParticipants: row.max_participants || 32,
+          registeredCount: 0,
+          venueName: row.venue_name || 'Sede Central',
+          city: row.city || 'Mar del Plata',
+          province: row.province || 'Buenos Aires',
+          status: row.status || 'REGISTRATION_OPEN',
+          bannerImageUrl: row.banner_image_url || '/logos/logo-mdq.png',
+          entryFeeArs: parseFloat(row.entry_fee_ars || '0'),
+          prizePoolArs: parseFloat(row.prize_pool_ars || '0'),
+          organizer: 'Locos por los Dardos & Darderos Mar del Plata'
         };
       }
 
-      // Reconstrucción de fallback desde columnas relacionales si data no estuviese poblada
+      // Desinflar Base64 de enrolledPlayers y matches para respuestas ligeras
+      if (Array.isArray(tData.enrolledPlayers)) {
+        tData.enrolledPlayers = tData.enrolledPlayers.map(sanitizePlayerAvatar);
+      }
+      if (Array.isArray(tData.matches)) {
+        tData.matches = tData.matches.map((m: any) => ({
+          ...m,
+          player1: sanitizePlayerAvatar(m.player1),
+          player2: sanitizePlayerAvatar(m.player2)
+        }));
+      }
+
       return {
+        ...tData,
         id: String(row.id),
-        slug: row.slug || String(row.id),
-        title: row.title,
-        description: row.description || '',
-        type: row.tournament_type || 'PRESENCIAL',
-        format: row.format || 'SINGLE_ELIMINATION',
-        startingScore: row.starting_score || 501,
-        outMode: row.out_mode || 'DOUBLE_OUT',
-        bestOfLegs: row.best_of_legs || 5,
-        maxParticipants: row.max_participants || 32,
-        registeredCount: 0,
-        venueName: row.venue_name || 'Sede Central',
-        city: row.city || 'Mar del Plata',
-        province: row.province || 'Buenos Aires',
-        startDate: row.start_date ? new Date(row.start_date).toISOString() : new Date().toISOString(),
-        endDate: row.end_date ? new Date(row.end_date).toISOString() : undefined,
-        status: row.status || 'REGISTRATION_OPEN',
-        bannerImageUrl: row.banner_image_url || '/logos/logo-mdq.png',
-        entryFeeArs: parseFloat(row.entry_fee_ars || '0'),
-        prizePoolArs: parseFloat(row.prize_pool_ars || '0'),
-        organizer: 'Locos por los Dardos & Darderos Mar del Plata'
+        title: row.title || tData.title,
+        status: row.status || tData.status || 'REGISTRATION_OPEN',
+        startDate: row.start_date ? new Date(row.start_date).toISOString() : (tData.startDate || new Date().toISOString()),
+        endDate: row.end_date ? new Date(row.end_date).toISOString() : tData.endDate,
+        entryFeeArs: row.entry_fee_ars !== null ? parseFloat(row.entry_fee_ars) : (tData.entryFeeArs || 0),
+        prizePoolArs: row.prize_pool_ars !== null ? parseFloat(row.prize_pool_ars) : (tData.prizePoolArs || 0)
       };
     });
 
-    return NextResponse.json({ success: true, tournaments });
+    const responsePayload = {
+      success: true,
+      ...(id ? { tournament: tournaments[0] || null } : {}),
+      tournaments
+    };
+
+    const jsonString = JSON.stringify(responsePayload);
+    const etag = `W/"t-${jsonString.length}-${tournaments.map(t => `${t.id}:${t.status}:${t.registeredCount || 0}`).join('|')}"`;
+
+    if (request.headers.get('if-none-match') === etag) {
+      return new NextResponse(null, { status: 304 });
+    }
+
+    return new NextResponse(jsonString, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'ETag': etag,
+        'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15'
+      }
+    });
   } catch (err: any) {
     console.error('[API /api/torneos GET Error]:', err.message);
     return NextResponse.json(

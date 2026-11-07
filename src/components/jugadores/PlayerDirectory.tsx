@@ -90,7 +90,7 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
   const loadCloudPlayers = React.useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/jugadores?t=${Date.now()}`, { cache: 'no-store' });
+      const res = await fetch('/api/jugadores');
       if (!res.ok) throw new Error('Error al consultar /api/jugadores');
       const data = await res.json();
       if (data.players && Array.isArray(data.players) && data.players.length > 0) {
@@ -117,14 +117,17 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
   }, []);
 
   React.useEffect(() => {
-    loadCloudPlayers();
+    // Si ya recibimos jugadores hidratados desde el servidor, evitar re-fetch redundante
+    if (!initialPlayers || initialPlayers.length <= 1) {
+      loadCloudPlayers();
+    }
 
     const handleProfileUpdate = () => {
       loadCloudPlayers();
     };
     window.addEventListener('lpld_profile_updated', handleProfileUpdate);
     return () => window.removeEventListener('lpld_profile_updated', handleProfileUpdate);
-  }, [loadCloudPlayers]);
+  }, [loadCloudPlayers, initialPlayers]);
 
   // Filtrado y Ordenamiento
   const filteredAndSortedPlayers = useMemo(() => {

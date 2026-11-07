@@ -1,0 +1,25 @@
+User-agent: *
+Disallow: /api/
+Disallow: /superadmin
+Disallow: /anotador/camara-popout
+Disallow: /torneos/tv-bracket
+Allow: /
+
+# Bloqueo explícito de scrapers y bots agresivos de SEO
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /

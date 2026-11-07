@@ -122,20 +122,25 @@ export const RegisterAndProfile: React.FC = () => {
     reader.onload = (event) => {
       const img = new window.Image();
       img.onload = () => {
-        // Redimensionar y formatear a 400x520 px preservando canal alfa o centrando imagen
+        // Redimensionar y formatear a 240x312 px (estándar ligero WebP para máximo ahorro de datos)
         const canvas = document.createElement('canvas');
-        canvas.width = 400;
-        canvas.height = 520;
+        canvas.width = 240;
+        canvas.height = 312;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.clearRect(0, 0, 400, 520);
+          ctx.clearRect(0, 0, 240, 312);
           
-          const scale = Math.max(400 / img.width, 520 / img.height);
-          const x = (400 - img.width * scale) / 2;
-          const y = (520 - img.height * scale) / 2;
+          const scale = Math.max(240 / img.width, 312 / img.height);
+          const x = (240 - img.width * scale) / 2;
+          const y = (312 - img.height * scale) / 2;
           
           ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-          const dataUrl = canvas.toDataURL('image/png', 0.9);
+          
+          // Usar WebP a 72% de calidad con fallback seguro a JPEG
+          let dataUrl = canvas.toDataURL('image/webp', 0.72);
+          if (!dataUrl.startsWith('data:image/webp')) {
+            dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+          }
           
           setCustomPhoto(dataUrl);
           const updatedProfile = { ...profile, photoUrl: dataUrl, avatarUrl: dataUrl };

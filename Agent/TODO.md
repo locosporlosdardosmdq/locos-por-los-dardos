@@ -1,3 +1,18 @@
+- [x] **Alineación Completa de Cuadro y Menú Contextual de Partidos Estilo Nakka N01 & Corrección de Inscripción Manual (`TournamentBracket.tsx`, `MatchDispatcherModal.tsx`, `PlayerEnrollModal.tsx`):**
+  * **Corrección Crítica de Input Manual de Inscriptos (`PlayerEnrollModal.tsx`):**
+    - Desacoplado el estado del input manual con `isCustomPlayer: boolean` y `customPlayerName: string`.
+    - Resuelto el bug donde el primer carácter tipeado disparaba `onChange`, mutando la condición del select y destruyendo el input.
+    - Soporte fluido para tipeo ininterrumpido y confirmación atómica con creación de ID invitado único.
+  * **Menú Contextual de Partido Estilo Nakka N01 (`MatchDispatcherModal.tsx`):**
+    - Rediseñado para emular el menú de acciones de Nakka N01: Anotador en Vivo de Club, Partida Online remota con código autogenerado, Carga Rápida de Resultado con ajuste de legs y notas, Declaración de Walkover (W.O.) con confirmación de ausencia, Asignación de Jugador a Slot 1 o Slot 2, y Reseteo/Eliminación de datos del partido a 0-0 con cascade seguro.
+  * **Modo Edición de Llave y Encabezados de Ronda Estilo Nakka (`TournamentBracket.tsx`):**
+    - Incorporado el botón toggle `[✏️ Editar Llave (Nakka)]` y banner superior instructivo para administradores.
+    - Clic habilitado en cualquier cruce de la llave (incluso sin ambos jugadores definidos) para abrir el menú de gestión de Nakka.
+    - Botones de asignación slot a slot disponibles en primera ronda o en cualquier instancia cuando el modo de edición está activo.
+    - Encabezados de ronda dinámicos que muestran la distancia por instancia: `(Primero a X legs)` al estilo Nakka N01.
+  * **Validación:**
+    - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Gestión de Bajas y Desinscripción de Jugadores en Torneos (`TournamentManager.tsx`):**
   * **Pestaña Inscriptos (`tournamentSubTab === 'PLAYERS'`):**
     - Agregado botón de eliminación (`Trash2`) en cada tarjeta de jugador inscripto para administradores (`canManageTournament`) o el propio usuario.

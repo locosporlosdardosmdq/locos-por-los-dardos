@@ -3121,21 +3121,33 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         onResetMatch={handleAdminResetMatch}
       />
 
-      {/* MODAL: MATCH DISPATCHER DE BRACKET */}
+      {/* MODAL: MATCH DISPATCHER DE BRACKET (ESTILO NAKKA N01) */}
       {selectedBracketMatch && (
         <MatchDispatcherModal
           isOpen={!!selectedBracketMatch}
           onClose={() => setSelectedBracketMatch(null)}
-          matchTitle={`Cuadro Eliminatorio • Ronda ${selectedBracketMatch.round}`}
-          player1Name={selectedBracketMatch.player1?.name || 'Jugador 1'}
-          player2Name={selectedBracketMatch.player2?.name || 'Jugador 2'}
+          match={selectedBracketMatch}
+          matchTitle={`Cuadro Eliminatorio • Ronda ${selectedBracketMatch.round} (Partida #${selectedBracketMatch.matchIndex + 1})`}
+          player1Name={selectedBracketMatch.player1?.name || 'Por definir'}
+          player2Name={selectedBracketMatch.player2?.name || 'Por definir'}
           player1Id={selectedBracketMatch.player1?.id || 'p1'}
           player2Id={selectedBracketMatch.player2?.id || 'p2'}
-          bestOfLegs={currentTournament?.bestOfLegs || 5}
+          bestOfLegs={selectedBracketMatch.legTarget || currentTournament?.bestOfLegs || 5}
+          isAdmin={canManageTournament(currentTournament)}
           onLaunchLiveMatch={() => handleLaunchBracketMatch(selectedBracketMatch, 'LIVE')}
           onLaunchOnlineMatch={() => handleLaunchBracketMatch(selectedBracketMatch, 'ONLINE')}
-          onSaveQuickResult={(s1, s2, winner) => {
-            handleUpdateMatchScore(selectedBracketMatch.id, s1, s2, winner);
+          onSaveQuickResult={(s1, s2, winner, note) => {
+            handleUpdateMatchScore(selectedBracketMatch.id, s1, s2, winner, note);
+          }}
+          onAdvanceWalkover={(winnerId, absentName) => {
+            handleAdminAdvanceWalkover(selectedBracketMatch.id, winnerId, absentName);
+          }}
+          onResetMatch={() => {
+            handleAdminResetMatch(selectedBracketMatch.id);
+          }}
+          onAssignSlot={(slotIndex) => {
+            setSlotAssignTarget({ match: selectedBracketMatch, slotIndex });
+            setSelectedBracketMatch(null);
           }}
         />
       )}

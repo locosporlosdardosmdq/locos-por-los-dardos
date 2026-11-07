@@ -1,5 +1,41 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 59] - 2026-11-06
+- **Objetivos:**
+  1. Corregir el bug crítico en `PlayerEnrollModal.tsx` donde al intentar tipear un nombre personalizado en el modal de inscripción, la opción se desmontaba y reseteaba en la primera pulsación de tecla.
+  2. Replicar la experiencia y menú contextual de partidos de Nakka N01 Tournament (`media_1794014067564_309e5faa.png`) en el gestor de llaves.
+  3. Permitir la edición integral de la llave estilo Nakka (`media_1794013957210_c8d8e26b.png`), incluyendo edición de resultados directos, declaración de W.O., reseteo seguro de cruces, y reasignación de jugadores slot a slot.
+  4. Incorporar encabezados dinámicos de ronda que indiquen la distancia de legs por instancia (`Primero a X legs`).
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Bug de desmontaje de Input:* En `PlayerEnrollModal.tsx`, la condición de visibilidad del input de texto dependía de `selectedPlayerName === 'Invitado / Nuevo Jugador'`. Al tipear la primera letra, el handler ejecutaba `setSelectedPlayerName(e.target.value)`, lo que rompía la igualdad y provocaba que React desmontara inmediatamente el `<input>` y restituyera el `<select>`. Se desacopló la bandera de modo personalizado con `isCustomPlayer: boolean` y `customPlayerName: string`.
+  2. *Fragmentación Operativa:* Nakka N01 concentra todas las acciones de gestión deportiva en un menú contextual al hacer clic sobre cualquier partido del cuadro. En nuestra app, los administradores tenían funciones dispersas en distintos modales y no podían cliquear en partidos donde faltara un contrincante.
+  3. *Claridad de Formato en Rondas:* Para los jugadores y espectadores en pantalla, es fundamental conocer a cuántos legs se disputa cada ronda directamente en el título de la columna (ej: *Octavos de Final (Primero a 3 legs)*).
+- **Realizado:**
+  - `src/components/torneos/PlayerEnrollModal.tsx`:
+    * Introducidos estados independientes `isCustomPlayer: boolean` y `customPlayerName: string`.
+    * El desplegable utiliza `__CUSTOM__` para alternar al modo de escritura libre sin mutar el valor del select al tipear.
+    * Tipeo continuo garantizado y sanitización con generación de ID único para invitados.
+  - `src/components/torneos/MatchDispatcherModal.tsx`:
+    * Transformado en el Menú Contextual de Partido Estilo Nakka N01:
+      - Modo Anotador en Vivo (`autoStartPlaying: true`) y Sala Remota Online.
+      - Carga / Edición Directa de Resultado (`QUICK_RESULT`) con ajuste de legs, selección de ganador y campo de notas.
+      - Declaración de Walkover (`WALKOVER`) con confirmación y asignación de ausencia.
+      - Reasignación de competidores Slot 1 y Slot 2 mediante `onAssignSlot`.
+      - Eliminación y reseteo de datos del partido a 0-0 (`onResetMatch`) con cascade defensivo.
+  - `src/components/torneos/TournamentBracket.tsx`:
+    * Agregado botón toggle `[✏️ Editar Llave (Nakka)]` en la barra de herramientas.
+    * Agregado banner informativo superior para administradores durante el modo de edición.
+    * Habilitado el clic en cualquier cruce de la llave para abrir el menú de Nakka N01.
+    * Botones directos de asignación manual de Slot 1 y Slot 2 habilitados en primera ronda o en cualquier instancia bajo modo de edición.
+    * Encabezados de ronda dinámicos en Eliminación Simple, Winners y Losers mostrando `(Primero a X legs)`.
+  - `src/components/torneos/TournamentManager.tsx`:
+    * Conectados todos los handlers de `MatchDispatcherModal`: `match`, `isAdmin`, `onSaveQuickResult`, `onAdvanceWalkover`, `onResetMatch` y `onAssignSlot`.
+  - `Agent/`:
+    * Actualizados `INDEX.md`, `TODO.md` y registrado `[ADR-066]` en `DECISIONS.md`.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Llave eliminatoria 100% alineada funcional y visualmente con Nakka N01 Tournament, con edición contextual de cruces y resolución de inscripción manual.
+
 ## [Sesión 58] - 2026-11-06
 - **Objetivos:**
   1. Analizar e implementar soporte para torneos y fechas mixtas / híbridas (convivencia de partidas presenciales y online en un mismo certamen al estilo Nakka N01).

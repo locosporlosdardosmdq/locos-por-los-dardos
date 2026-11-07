@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { TournamentBracketMatch, TournamentPodium } from '@/lib/types';
 import { getCountryFlag } from '@/lib/constants';
 import { TournamentPodiumView } from './TournamentPodiumView';
-import { Trophy, Clock, CheckCircle2, Play, ShieldAlert, Zap, Repeat, Award, Trash2, UserPlus, Users, Shuffle, Tv, Dices } from 'lucide-react';
+import { Trophy, Clock, CheckCircle2, Play, ShieldAlert, Zap, Repeat, Award, Trash2, UserPlus, Users, Shuffle, Tv, Dices, Pencil } from 'lucide-react';
 
 interface TournamentBracketProps {
   matches: TournamentBracketMatch[];
@@ -47,6 +47,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
   const isDoubleElim = matches.some((m) => m.bracketType === 'LOSERS');
   const [deTab, setDeTab] = useState<'ALL' | 'WINNERS' | 'LOSERS' | 'FINALS'>('ALL');
   const [isRandomSeeding, setIsRandomSeeding] = useState<boolean>(true);
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
   // Separación dinámica para Eliminación Simple
   const singleMatches = matches.filter((m) => (!m.bracketType || m.bracketType === 'WINNERS' || m.bracketType === 'FINALS') && m.id !== 'se_third_place');
@@ -67,25 +68,37 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
 
   const legsToWin = Math.ceil(bestOfLegs / 2);
 
-  const getSingleRoundTitle = (r: number, max: number) => {
-    if (r === max) return 'Gran Final del Torneo';
-    if (r === max - 1) return 'Semifinales';
-    if (r === max - 2) return 'Cuartos de Final';
-    if (r === max - 3) return 'Octavos de Final';
-    return `Ronda ${r}`;
+  const getSingleRoundTitle = (r: number, max: number, sampleMatch?: TournamentBracketMatch) => {
+    let name = '';
+    if (r === max) name = 'Gran Final del Torneo';
+    else if (r === max - 1) name = 'Semifinales';
+    else if (r === max - 2) name = 'Cuartos de Final';
+    else if (r === max - 3) name = 'Octavos de Final';
+    else name = `Ronda ${r}`;
+
+    const target = sampleMatch?.legTarget || legsToWin;
+    return `${name} (Primero a ${target} legs)`;
   };
 
-  const getWinnersRoundTitle = (r: number, max: number) => {
-    if (r === max) return 'Final de Ganadores';
-    if (r === max - 1) return 'Semifinales de Ganadores';
-    if (r === max - 2) return 'Cuartos de Ganadores';
-    return `Ganadores • Ronda ${r}`;
+  const getWinnersRoundTitle = (r: number, max: number, sampleMatch?: TournamentBracketMatch) => {
+    let name = '';
+    if (r === max) name = 'Final de Ganadores';
+    else if (r === max - 1) name = 'Semifinales de Ganadores';
+    else if (r === max - 2) name = 'Cuartos de Ganadores';
+    else name = `Ronda ${r}`;
+
+    const target = sampleMatch?.legTarget || legsToWin;
+    return `${name} (Primero a ${target} legs)`;
   };
 
-  const getLosersRoundTitle = (r: number, max: number) => {
-    if (r === max) return 'Final de Perdedores';
-    if (r === max - 1) return 'Semifinal de Perdedores';
-    return `Perdedores • Ronda ${r}`;
+  const getLosersRoundTitle = (r: number, max: number, sampleMatch?: TournamentBracketMatch) => {
+    let name = '';
+    if (r === max) name = 'Final de Perdedores';
+    else if (r === max - 1) name = 'Semifinal de Perdedores';
+    else name = `Ronda ${r}`;
+
+    const target = sampleMatch?.legTarget || legsToWin;
+    return `${name} (Primero a ${target} legs)`;
   };
 
   const renderMatchCard = (m: TournamentBracketMatch) => {
@@ -98,18 +111,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
       <div
         key={m.id}
         onClick={() => {
-          if (onSelectMatch && m.player1 && m.player2) {
+          if (onSelectMatch) {
             onSelectMatch(m);
           }
         }}
         className={`w-72 rounded-2xl border p-3.5 shadow-xl transition-all cursor-pointer group relative ${
-          m.status === 'LIVE'
+          isEditMode && isAdmin
+            ? 'bg-[#0f1422] border-amber-500/60 hover:border-amber-400 ring-1 ring-amber-500/30'
+            : m.status === 'LIVE'
             ? 'bg-[#0f1422] border-[#00e676] ring-2 ring-[#00e676]/40 shadow-[#00e676]/20'
             : isFinished
             ? 'bg-[#0f1422] border-slate-800 hover:border-slate-700'
             : isPlayable
             ? 'bg-[#0f1422] border-[#ef4444]/40 hover:border-[#00e676]'
-            : 'bg-[#07090e] border-slate-800/80 opacity-60'
+            : 'bg-[#07090e] border-slate-800/80 opacity-70 hover:opacity-100'
         }`}
       >
         {/* Match Header */}
@@ -180,13 +195,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               if (m.player1 && onSelectPlayer) {
                 e.stopPropagation();
                 onSelectPlayer(m.player1.id || m.player1.name);
-              } else if (isAdmin && onAssignSlot && m.round === 1 && m.status === 'SCHEDULED') {
+              } else if (isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && m.status === 'SCHEDULED') {
                 e.stopPropagation();
                 onAssignSlot(m, 1);
               }
             }}
-            title={m.player1 ? "Ver ficha y estadísticas del jugador" : isAdmin && onAssignSlot && m.round === 1 ? "Click para asignar jugador" : undefined}
-            className={`flex items-center gap-2 truncate ${m.player1 ? 'cursor-pointer hover:text-[#00e676]' : isAdmin && onAssignSlot && m.round === 1 ? 'cursor-pointer hover:text-blue-400' : ''}`}
+            title={m.player1 ? "Ver ficha y estadísticas del jugador" : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? "Click para asignar jugador" : undefined}
+            className={`flex items-center gap-2 truncate ${m.player1 ? 'cursor-pointer hover:text-[#00e676]' : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? 'cursor-pointer hover:text-blue-400' : ''}`}
           >
             <span className="text-sm select-none" title={m.player1?.nationality || 'Argentina'}>
               {getCountryFlag(m.player1?.countryCode || m.player1?.nationality || 'AR')}
@@ -208,7 +223,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {isAdmin && onAssignSlot && m.round === 1 && m.status === 'SCHEDULED' && (
+            {isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -249,13 +264,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               if (m.player2 && onSelectPlayer) {
                 e.stopPropagation();
                 onSelectPlayer(m.player2.id || m.player2.name);
-              } else if (isAdmin && onAssignSlot && m.round === 1 && m.status === 'SCHEDULED') {
+              } else if (isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && m.status === 'SCHEDULED') {
                 e.stopPropagation();
                 onAssignSlot(m, 2);
               }
             }}
-            title={m.player2 ? "Ver ficha y estadísticas del jugador" : isAdmin && onAssignSlot && m.round === 1 ? "Click para asignar jugador" : undefined}
-            className={`flex items-center gap-2 truncate ${m.player2 ? 'cursor-pointer hover:text-[#00e676]' : isAdmin && onAssignSlot && m.round === 1 ? 'cursor-pointer hover:text-blue-400' : ''}`}
+            title={m.player2 ? "Ver ficha y estadísticas del jugador" : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? "Click para asignar jugador" : undefined}
+            className={`flex items-center gap-2 truncate ${m.player2 ? 'cursor-pointer hover:text-[#00e676]' : isAdmin && onAssignSlot && (m.round === 1 || isEditMode) ? 'cursor-pointer hover:text-blue-400' : ''}`}
           >
             <span className="text-sm select-none" title={m.player2?.nationality || 'Argentina'}>
               {getCountryFlag(m.player2?.countryCode || m.player2?.nationality || 'AR')}
@@ -277,7 +292,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {isAdmin && onAssignSlot && m.round === 1 && m.status === 'SCHEDULED' && (
+            {isAdmin && onAssignSlot && (m.round === 1 || isEditMode) && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -392,6 +407,23 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               </button>
             )}
 
+            {/* Botón Modo Edición de Llave (Estilo Nakka N01) */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsEditMode(!isEditMode)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-xs transition-all active:scale-95 border ${
+                  isEditMode
+                    ? 'bg-amber-500 text-black border-amber-400 shadow-md shadow-amber-500/30 ring-2 ring-amber-400/50'
+                    : 'bg-[#111622] hover:bg-[#1a2234] text-amber-300 hover:text-white border-amber-500/40'
+                }`}
+                title="Activar / desactivar modo de edición de llave estilo Nakka N01"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>{isEditMode ? '✓ Finalizar Edición' : '✏️ Editar Llave (Nakka)'}</span>
+              </button>
+            )}
+
             {/* Botón Despejar Llave */}
             {onClearBracket && (
               <button
@@ -422,6 +454,32 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Banner Informativo de Modo Edición */}
+      {isEditMode && isAdmin && (
+        <div className="bg-amber-500/15 border-2 border-amber-500/50 p-3.5 rounded-2xl flex items-center justify-between text-xs text-amber-200 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-amber-500 text-black flex items-center justify-center font-black shrink-0">
+              <Pencil className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-black text-amber-300 block">
+                Modo Edición de Llave Activo (Estilo Nakka N01)
+              </span>
+              <span className="text-[11px] text-slate-300">
+                Toca cualquier cruce del cuadro para abrir el menú de acciones: cargar marcadores, declarar W.O., resetear resultados o reasignar jugadores slot a slot.
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEditMode(false)}
+            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition-all shadow shrink-0 ml-3"
+          >
+            Cerrar Edición
+          </button>
         </div>
       )}
 
@@ -504,7 +562,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
                     return (
                       <div key={`w-round-${r}`} className={`flex flex-col gap-5 ${paddingTop}`}>
                         <div className="text-xs font-black text-[#00e676] uppercase tracking-wider pb-1 border-b border-[#00e676]/20 flex items-center justify-between">
-                          <span>{getWinnersRoundTitle(r, maxWinnersRound)}</span>
+                          <span>{getWinnersRoundTitle(r, maxWinnersRound, roundList[0])}</span>
                           <span className="text-[10px] text-slate-500 font-normal">({roundList.length})</span>
                         </div>
                         <div className="flex flex-col gap-5">{roundList.map(renderMatchCard)}</div>
@@ -539,7 +597,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
                     return (
                       <div key={`l-round-${r}`} className={`flex flex-col gap-5 ${paddingTop}`}>
                         <div className="text-xs font-black text-[#ef4444] uppercase tracking-wider pb-1 border-b border-[#ef4444]/20 flex items-center justify-between">
-                          <span>{getLosersRoundTitle(r, maxLosersRound)}</span>
+                          <span>{getLosersRoundTitle(r, maxLosersRound, roundList[0])}</span>
                           <span className="text-[10px] text-slate-500 font-normal">({roundList.length})</span>
                         </div>
                         <div className="flex flex-col gap-5">{roundList.map(renderMatchCard)}</div>
@@ -584,7 +642,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
                 <div key={`s-round-${r}`} className={`flex flex-col gap-6 ${paddingTop}`}>
                   <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
                     <span className="text-xs font-black text-white uppercase tracking-wider">
-                      {getSingleRoundTitle(r, maxSingleRound)}
+                      {getSingleRoundTitle(r, maxSingleRound, roundList[0])}
                     </span>
                     <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
                       {roundList.length} {roundList.length === 1 ? 'partido' : 'partidos'}

@@ -1371,6 +1371,24 @@
   5. Sincronización en la nube: se dispara actualización integral a Supabase (`saveTournamentToCloud`) y llamada a `DELETE /api/inscripciones` con cabeceras de autorización de administrador (`getAdminRequestHeaders()`).
 - **Motivo:** Otorga autonomía completa a organizadores y jugadores para gestionar cupos de manera flexible, limpia y segura antes del inicio del torneo sin generar inconsistencias en los cuadros de juego.
 
+---
+
+### [ADR-066] - 2026-11-06: Motor y Menú Contextual de Llave Estilo Nakka N01 & Corrección de Input de Inscripción Personalizada
+- **Contexto:**
+  1. *Bug de Input de Inscripción Personalizada:* En `PlayerEnrollModal.tsx`, al seleccionar "+ Inscribir con nombre personalizado" e intentar tipear en el input `"Escribí el nombre del jugador o equipo"`, al pulsar la primera tecla el formulario se reseteaba inmediatamente al desplegable original. Esto ocurría porque el `<select>` utilizaba el valor `'Invitado / Nuevo Jugador'`, y su `onChange` mutaba directamente el estado `selectedPlayerName`, haciendo que la condición de renderizado condicional (`selectedPlayerName === 'Invitado / Nuevo Jugador'`) se volviera falsa al instante y desmontara el `<input>`.
+  2. *Alineación de Llave y Menú Contextual con Nakka N01:* Nakka N01 Tournament opera con un menú contextual flotante al cliquear sobre cualquier cruce del cuadro (`media_1794014067564_309e5faa.png`), con opciones como "Editar resultado", "Ver el partido" (en vivo u online), "Editar los datos del partido" (reasignar jugadores o Byes), "Eliminar los datos del partido" (reseteo a 0-0), y "Declarar Walkover". En nuestra app estas acciones estaban dispersas en diferentes modales cerrados, y las partidas sin rivales definidos no eran clickeables. Además, los encabezados de ronda no mostraban la distancia por instancia (`Primero a X legs`).
+- **Decisión:**
+  1. En `PlayerEnrollModal.tsx`, se desacopló la lógica de selección mediante dos estados independientes: `isCustomPlayer: boolean` y `customPlayerName: string`. El desplegable cuenta con el valor clave `__CUSTOM__`. Mientras `isCustomPlayer` esté activo, el input de texto permanece montado ininterrumpidamente, permitiendo tipear con fluidez.
+  2. En `MatchDispatcherModal.tsx`, se reconstruyó el modal como el menú integral de Nakka N01:
+     - Lanzamiento al Anotador en Vivo de Club (`autoStartPlaying: true`) y apertura de Sala Online remota (`isOnlineRoom: true`).
+     - Sub-modal interactivo de "Cargar / Editar Resultado Directo" con contador de legs ganados, selector explícito de ganador y nota personalizada.
+     - "Declarar Walkover (W.O.)": permite elegir qué jugador estuvo ausente y avanzar al rival a la siguiente ronda con confirmación previa.
+     - "Editar Jugadores / Reasignar Slots 1 y 2": acceso directo al `SlotAssignModal` para sembrar competidores o Byes slot a slot.
+     - "Eliminar los Datos del Partido": resetea el cruce a 0-0 y retira al ganador de las rondas downstream de forma segura.
+  3. En `TournamentBracket.tsx`, se añadió el botón toggle `[✏️ Editar Llave (Nakka)]` con banner superior informativo, se habilitó el clic en cualquier cruce para administradores y se enriquecieron los encabezados de ronda dinámicos con la distancia en legs: `(Primero a X legs)`.
+- **Motivo:** Garantiza una experiencia de inscripción manual 100% libre de fallos y eleva la gestión y visualización de la llave al estándar exacto de Nakka N01 Darts.
+
+
 
 
 

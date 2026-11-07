@@ -41,6 +41,8 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
 }) => {
   const [currentUser] = useState<PlayerProfile>(() => getCurrentPlayerProfile(USER_ICEMAN));
   const [selectedPlayerName, setSelectedPlayerName] = useState(currentUser.fullName);
+  const [isCustomPlayer, setIsCustomPlayer] = useState(false);
+  const [customPlayerName, setCustomPlayerName] = useState('');
   const [availablePlayers, setAvailablePlayers] = useState<PlayerProfile[]>([USER_ICEMAN]);
   const [pin, setPin] = useState('1234');
   const [useWebcam, setUseWebcam] = useState(true);
@@ -83,13 +85,19 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPlayerName.trim()) return;
+    const finalName = isCustomPlayer ? customPlayerName.trim() : selectedPlayerName.trim();
+    if (!finalName) {
+      alert('Por favor ingresa el nombre del jugador a inscribir.');
+      return;
+    }
 
     onEnrollPlayer({
-      name: selectedPlayerName,
+      name: finalName,
       pin,
       useWebcam
     });
+    setCustomPlayerName('');
+    setIsCustomPlayer(false);
     onClose();
   };
 
@@ -120,7 +128,11 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
           <div className="bg-[#0f1422] border-b border-[#ef4444]/20 px-5 py-3.5 flex items-center justify-between sticky top-0 z-10">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                setIsCustomPlayer(false);
+                setCustomPlayerName('');
+                onClose();
+              }}
               className="px-3.5 py-1.5 rounded-xl bg-[#111622] hover:bg-[#1a2234] text-slate-300 font-bold text-xs border border-slate-700 transition-colors"
             >
               {isRegistrationClosed ? 'Cerrar' : 'Cancelar'}
@@ -299,8 +311,15 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
                 Nombre del jugador / equipo *
               </label>
               <select
-                value={selectedPlayerName}
-                onChange={(e) => setSelectedPlayerName(e.target.value)}
+                value={isCustomPlayer ? '__CUSTOM__' : selectedPlayerName}
+                onChange={(e) => {
+                  if (e.target.value === '__CUSTOM__') {
+                    setIsCustomPlayer(true);
+                  } else {
+                    setIsCustomPlayer(false);
+                    setSelectedPlayerName(e.target.value);
+                  }
+                }}
                 className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-[#00e676]"
               >
                 <option value={currentUser.fullName}>
@@ -313,17 +332,19 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
                       {p.fullName} (@{p.nickname}) • AVG {p.estimatedAvg || p.stats?.overallAvg || 45}
                     </option>
                   ))}
-                <option value="Invitado / Nuevo Jugador">+ Inscribir con nombre personalizado</option>
+                <option value="__CUSTOM__">+ Inscribir con nombre personalizado</option>
               </select>
             </div>
 
-            {selectedPlayerName === 'Invitado / Nuevo Jugador' && (
-              <div className="space-y-1">
+            {isCustomPlayer && (
+              <div className="space-y-1 animate-in fade-in duration-150">
                 <input
                   type="text"
                   placeholder="Escribí el nombre del jugador o equipo"
-                  onChange={(e) => setSelectedPlayerName(e.target.value)}
-                  className="w-full bg-[#111622] border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#00e676]"
+                  value={customPlayerName}
+                  onChange={(e) => setCustomPlayerName(e.target.value)}
+                  autoFocus
+                  className="w-full bg-[#111622] border-2 border-[#00e676] rounded-xl px-3 py-2 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#00e676]"
                 />
               </div>
             )}

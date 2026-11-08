@@ -43,6 +43,7 @@ export interface FormatRecommendation {
   subtitle: string;
   groupsCount?: number;
   qualifiersPerGroup?: number;
+  selectedLegsToWin?: number;
   totalMatches: number;
   minMatchesPerPlayer: number;
   byesInBracket: number;
@@ -89,7 +90,7 @@ function formatMinutesToHoursAndMins(totalMins: number): string {
  * Calcula los minutos reales esperados por cada leg según:
  * - Puntaje inicial (301, 501, 701)
  * - Modo de salida (DOUBLE_OUT, SINGLE_OUT, MASTER_OUT)
- * - Promedio de 3 dardos (AVG) de los jugadores
+ * - Promedio de 3 dardos (AVG) de los jugadores (el AVG ya contempla dardos de cierre)
  */
 function calculateMinutesPerLeg(
   avg: number,
@@ -97,23 +98,21 @@ function calculateMinutesPerLeg(
   outMode: OutMode = 'DOUBLE_OUT'
 ): number {
   const safeAvg = Math.max(20, Math.min(115, avg || 45));
-  // Visitas base para cubrir el score inicial
+  // Visitas necesarias del ganador para cubrir el score inicial
   const baseVisitsWinner = startingScore / safeAvg;
 
-  // Penalización realista de cierre en aro de dobles según el nivel del jugador
-  let checkoutPenaltyVisits = 0.25;
-  if (outMode === 'DOUBLE_OUT') {
-    checkoutPenaltyVisits = Math.max(0.45, (68 - Math.min(68, safeAvg)) / 19);
-  } else if (outMode === 'MASTER_OUT') {
-    checkoutPenaltyVisits = Math.max(0.35, (65 - Math.min(65, safeAvg)) / 24);
+  // Ajuste leve si es Double Out y el AVG es principiante (< 42) por posibles bloqueos en números impares/doble1
+  let checkoutExtraVisits = 0;
+  if (outMode === 'DOUBLE_OUT' && safeAvg < 42) {
+    checkoutExtraVisits = (42 - safeAvg) / 22;
   }
 
-  const winnerVisits = baseVisitsWinner + checkoutPenaltyVisits;
+  const winnerVisits = baseVisitsWinner + checkoutExtraVisits;
   // En un leg disputado, el rival realiza aprox (winnerVisits - 0.5) visitas
   const totalVisitsInLeg = Math.max(6, winnerVisits * 2 - 0.5);
 
-  // Tiempo físico promedio por visita (ir al oche, lanzar 3 dardos, retirar dardos y anotar): ~21 seg + 15 seg de transición de leg
-  const totalSeconds = totalVisitsInLeg * 21 + 15;
+  // Tiempo físico promedio por turno (3 dardos + retiro + digitación alternada): ~13.5 seg + 15 seg de transición de leg
+  const totalSeconds = totalVisitsInLeg * 13.5 + 15;
   return Number((totalSeconds / 60).toFixed(1));
 }
 
@@ -280,32 +279,22 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
 
     const recs: FormatRecommendation[] = [];
 
-    // Tiempo base por leg y por partido (con 2.5 min de llamado a diana + 9 dardos de calentamiento)
-    const MATCH_OVERHEAD_MINS = 2.5;
+    // Tiempo base por leg y por partido (con 2 min de llamado a diana + calentamiento)
+    const MATCH_OVERHEAD_MINS = 2.0;
     const minsPerLegBase = calculateMinutesPerLeg(activeBaseAvg, startingScore, outMode);
     const minsPerLegFinalRounds = calculateMinutesPerLeg(activePlayoffsAvg, startingScore, outMode);
 
     const expectedLegsBase = calculateExpectedLegsInMatch(legsToWin);
     const matchDurationBase = expectedLegsBase * minsPerLegBase + MATCH_OVERHEAD_MINS;
-
-    // Legs configurados para Semis y Final si existen en roundLegsConfig
-    const semiLegsTarget = roundLegsConfig?.semiFinals || legsToWin;
-    const finalLegsTarget = roundLegsConfig?.finals || Math.max(legsToWin, semiLegsTarget);
-    const grandFinalLegsTarget = roundLegsConfig?.grandFinal || finalLegsTarget;
-    const losersLegsTarget = roundLegsConfig?.losersRound || legsToWin;
-
-    const matchDurationSemis = calculateExpectedLegsInMatch(semiLegsTarget) * minsPerLegFinalRounds + MATCH_OVERHEAD_MINS;
-    const matchDurationFinal = calculateExpectedLegsInMatch(finalLegsTarget) * minsPerLegFinalRounds + MATCH_OVERHEAD_MINS;
-    const matchDurationGrandFinal = calculateExpectedLegsInMatch(grandFinalLegsTarget) * minsPerLegFinalRounds + MATCH_OVERHEAD_MINS;
-    const matchDurationLosers = calculateExpectedLegsInMatch(losersLegsTarget) * minsPerLegBase + MATCH_OVERHEAD_MINS;
+    const matchDurationFinalRounds = expectedLegsBase * minsPerLegFinalRounds + MATCH_OVERHEAD_MINS;
 
     // --- RECOMENDACIÓN 1: IDEAL DEPORTIVA (FASE DE GRUPOS + PLAYOFFS) ---
     let idealGroups = 2;
     let idealQualifiers = 2;
 
-    if (N === 4) {
+    if (N <= 4) {
       idealGroups = 1;
-      idealQualifiers = 4;
+      idealQualifiers = 2; // Los 2 mejores de la zona única definen en la Gran Final
     } else if (N >= 5 && N <= 8) {
       idealGroups = 2;
       idealQualifiers = 2;
@@ -336,23 +325,23 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
     const totalGroupsMatches = groupMatchesCount + playoffMatchesCount;
 
     // Cálculo por oleadas en dianas para Grupos + Playoffs:
-    // Fase de grupos: los partidos se reparten en todas las dianas disponibles
-    const groupWaves = Math.ceil(groupMatchesCount / boardsCount);
+    const safeBoards = Math.max(1, boardsCount);
+    const groupWaves = Math.ceil(groupMatchesCount / safeBoards);
     const groupStageMinutes = Math.round(groupWaves * matchDurationBase);
 
     // Playoffs de grupos: Cuartos (si pasan 8) -> Semis (2 partidos) -> Final (1 partido)
     let playoffMinutes = 0;
     if (totalPlayoffQualifiers > 4) {
       const qfMatches = totalPlayoffQualifiers - 4;
-      playoffMinutes += Math.ceil(qfMatches / boardsCount) * matchDurationBase;
+      playoffMinutes += Math.ceil(qfMatches / safeBoards) * matchDurationBase;
     }
     if (totalPlayoffQualifiers >= 4) {
       // Semifinales: 2 partidos (máximo usan 2 dianas)
-      playoffMinutes += Math.ceil(2 / Math.min(boardsCount, 2)) * matchDurationSemis;
+      playoffMinutes += Math.ceil(2 / Math.min(safeBoards, 2)) * matchDurationFinalRounds;
     }
     if (totalPlayoffQualifiers >= 2) {
       // Final: 1 partido en 1 diana
-      playoffMinutes += matchDurationFinal;
+      playoffMinutes += matchDurationFinalRounds;
     }
     const totalGroupsDurationMins = Math.round(groupStageMinutes + playoffMinutes);
 
@@ -363,10 +352,11 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       format: 'ROUND_ROBIN',
       badge: '🥇 Opción Ideal Deportiva',
       badgeColor: 'bg-emerald-500/20 text-[#00e676] border-emerald-500/40',
-      title: `Fase de Grupos (${idealGroups} Zonas) + Playoffs`,
-      subtitle: `${idealGroups} zonas de ${basePerGroup}${extra > 0 ? `-${basePerGroup + 1}` : ''} jugadores • Clasifican los ${idealQualifiers} primeros`,
+      title: `Fase de Grupos (${idealGroups} ${idealGroups === 1 ? 'Zona' : 'Zonas'}) + Playoffs`,
+      subtitle: `${idealGroups} ${idealGroups === 1 ? 'zona' : 'zonas'} de ${basePerGroup}${extra > 0 ? `-${basePerGroup + 1}` : ''} jugadores • Clasifican los ${idealQualifiers} primeros`,
       groupsCount: idealGroups,
       qualifiersPerGroup: idealQualifiers,
+      selectedLegsToWin: legsToWin,
       totalMatches: totalGroupsMatches,
       minMatchesPerPlayer: Math.max(2, basePerGroup - 1),
       byesInBracket: 0,
@@ -379,7 +369,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       perks: [
         'Cero Byes en fase de grupos: todos compiten desde el inicio',
         `Mínimo ${Math.max(2, basePerGroup - 1)} partidos garantizados por jugador`,
-        `Cruces olímpicos en Playoffs (${totalPlayoffQualifiers} clasificados)`
+        `Definición en Playoffs (${totalPlayoffQualifiers} clasificados)`
       ],
       isCurrentFormat: isGroupsCurrent
     });
@@ -390,18 +380,15 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
     const deMatchesCount = Math.max(N * 2 - 2, N + 2);
     const isDeCurrent = currentFormat === 'DOUBLE_ELIMINATION';
 
-    // Cálculo por oleadas en Doble Eliminación:
-    // Partidos en Winners: N - 1. Partidos en Losers: N - 2. Gran Final: 1.
     const winnersMatchesCount = Math.max(1, N - 1);
     const losersMatchesCount = Math.max(1, N - 2);
-    // Las primeras rondas usan todas las dianas; las rondas finales de Losers y Gran Final son secuenciales en 1 diana
     const parallelDeMatches = Math.max(0, deMatchesCount - 3);
-    const parallelDeWaves = Math.ceil(parallelDeMatches / boardsCount);
-    // 3 últimos cruces (Final Winners / Final Losers / Gran Final) requieren turnos secuenciales
+    const parallelDeWaves = Math.ceil(parallelDeMatches / safeBoards);
+    // Últimos cruces (Final Winners / Final Losers / Gran Final) requieren turnos secuenciales
     const deWinnersLosersMins = Math.round(
-      parallelDeWaves * ((matchDurationBase + matchDurationLosers) / 2) + matchDurationSemis + matchDurationLosers
+      parallelDeWaves * matchDurationBase + matchDurationFinalRounds * 2
     );
-    const deGrandFinalMins = Math.round(matchDurationGrandFinal);
+    const deGrandFinalMins = Math.round(matchDurationFinalRounds);
     const totalDeDurationMins = deWinnersLosersMins + deGrandFinalMins;
 
     recs.push({
@@ -411,6 +398,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
       title: 'Doble Eliminación (Winners + Losers)',
       subtitle: `Cuadro de ${bracketSize} con repesca • Emparejamiento Compacto en R1 y R2`,
+      selectedLegsToWin: legsToWin,
       totalMatches: deMatchesCount,
       minMatchesPerPlayer: 2,
       byesInBracket: byesDE,
@@ -418,7 +406,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       estimatedTotalMinutes: totalDeDurationMins,
       formattedDuration: formatMinutesToHoursAndMins(totalDeDurationMins),
       phaseBreakdownText: `Cuadros W/L (${winnersMatchesCount + losersMatchesCount} pj): ${formatMinutesToHoursAndMins(deWinnersLosersMins)} + Final: ${formatMinutesToHoursAndMins(deGrandFinalMins)}`,
-      avgMinutesPerMatch: Math.round((matchDurationBase + matchDurationLosers) / 2),
+      avgMinutesPerMatch: Math.round(matchDurationBase),
       avgMinutesPerLeg: minsPerLegBase,
       perks: [
         'Segunda oportunidad garantizada (mínimo 2 derrotas para quedar eliminado)',
@@ -433,28 +421,23 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
     const isSeCurrent = currentFormat === 'SINGLE_ELIMINATION';
 
     // Cálculo por rondas reales en Eliminación Simple:
-    // Ronda 1 tiene (N - bracketSize/2) partidos reales
     const r1RealMatches = Math.max(0, N - bracketSize / 2);
-    let seTotalMins = 0;
+    let sePreviousRoundsMins = 0;
     if (r1RealMatches > 0) {
-      seTotalMins += Math.ceil(r1RealMatches / boardsCount) * matchDurationBase;
+      sePreviousRoundsMins += Math.ceil(r1RealMatches / safeBoards) * matchDurationBase;
     }
-    // Rondas restantes desde bracketSize/4 hasta 1 (Final)
     let currentRoundMatches = Math.floor(bracketSize / 4);
-    while (currentRoundMatches >= 1) {
-      if (currentRoundMatches === 1) {
-        // Final (y 3er puesto en paralelo si hay >= 2 dianas)
-        seTotalMins += boardsCount >= 2 ? matchDurationFinal : matchDurationFinal + matchDurationSemis * 0.8;
-      } else if (currentRoundMatches === 2) {
-        // Semifinales
-        seTotalMins += Math.ceil(2 / Math.min(boardsCount, 2)) * matchDurationSemis;
+    while (currentRoundMatches >= 2) {
+      if (currentRoundMatches === 2) {
+        // Semifinales (2 partidos, usan hasta 2 dianas en simultáneo)
+        sePreviousRoundsMins += Math.ceil(2 / Math.min(safeBoards, 2)) * matchDurationFinalRounds;
       } else {
-        // Cuartos u Octavos
-        seTotalMins += Math.ceil(currentRoundMatches / boardsCount) * matchDurationBase;
+        sePreviousRoundsMins += Math.ceil(currentRoundMatches / safeBoards) * matchDurationBase;
       }
       currentRoundMatches = Math.floor(currentRoundMatches / 2);
     }
-    const totalSeDurationMins = Math.max(Math.round(matchDurationFinal), Math.round(seTotalMins));
+    const seFinalMins = Math.round(matchDurationFinalRounds);
+    const totalSeDurationMins = Math.round(sePreviousRoundsMins) + seFinalMins;
 
     recs.push({
       id: 'SINGLE_ELIM',
@@ -463,17 +446,18 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
       title: 'Eliminación Simple Directa',
       subtitle: `${seMatchesCount} partidos en total (+ 3º puesto) • Mínima duración`,
+      selectedLegsToWin: legsToWin,
       totalMatches: seMatchesCount,
       minMatchesPerPlayer: 1,
       byesInBracket: byesDE,
       estimatedMinutes2Boards: totalSeDurationMins,
       estimatedTotalMinutes: totalSeDurationMins,
       formattedDuration: formatMinutesToHoursAndMins(totalSeDurationMins),
-      phaseBreakdownText: `Rondas previas: ${formatMinutesToHoursAndMins(Math.max(10, totalSeDurationMins - Math.round(matchDurationFinal)))} + Final: ${formatMinutesToHoursAndMins(matchDurationFinal)}`,
+      phaseBreakdownText: `Rondas previas: ${formatMinutesToHoursAndMins(Math.round(sePreviousRoundsMins))} + Final: ${formatMinutesToHoursAndMins(seFinalMins)}`,
       avgMinutesPerMatch: Math.round(matchDurationBase),
       avgMinutesPerLeg: minsPerLegBase,
       perks: [
-        `Finaliza en ~${formatMinutesToHoursAndMins(totalSeDurationMins)} usando ${boardsCount} ${boardsCount === 1 ? 'diana' : 'dianas'}`,
+        `Finaliza en ~${formatMinutesToHoursAndMins(totalSeDurationMins)} usando ${safeBoards} ${safeBoards === 1 ? 'diana' : 'dianas'}`,
         'Llave compacta con máxima cantidad de cruces simultáneos',
         'Ideal si se dispone de ventana horaria acotada en la sede'
       ],
@@ -659,56 +643,135 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
                 )}
               </div>
 
-              {/* Controles de Dianas Simultáneas y Distancia de Partido */}
-              <div className="flex flex-wrap items-center gap-3 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-800/80">
-                {/* Selector de Dianas en el Club */}
+              {/* Controles de Nro. de Dianas y Legs para Ganar cada Partido */}
+              <div className="flex flex-wrap items-center gap-4 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-800/80">
+                {/* Selector y Seteo Libre de Nro. de Dianas */}
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    🎯 Dianas Simultáneas:
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider text-slate-300 block"
+                    title="Cantidad de dianas / tableros disponibles para jugar partidos al mismo tiempo"
+                  >
+                    🎯 Nro. de Dianas (Canchas en simultáneo):
                   </span>
-                  <div className="inline-flex rounded-xl bg-[#07090e] p-0.5 border border-slate-800">
-                    {[1, 2, 3, 4].map((b) => (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Input numérico directo con botones - / + */}
+                    <div className="inline-flex items-center bg-[#07090e] border border-blue-500/40 rounded-xl p-0.5">
                       <button
-                        key={b}
                         type="button"
-                        onClick={() => setBoardsCount(b)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all ${
-                          boardsCount === b
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
+                        onClick={() => setBoardsCount((prev) => Math.max(1, prev - 1))}
+                        className="w-6 h-6 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-white font-black text-xs flex items-center justify-center transition-colors"
+                        title="Restar 1 diana"
                       >
-                        {b} {b === 1 ? 'Diana' : 'Dianas'}
+                        -
                       </button>
-                    ))}
+                      <input
+                        type="number"
+                        min={1}
+                        max={32}
+                        value={boardsCount}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val)) setBoardsCount(Math.max(1, Math.min(32, val)));
+                        }}
+                        className="w-10 bg-transparent text-blue-300 font-mono font-black text-xs text-center focus:outline-none"
+                        title="Ingresar cantidad exacta de dianas disponibles"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setBoardsCount((prev) => Math.min(32, prev + 1))}
+                        className="w-6 h-6 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-white font-black text-xs flex items-center justify-center transition-colors"
+                        title="Sumar 1 diana"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* Botones rápidos de dianas */}
+                    <div className="inline-flex rounded-xl bg-[#07090e] p-0.5 border border-slate-800">
+                      {[1, 2, 3, 4, 6, 8].map((b) => (
+                        <button
+                          key={b}
+                          type="button"
+                          onClick={() => setBoardsCount(b)}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${
+                            boardsCount === b
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {b}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Selector de Distancia Base (Primero a X legs) */}
+                {/* Selector de Legs para Ganar cada Partido (antes llamado Distancia Base) */}
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    🏁 Distancia Base:
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider text-slate-300 block"
+                    title="Cantidad de legs (juegos de 501) que debe ganar un jugador para llevarse la victoria del partido"
+                  >
+                    🏁 Legs para Ganar (por Partido):
                   </span>
-                  <div className="inline-flex rounded-xl bg-[#07090e] p-0.5 border border-slate-800">
-                    {[
-                      { l: 2, label: '1º a 2 (Bo3)' },
-                      { l: 3, label: '1º a 3 (Bo5)' },
-                      { l: 4, label: '1º a 4 (Bo7)' },
-                      { l: 5, label: '1º a 5 (Bo9)' }
-                    ].map((opt) => (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Input numérico directo con botones - / + */}
+                    <div className="inline-flex items-center bg-[#07090e] border border-purple-500/40 rounded-xl p-0.5">
                       <button
-                        key={opt.l}
                         type="button"
-                        onClick={() => setLegsToWin(opt.l)}
-                        className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${
-                          legsToWin === opt.l
-                            ? 'bg-purple-600 text-white shadow-sm'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
+                        onClick={() => setLegsToWin((prev) => Math.max(1, prev - 1))}
+                        className="w-6 h-6 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-white font-black text-xs flex items-center justify-center transition-colors"
+                        title="Restar 1 leg"
                       >
-                        {opt.label}
+                        -
                       </button>
-                    ))}
+                      <span className="text-[10px] font-bold text-slate-400 pl-1.5">1º a</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={15}
+                        value={legsToWin}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val)) setLegsToWin(Math.max(1, Math.min(15, val)));
+                        }}
+                        className="w-8 bg-transparent text-purple-300 font-mono font-black text-xs text-center focus:outline-none"
+                        title="Ingresar a cuántos legs ganados se define cada partido"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setLegsToWin((prev) => Math.min(15, prev + 1))}
+                        className="w-6 h-6 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-white font-black text-xs flex items-center justify-center transition-colors"
+                        title="Sumar 1 leg"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* Botones rápidos en español claro */}
+                    <div className="inline-flex rounded-xl bg-[#07090e] p-0.5 border border-slate-800">
+                      {[
+                        { l: 1, label: '1 Leg', hint: 'Partido a 1 solo leg (Muerte súbita)' },
+                        { l: 2, label: '1º a 2 Legs (Mejor de 3)', hint: 'Gana el primero en llegar a 2 legs (2-0 o 2-1)' },
+                        { l: 3, label: '1º a 3 Legs (Mejor de 5)', hint: 'Gana el primero en llegar a 3 legs (3-0, 3-1 o 3-2)' },
+                        { l: 4, label: '1º a 4 Legs (Mejor de 7)', hint: 'Gana el primero en llegar a 4 legs' },
+                        { l: 5, label: '1º a 5 Legs (Mejor de 9)', hint: 'Gana el primero en llegar a 5 legs' }
+                      ].map((opt) => (
+                        <button
+                          key={opt.l}
+                          type="button"
+                          onClick={() => setLegsToWin(opt.l)}
+                          title={opt.hint}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${
+                            legsToWin === opt.l
+                              ? 'bg-purple-600 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>

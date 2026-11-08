@@ -1604,12 +1604,15 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       countryCode: p.countryCode || 'AR'
     }));
 
+    const chosenLegsToWin = rec.selectedLegsToWin || currentTournament.bestOfLegs || 3;
+
     if (rec.format === 'ROUND_ROBIN') {
       const gCount = rec.groupsCount || 2;
       const qCount = rec.qualifiersPerGroup || 2;
       const updatedTourney: Tournament = {
         ...currentTournament,
         format: 'ROUND_ROBIN',
+        bestOfLegs: chosenLegsToWin,
         groupsCount: gCount,
         qualifiersPerGroup: qCount,
         groupStageData: {
@@ -1627,11 +1630,11 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         return next;
       });
       setTournamentSubTab('GROUPS');
-      alert(`✨ Formato aplicado con éxito: Fase de Grupos (${gCount} zonas, clasifican los ${qCount} primeros a Playoffs). ¡Ahora puedes sortear los grupos en la pestaña correspondiente!`);
+      alert(`✨ Formato aplicado con éxito: Fase de Grupos (${gCount} zonas, clasifican los ${qCount} primeros a Playoffs, Primero a ${chosenLegsToWin} legs). ¡Ahora puedes sortear los grupos en la pestaña correspondiente!`);
     } else {
       // SINGLE_ELIMINATION o DOUBLE_ELIMINATION
       const bracketSize = getNextPowerOfTwo(participants.length > 0 ? participants.length : (currentTournament.maxParticipants || 8));
-      const legTarget = currentTournament.bestOfLegs || 3;
+      const legTarget = chosenLegsToWin;
       const distMode = currentTournament.roundLegsConfig?.distanceMode || 'LEGS';
 
       let rawMatches: TournamentBracketMatch[] = [];
@@ -1664,6 +1667,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       const updatedTourney: Tournament = {
         ...currentTournament,
         format: rec.format,
+        bestOfLegs: chosenLegsToWin,
         matches: namespacedMatches
       };
 
@@ -1674,7 +1678,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         return next;
       });
       setTournamentSubTab('BRACKET');
-      alert(`✨ Formato aplicado con éxito: ${rec.title}. Llave de ${bracketSize} slots generada con Byes compactados y partidos listos para jugar.`);
+      alert(`✨ Formato aplicado con éxito: ${rec.title} (Primero a ${chosenLegsToWin} legs). Llave de ${bracketSize} slots generada con Byes compactados y partidos listos para jugar.`);
     }
   };
 

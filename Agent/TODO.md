@@ -1,3 +1,20 @@
+- [x] **Persistencia Garantizada de Fin de Partida y Separación Estricta de Estadísticas por Ámbito Competitivo (`X01Board.tsx`, `DartScorer.tsx`, `storage.ts`, `api/jugadores/route.ts`, `TournamentManager.tsx`, `RegisterAndProfile.tsx`):**
+  * **Cierre y Auto-Guardado Instantáneo en el Anotador (`X01Board.tsx` & `DartScorer.tsx`):**
+    - Resuelto el bug donde al finalizar una partida y pulsar el botón de salida (`confirmExitMatch` / `handleMatchCompleted`), `DartScorer.tsx` nunca transicionaba `viewState` de `'PLAYING'` a `'SETTINGS'`, dejando al jugador atrapado en la pantalla de partido finalizado.
+    - Al cantar *Game Shot & Match* (`finishMatch`), el anotador limpia inmediatamente `ActiveMatchSession` y ejecuta un auto-guardado instantáneo e idempotente (`autoSaveOnly: true`), garantizando que las estadísticas queden guardadas aunque el usuario navegue desde el menú lateral o cierre la pestaña.
+    - Al tocar **"SALIR Y GUARDAR LA PARTIDA"** (disponible en el banner superior, en el panel principal de victoria que reemplaza al teclado numérico y en la flecha superior de retroceso cuando `isMatchFinished === true`), el tablero se cierra limpiamente (`setViewState('SETTINGS')`) y despliega el resumen oficial `MatchPdcStatsModal`.
+  * **Motor de Reconciliación y Sincronización Bidireccional (`src/lib/storage.ts` & `src/app/api/jugadores/route.ts`):**
+    - Implementada `reconcileSavedMatchesWithProfile()` que recupera automáticamente cualquier partida ya almacenada en `lpld_matches_history_v1` (como la partida disputada entre ICEMAN y Víctor Albaitero) o sesión finalizada pendiente en `lpld_active_match_session_v1`, impactando las estadísticas en el perfil local y sincronizándolas en la nube.
+    - En `POST /api/jugadores`, incorporada la acción `action: 'RECORD_MATCH'` que actualiza atómicamente en PostgreSQL (`player_stats` y `platform_settings` clave `'players_scoped_stats_v1'`) las estadísticas, métricas por ámbito e historial de **ambos jugadores** (Jugador 1 y Jugador 2).
+  * **Separación Estricta de Estadísticas en 4 Ámbitos (`types.ts`, `storage.ts`, `TournamentManager.tsx`, `RegisterAndProfile.tsx`):**
+    - **1. Partidas Individuales (`INDIVIDUAL`):** Partidas 1 vs 1 disputadas en `/anotador` fuera de torneos o ligas.
+    - **2. Torneos y Ligas Locales (`LOCAL_LEAGUE` / `STANDALONE_TOURNAMENT`):** Cada Liga o Torneo mantiene su propia métrica aislada en `scopedStats.byCompetitionId[compId]`, con selector interactivo en `/perfil` para auditar tanto el acumulado local como las estadísticas exclusivas de cada Liga o Torneo específico.
+    - **3. Liga Nacional Federada (`NATIONAL_LEAGUE`):** Registro exclusivo para jugadores federados que contabiliza fechas de Liga Online Nacional (`1x` puntos) y Torneos Presenciales Oficiales que computan doble (`x2` puntos), actualizando además las tablas de posiciones en `TournamentManager.tsx`.
+    - **4. Modo Práctica (`BOT`):** Entrenamiento contra la Máquina (CPU) 100% aislado de las métricas competitivas humanas.
+    - Reemplazado el cuadro estático `"Sin partidas disputadas aún"` en `/perfil` por la lista dinámica de **Evolución Histórica de AVG & Partidas Disputadas** filtrada por el ámbito activo.
+  * **Validación:**
+    - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Motor de Emparejamiento Compacto de Byes, Árbol Conector Nakka/Challonge y Asesor Inteligente de Formatos (`bracket-engine.ts`, `TournamentBracket.tsx`, `TournamentFormatAdvisor.tsx`, `TournamentManager.tsx`, `NakkaTvBracketView.tsx`):**
   * **Emparejamiento Compacto de Byes (`bracket-engine.ts`):**
     - Incorporado el modo `'COMPACT'` en `SeedingMode` y la función `seedCompact(participants, bracketSize)`.

@@ -1423,19 +1423,20 @@
      - **Modo Manual de Simulación:** Incluye un conmutador para fijar manualmente un único AVG promedio global para todos los jugadores (mediante slider, input numérico directo o presets `35/45/55/70 AVG`), permitiendo simular escenarios de duración antes o durante la inscripción.
 - **Motivo:** Garantiza máxima actividad deportiva desde el primer minuto en cualquier tamaño de llave, brinda una lectura visual profesional de la progresión idéntica a Nakka y Challonge, y orienta al organizador con precisión cronométrica para planificar el uso de canchas y horarios del club.
 
+---
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+### [ADR-069] - 2026-11-08: Auto-Guardado Idempotente de Fin de Partida, Sincronización Bilateral en Nube y Separación Estricta de Estadísticas por Ámbito Competitivo
+- **Contexto:**
+  1. *Fallo de Cierre y Persistencia al Finalizar Partida:* Al concluir un partido en `/anotador` (ej. Mariano Deux `ICEMAN` vs Víctor Albaitero), `handleMatchCompleted` en `DartScorer.tsx` nunca actualizaba `viewState` a `'SETTINGS'`, dejando al jugador atrapado en `X01Board` y obligándolo a salir haciendo clic en otro módulo del menú lateral. Además, `saveCompletedMatch` en `src/lib/storage.ts` solo escribía en `lpld_matches_history_v1`, sin actualizar `lpld_player_profile_v1` (`profile.stats` / `profile.recentHistory`) ni sincronizar con Supabase PostgreSQL (`POST /api/jugadores`), y el panel de evolución en `RegisterAndProfile.tsx` tenía texto estático hardcodeado (`"Sin partidas disputadas aún"`).
+  2. *Premisa de Separación Estricta de Estadísticas:* Las métricas de los jugadores deben mantenerse rigurosamente separadas según el ámbito competitivo: (a) Partidas Individuales, (b) Torneos o Ligas Locales (donde cada Liga o Torneo mantiene su propia métrica independiente que impacta en el jugador), (c) Ligas Nacionales Federadas (con fechas Online `1x` y Torneos Presenciales Oficiales que computan doble `x2`), y (d) Modo Práctica vs Máquina (`BOT`).
+- **Decisión:**
+  1. **Auto-Guardado Instantáneo en *Game Shot* y Salida Limpia (`X01Board.tsx`, `DartScorer.tsx`, `MatchPdcStatsModal.tsx`):**
+     - En `X01Board.tsx`, `finishMatch` limpia de inmediato `ActiveMatchSession` e invoca `onMatchComplete(payload, { autoSaveOnly: true })` con los acumuladores exactos del tiro ganador y un `matchId` único por instancia, persistiendo la partida al instante sin esperar a que el usuario cierre la vista.
+     - Se reemplazó el teclado numérico cuando `isMatchFinished === true` por un panel destacado de victoria con el botón **"SALIR Y GUARDAR LA PARTIDA"** (también presente en el banner superior y conectado al botón `Volver` de la cabecera). Al pulsarlo, `DartScorer.tsx` ejecuta `setViewState('SETTINGS')` cerrando el tablero y abre `MatchPdcStatsModal`.
+  2. **Reconciliación Retroactiva y Sincronización Bilateral (`storage.ts` & `api/jugadores/route.ts`):**
+     - Se implementó `applyMatchToPlayerProfile` (idempotente mediante `syncedMatchIds`) y `reconcileSavedMatchesWithProfile()`, que recupera automáticamente cualquier partida previa guardada en `lpld_matches_history_v1` o sesión terminada en `lpld_active_match_session_v1`.
+     - En `POST /api/jugadores`, se añadió `action: 'RECORD_MATCH'`, que busca en PostgreSQL tanto al Jugador 1 como al Jugador 2 (por `id`, `user_id`, `nickname` o `full_name`) y actualiza atómicamente sus registros en `player_stats` y su desglose por ámbito en `platform_settings` (`key = 'players_scoped_stats_v1'`).
+  3. **Arquitectura de Estadísticas por Ámbito (`PlayerScopedStats` en `types.ts`, `TournamentManager.tsx`, `RegisterAndProfile.tsx`):**
+     - `TournamentManager.tsx` inyecta en `MatchConfig` los metadatos `competitionScope` (`NATIONAL_LEAGUE`, `LOCAL_LEAGUE`, `STANDALONE_TOURNAMENT`), `tournamentId`, `leagueId`, `leagueName` e `isDoublePoints` (`pointsMultiplier = 2`), y actualiza las tablas de `League.standings` al concluir cada cruce.
+     - `RegisterAndProfile.tsx` incorpora el selector de 4 ámbitos con filtro por Liga/Torneo Local específico (`byCompetitionId`), desglose de puntos federados (`Online 1x` + `Presencial x2`) y listado dinámico real de evolución histórica de AVG y partidas disputadas.
+- **Motivo:** Garantiza cero pérdida de datos al concluir partidas (incluso ante cierres abruptos o navegación lateral), recupera automáticamente las partidas previas almacenadas en el navegador y cumple estrictamente con la separación reglamentaria de estadísticas individuales, locales y nacionales federadas.

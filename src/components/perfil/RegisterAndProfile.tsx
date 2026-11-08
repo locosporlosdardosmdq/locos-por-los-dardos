@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { PlayerProfile, PlayerCategory } from '@/lib/types';
+import { PlayerProfile, PlayerCategory, PlayerStats, PlayerHistoryDateItem } from '@/lib/types';
 import { 
   PROVINCIAS_ARGENTINA, 
   calculateCategory, 
@@ -14,7 +14,19 @@ import {
   isUserAdmin,
   calculateAgeFromBirthDate
 } from '@/lib/constants';
-import { getCurrentPlayerProfile, saveCurrentPlayerProfile, clearCurrentPlayerSession, getBotStats, getBotMatches } from '@/lib/storage';
+import {
+  getCurrentPlayerProfile,
+  saveCurrentPlayerProfile,
+  clearCurrentPlayerSession,
+  getBotStats,
+  getBotMatches,
+  getSavedMatches,
+  reconcileSavedMatchesWithProfile,
+  createEmptyPlayerStats,
+  mergePlayerMatchStats,
+  doesMatchPlayerBelongToProfile,
+  resolveMatchScope
+} from '@/lib/storage';
 import { UltimateDartsCard, UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
 import { LoginModal } from '@/components/perfil/LoginModal';
 import { InvitePlayersModal } from '@/components/comunidad/InvitePlayersModal';
@@ -94,19 +106,152 @@ export const RegisterAndProfile: React.FC = () => {
     return () => window.removeEventListener('lpld_profile_updated', handleProfileUpdate);
   }, []);
 
-  // Estado para separar estadísticas Oficiales Competitivas de Modo Práctica vs BOT (Máquina)
-  const [statsViewMode, setStatsViewMode] = useState<'OFFICIAL' | 'BOT'>('OFFICIAL');
+  // Estado para separar estadísticas en los 4 ámbitos oficiales + Modo Práctica vs BOT
+  const [statsViewMode, setStatsViewMode] = useState<'INDIVIDUAL' | 'LOCAL_COMPETITIONS' | 'NATIONAL_LEAGUE' | 'BOT'>('INDIVIDUAL');
+  const [selectedLocalCompetitionId, setSelectedLocalCompetitionId] = useState<string>('ALL_LOCAL');
   const [botStats, setBotStats] = useState(getBotStats());
   const [botMatches, setBotMatches] = useState(getBotMatches());
+  const [savedOfficialMatches, setSavedOfficialMatches] = useState(() => getSavedMatches());
 
   useEffect(() => {
+    // Reconciliar partidas locales pendientes al abrir el perfil
+    const reconciled = reconcileSavedMatchesWithProfile();
+    if (reconciled) {
+      setProfile(reconciled);
+    }
+    setSavedOfficialMatches(getSavedMatches());
+
+    // Consultar servidor por si hay estadísticas o historial registrado desde otro dispositivo
+    fetch('/api/jugadores')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.success || !Array.isArray(data.players)) return;
+        const curr = getCurrentPlayerProfile(MOCK_CURRENT_USER);
+        const cloudMatch = data.players.find(
+          (p: any) =>
+            (p.id && curr.id && p.id === curr.id) ||
+            (p.nickname && curr.nickname && p.nickname.toLowerCase() === curr.nickname.toLowerCase()) ||
+            (p.fullName && curr.fullName && p.fullName.toLowerCase() === curr.fullName.toLowerCase())
+        );
+        if (cloudMatch) {
+          const merged = {
+            ...curr,
+            stats: (cloudMatch.stats?.matchesPlayed || 0) >= (curr.stats?.matchesPlayed || 0) ? cloudMatch.stats : curr.stats,
+            scopedStats: {
+              ...(cloudMatch.scopedStats || {}),
+              ...(curr.scopedStats || {}),
+              byCompetitionId: {
+                ...(cloudMatch.scopedStats?.byCompetitionId || {}),
+                ...(curr.scopedStats?.byCompetitionId || {})
+              }
+            },
+            recentHistory:
+              (cloudMatch.recentHistory?.length || 0) >= (curr.recentHistory?.length || 0)
+                ? cloudMatch.recentHistory
+                : curr.recentHistory
+          };
+          setProfile(merged);
+        }
+      })
+      .catch(() => {});
+
     const handleBotUpdate = (e: any) => {
       setBotStats(e.detail || getBotStats());
       setBotMatches(getBotMatches());
     };
+    const handleMatchesUpdate = () => {
+      const rec = reconcileSavedMatchesWithProfile();
+      if (rec) setProfile(rec);
+      setSavedOfficialMatches(getSavedMatches());
+    };
     window.addEventListener('lpld_bot_stats_updated', handleBotUpdate);
-    return () => window.removeEventListener('lpld_bot_stats_updated', handleBotUpdate);
+    window.addEventListener('lpld_matches_updated', handleMatchesUpdate);
+    window.addEventListener('lpld_player_stats_updated', handleMatchesUpdate);
+    return () => {
+      window.removeEventListener('lpld_bot_stats_updated', handleBotUpdate);
+      window.removeEventListener('lpld_matches_updated', handleMatchesUpdate);
+      window.removeEventListener('lpld_player_stats_updated', handleMatchesUpdate);
+    };
   }, []);
+
+  // Derivar métricas por ámbito (Partidas Individuales, Torneos/Ligas Locales y Liga Nacional Federada)
+  const scopedBreakdown = React.useMemo(() => {
+    const empty = createEmptyPlayerStats(0);
+    const sc = profile.scopedStats || {};
+    const byComp = sc.byCompetitionId || {};
+
+    // Combinar también con partidas locales por si alguna partida previa no tenía scopedStats
+    let indivStats: PlayerStats = sc.individual ? { ...sc.individual } : { ...empty };
+    let localLeagueStats: PlayerStats = sc.localLeague ? { ...sc.localLeague } : { ...empty };
+    let standaloneStats: PlayerStats = sc.standaloneTournament ? { ...sc.standaloneTournament } : { ...empty };
+    let nationalStats: PlayerStats = sc.nationalLeague ? { ...sc.nationalLeague } : { ...empty };
+
+    // Combinar Torneos + Ligas Locales en un acumulado local general
+    const combineTwoStats = (a: PlayerStats, b: PlayerStats): PlayerStats => {
+      const totalM = (a.matchesPlayed || 0) + (b.matchesPlayed || 0);
+      if (totalM === 0) return { ...empty };
+      const totalAtt = (a.checkoutAttempts || 0) + (b.checkoutAttempts || 0);
+      const totalHits = (a.checkoutHits || 0) + (b.checkoutHits || 0);
+      const bestA = a.bestLegDarts || 0;
+      const bestB = b.bestLegDarts || 0;
+      return {
+        overallAvg: Number((((a.overallAvg * a.matchesPlayed) + (b.overallAvg * b.matchesPlayed)) / totalM).toFixed(2)),
+        first9Avg: Number((((a.first9Avg * a.matchesPlayed) + (b.first9Avg * b.matchesPlayed)) / totalM).toFixed(2)),
+        matchesPlayed: totalM,
+        matchesWon: (a.matchesWon || 0) + (b.matchesWon || 0),
+        legsPlayed: (a.legsPlayed || 0) + (b.legsPlayed || 0),
+        legsWon: (a.legsWon || 0) + (b.legsWon || 0),
+        highestCheckout: Math.max(a.highestCheckout || 0, b.highestCheckout || 0),
+        checkoutAttempts: totalAtt,
+        checkoutHits: totalHits,
+        checkoutPercentage: totalAtt > 0 ? Number(((totalHits / totalAtt) * 100).toFixed(1)) : 0,
+        count180s: (a.count180s || 0) + (b.count180s || 0),
+        count140Plus: (a.count140Plus || 0) + (b.count140Plus || 0),
+        count100Plus: (a.count100Plus || 0) + (b.count100Plus || 0),
+        count60Plus: (a.count60Plus || 0) + (b.count60Plus || 0),
+        bestLegDarts: bestA > 0 && bestB > 0 ? Math.min(bestA, bestB) : (bestA || bestB || 0)
+      };
+    };
+
+    const allLocalCombined = combineTwoStats(localLeagueStats, standaloneStats);
+
+    // Lista de Ligas y Torneos Locales con métrica individual propia
+    const localCompetitionsList = Object.values(byComp).filter(
+      (c) => c.scope === 'LOCAL_LEAGUE' || c.scope === 'STANDALONE_TOURNAMENT'
+    );
+
+    const activeLocalStats =
+      selectedLocalCompetitionId !== 'ALL_LOCAL' && byComp[selectedLocalCompetitionId]
+        ? byComp[selectedLocalCompetitionId].stats
+        : allLocalCombined;
+
+    const historyAll: PlayerHistoryDateItem[] = Array.isArray(profile.recentHistory) ? profile.recentHistory : [];
+    const indivHistory = historyAll.filter((h) => h.eventType === 'INDIVIDUAL');
+    const localHistory = historyAll.filter((h) => {
+      const isLoc = h.eventType === 'LOCAL_LEAGUE' || h.eventType === 'STANDALONE_TOURNAMENT' || h.eventType === 'TOURNAMENT' || h.eventType === 'LEAGUE';
+      if (!isLoc) return false;
+      if (selectedLocalCompetitionId !== 'ALL_LOCAL') {
+        const compRec = byComp[selectedLocalCompetitionId];
+        return h.targetId === selectedLocalCompetitionId || (compRec && h.eventName === compRec.name);
+      }
+      return true;
+    });
+    const nationalHistory = historyAll.filter((h) => h.eventType === 'NATIONAL_LEAGUE');
+
+    return {
+      individual: indivStats,
+      localCombined: allLocalCombined,
+      activeLocalStats,
+      localCompetitionsList,
+      national: nationalStats,
+      nationalPointsOnline: sc.nationalPointsOnline || 0,
+      nationalPointsPresencial: sc.nationalPointsPresencial || 0,
+      nationalTotalPoints: sc.nationalTotalPoints || 0,
+      indivHistory,
+      localHistory,
+      nationalHistory
+    };
+  }, [profile, savedOfficialMatches, selectedLocalCompetitionId]);
 
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [customPhoto, setCustomPhoto] = useState<string | null>(() => {
@@ -566,46 +711,133 @@ export const RegisterAndProfile: React.FC = () => {
             </div>
           </div>
 
-          {/* Selector de Modo de Estadísticas: Oficial Competitivo vs Práctica vs BOT */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#14161f] border border-[#313647] p-2 sm:p-2.5 rounded-2xl shadow-md">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setStatsViewMode('OFFICIAL')}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${
-                  statsViewMode === 'OFFICIAL'
-                    ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/20'
-                    : 'text-slate-400 hover:text-white hover:bg-[#1c1f2b]'
-                }`}
-              >
-                <Trophy className="w-3.5 h-3.5" />
-                <span>🏆 Oficial Competitivo</span>
-              </button>
+          {/* Selector de Ámbitos de Estadísticas Separadas (Premisa Oficial: Individuales / Ligas y Torneos Locales / Liga Nacional Federada / Práctica vs Bot) */}
+          <div className="bg-[#14161f] border border-[#313647] p-3 rounded-2xl shadow-md space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStatsViewMode('INDIVIDUAL')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                    statsViewMode === 'INDIVIDUAL'
+                      ? 'bg-[#00e676] text-[#07090e] shadow-md shadow-[#00e676]/25'
+                      : 'text-slate-400 hover:text-white hover:bg-[#1c1f2b]'
+                  }`}
+                >
+                  <Target className="w-3.5 h-3.5" />
+                  <span>🎯 Partidas Individuales</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    statsViewMode === 'INDIVIDUAL' ? 'bg-black/20 text-black' : 'bg-slate-800 text-slate-300'
+                  }`}>
+                    {scopedBreakdown.individual.matchesPlayed}
+                  </span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setStatsViewMode('BOT')}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${
-                  statsViewMode === 'BOT'
-                    ? 'bg-[#1d68ed] text-white shadow-md shadow-[#1d68ed]/30 ring-2 ring-[#1d68ed]/50'
-                    : 'text-slate-400 hover:text-white hover:bg-[#1c1f2b]'
-                }`}
-              >
-                <Bot className="w-4 h-4 text-sky-400" />
-                <span>🤖 Modo Práctica (vs Máquina)</span>
-                {botStats.matchesPlayed > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setStatsViewMode('LOCAL_COMPETITIONS')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                    statsViewMode === 'LOCAL_COMPETITIONS'
+                      ? 'bg-amber-400 text-[#07090e] shadow-md shadow-amber-400/25'
+                      : 'text-slate-400 hover:text-white hover:bg-[#1c1f2b]'
+                  }`}
+                >
+                  <Trophy className="w-3.5 h-3.5" />
+                  <span>🏆 Torneos y Ligas Locales</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    statsViewMode === 'LOCAL_COMPETITIONS' ? 'bg-black/20 text-black' : 'bg-slate-800 text-slate-300'
+                  }`}>
+                    {scopedBreakdown.localCombined.matchesPlayed}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatsViewMode('NATIONAL_LEAGUE')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                    statsViewMode === 'NATIONAL_LEAGUE'
+                      ? 'bg-sky-500 text-[#07090e] shadow-md shadow-sky-500/25'
+                      : 'text-slate-400 hover:text-white hover:bg-[#1c1f2b]'
+                  }`}
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>🇦🇷 Liga Nacional Federada</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    statsViewMode === 'NATIONAL_LEAGUE' ? 'bg-black/20 text-black' : 'bg-slate-800 text-slate-300'
+                  }`}>
+                    {scopedBreakdown.national.matchesPlayed}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatsViewMode('BOT')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                    statsViewMode === 'BOT'
+                      ? 'bg-[#1d68ed] text-white shadow-md shadow-[#1d68ed]/30 ring-2 ring-[#1d68ed]/50'
+                      : 'text-slate-400 hover:text-white hover:bg-[#1c1f2b]'
+                  }`}
+                >
+                  <Bot className="w-4 h-4 text-sky-400" />
+                  <span>🤖 Modo Práctica (vs Máquina)</span>
                   <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-sky-500/20 text-sky-300 font-mono">
                     {botStats.matchesPlayed}
                   </span>
-                )}
-              </button>
+                </button>
+              </div>
+
+              <span className="text-[11px] font-bold text-slate-400 px-1">
+                {statsViewMode === 'INDIVIDUAL' && 'Métricas exclusivas de partidas 1 vs 1 en Anotador'}
+                {statsViewMode === 'LOCAL_COMPETITIONS' && 'Cada Liga o Torneo Local mantiene su propia métrica independiente'}
+                {statsViewMode === 'NATIONAL_LEAGUE' && 'Circuito Federado: Online Nacional (1x) + Presenciales Oficiales (Doble Puntaje x2)'}
+                {statsViewMode === 'BOT' && 'Métricas aisladas de entrenamiento individual vs CPU'}
+              </span>
             </div>
 
-            <span className="text-[11px] font-bold text-slate-400 px-2">
-              {statsViewMode === 'OFFICIAL' 
-                ? 'Impacta en Ranking Federado' 
-                : 'Métricas aisladas de entrenamiento individual'}
-            </span>
+            {/* Sub-selector de Liga o Torneo Local específico cuando está activo el ámbito LOCAL_COMPETITIONS */}
+            {statsViewMode === 'LOCAL_COMPETITIONS' && (
+              <div className="pt-2 border-t border-[#313647]/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div className="text-amber-300 font-bold flex items-center gap-1.5">
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Seleccionar Liga o Torneo Local para ver su métrica propia:</span>
+                </div>
+                <select
+                  value={selectedLocalCompetitionId}
+                  onChange={(e) => setSelectedLocalCompetitionId(e.target.value)}
+                  className="bg-[#0d1017] border border-amber-500/40 rounded-xl px-3 py-1.5 text-white font-bold text-xs focus:outline-none focus:border-amber-400"
+                >
+                  <option value="ALL_LOCAL">📊 Acumulado de Todas mis Ligas y Torneos Locales ({scopedBreakdown.localCombined.matchesPlayed} PJ)</option>
+                  {scopedBreakdown.localCompetitionsList.map((comp) => (
+                    <option key={comp.id} value={comp.id}>
+                      🏆 {comp.name} ({comp.stats.matchesPlayed} PJ • {comp.stats.overallAvg.toFixed(1)} AVG)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Banner informativo de Liga Nacional Federada (Online 1x + Presenciales Doble Puntaje x2) */}
+            {statsViewMode === 'NATIONAL_LEAGUE' && (
+              <div className="pt-2 border-t border-[#313647]/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-sky-300">
+                  <ShieldCheck className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                  <span>
+                    <strong>Registro Oficial Federado:</strong> Computa fechas de Liga Online Nacional (<strong className="text-white">1x</strong>) y Torneos Presenciales Oficiales (<strong className="text-amber-400">Puntaje Doble x2</strong>).
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 font-mono text-[11px]">
+                  <span className="px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-300 font-bold">
+                    Online (1x): {scopedBreakdown.nationalPointsOnline} pts
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 font-black">
+                    Presencial (x2): {scopedBreakdown.nationalPointsPresencial} pts
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-[#00e676]/15 border border-[#00e676]/40 text-[#00e676] font-black">
+                    Total Nacional: {scopedBreakdown.nationalTotalPoints} pts
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {statsViewMode === 'BOT' ? (
@@ -724,99 +956,263 @@ export const RegisterAndProfile: React.FC = () => {
                 )}
               </div>
             </div>
-          ) : (
-            <>
-              {/* Tarjetas de Rendimiento en Gris Oscuro Oficiales */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
-                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
-                    <span className="text-xs font-black uppercase">Partidos</span>
-                    <Trophy className="w-4 h-4 text-[#00b853]" />
+          ) : (() => {
+            const activeStats =
+              statsViewMode === 'INDIVIDUAL'
+                ? scopedBreakdown.individual
+                : statsViewMode === 'LOCAL_COMPETITIONS'
+                ? scopedBreakdown.activeLocalStats
+                : scopedBreakdown.national;
+
+            const activeHistory =
+              statsViewMode === 'INDIVIDUAL'
+                ? scopedBreakdown.indivHistory
+                : statsViewMode === 'LOCAL_COMPETITIONS'
+                ? scopedBreakdown.localHistory
+                : scopedBreakdown.nationalHistory;
+
+            const scopeTitle =
+              statsViewMode === 'INDIVIDUAL'
+                ? 'Partidas Individuales (Anotador 1 vs 1)'
+                : statsViewMode === 'LOCAL_COMPETITIONS'
+                ? (selectedLocalCompetitionId !== 'ALL_LOCAL' && profile.scopedStats?.byCompetitionId?.[selectedLocalCompetitionId]
+                    ? profile.scopedStats.byCompetitionId[selectedLocalCompetitionId].name
+                    : 'Torneos y Ligas Locales')
+                : 'Liga Nacional Federada (Online 1x & Presencial x2)';
+
+            return (
+              <>
+                {/* Tarjetas de Rendimiento del Ámbito Seleccionado */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
+                  <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                    <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                      <span className="text-xs font-black uppercase">Partidos</span>
+                      <Trophy className="w-4 h-4 text-[#00b853]" />
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-white">
+                        {activeStats.matchesWon}
+                      </span>
+                      <span className="text-xs text-[#b8ad98]">
+                        / {activeStats.matchesPlayed} PJ ({activeStats.matchesPlayed > 0 ? ((activeStats.matchesWon / activeStats.matchesPlayed) * 100).toFixed(0) : 0}% Win)
+                      </span>
+                    </div>
+                    <div className="w-full bg-[#14161f] h-2 rounded-full mt-2 overflow-hidden border border-[#313647]">
+                      <div
+                        className="bg-[#00b853] h-full rounded-full"
+                        style={{ width: `${activeStats.matchesPlayed > 0 ? (activeStats.matchesWon / activeStats.matchesPlayed) * 100 : 0}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-white">
-                      {profile.stats.matchesWon}
-                    </span>
-                    <span className="text-xs text-[#b8ad98]">
-                      / {profile.stats.matchesPlayed} PJ ({profile.stats.matchesPlayed > 0 ? ((profile.stats.matchesWon / profile.stats.matchesPlayed) * 100).toFixed(0) : 0}% Win)
-                    </span>
+
+                  <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                    <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                      <span className="text-xs font-black uppercase">AVG 501 (3 Dardos)</span>
+                      <TrendingUp className="w-4 h-4 text-[#00e676]" />
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-[#00e676] font-mono">
+                        {activeStats.overallAvg.toFixed(1)}
+                      </span>
+                      <span className="text-xs text-[#b8ad98]">
+                        AVG
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-[#b8ad98]/70 mt-1">
+                      First 9: {activeStats.first9Avg.toFixed(1)} • Legs: {activeStats.legsWon}/{activeStats.legsPlayed}
+                    </p>
                   </div>
-                  <div className="w-full bg-[#14161f] h-2 rounded-full mt-2 overflow-hidden border border-[#313647]">
-                    <div
-                      className="bg-[#00b853] h-full rounded-full"
-                      style={{ width: `${profile.stats.matchesPlayed > 0 ? (profile.stats.matchesWon / profile.stats.matchesPlayed) * 100 : 0}%` }}
-                    />
+
+                  <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                    <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                      <span className="text-xs font-black uppercase">% Cierre Dobles</span>
+                      <Crosshair className="w-4 h-4 text-[#e52521]" />
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-[#e52521] font-mono">
+                        {activeStats.checkoutPercentage.toFixed(1)}%
+                      </span>
+                      <span className="text-xs text-[#b8ad98]">
+                        ({activeStats.checkoutHits}/{activeStats.checkoutAttempts})
+                      </span>
+                    </div>
+                    <div className="w-full bg-[#14161f] h-2 rounded-full mt-2 overflow-hidden border border-[#313647]">
+                      <div
+                        className="bg-[#e52521] h-full rounded-full"
+                        style={{ width: `${Math.min(100, activeStats.checkoutPercentage)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
+                    <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                      <span className="text-xs font-black uppercase">Mayor Cierre</span>
+                      <Zap className="w-4 h-4 text-[#1d68ed]" />
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-[#38bdf8] font-mono">
+                        {activeStats.highestCheckout}
+                      </span>
+                      <span className="text-xs text-[#b8ad98]">Puntos</span>
+                    </div>
+                    <p className="text-[10px] text-[#b8ad98]/70 mt-1">
+                      Mejor Leg: {activeStats.bestLegDarts > 0 ? `${activeStats.bestLegDarts} dardos` : '0 dardos'}
+                    </p>
+                  </div>
+
+                  <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md col-span-2 sm:col-span-1">
+                    <div className="flex items-center justify-between text-[#b8ad98] mb-2">
+                      <span className="text-xs font-black uppercase">Visitas Clave</span>
+                      <Target className="w-4 h-4 text-[#00b853]" />
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-[#00b853]">
+                        {activeStats.count180s}
+                      </span>
+                      <span className="text-xs text-[#b8ad98]">
+                        x 180s • {activeStats.count140Plus} x 140+
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-[#b8ad98]/70 mt-1">{activeStats.count100Plus} visitas de 100+</p>
                   </div>
                 </div>
 
-                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
-                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
-                    <span className="text-xs font-black uppercase">% Cierre Dobles</span>
-                    <Crosshair className="w-4 h-4 text-[#e52521]" />
+                {/* Desglose por cada Liga o Torneo Local cuando el usuario está en Torneos y Ligas Locales */}
+                {statsViewMode === 'LOCAL_COMPETITIONS' && scopedBreakdown.localCompetitionsList.length > 0 && (
+                  <div className="bg-[#1c1f2b] border border-amber-500/30 rounded-2xl p-4 shadow-md space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                        <Trophy className="w-4 h-4 text-amber-400" />
+                        <span>Métricas Individuales por cada Liga o Torneo Local</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400">Toca uno para filtrar sus estadísticas</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                      {scopedBreakdown.localCompetitionsList.map((comp) => {
+                        const isSelected = selectedLocalCompetitionId === comp.id;
+                        return (
+                          <button
+                            key={comp.id}
+                            type="button"
+                            onClick={() => setSelectedLocalCompetitionId(isSelected ? 'ALL_LOCAL' : comp.id)}
+                            className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-amber-400/15 border-amber-400 shadow-md'
+                                : 'bg-[#14161f] border-[#313647] hover:border-amber-400/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-black text-white truncate">{comp.name}</span>
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/20 text-amber-300 uppercase">
+                                {comp.scope === 'LOCAL_LEAGUE' ? 'Liga Local' : 'Torneo'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-slate-300 mt-1.5 font-mono">
+                              <span>PJ: <strong>{comp.stats.matchesWon}/{comp.stats.matchesPlayed}</strong></span>
+                              <span className="text-[#00e676] font-black">{comp.stats.overallAvg.toFixed(1)} AVG</span>
+                              <span>Hi-CO: {comp.stats.highestCheckout}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-[#e52521] font-mono">
-                      {profile.stats.checkoutPercentage.toFixed(1)}%
-                    </span>
-                    <span className="text-xs text-[#b8ad98]">
-                      ({profile.stats.checkoutHits}/{profile.stats.checkoutAttempts})
-                    </span>
-                  </div>
-                  <div className="w-full bg-[#14161f] h-2 rounded-full mt-2 overflow-hidden border border-[#313647]">
-                    <div
-                      className="bg-[#e52521] h-full rounded-full"
-                      style={{ width: `${profile.stats.checkoutPercentage}%` }}
-                    />
-                  </div>
-                </div>
+                )}
+              </>
+            );
+          })()}
 
-                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
-                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
-                    <span className="text-xs font-black uppercase">Mayor Cierre</span>
-                    <Zap className="w-4 h-4 text-[#1d68ed]" />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-[#38bdf8] font-mono">
-                      {profile.stats.highestCheckout}
-                    </span>
-                    <span className="text-xs text-[#b8ad98]">Puntos</span>
-                  </div>
-                  <p className="text-[10px] text-[#b8ad98]/70 mt-1">Mejor Leg: {profile.stats.bestLegDarts} dardos</p>
-                </div>
-
-                <div className="bg-[#1c1f2b] border border-[#313647] rounded-2xl p-4 shadow-md">
-                  <div className="flex items-center justify-between text-[#b8ad98] mb-2">
-                    <span className="text-xs font-black uppercase">Visitas Clave</span>
-                    <Target className="w-4 h-4 text-[#00b853]" />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-[#00b853]">
-                      {profile.stats.count180s}
-                    </span>
-                    <span className="text-xs text-[#b8ad98]">
-                      x 180s • {profile.stats.count140Plus} x 140+
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-[#b8ad98]/70 mt-1">{profile.stats.count100Plus} visitas de 100+</p>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Historial y Esquema de Categorías */}
+          {/* Historial de Evolución por Ámbito y Esquema de Categorías */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-5 shadow-lg">
-              <h3 className="font-black text-sm text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-[#00b853]" />
-                Evolución Histórica de AVG (Últimas fechas)
-              </h3>
-              <div className="p-6 rounded-2xl bg-[#14161f] border border-[#313647] text-center space-y-2">
-                <Target className="w-8 h-8 text-[#00b853] mx-auto opacity-70" />
-                <span className="text-xs font-bold text-[#efe7d8] block">Sin partidas disputadas aún</span>
-                <p className="text-[11px] text-[#b8ad98] max-w-xs mx-auto leading-relaxed">
-                  Tus estadísticas están en 0. Al disputar partidas en el anotador oficial o en torneos, tu evolución histórica se registrará automáticamente aquí.
-                </p>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-black text-sm text-white uppercase tracking-wider flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-[#00b853]" />
+                  <span>
+                    {statsViewMode === 'INDIVIDUAL' && 'Evolución de AVG • Partidas Individuales'}
+                    {statsViewMode === 'LOCAL_COMPETITIONS' && 'Evolución de AVG • Torneos y Ligas Locales'}
+                    {statsViewMode === 'NATIONAL_LEAGUE' && 'Evolución de AVG • Liga Nacional Federada'}
+                    {statsViewMode === 'BOT' && 'Evolución de AVG • Modo Práctica'}
+                  </span>
+                </h3>
               </div>
+
+              {(() => {
+                const itemsToDisplay =
+                  statsViewMode === 'INDIVIDUAL'
+                    ? scopedBreakdown.indivHistory
+                    : statsViewMode === 'LOCAL_COMPETITIONS'
+                    ? scopedBreakdown.localHistory
+                    : statsViewMode === 'NATIONAL_LEAGUE'
+                    ? scopedBreakdown.nationalHistory
+                    : [];
+
+                if (itemsToDisplay.length === 0) {
+                  return (
+                    <div className="p-6 rounded-2xl bg-[#14161f] border border-[#313647] text-center space-y-2">
+                      <Target className="w-8 h-8 text-[#00b853] mx-auto opacity-70" />
+                      <span className="text-xs font-bold text-[#efe7d8] block">
+                        Sin partidas registradas en este ámbito aún
+                      </span>
+                      <p className="text-[11px] text-[#b8ad98] max-w-xs mx-auto leading-relaxed">
+                        {statsViewMode === 'INDIVIDUAL' &&
+                          'Al finalizar una partida 1 vs 1 en el Anotador Oficial, el resultado y tu AVG quedarán registrados aquí automáticamente.'}
+                        {statsViewMode === 'LOCAL_COMPETITIONS' &&
+                          'Las partidas que disputes en Torneos Locales o Ligas Locales registrarán aquí su métrica propia.'}
+                        {statsViewMode === 'NATIONAL_LEAGUE' &&
+                          'Las partidas de Liga Online Nacional (1x) y Torneos Presenciales Oficiales (Doble Puntaje x2) se registrarán aquí.'}
+                        {statsViewMode === 'BOT' &&
+                          'Consulta arriba tu historial detallado contra los niveles de la Máquina (BOT).'}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                    {itemsToDisplay.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3 rounded-2xl bg-[#14161f] border border-[#313647] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                      >
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                item.isWin
+                                  ? 'bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/40'
+                                  : 'bg-red-500/20 text-red-400 border border-red-500/40'
+                              }`}
+                            >
+                              {item.isWin ? 'VICTORIA' : 'DERROTA'} ({item.scoreLegs})
+                            </span>
+                            <span className="font-black text-white truncate">vs {item.opponentName}</span>
+                            {item.isDoublePoints && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                                Presencial x2 Pts
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-400 truncate">
+                            {item.eventName} • {item.roundOrStage} • {item.date}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 flex-shrink-0 font-mono">
+                          <div className="px-2.5 py-1 rounded-xl bg-[#00e676]/10 border border-[#00e676]/30 text-[#00e676] font-black text-xs">
+                            {Number(item.avg || 0).toFixed(1)} AVG
+                          </div>
+                          {item.pointsEarned !== undefined && (
+                            <div className="px-2 py-1 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-300 font-bold text-[11px]">
+                              +{item.pointsEarned} pts
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             <div id="esquema-categorias" className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-5 shadow-lg space-y-3.5 scroll-mt-6">

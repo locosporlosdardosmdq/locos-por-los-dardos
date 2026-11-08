@@ -1437,6 +1437,21 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     // Vacío en producción
   };
 
+  // Determinar el ámbito competitivo exacto del torneo (Liga Nacional, Liga Local o Torneo Independiente)
+  const getTournamentCompetitionScope = (tourney: Tournament): 'NATIONAL_LEAGUE' | 'LOCAL_LEAGUE' | 'STANDALONE_TOURNAMENT' => {
+    if (tourney.competitionMode === 'NATIONAL_LEAGUE') return 'NATIONAL_LEAGUE';
+    if (tourney.competitionMode === 'LOCAL_LEAGUE') return 'LOCAL_LEAGUE';
+    if (tourney.leagueId) {
+      const linkedLeague = leagues.find(l => l.id === tourney.leagueId);
+      if (linkedLeague?.scope === 'NATIONAL' || linkedLeague?.isOfficialNational) return 'NATIONAL_LEAGUE';
+      return 'LOCAL_LEAGUE';
+    }
+    const titleLower = `${tourney.title} ${tourney.leagueName || ''}`.toLowerCase();
+    if (titleLower.includes('nacional') || titleLower.includes('federad')) return 'NATIONAL_LEAGUE';
+    if (titleLower.includes('liga')) return 'LOCAL_LEAGUE';
+    return 'STANDALONE_TOURNAMENT';
+  };
+
   // Lanzar partido de Grupo en el Anotador (Presencial u Online)
   const handleLaunchGroupMatch = (match: GroupMatch, mode: 'LIVE' | 'ONLINE') => {
     if (!currentTournament) return;
@@ -1444,6 +1459,13 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     const roomCode = mode === 'ONLINE'
       ? (match.onlineRoomCode || `LPD-${match.id.slice(-4).toUpperCase()}`)
       : undefined;
+
+    const compScope = getTournamentCompetitionScope(currentTournament);
+    const isDouble = compScope === 'NATIONAL_LEAGUE' && (
+      currentTournament.pointsMultiplier === 2 ||
+      currentTournament.nationalStageType === 'PRESENCIAL_OFICIAL' ||
+      (mode === 'LIVE' && currentTournament.type === 'PRESENCIAL')
+    );
 
     const config: MatchConfig = {
       gameType: 'X01',
@@ -1462,7 +1484,15 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       player2: { id: match.player2Id, name: match.player2Name },
       player1Name: match.player1Name,
       player2Name: match.player2Name,
-      tournamentTitle: `${currentTournament.title} (${mode === 'ONLINE' ? 'Online' : 'Presencial'})`,
+      tournamentId: currentTournament.id,
+      tournamentTitle: currentTournament.title,
+      competitionScope: compScope,
+      leagueId: currentTournament.leagueId,
+      leagueName: currentTournament.leagueName,
+      roundOrStage: 'Fase de Grupos',
+      modality: mode === 'ONLINE' ? 'ONLINE' : 'PRESENCIAL',
+      isDoublePoints: isDouble,
+      pointsMultiplier: isDouble ? 2 : 1,
       isOnlineRoom: mode === 'ONLINE',
       onlineRoomCode: roomCode,
       autoStartPlaying: mode === 'LIVE'
@@ -1690,6 +1720,19 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       ? (match.onlineRoomCode || `LPD-${match.id.slice(-4).toUpperCase()}`)
       : undefined;
 
+    const compScope = getTournamentCompetitionScope(currentTournament);
+    const isDouble = compScope === 'NATIONAL_LEAGUE' && (
+      currentTournament.pointsMultiplier === 2 ||
+      currentTournament.nationalStageType === 'PRESENCIAL_OFICIAL' ||
+      (mode === 'LIVE' && currentTournament.type === 'PRESENCIAL')
+    );
+
+    const roundLabel = match.bracketType === 'FINALS'
+      ? 'Gran Final'
+      : match.bracketType === 'LOSERS'
+      ? `Llave Perdedores R${match.round}`
+      : `Llave Oficial R${match.round}`;
+
     const config: MatchConfig = {
       gameType: 'X01',
       startingScore: (currentTournament.startingScore as any) || 501,
@@ -1707,7 +1750,15 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       player2: { id: match.player2.id, name: match.player2.name, avatarUrl: match.player2.avatarUrl },
       player1Name: match.player1.name,
       player2Name: match.player2.name,
-      tournamentTitle: `${currentTournament.title} (${mode === 'ONLINE' ? 'Online' : 'Presencial'})`,
+      tournamentId: currentTournament.id,
+      tournamentTitle: currentTournament.title,
+      competitionScope: compScope,
+      leagueId: currentTournament.leagueId,
+      leagueName: currentTournament.leagueName,
+      roundOrStage: roundLabel,
+      modality: mode === 'ONLINE' ? 'ONLINE' : 'PRESENCIAL',
+      isDoublePoints: isDouble,
+      pointsMultiplier: isDouble ? 2 : 1,
       isOnlineRoom: mode === 'ONLINE',
       onlineRoomCode: roomCode,
       autoStartPlaying: mode === 'LIVE'
@@ -1817,6 +1868,71 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           });
         }
       }
+    }
+
+    // Si el torneo pertenece a una Liga Local o Liga Nacional, impactar puntos y AVG en la tabla de la Liga
+    if (currentTournament && activeLiveMatchConfig && (currentTournament.leagueId || currentTournament.competitionMode === 'LOCAL_LEAGUE' || currentTournament.competitionMode === 'NATIONAL_LEAGUE')) {
+      const compScope = getTournamentCompetitionScope(currentTournament);
+      const isDouble = compScope === 'NATIONAL_LEAGUE' && (
+        currentTournament.pointsMultiplier === 2 ||
+        currentTournament.nationalStageType === 'PRESENCIAL_OFICIAL' ||
+        activeLiveMatchOrigin.modality === 'PRESENCIAL'
+      );
+      const mult = isDouble ? 2 : 1;
+      const p1AvgNum = parseFloat(result.avgP1 || '0');
+      const p2AvgNum = parseFloat(result.avgP2 || '0');
+
+      setLeagues((prevLeagues) => {
+        const targetLeagueId = currentTournament.leagueId || (compScope === 'NATIONAL_LEAGUE' ? 'liga-nacional-arg-2026' : 'liga-mdq-2026');
+        const nextLeagues = prevLeagues.map((lg) => {
+          if (lg.id !== targetLeagueId && lg.name !== currentTournament.leagueName) return lg;
+          const updatedStandings = [...(lg.standings || [])];
+
+          const upsertStanding = (pInfo: { id: string; name: string }, isWin: boolean, matchAvg: number) => {
+            const ptsEarned = (isWin ? 15 : 5) * mult;
+            const idx = updatedStandings.findIndex(
+              s => s.playerId === pInfo.id || s.playerName.toLowerCase() === pInfo.name.toLowerCase()
+            );
+            if (idx >= 0) {
+              const prev = updatedStandings[idx];
+              const prevPlayed = prev.playedDates || 0;
+              const nextPlayed = prevPlayed + 1;
+              const nextAvg = matchAvg > 0
+                ? Number((((prev.avg * prevPlayed) + matchAvg) / nextPlayed).toFixed(2))
+                : prev.avg;
+              updatedStandings[idx] = {
+                ...prev,
+                points: (prev.points || 0) + ptsEarned,
+                playedDates: nextPlayed,
+                avg: nextAvg
+              };
+            } else {
+              updatedStandings.push({
+                playerId: pInfo.id,
+                playerName: pInfo.name,
+                nickname: pInfo.name.split(' ')[0],
+                club: currentTournament.venueName || 'Darderos MDQ',
+                city: currentTournament.city || 'Mar del Plata',
+                province: currentTournament.province || 'Buenos Aires',
+                points: ptsEarned,
+                playedDates: 1,
+                tournamentsWon: 0,
+                podiums: 0,
+                avg: matchAvg > 0 ? Number(matchAvg.toFixed(2)) : 45.0
+              });
+            }
+          };
+
+          upsertStanding(activeLiveMatchConfig.player1, result.winnerIndex === 0, p1AvgNum);
+          upsertStanding(activeLiveMatchConfig.player2, result.winnerIndex === 1, p2AvgNum);
+
+          updatedStandings.sort((a, b) => b.points - a.points || b.avg - a.avg);
+          return { ...lg, standings: updatedStandings };
+        });
+
+        saveStoredLeagues(nextLeagues);
+        return nextLeagues;
+      });
     }
 
     setActiveLiveMatchConfig(null);

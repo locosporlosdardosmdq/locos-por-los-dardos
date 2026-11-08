@@ -1,5 +1,38 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 62] - 2026-11-08
+- **Objetivos:**
+  1. Diagnosticar y corregir de raíz el fallo reportado al finalizar una partida en el Anotador (donde pulsar *"Salir y guardar la partida"* no cerraba el tablero y obligaba a salir haciendo clic en otro módulo del menú sin impactar los datos en el perfil).
+  2. Recuperar y reconciliar automáticamente cualquier partida previamente guardada en `localStorage` (`lpld_matches_history_v1` o `lpld_active_match_session_v1`) con el perfil del jugador y la base de datos en Supabase.
+  3. Verificar y reforzar la separación estricta de estadísticas en 4 ámbitos: **Partidas Individuales**, **Torneos y Ligas Locales** (cada liga o torneo con su propia métrica independiente), **Ligas Nacionales Federadas** (fechas Online `1x` + Torneos Presenciales Oficiales que computan doble `x2`), y **Modo Práctica vs Máquina (`BOT`)**.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Por qué no cerraba el tablero al finalizar:* En `src/components/anotador/DartScorer.tsx`, `handleMatchCompleted` limpiaba la sesión activa y abría `MatchPdcStatsModal`, pero **nunca ejecutaba `setViewState('SETTINGS')`**, dejando al usuario atrapado en `X01Board` con `isMatchFinished === true`. Además, si el usuario pulsaba la flecha superior izquierda de retroceso (`handleBackClick`), se abría `ExitMatchModal` ofreciendo únicamente Stand By o Abandonar sin guardar.
+  2. *Por qué no impactaban las estadísticas en `/perfil`:* En `src/lib/storage.ts`, `saveCompletedMatch` para partidas entre humanos solo escribía en `lpld_matches_history_v1` y en una cola inerte, sin actualizar jamás `lpld_player_profile_v1` (`profile.stats`, `profile.scopedStats`, `profile.recentHistory`) ni sincronizar a ambos jugadores en Supabase PostgreSQL (`POST /api/jugadores`). Adicionalmente, la tarjeta *"Evolución Histórica de AVG (Últimas fechas)"* en `RegisterAndProfile.tsx` tenía texto estático hardcodeado (`"Sin partidas disputadas aún"`).
+- **Realizado:**
+  - `src/lib/types.ts` & `src/components/jugadores/UltimateDartsCard.tsx`:
+    * Añadidos `CompetitionScope`, `ScopedCompetitionRecord` y `PlayerScopedStats` (`individual`, `standaloneTournament`, `localLeague`, `nationalLeague`, `nationalPointsOnline`, `nationalPointsPresencial`, `nationalTotalPoints`, `byCompetitionId`, `syncedMatchIds`).
+    * Ampliado `MatchConfig` con `competitionScope`, `tournamentId`, `leagueId`, `leagueName`, `roundOrStage`, `modality`, `isDoublePoints` y `pointsMultiplier`.
+  - `src/lib/storage.ts`:
+    * Implementadas `mergePlayerMatchStats`, `applyMatchToPlayerProfile`, `syncMatchResultToCloud` y `reconcileSavedMatchesWithProfile`.
+    * Protección de idempotencia en `saveCompletedMatch` mediante `id` y `matchSignature` para que el auto-guardado en *Game Shot* y el clic en *"Salir y guardar la partida"* nunca dupliquen estadísticas.
+    * Reconciliación automática de partidas previas almacenadas en `lpld_matches_history_v1` y sesiones finalizadas pendientes en `lpld_active_match_session_v1`.
+  - `src/app/api/jugadores/route.ts` & `src/lib/server-players.ts`:
+    * Añadido soporte en `POST /api/jugadores` para `action: 'RECORD_MATCH'`, que localiza tanto al Jugador 1 como al Jugador 2 en PostgreSQL y actualiza atómicamente `player_stats` y el mapa extendido `players_scoped_stats_v1` en `platform_settings`.
+    * `GET /api/jugadores` y `getRegisteredPlayersServer` adjuntan `scopedStats` y `recentHistory` a cada jugador federado.
+  - `src/components/anotador/X01Board.tsx`, `src/components/anotador/DartScorer.tsx` & `src/components/anotador/MatchPdcStatsModal.tsx`:
+    * En `X01Board.tsx`: `finishMatch` limpia inmediatamente `ActiveMatchSession` y dispara auto-guardado instantáneo (`autoSaveOnly: true`) con las métricas exactas del tiro ganador (incluyendo cálculo real de intentos y aciertos de cierre desde `turnHistory`).
+    * Cuando `isMatchFinished === true`, el área del teclado se reemplaza por un panel de victoria con el botón **"SALIR Y GUARDAR LA PARTIDA"**; el botón `Volver` superior también guarda y cierra directamente.
+    * En `DartScorer.tsx`: al confirmar la salida (`autoSaveOnly: false`), ejecuta `setViewState('SETTINGS')` cerrando el tablero de inmediato y muestra el modal `MatchPdcStatsModal`.
+  - `src/components/torneos/TournamentManager.tsx`:
+    * `handleLaunchGroupMatch` y `handleLaunchBracketMatch` inyectan el ámbito competitivo (`NATIONAL_LEAGUE`, `LOCAL_LEAGUE` o `STANDALONE_TOURNAMENT`), identificadores de liga/torneo y bandera de puntaje doble (`x2`).
+    * `handleTournamentMatchFinished` actualiza automáticamente los puntos (con multiplicador `x2` en fechas presenciales de Liga Nacional) y el AVG en las tablas de posiciones de la liga correspondiente.
+  - `src/components/perfil/RegisterAndProfile.tsx`:
+    * Incorporado selector de 4 ámbitos: **🎯 Partidas Individuales**, **🏆 Torneos y Ligas Locales** (con desplegable y tarjetas para filtrar la métrica propia de cada Liga o Torneo específico), **🇦🇷 Liga Nacional Federada** (con desglose de puntos Online `1x`, Presencial `x2` y Total Nacional) y **🤖 Modo Práctica (vs Máquina)**.
+    * Reemplazado el bloque estático `"Sin partidas disputadas aún"` por el historial dinámico e interactivo de evolución de AVG y resultados por ámbito.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Flujo de cierre y persistencia de partidas 100% blindado (auto-guardado en *Game Shot* + cierre limpio de pantalla), reconciliación retroactiva activa y estadísticas separadas por ámbito competitivo en `/perfil` y Supabase.
+
 ## [Sesión 61] - 2026-11-07
 - **Objetivos:**
   1. Analizar críticamente las indicaciones del Arquitecto Argon sobre emparejamiento de Byes, árboles conectores y formato de torneos.

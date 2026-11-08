@@ -181,7 +181,7 @@ function calculateBotTurnScore(
 interface X01BoardProps {
   config: MatchConfig;
   onExit: () => void;
-  onMatchComplete: (stats: any) => void;
+  onMatchComplete: (stats: any, options?: { autoSaveOnly?: boolean }) => void;
   voiceCallerEnabled: boolean;
   soundFxEnabled: boolean;
   onOpenStats: () => void;
@@ -250,6 +250,10 @@ export const X01Board: React.FC<X01BoardProps> = ({
   // Instancia final de partida ganada (en espera de confirmación de salida)
   const [isMatchFinished, setIsMatchFinished] = useState<boolean>(false);
   const [matchWinnerIndex, setMatchWinnerIndex] = useState<0 | 1 | null>(null);
+  const matchInstanceIdRef = useRef<string>(
+    (initialSession as any)?.id || `match_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+  );
+  const latestFinalPayloadRef = useRef<any | null>(null);
 
   // Modal de opciones para Volver / Stand By / Abandonar
   const [showExitModal, setShowExitModal] = useState<boolean>(false);
@@ -724,6 +728,11 @@ export const X01Board: React.FC<X01BoardProps> = ({
   }, [scores, currentTurn, legsWon, setsWon, turnHistory, isMatchFinished]);
 
   const handleBackClick = () => {
+    // Si la partida ya finalizó (Game Shot), el botón volver guarda y cierra la partida directamente
+    if (isMatchFinished) {
+      confirmExitMatch();
+      return;
+    }
     // Si es partida online o ya se tiró algún dardo, abre modal de opciones (Stand By / Abandonar / Continuar)
     if (config.isOnlineRoom || history.length > 0 || turnHistory.length > 0) {
       setShowExitModal(true);
@@ -1246,12 +1255,12 @@ export const X01Board: React.FC<X01BoardProps> = ({
     setTotalDartsMatch(newTotalDarts);
 
     // First 9 tracking
+    const newF9Pts = [...first9Points] as [number, number];
+    const newF9Darts = [...first9Darts] as [number, number];
     if (dartsThrownLeg[currentTurn] < 9) {
-      const newF9Pts = [...first9Points] as [number, number];
       newF9Pts[currentTurn] += score;
       setFirst9Points(newF9Pts);
 
-      const newF9Darts = [...first9Darts] as [number, number];
       newF9Darts[currentTurn] += 3;
       setFirst9Darts(newF9Darts);
     }
@@ -1276,18 +1285,36 @@ export const X01Board: React.FC<X01BoardProps> = ({
       isBust: false,
       timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    setTurnHistory((prev) => [newValidTurn, ...prev]);
+    const nextTurnHistory = [newValidTurn, ...turnHistory];
+    setTurnHistory(nextTurnHistory);
 
     // ¿LEG GANADO?
     if (newRemaining === 0) {
-      handleLegWin(score);
+      handleLegWin(score, {
+        updatedScores,
+        newTotalPoints,
+        newTotalDarts,
+        newF9Pts,
+        newF9Darts,
+        nextTurnHistory
+      });
     } else {
       advanceTurn();
     }
   };
 
   // Victoria de Leg
-  const handleLegWin = (checkoutScore: number) => {
+  const handleLegWin = (
+    checkoutScore: number,
+    latest?: {
+      updatedScores: [number, number];
+      newTotalPoints: [number, number];
+      newTotalDarts: [number, number];
+      newF9Pts: [number, number];
+      newF9Darts: [number, number];
+      nextTurnHistory: TurnRecord[];
+    }
+  ) => {
     confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
     if (soundFxEnabled) SoundEngine.playGameShot();
     if (voiceCallerEnabled) VoiceCaller.speakGameShot();
@@ -1322,14 +1349,26 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
         const targetSets = Math.ceil(config.bestOfSets / 2);
         if (newSetsWon[currentTurn] >= targetSets) {
-          finishMatch(currentTurn);
+          finishMatch(currentTurn, {
+            finalLegsWon: newLegsWon,
+            finalSetsWon: newSetsWon,
+            finalHighCo: newHighCo,
+            finalBestLeg: newBestLeg,
+            latest
+          });
           return;
         } else {
           showFeedback(`¡Set para ${currentTurn === 0 ? p1Display : p2Display}!`, '#00e676');
           resetLeg(true);
         }
       } else {
-        finishMatch(currentTurn);
+        finishMatch(currentTurn, {
+          finalLegsWon: newLegsWon,
+          finalSetsWon: setsWon,
+          finalHighCo: newHighCo,
+          finalBestLeg: newBestLeg,
+          latest
+        });
         return;
       }
     } else {
@@ -1349,35 +1388,112 @@ export const X01Board: React.FC<X01BoardProps> = ({
     setCurrentTurn(nextStarter);
   };
 
-  // Instancia final de partida: queda a la espera del exit del usuario sin bloquear el deshacer
-  const finishMatch = (winnerIdx: 0 | 1) => {
-    setIsMatchFinished(true);
-    setMatchWinnerIndex(winnerIdx);
-    showFeedback(`🏆 ¡VICTORIA DE ${winnerIdx === 0 ? p1Display : p2Display}!`, '#00e676');
-    confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
-  };
+  const buildMatchResultPayload = (
+    winnerIdx: 0 | 1,
+    overrides?: {
+      finalLegsWon?: [number, number];
+      finalSetsWon?: [number, number];
+      finalHighCo?: [number, number];
+      finalBestLeg?: [number, number];
+      latest?: {
+        updatedScores: [number, number];
+        newTotalPoints: [number, number];
+        newTotalDarts: [number, number];
+        newF9Pts: [number, number];
+        newF9Darts: [number, number];
+        nextTurnHistory: TurnRecord[];
+      };
+    }
+  ) => {
+    const pts = overrides?.latest?.newTotalPoints || totalPointsMatch;
+    const drts = overrides?.latest?.newTotalDarts || totalDartsMatch;
+    const f9Pts = overrides?.latest?.newF9Pts || first9Points;
+    const f9Drts = overrides?.latest?.newF9Darts || first9Darts;
+    const turns = overrides?.latest?.nextTurnHistory || turnHistory;
+    const lWon = overrides?.finalLegsWon || legsWon;
+    const sWon = overrides?.finalSetsWon || setsWon;
+    const hCo = overrides?.finalHighCo || highestCheckout;
+    const bLeg = overrides?.finalBestLeg || bestLegDarts;
 
-  // Confirmar y salir de la partida guardando estadísticas
-  const confirmExitMatch = () => {
-    cleanupHardwareAndWebRtc();
-    const winnerIdx = matchWinnerIndex !== null ? matchWinnerIndex : currentTurn;
-    onMatchComplete({
+    const calcAvg = (i: 0 | 1) => (drts[i] === 0 ? '0.00' : ((pts[i] / drts[i]) * 3).toFixed(2));
+    const calcF9 = (i: 0 | 1) => (f9Drts[i] === 0 ? calcAvg(i) : ((f9Pts[i] / f9Drts[i]) * 3).toFixed(2));
+
+    // Calcular intentos de cierre y cierres efectivos a partir del historial de turnos
+    const calcCheckoutAttempts = (i: 0 | 1) => {
+      const attemptsFromTurns = turns.filter(
+        t => t.playerIndex === i && (t.remainingBefore <= 50 || t.remainingAfter === 0)
+      ).length;
+      return Math.max(attemptsFromTurns, lWon[i]);
+    };
+
+    return {
+      matchId: matchInstanceIdRef.current,
       winnerIndex: winnerIdx,
       winnerName: winnerIdx === 0 ? p1Display : p2Display,
-      scores,
-      legsWon,
-      setsWon,
-      avgP1: getAvg(0),
-      avgP2: getAvg(1),
-      first9P1: getFirst9Avg(0),
-      first9P2: getFirst9Avg(1),
+      scores: overrides?.latest?.updatedScores || scores,
+      legsWon: lWon,
+      setsWon: sWon,
+      avgP1: calcAvg(0),
+      avgP2: calcAvg(1),
+      first9P1: calcF9(0),
+      first9P2: calcF9(1),
+      totalDartsP1: drts[0],
+      totalDartsP2: drts[1],
+      checkoutAttemptsP1: calcCheckoutAttempts(0),
+      checkoutAttemptsP2: calcCheckoutAttempts(1),
+      checkoutHitsP1: lWon[0],
+      checkoutHitsP2: lWon[1],
       count100s,
       count140s,
       count180s,
-      highestCheckout,
-      bestLegDarts,
-      turnHistory
-    });
+      highestCheckout: hCo,
+      bestLegDarts: bLeg,
+      turnHistory: turns
+    };
+  };
+
+  // Instancia final de partida: persiste inmediatamente las estadísticas y habilita salida limpia
+  const finishMatch = (
+    winnerIdx: 0 | 1,
+    overrides?: {
+      finalLegsWon?: [number, number];
+      finalSetsWon?: [number, number];
+      finalHighCo?: [number, number];
+      finalBestLeg?: [number, number];
+      latest?: {
+        updatedScores: [number, number];
+        newTotalPoints: [number, number];
+        newTotalDarts: [number, number];
+        newF9Pts: [number, number];
+        newF9Darts: [number, number];
+        nextTurnHistory: TurnRecord[];
+      };
+    }
+  ) => {
+    setIsMatchFinished(true);
+    setMatchWinnerIndex(winnerIdx);
+    clearActiveMatchSession();
+    showFeedback(`🏆 ¡VICTORIA DE ${winnerIdx === 0 ? p1Display : p2Display}!`, '#00e676');
+    confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
+
+    const finalPayload = buildMatchResultPayload(winnerIdx, overrides);
+    latestFinalPayloadRef.current = finalPayload;
+
+    // Auto-guardar inmediatamente al terminar el partido para que nunca se pierdan los datos
+    try {
+      onMatchComplete(finalPayload, { autoSaveOnly: true });
+    } catch (err) {
+      console.warn('[X01Board] Error en auto-guardado de fin de partida:', err);
+    }
+  };
+
+  // Confirmar y salir de la partida cerrando el tablero
+  const confirmExitMatch = () => {
+    cleanupHardwareAndWebRtc();
+    clearActiveMatchSession();
+    const winnerIdx = matchWinnerIndex !== null ? matchWinnerIndex : currentTurn;
+    const payload = latestFinalPayloadRef.current || buildMatchResultPayload(winnerIdx);
+    onMatchComplete(payload, { autoSaveOnly: false });
   };
 
   const advanceTurn = () => {
@@ -2192,28 +2308,30 @@ export const X01Board: React.FC<X01BoardProps> = ({
 
         {/* Instancia de Final de Partida: Banner con opción de Salir (EXIT) o Deshacer para corregir */}
         {isMatchFinished && (
-          <div className="bg-[#0f1422] border-2 border-[#00e676] rounded-2xl p-3 text-center shadow-2xl animate-in fade-in space-y-2">
+          <div className="bg-[#0f1422] border-2 border-[#00e676] rounded-2xl p-3.5 text-center shadow-2xl animate-in fade-in space-y-2">
             <div className="flex items-center justify-center gap-2 text-[#00e676] font-black text-sm">
               <Trophy className="w-5 h-5 text-amber-400" />
               <span>¡PARTIDA FINALIZADA! GANADOR: {matchWinnerIndex === 0 ? p1Display : p2Display}</span>
             </div>
-            <p className="text-[11px] text-slate-400">
-              Podés revisar puntuaciones, corregir con Deshacer si hubo un error, o confirmar la salida.
+            <p className="text-[11px] text-emerald-300 font-semibold">
+              ✓ Estadísticas e historial registrados automáticamente. Tocá el botón verde para cerrar la partida.
             </p>
-            <div className="flex items-center justify-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               <button
+                type="button"
                 onClick={handleUndo}
-                className="py-2 px-3 rounded-xl bg-[#111622] hover:bg-[#182030] text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                className="py-2 px-3 rounded-xl bg-[#111622] hover:bg-[#182030] text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-[#ef4444]" />
                 <span>Deshacer / Corregir</span>
               </button>
               <button
+                type="button"
                 onClick={confirmExitMatch}
-                className="py-2 px-4 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-[#00e676]/20 transition-transform active:scale-95"
+                className="py-2.5 px-5 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-[#00e676]/30 transition-transform active:scale-95 cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>FINALIZAR PARTIDA (EXIT)</span>
+                <span>SALIR Y GUARDAR LA PARTIDA</span>
               </button>
             </div>
           </div>
@@ -2371,8 +2489,36 @@ export const X01Board: React.FC<X01BoardProps> = ({
         </button>
       </div>
 
-      {/* AVISO ELEGANTE CUANDO ES TURNO DEL RIVAL */}
-      {isOnline && !isMyTurn ? (
+      {/* AVISO ELEGANTE CUANDO FINALIZA LA PARTIDA O ES TURNO DEL RIVAL */}
+      {isMatchFinished ? (
+        <div className="bg-[#0f1422] border-2 border-[#00e676] rounded-2xl p-5 text-center space-y-3 shadow-2xl shadow-[#00e676]/15 animate-in fade-in">
+          <div className="flex items-center justify-center gap-2 text-base font-black text-[#00e676]">
+            <Trophy className="w-6 h-6 text-amber-400" />
+            <span>¡Game Shot & Match para {matchWinnerIndex === 0 ? p1Display : p2Display}!</span>
+          </div>
+          <p className="text-xs text-slate-300 max-w-md mx-auto">
+            Resultado final: <strong className="text-white">{p1Display} ({legsWon[0]}) - ({legsWon[1]}) {p2Display}</strong>. Los promedios ({getAvg(0)} vs {getAvg(1)} AVG) ya fueron registrados.
+          </p>
+          <div className="pt-1 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+            <button
+              type="button"
+              onClick={confirmExitMatch}
+              className="w-full sm:w-auto py-3.5 px-6 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-[#00e676]/30 transition-transform active:scale-95 cursor-pointer"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+              <span>SALIR Y GUARDAR LA PARTIDA</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleUndo}
+              className="w-full sm:w-auto py-3 px-4 rounded-xl bg-[#111622] hover:bg-[#182030] text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4 text-[#ef4444]" />
+              <span>Deshacer Último Tiro</span>
+            </button>
+          </div>
+        </div>
+      ) : isOnline && !isMyTurn ? (
         <div className="bg-[#0f1422] border-2 border-[#0284c7]/40 rounded-2xl p-4 text-center space-y-2 shadow-xl animate-in fade-in">
           <div className="flex items-center justify-center gap-2 text-sm font-black text-[#38bdf8]">
             <span className="w-2 h-2 rounded-full bg-[#38bdf8] animate-ping" />

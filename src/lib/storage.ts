@@ -3,32 +3,315 @@
  * Diseñado para operar 100% offline en clubes, pubs y canchas de tiro con mala señal.
  */
 
-import { MatchConfig, LandingShowcaseSettings, GrandTournamentRegistration } from './types';
+import { MatchConfig, LandingShowcaseSettings, GrandTournamentRegistration, PlayerStats, PlayerHistoryDateItem, PlayerScopedStats, CompetitionScope } from './types';
 import { getAdminRequestHeaders } from './client-auth';
+
+export interface SavedMatchPlayer {
+  id?: string;
+  name: string;
+  nickname?: string;
+  score: number;
+  avg: number;
+  first9Avg?: number;
+  legsWon: number;
+  dartsThrown: number;
+  bestLegDarts?: number;
+  highestCheckout?: number;
+  checkoutAttempts?: number;
+  checkoutHits?: number;
+  count180s?: number;
+  count140Plus?: number;
+  count100Plus?: number;
+  count60Plus?: number;
+  isWinner: boolean;
+}
 
 export interface SavedMatch {
   id: string;
+  matchSignature?: string;
   gameType: 'X01' | 'CRICKET' | 'ROUND_THE_CLOCK';
   date: string;
   isVsCpu?: boolean;
   cpuDifficulty?: string;
-  players: {
-    name: string;
-    score: number;
-    avg: number;
-    first9Avg?: number;
-    legsWon: number;
-    dartsThrown: number;
-    highestCheckout?: number;
-    count180s?: number;
-    count140Plus?: number;
-    count100Plus?: number;
-    isWinner: boolean;
-  }[];
+  competitionScope?: CompetitionScope;
+  tournamentId?: string;
+  tournamentTitle?: string;
+  leagueId?: string;
+  leagueName?: string;
+  roundOrStage?: string;
+  modality?: 'ONLINE' | 'PRESENCIAL';
+  isDoublePoints?: boolean;
+  pointsEarned?: number;
+  players: SavedMatchPlayer[];
   legsTotal: number;
   winnerName?: string;
-  tournamentId?: string;
 }
+
+export function createEmptyPlayerStats(initialAvg = 0): PlayerStats {
+  return {
+    overallAvg: initialAvg,
+    first9Avg: initialAvg,
+    matchesPlayed: 0,
+    matchesWon: 0,
+    legsPlayed: 0,
+    legsWon: 0,
+    highestCheckout: 0,
+    checkoutAttempts: 0,
+    checkoutHits: 0,
+    checkoutPercentage: 0,
+    count180s: 0,
+    count140Plus: 0,
+    count100Plus: 0,
+    count60Plus: 0,
+    bestLegDarts: 0
+  };
+}
+
+export function mergePlayerMatchStats(
+  prevStats: Partial<PlayerStats> | undefined,
+  mp: SavedMatchPlayer,
+  legsTotal: number
+): PlayerStats {
+  const prev = { ...createEmptyPlayerStats(0), ...(prevStats || {}) };
+  const m = prev.matchesPlayed || 0;
+  const newPlayed = m + 1;
+  const newWon = (prev.matchesWon || 0) + (mp.isWinner ? 1 : 0);
+  const newLegsPlayed = (prev.legsPlayed || 0) + Math.max(legsTotal || 0, mp.legsWon || 0, 1);
+  const newLegsWon = (prev.legsWon || 0) + (mp.legsWon || 0);
+
+  const mpAvg = Number.isFinite(mp.avg) ? mp.avg : 0;
+  const mpFirst9 = Number.isFinite(mp.first9Avg) && (mp.first9Avg || 0) > 0 ? (mp.first9Avg as number) : mpAvg;
+
+  const newOverallAvg = m === 0
+    ? Number(mpAvg.toFixed(2))
+    : Number((((prev.overallAvg * m) + mpAvg) / newPlayed).toFixed(2));
+
+  const newFirst9Avg = m === 0
+    ? Number(mpFirst9.toFixed(2))
+    : Number((((prev.first9Avg * m) + mpFirst9) / newPlayed).toFixed(2));
+
+  const mpCheckout = mp.highestCheckout ?? (mp.isWinner ? mp.score : 0) ?? 0;
+  const newHighestCheckout = Math.max(prev.highestCheckout || 0, mpCheckout);
+
+  const inferredHits = mp.checkoutHits !== undefined ? mp.checkoutHits : (mp.legsWon || 0);
+  const inferredAttempts = mp.checkoutAttempts !== undefined
+    ? Math.max(mp.checkoutAttempts, inferredHits)
+    : Math.max(inferredHits, mp.legsWon > 0 ? mp.legsWon * 2 : 1);
+
+  const newCheckoutAttempts = (prev.checkoutAttempts || 0) + inferredAttempts;
+  const newCheckoutHits = (prev.checkoutHits || 0) + inferredHits;
+  const newCheckoutPercentage = newCheckoutAttempts > 0
+    ? Number(((newCheckoutHits / newCheckoutAttempts) * 100).toFixed(1))
+    : 0;
+
+  const candidateBestLeg = mp.bestLegDarts && mp.bestLegDarts > 0 && mp.bestLegDarts < 99
+    ? mp.bestLegDarts
+    : (mp.dartsThrown && mp.dartsThrown > 0 && mp.dartsThrown < 99 ? mp.dartsThrown : 0);
+
+  const newBestLegDarts = candidateBestLeg > 0
+    ? (prev.bestLegDarts > 0 ? Math.min(prev.bestLegDarts, candidateBestLeg) : candidateBestLeg)
+    : (prev.bestLegDarts || 0);
+
+  return {
+    overallAvg: newOverallAvg,
+    first9Avg: newFirst9Avg,
+    matchesPlayed: newPlayed,
+    matchesWon: newWon,
+    legsPlayed: newLegsPlayed,
+    legsWon: newLegsWon,
+    highestCheckout: newHighestCheckout,
+    checkoutAttempts: newCheckoutAttempts,
+    checkoutHits: newCheckoutHits,
+    checkoutPercentage: newCheckoutPercentage,
+    count180s: (prev.count180s || 0) + (mp.count180s || 0),
+    count140Plus: (prev.count140Plus || 0) + (mp.count140Plus || 0),
+    count100Plus: (prev.count100Plus || 0) + (mp.count100Plus || 0),
+    count60Plus: (prev.count60Plus || 0) + (mp.count60Plus || 0),
+    bestLegDarts: newBestLegDarts
+  };
+}
+
+function normalizeIdentityToken(str?: string): string {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function doesMatchPlayerBelongToProfile(mp: SavedMatchPlayer, profile: any): boolean {
+  if (!mp || !profile) return false;
+  if (mp.id && profile.id && mp.id === profile.id && mp.id !== 'p1-local' && mp.id !== 'p2-local') {
+    return true;
+  }
+  const mpName = normalizeIdentityToken(mp.name);
+  const mpNick = normalizeIdentityToken(mp.nickname);
+  const profName = normalizeIdentityToken(profile.fullName || profile.name);
+  const profNick = normalizeIdentityToken(profile.nickname);
+
+  if (!mpName && !mpNick) return false;
+
+  if (profNick && (mpName === profNick || mpNick === profNick || mpName.includes(` ${profNick}`) || mpName.startsWith(`${profNick} `))) {
+    return true;
+  }
+  if (profName && (mpName === profName || mpName.includes(profName) || profName.includes(mpName))) {
+    return true;
+  }
+  // Caso especial Mariano Deux / ICEMAN
+  const isProfileIceman = profNick === 'iceman' || profName.includes('mariano deux') || (profile.email || '').toLowerCase() === 'marianodeux@gmail.com';
+  const isMpIceman = mpName === 'iceman' || mpNick === 'iceman' || mpName.includes('mariano deux') || mpName.includes('iceman');
+  if (isProfileIceman && isMpIceman) return true;
+
+  return false;
+}
+
+export function resolveMatchScope(match: Partial<SavedMatch>): Exclude<CompetitionScope, 'BOT'> {
+  if (match.competitionScope && match.competitionScope !== 'BOT') {
+    return match.competitionScope;
+  }
+  const titleLower = `${match.leagueName || ''} ${match.tournamentTitle || ''}`.toLowerCase();
+  if (titleLower.includes('nacional') || titleLower.includes('arg') || titleLower.includes('federad')) {
+    return 'NATIONAL_LEAGUE';
+  }
+  if (match.leagueId || match.leagueName || titleLower.includes('liga')) {
+    return 'LOCAL_LEAGUE';
+  }
+  if (match.tournamentId || match.tournamentTitle) {
+    return 'STANDALONE_TOURNAMENT';
+  }
+  return 'INDIVIDUAL';
+}
+
+export function applyMatchToPlayerProfile(profile: any, match: SavedMatch): { updated: boolean; profile: any } {
+  if (!profile || match.isVsCpu || !Array.isArray(match.players) || match.players.length < 2) {
+    return { updated: false, profile };
+  }
+
+  const p0 = match.players[0];
+  const p1 = match.players[1];
+  const isP0 = doesMatchPlayerBelongToProfile(p0, profile);
+  const isP1 = !isP0 && doesMatchPlayerBelongToProfile(p1, profile);
+
+  if (!isP0 && !isP1) {
+    return { updated: false, profile };
+  }
+
+  const myPlayer = isP0 ? p0 : p1;
+  const oppPlayer = isP0 ? p1 : p0;
+
+  const prevScoped: PlayerScopedStats = {
+    individual: profile.scopedStats?.individual,
+    standaloneTournament: profile.scopedStats?.standaloneTournament,
+    localLeague: profile.scopedStats?.localLeague,
+    nationalLeague: profile.scopedStats?.nationalLeague,
+    nationalPointsOnline: profile.scopedStats?.nationalPointsOnline || 0,
+    nationalPointsPresencial: profile.scopedStats?.nationalPointsPresencial || 0,
+    nationalTotalPoints: profile.scopedStats?.nationalTotalPoints || 0,
+    byCompetitionId: { ...(profile.scopedStats?.byCompetitionId || {}) },
+    syncedMatchIds: [...(profile.scopedStats?.syncedMatchIds || [])]
+  };
+
+  const matchKey = match.matchSignature || match.id;
+  if (matchKey && prevScoped.syncedMatchIds?.includes(matchKey)) {
+    return { updated: false, profile };
+  }
+  if (match.id && prevScoped.syncedMatchIds?.includes(match.id)) {
+    return { updated: false, profile };
+  }
+
+  const scope = resolveMatchScope(match);
+  const legsTotal = match.legsTotal || ((p0.legsWon || 0) + (p1.legsWon || 0)) || 1;
+
+  // 1. Actualizar estadística oficial global acumulada del perfil
+  const updatedGlobalStats = mergePlayerMatchStats(profile.stats, myPlayer, legsTotal);
+
+  // 2. Actualizar estadística aislada según el ámbito (Scope)
+  if (scope === 'INDIVIDUAL') {
+    prevScoped.individual = mergePlayerMatchStats(prevScoped.individual, myPlayer, legsTotal);
+  } else if (scope === 'STANDALONE_TOURNAMENT') {
+    prevScoped.standaloneTournament = mergePlayerMatchStats(prevScoped.standaloneTournament, myPlayer, legsTotal);
+  } else if (scope === 'LOCAL_LEAGUE') {
+    prevScoped.localLeague = mergePlayerMatchStats(prevScoped.localLeague, myPlayer, legsTotal);
+  } else if (scope === 'NATIONAL_LEAGUE') {
+    prevScoped.nationalLeague = mergePlayerMatchStats(prevScoped.nationalLeague, myPlayer, legsTotal);
+    const basePts = myPlayer.isWinner ? 15 : 5;
+    const isDouble = !!match.isDoublePoints || match.modality === 'PRESENCIAL';
+    const earned = match.pointsEarned ?? (isDouble ? basePts * 2 : basePts);
+    if (isDouble) {
+      prevScoped.nationalPointsPresencial = (prevScoped.nationalPointsPresencial || 0) + earned;
+    } else {
+      prevScoped.nationalPointsOnline = (prevScoped.nationalPointsOnline || 0) + earned;
+    }
+    prevScoped.nationalTotalPoints = (prevScoped.nationalPointsOnline || 0) + (prevScoped.nationalPointsPresencial || 0);
+  }
+
+  // 3. Si pertenece a un Torneo o Liga específica, mantener métrica propia de esa Liga/Torneo
+  if (scope !== 'INDIVIDUAL') {
+    const compId = match.leagueId || match.tournamentId || normalizeIdentityToken(match.leagueName || match.tournamentTitle || 'torneo-oficial');
+    const compName = match.leagueName || match.tournamentTitle || (scope === 'NATIONAL_LEAGUE' ? 'Liga Nacional Argentina' : scope === 'LOCAL_LEAGUE' ? 'Liga Local Oficial' : 'Torneo Oficial');
+    const existingComp = prevScoped.byCompetitionId?.[compId];
+    const basePts = myPlayer.isWinner ? 15 : 5;
+    const isDouble = scope === 'NATIONAL_LEAGUE' && (!!match.isDoublePoints || match.modality === 'PRESENCIAL');
+    const earned = match.pointsEarned ?? (isDouble ? basePts * 2 : basePts);
+
+    if (prevScoped.byCompetitionId) {
+      prevScoped.byCompetitionId[compId] = {
+        id: compId,
+        name: compName,
+        scope,
+        modality: match.modality || (isDouble ? 'PRESENCIAL' : 'ONLINE'),
+        isDoublePoints: isDouble,
+        pointsEarned: (existingComp?.pointsEarned || 0) + earned,
+        lastPlayed: match.date,
+        stats: mergePlayerMatchStats(existingComp?.stats, myPlayer, legsTotal)
+      };
+    }
+  }
+
+  if (matchKey) prevScoped.syncedMatchIds?.push(matchKey);
+  if (match.id && match.id !== matchKey) prevScoped.syncedMatchIds?.push(match.id);
+
+  // 4. Registrar en recentHistory para trazabilidad por ámbito
+  const isDouble = scope === 'NATIONAL_LEAGUE' && (!!match.isDoublePoints || match.modality === 'PRESENCIAL');
+  const basePts = myPlayer.isWinner ? 15 : 5;
+  const computedPoints = scope === 'INDIVIDUAL' ? undefined : (match.pointsEarned ?? (isDouble ? basePts * 2 : basePts));
+
+  const historyItem: PlayerHistoryDateItem = {
+    id: match.id,
+    eventName: match.leagueName || match.tournamentTitle || (scope === 'NATIONAL_LEAGUE' ? 'Liga Nacional Argentina' : scope === 'LOCAL_LEAGUE' ? 'Liga Local Oficial' : scope === 'STANDALONE_TOURNAMENT' ? 'Torneo Oficial' : 'Partida Individual 1 vs 1'),
+    eventType: scope,
+    targetId: match.leagueId || match.tournamentId || match.id,
+    targetTab: scope === 'LOCAL_LEAGUE' || scope === 'NATIONAL_LEAGUE' ? 'LEAGUES_TAB' : 'HISTORY_TAB',
+    date: match.date ? match.date.split('T')[0] : new Date().toISOString().split('T')[0],
+    roundOrStage: match.roundOrStage || (scope === 'INDIVIDUAL' ? `Anotador Oficial (${match.gameType})` : 'Cruces Oficiales'),
+    opponentName: oppPlayer.name,
+    scoreLegs: `${ myPlayer.legsWon ?? 0 } - ${ oppPlayer.legsWon ?? 0 }`,
+    isWin: !!myPlayer.isWinner,
+    avg: Number((myPlayer.avg || 0).toFixed(2)),
+    modality: match.modality || (isDouble ? 'PRESENCIAL' : 'ONLINE'),
+    isDoublePoints: isDouble,
+    pointsEarned: computedPoints,
+    highestCheckout: myPlayer.highestCheckout || 0,
+    count180s: myPlayer.count180s || 0
+  };
+
+  const existingHistory: PlayerHistoryDateItem[] = Array.isArray(profile.recentHistory) ? profile.recentHistory : [];
+  const filteredHistory = existingHistory.filter(h => h.id !== match.id);
+  const updatedHistory = [historyItem, ...filteredHistory].slice(0, 40);
+
+  const updatedProfile = {
+    ...profile,
+    estimatedAvg: updatedGlobalStats.overallAvg > 0 ? updatedGlobalStats.overallAvg : profile.estimatedAvg,
+    stats: updatedGlobalStats,
+    scopedStats: prevScoped,
+    recentHistory: updatedHistory
+  };
+
+  return { updated: true, profile: updatedProfile };
+}
+
 
 const STORAGE_KEYS = {
   MATCHES: 'lpld_matches_history_v1',
@@ -43,14 +326,38 @@ const STORAGE_KEYS = {
   GRAND_REGISTRATIONS: 'lpld_grand_tournament_registrations_v1',
 };
 
+export function syncMatchResultToCloud(match: SavedMatch): void {
+  if (typeof window === 'undefined' || match.isVsCpu) return;
+  fetch('/api/jugadores', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAdminRequestHeaders() },
+    body: JSON.stringify({ action: 'RECORD_MATCH', match })
+  }).catch((err) => {
+    console.warn('[Storage Cloud Match Sync] Error sincronizando partida en la nube:', err);
+  });
+}
+
 // --- Persistencia de Partidas (Anotador) ---
-export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'>): SavedMatch {
+export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'> & { id?: string; date?: string }): SavedMatch {
   if (typeof window === 'undefined') return match as SavedMatch;
+
+  const computedSignature = match.matchSignature || [
+    match.gameType || 'X01',
+    match.players?.[0]?.name || 'P1',
+    match.players?.[1]?.name || 'P2',
+    match.players?.[0]?.legsWon ?? 0,
+    match.players?.[1]?.legsWon ?? 0,
+    Number(match.players?.[0]?.avg || 0).toFixed(2),
+    Number(match.players?.[1]?.avg || 0).toFixed(2),
+    match.tournamentId || 'standalone'
+  ].join('|');
 
   const newMatch: SavedMatch = {
     ...match,
-    id: `match_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    date: new Date().toISOString(),
+    id: match.id || `match_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    matchSignature: computedSignature,
+    competitionScope: match.isVsCpu ? 'BOT' : resolveMatchScope(match),
+    date: match.date || new Date().toISOString(),
   };
 
   try {
@@ -58,6 +365,13 @@ export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'>): Save
     // para no alterar el promedio oficial ni el ranking federado del jugador
     if (newMatch.isVsCpu) {
       const existingBot = getBotMatches();
+      const duplicateBot = existingBot.find(
+        m => m.id === newMatch.id || (m.matchSignature && m.matchSignature === newMatch.matchSignature)
+      );
+      if (duplicateBot) {
+        return duplicateBot;
+      }
+
       const updatedBot = [newMatch, ...existingBot].slice(0, 50);
       localStorage.setItem(STORAGE_KEYS.BOT_MATCHES, JSON.stringify(updatedBot));
 
@@ -74,7 +388,9 @@ export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'>): Save
       const newFirst9 = Number(((prevStats.first9Avg * prevStats.matchesPlayed + p1First9) / newPlayed).toFixed(2));
 
       const p1Checkout = p1?.highestCheckout || p1?.score || 0;
-      const p1Darts = p1?.dartsThrown && p1.dartsThrown > 0 ? p1.dartsThrown : 0;
+      const p1BestLeg = p1?.bestLegDarts && p1.bestLegDarts > 0 && p1.bestLegDarts < 99
+        ? p1.bestLegDarts
+        : (p1?.dartsThrown && p1.dartsThrown > 0 && p1.dartsThrown < 99 ? p1.dartsThrown : 0);
 
       const updatedBotStats = {
         matchesPlayed: newPlayed,
@@ -85,8 +401,8 @@ export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'>): Save
         count180s: (prevStats.count180s || 0) + (p1?.count180s || 0),
         count140Plus: (prevStats.count140Plus || 0) + (p1?.count140Plus || 0),
         count100Plus: (prevStats.count100Plus || 0) + (p1?.count100Plus || 0),
-        bestLegDarts: p1Darts > 0
-          ? (prevStats.bestLegDarts > 0 ? Math.min(prevStats.bestLegDarts, p1Darts) : p1Darts)
+        bestLegDarts: p1BestLeg > 0
+          ? (prevStats.bestLegDarts > 0 ? Math.min(prevStats.bestLegDarts, p1BestLeg) : p1BestLeg)
           : (prevStats.bestLegDarts || 0),
         lastPlayed: new Date().toISOString()
       };
@@ -96,18 +412,168 @@ export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'>): Save
       return newMatch;
     }
 
-    // Partida Competitiva Oficial (PvP, Torneos, Ligas)
+    // Partida Competitiva Oficial (PvP: Individual, Torneos Locales, Ligas Locales o Liga Nacional)
     const existing = getSavedMatches();
-    const updated = [newMatch, ...existing].slice(0, 50); // Mantenemos las últimas 50 partidas en local
-    localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(updated));
+    const duplicateOfficial = existing.find(
+      m => m.id === newMatch.id || (m.matchSignature && m.matchSignature === newMatch.matchSignature)
+    );
+    const matchToProcess = duplicateOfficial || newMatch;
 
-    // Agregar a cola de sincronización para backend oficial
-    queueForSync('MATCH', newMatch);
+    if (!duplicateOfficial) {
+      const updated = [newMatch, ...existing].slice(0, 80); // Mantenemos las últimas 80 partidas en local
+      localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(updated));
+    }
+
+    // Actualizar inmediatamente el perfil local del jugador conectado (y cuentas recientes)
+    try {
+      const rawCurrent = localStorage.getItem(STORAGE_KEYS.CURRENT_PLAYER);
+      if (rawCurrent) {
+        const currentProf = JSON.parse(rawCurrent);
+        const { updated: profChanged, profile: newProf } = applyMatchToPlayerProfile(currentProf, matchToProcess);
+        if (profChanged) {
+          localStorage.setItem(STORAGE_KEYS.CURRENT_PLAYER, JSON.stringify(newProf));
+          localStorage.setItem(STORAGE_KEYS.LAST_PLAYER, JSON.stringify(newProf));
+          window.dispatchEvent(new CustomEvent('lpld_profile_updated', { detail: newProf }));
+          window.dispatchEvent(new CustomEvent('lpld_player_stats_updated', { detail: newProf }));
+        }
+      }
+    } catch (profErr) {
+      console.warn('[Storage] Error actualizando perfil local tras partida:', profErr);
+    }
+
+    // Sincronizar en la nube para ambos jugadores (Player 1 y Player 2)
+    if (!duplicateOfficial) {
+      syncMatchResultToCloud(matchToProcess);
+      queueForSync('MATCH', matchToProcess);
+    }
+
+    window.dispatchEvent(new CustomEvent('lpld_matches_updated', { detail: matchToProcess }));
+    return matchToProcess;
   } catch (err) {
     console.warn('[Storage] Error al guardar partida offline:', err);
   }
 
   return newMatch;
+}
+
+export function reconcileSavedMatchesWithProfile(baseProfile?: any): any {
+  if (typeof window === 'undefined') return baseProfile;
+  try {
+    // 1. Verificar si quedó alguna sesión activa atascada con partida ya terminada (0 puntos restantes o legs cumplidos)
+    try {
+      const activeRaw = localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
+      if (activeRaw) {
+        const session = JSON.parse(activeRaw);
+        if (session && session.config && Array.isArray(session.legsWon)) {
+          const targetLegs = Math.ceil((session.config.bestOfLegs || 3) / 2);
+          const p1Legs = session.legsWon[0] || 0;
+          const p2Legs = session.legsWon[1] || 0;
+          const p1Zero = Array.isArray(session.scores) && session.scores[0] === 0;
+          const p2Zero = Array.isArray(session.scores) && session.scores[1] === 0;
+
+          if (p1Legs >= targetLegs || p2Legs >= targetLegs || p1Zero || p2Zero) {
+            const finalP1Legs = p1Zero && p1Legs < targetLegs ? p1Legs + 1 : p1Legs;
+            const finalP2Legs = p2Zero && p2Legs < targetLegs ? p2Legs + 1 : p2Legs;
+            if (finalP1Legs >= targetLegs || finalP2Legs >= targetLegs) {
+              const isP1Winner = finalP1Legs >= finalP2Legs;
+              const p1Avg = session.totalDartsMatch?.[0] > 0
+                ? Number(((session.totalPointsMatch[0] / session.totalDartsMatch[0]) * 3).toFixed(2))
+                : 0;
+              const p2Avg = session.totalDartsMatch?.[1] > 0
+                ? Number(((session.totalPointsMatch[1] / session.totalDartsMatch[1]) * 3).toFixed(2))
+                : 0;
+              const p1First9 = session.first9Darts?.[0] > 0
+                ? Number(((session.first9Points[0] / session.first9Darts[0]) * 3).toFixed(2))
+                : p1Avg;
+              const p2First9 = session.first9Darts?.[1] > 0
+                ? Number(((session.first9Points[1] / session.first9Darts[1]) * 3).toFixed(2))
+                : p2Avg;
+
+              saveCompletedMatch({
+                id: session.id,
+                date: session.updatedAt || session.startedAt || new Date().toISOString(),
+                gameType: (session.config.gameType === 'CRICKET' ? 'CRICKET' : 'X01'),
+                isVsCpu: session.config.isVsCpu,
+                cpuDifficulty: session.config.cpuDifficulty,
+                competitionScope: session.config.competitionScope,
+                tournamentId: session.config.tournamentId,
+                tournamentTitle: session.config.tournamentTitle,
+                leagueId: session.config.leagueId,
+                leagueName: session.config.leagueName,
+                roundOrStage: session.config.roundOrStage,
+                modality: session.config.modality,
+                isDoublePoints: session.config.isDoublePoints,
+                players: [
+                  {
+                    id: session.config.player1?.id,
+                    name: session.config.player1?.name || 'Jugador 1',
+                    nickname: session.config.player1?.nickname,
+                    score: session.highestCheckout?.[0] || 0,
+                    avg: p1Avg,
+                    first9Avg: p1First9,
+                    legsWon: finalP1Legs,
+                    dartsThrown: session.totalDartsMatch?.[0] || 0,
+                    bestLegDarts: session.bestLegDarts?.[0] < 99 ? session.bestLegDarts[0] : 0,
+                    highestCheckout: session.highestCheckout?.[0] || 0,
+                    count180s: session.count180s?.[0] || 0,
+                    count140Plus: session.count140s?.[0] || 0,
+                    count100Plus: session.count100s?.[0] || 0,
+                    isWinner: isP1Winner
+                  },
+                  {
+                    id: session.config.player2?.id,
+                    name: session.config.player2?.name || 'Jugador 2',
+                    nickname: session.config.player2?.nickname,
+                    score: session.highestCheckout?.[1] || 0,
+                    avg: p2Avg,
+                    first9Avg: p2First9,
+                    legsWon: finalP2Legs,
+                    dartsThrown: session.totalDartsMatch?.[1] || 0,
+                    bestLegDarts: session.bestLegDarts?.[1] < 99 ? session.bestLegDarts[1] : 0,
+                    highestCheckout: session.highestCheckout?.[1] || 0,
+                    count180s: session.count180s?.[1] || 0,
+                    count140Plus: session.count140s?.[1] || 0,
+                    count100Plus: session.count100s?.[1] || 0,
+                    isWinner: !isP1Winner
+                  }
+                ],
+                legsTotal: finalP1Legs + finalP2Legs,
+                winnerName: isP1Winner ? session.config.player1?.name : session.config.player2?.name
+              });
+              localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+            }
+          }
+        }
+      }
+    } catch {}
+
+    // 2. Reconciliar todas las partidas guardadas en localStorage con el perfil actual
+    let current = baseProfile || getCurrentPlayerProfile();
+    if (!current) return baseProfile;
+
+    const savedMatches = getSavedMatches();
+    if (!savedMatches.length) return current;
+
+    let anyUpdated = false;
+    const chronological = [...savedMatches].reverse();
+    for (const m of chronological) {
+      const res = applyMatchToPlayerProfile(current, m);
+      if (res.updated) {
+        current = res.profile;
+        anyUpdated = true;
+        syncMatchResultToCloud(m);
+      }
+    }
+
+    if (anyUpdated) {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_PLAYER, JSON.stringify(current));
+      localStorage.setItem(STORAGE_KEYS.LAST_PLAYER, JSON.stringify(current));
+    }
+
+    return current;
+  } catch {
+    return baseProfile;
+  }
 }
 
 export function getSavedMatches(): SavedMatch[] {

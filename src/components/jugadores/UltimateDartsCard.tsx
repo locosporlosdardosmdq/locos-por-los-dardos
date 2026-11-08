@@ -62,6 +62,7 @@ export interface UltimateDartsCardData {
   lastTournamentTrophy?: 'GOLD' | 'SILVER' | 'BRONZE' | 'NONE';
   tournamentsWonList?: Array<{ id?: string; name: string; year: number; stage?: string }>;
   recentHistory?: RecentHistoryItem[];
+  scopedStats?: any;
   status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
   birthDate?: string;
   age?: number;

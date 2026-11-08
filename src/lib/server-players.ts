@@ -108,9 +108,33 @@ export async function getRegisteredPlayersServer(): Promise<UltimateDartsCardDat
       ORDER BY COALESCE(s.overall_avg, p.initial_estimated_avg) DESC;
     `;
 
-    const result = await pool.query(query);
+    const [result, scopedRes] = await Promise.all([
+      pool.query(query),
+      pool.query(`SELECT data FROM platform_settings WHERE key = 'players_scoped_stats_v1' LIMIT 1;`).catch(() => ({ rows: [] as any[] }))
+    ]);
+    const scopedMap: Record<string, { scopedStats?: any; recentHistory?: any[] }> =
+      (scopedRes.rows?.[0]?.data && typeof scopedRes.rows[0].data === 'object')
+        ? scopedRes.rows[0].data
+        : {};
+
     if (result.rows && result.rows.length > 0) {
-      return result.rows.map(mapDbRowToCard);
+      return result.rows.map((row) => {
+        const card = mapDbRowToCard(row);
+        const ext = scopedMap[card.id] || scopedMap[row.user_id] || (card.nickname ? scopedMap[card.nickname.toLowerCase()] : undefined);
+        if (ext) {
+          card.scopedStats = ext.scopedStats;
+          if (Array.isArray(ext.recentHistory) && ext.recentHistory.length > 0) {
+            card.recentHistory = ext.recentHistory;
+          }
+          if (ext.scopedStats?.nationalTotalPoints) {
+            card.nationalPoints = ext.scopedStats.nationalTotalPoints;
+          }
+          if (ext.scopedStats?.nationalPointsPresencial) {
+            card.presentialPoints = ext.scopedStats.nationalPointsPresencial;
+          }
+        }
+        return card;
+      });
     }
     return CANONICAL_PLAYERS;
   } catch (error) {

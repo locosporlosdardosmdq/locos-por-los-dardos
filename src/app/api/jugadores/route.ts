@@ -4,6 +4,7 @@ import { PlayerProfile } from '@/lib/types';
 import { ICEMAN_CARD_DATA } from '@/lib/players-data';
 import { calculateAgeFromBirthDate } from '@/lib/constants';
 import { isAuthorizedAdmin } from '@/lib/server-auth';
+import { applyMatchToPlayerProfile, SavedMatch } from '@/lib/storage';
 
 export const revalidate = 60;
 
@@ -66,7 +67,15 @@ export async function GET(request: NextRequest) {
       ORDER BY COALESCE(s.overall_avg, p.initial_estimated_avg) DESC;
     `;
 
-    const result = await pool.query(query);
+    const [result, scopedRes] = await Promise.all([
+      pool.query(query),
+      pool.query(`SELECT data FROM platform_settings WHERE key = 'players_scoped_stats_v1' LIMIT 1;`).catch(() => ({ rows: [] as any[] }))
+    ]);
+
+    const scopedMap: Record<string, { scopedStats?: any; recentHistory?: any[] }> =
+      (scopedRes.rows?.[0]?.data && typeof scopedRes.rows[0].data === 'object')
+        ? scopedRes.rows[0].data
+        : {};
 
     const players = result.rows.map((row) => {
       // Verificación estricta por email verificado de Mariano Deux
@@ -80,8 +89,11 @@ export async function GET(request: NextRequest) {
         : (isIcemanRow ? '1982-05-15' : undefined);
       const computedAge = row.age || (birthDateStr ? calculateAgeFromBirthDate(birthDateStr) : (isIcemanRow ? 44 : undefined));
 
+      const playerId = row.id || row.user_id;
+      const extended = scopedMap[playerId] || scopedMap[row.user_id] || (row.nickname ? scopedMap[row.nickname.toLowerCase()] : undefined) || {};
+
       return {
-        id: row.id || row.user_id,
+        id: playerId,
         email: isAdmin ? (row.email || '') : '',
         nickname: row.nickname || '',
         fullName: row.full_name || '',
@@ -111,6 +123,8 @@ export async function GET(request: NextRequest) {
         role: row.role || 'PLAYER',
         club: row.club || 'Darderos Mar del Plata',
         isProfileComplete: true,
+        scopedStats: extended.scopedStats || undefined,
+        recentHistory: Array.isArray(extended.recentHistory) ? extended.recentHistory : [],
         stats: {
           overallAvg: row.overall_avg ? parseFloat(row.overall_avg) : parseFloat(row.initial_estimated_avg || '45.0'),
           first9Avg: row.first_9_avg ? parseFloat(row.first_9_avg) : parseFloat(row.initial_estimated_avg || '45.0'),
@@ -166,6 +180,8 @@ export async function GET(request: NextRequest) {
         preferredDartWeight: 24,
         dartBrand: 'TARGET 90%',
         isProfileComplete: true,
+        scopedStats: undefined,
+        recentHistory: [],
         stats: {
           overallAvg: 48.0,
           first9Avg: 48.0,
@@ -203,17 +219,150 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: Registrar o actualizar perfil de jugador en Supabase PostgreSQL
+// POST: Registrar o actualizar perfil de jugador, o impactar resultado de partida (action: 'RECORD_MATCH') en Supabase PostgreSQL
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const pool = getDbPool();
+
+    // Acción especial: Impactar resultado de partida oficial (Individual, Torneo Local, Liga Local o Liga Nacional) en ambos jugadores
+    if (body.action === 'RECORD_MATCH' && body.match) {
+      const match: SavedMatch = body.match;
+      if (match.isVsCpu || !Array.isArray(match.players) || match.players.length < 2) {
+        return NextResponse.json({ success: true, skipped: true });
+      }
+
+      const [profilesRes, scopedRes] = await Promise.all([
+        pool.query(`
+          SELECT 
+            p.id, p.user_id, u.email, p.nickname, p.full_name, p.initial_estimated_avg,
+            s.overall_avg, s.first_9_avg, s.matches_played, s.matches_won,
+            s.legs_played, s.legs_won, s.highest_checkout, s.checkout_attempts,
+            s.checkout_hits, s.checkout_percentage, s.count_180s, s.count_140_plus,
+            s.count_100_plus, s.count_60_plus, s.best_leg_darts
+          FROM profiles p
+          LEFT JOIN users u ON p.user_id = u.id
+          LEFT JOIN player_stats s ON p.user_id = s.user_id
+          WHERE (p.status IS NULL OR p.status = 'ACTIVE');
+        `),
+        pool.query(`SELECT data FROM platform_settings WHERE key = 'players_scoped_stats_v1' LIMIT 1;`).catch(() => ({ rows: [] as any[] }))
+      ]);
+
+      const scopedMap: Record<string, { scopedStats?: any; recentHistory?: any[] }> =
+        (scopedRes.rows?.[0]?.data && typeof scopedRes.rows[0].data === 'object')
+          ? { ...scopedRes.rows[0].data }
+          : {};
+
+      const updatedIds: string[] = [];
+
+      for (const row of profilesRes.rows) {
+        const playerId = row.id || row.user_id;
+        const existingExt = scopedMap[playerId] || scopedMap[row.user_id] || (row.nickname ? scopedMap[row.nickname.toLowerCase()] : undefined) || {};
+
+        const candidateProfile = {
+          id: playerId,
+          user_id: row.user_id,
+          email: row.email || '',
+          nickname: row.nickname || '',
+          fullName: row.full_name || '',
+          estimatedAvg: parseFloat(row.initial_estimated_avg || '45.0'),
+          scopedStats: existingExt.scopedStats || {},
+          recentHistory: Array.isArray(existingExt.recentHistory) ? existingExt.recentHistory : [],
+          stats: {
+            overallAvg: row.overall_avg ? parseFloat(row.overall_avg) : parseFloat(row.initial_estimated_avg || '45.0'),
+            first9Avg: row.first_9_avg ? parseFloat(row.first_9_avg) : parseFloat(row.initial_estimated_avg || '45.0'),
+            matchesPlayed: parseInt(row.matches_played || '0', 10),
+            matchesWon: parseInt(row.matches_won || '0', 10),
+            legsPlayed: parseInt(row.legs_played || '0', 10),
+            legsWon: parseInt(row.legs_won || '0', 10),
+            highestCheckout: parseInt(row.highest_checkout || '0', 10),
+            checkoutAttempts: parseInt(row.checkout_attempts || '0', 10),
+            checkoutHits: parseInt(row.checkout_hits || '0', 10),
+            checkoutPercentage: row.checkout_percentage ? parseFloat(row.checkout_percentage) : 0,
+            count180s: parseInt(row.count_180s || '0', 10),
+            count140Plus: parseInt(row.count_140_plus || '0', 10),
+            count100Plus: parseInt(row.count_100_plus || '0', 10),
+            count60Plus: parseInt(row.count_60_plus || '0', 10),
+            bestLegDarts: parseInt(row.best_leg_darts || '0', 10)
+          }
+        };
+
+        const { updated, profile: newProf } = applyMatchToPlayerProfile(candidateProfile, match);
+        if (updated && row.user_id) {
+          const st = newProf.stats;
+          await pool.query(
+            `INSERT INTO player_stats (
+              user_id, overall_avg, first_9_avg, matches_played, matches_won,
+              legs_played, legs_won, highest_checkout, checkout_attempts,
+              checkout_hits, checkout_percentage, count_180s, count_140_plus,
+              count_100_plus, count_60_plus, best_leg_darts, updated_at
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW()
+            ) ON CONFLICT (user_id) DO UPDATE SET
+              overall_avg = EXCLUDED.overall_avg,
+              first_9_avg = EXCLUDED.first_9_avg,
+              matches_played = EXCLUDED.matches_played,
+              matches_won = EXCLUDED.matches_won,
+              legs_played = EXCLUDED.legs_played,
+              legs_won = EXCLUDED.legs_won,
+              highest_checkout = EXCLUDED.highest_checkout,
+              checkout_attempts = EXCLUDED.checkout_attempts,
+              checkout_hits = EXCLUDED.checkout_hits,
+              checkout_percentage = EXCLUDED.checkout_percentage,
+              count_180s = EXCLUDED.count_180s,
+              count_140_plus = EXCLUDED.count_140_plus,
+              count_100_plus = EXCLUDED.count_100_plus,
+              count_60_plus = EXCLUDED.count_60_plus,
+              best_leg_darts = EXCLUDED.best_leg_darts,
+              updated_at = NOW();`,
+            [
+              row.user_id,
+              st.overallAvg,
+              st.first9Avg,
+              st.matchesPlayed,
+              st.matchesWon,
+              st.legsPlayed,
+              st.legsWon,
+              st.highestCheckout,
+              st.checkoutAttempts,
+              st.checkoutHits,
+              st.checkoutPercentage,
+              st.count180s,
+              st.count140Plus,
+              st.count100Plus,
+              st.count60Plus,
+              st.bestLegDarts
+            ]
+          );
+
+          scopedMap[playerId] = {
+            scopedStats: newProf.scopedStats,
+            recentHistory: newProf.recentHistory
+          };
+          if (row.nickname) {
+            scopedMap[row.nickname.toLowerCase()] = scopedMap[playerId];
+          }
+          updatedIds.push(playerId);
+        }
+      }
+
+      if (updatedIds.length > 0) {
+        await pool.query(
+          `INSERT INTO platform_settings (key, data, updated_at)
+           VALUES ('players_scoped_stats_v1', $1, NOW())
+           ON CONFLICT (key) DO UPDATE SET data = $1, updated_at = NOW();`,
+          [JSON.stringify(scopedMap)]
+        );
+      }
+
+      return NextResponse.json({ success: true, updatedPlayers: updatedIds });
+    }
+
     const profile: Partial<PlayerProfile> = body.profile || body;
 
     if (!profile.nickname && !profile.fullName) {
       return NextResponse.json({ success: false, error: 'Nickname o Nombre Completo es requerido.' }, { status: 400 });
     }
-
-    const pool = getDbPool();
 
     // 1. Manejar o buscar usuario en tabla `users`
     const email = (profile.email || `${profile.nickname || 'jugador'}@locosporlosdardos.com.ar`).toLowerCase().trim();
@@ -391,6 +540,29 @@ export async function POST(request: NextRequest) {
           stats.bestLegDarts || 0
         ]
       );
+    }
+
+    // 4. Si el perfil trae scopedStats o recentHistory, persistirlos en platform_settings ('players_scoped_stats_v1')
+    if (profile.scopedStats || (Array.isArray(profile.recentHistory) && profile.recentHistory.length > 0)) {
+      try {
+        const scopedRes = await pool.query(`SELECT data FROM platform_settings WHERE key = 'players_scoped_stats_v1' LIMIT 1;`).catch(() => ({ rows: [] as any[] }));
+        const scopedMap: Record<string, any> = (scopedRes.rows?.[0]?.data && typeof scopedRes.rows[0].data === 'object') ? { ...scopedRes.rows[0].data } : {};
+        const prevEntry = scopedMap[profileId] || scopedMap[nickname.toLowerCase()] || {};
+        const nextEntry = {
+          scopedStats: profile.scopedStats || prevEntry.scopedStats || {},
+          recentHistory: Array.isArray(profile.recentHistory) && profile.recentHistory.length > 0 ? profile.recentHistory : (prevEntry.recentHistory || [])
+        };
+        scopedMap[profileId] = nextEntry;
+        scopedMap[nickname.toLowerCase()] = nextEntry;
+        await pool.query(
+          `INSERT INTO platform_settings (key, data, updated_at)
+           VALUES ('players_scoped_stats_v1', $1, NOW())
+           ON CONFLICT (key) DO UPDATE SET data = $1, updated_at = NOW();`,
+          [JSON.stringify(scopedMap)]
+        );
+      } catch (extErr) {
+        console.warn('[API /api/jugadores] No se pudo guardar players_scoped_stats_v1:', extErr);
+      }
     }
 
     const savedProfile: PlayerProfile = {

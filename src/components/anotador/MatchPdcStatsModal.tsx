@@ -160,12 +160,17 @@ export const MatchPdcStatsModal: React.FC<MatchPdcStatsModalProps> = ({
         </div>
 
         {/* Botón inferior para cerrar */}
-        <div className="p-3 bg-[#0a0d15] border-t border-slate-800 flex justify-center">
+        <div className="p-3 bg-[#0a0d15] border-t border-slate-800 flex flex-col gap-2 justify-center">
+          <div className="text-center text-[11px] font-bold text-[#00e676] flex items-center justify-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Datos de la partida guardados en Estadísticas e Historial</span>
+          </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-full py-2.5 rounded-xl bg-[#111622] hover:bg-[#1a2234] text-slate-300 font-bold text-xs border border-slate-700 transition-colors"
+            className="w-full py-2.5 rounded-xl bg-[#00e676] hover:bg-[#00c864] text-[#07090e] font-black text-xs uppercase tracking-wider shadow-lg shadow-[#00e676]/20 transition-colors cursor-pointer"
           >
-            Cerrar Estadísticas
+            Salir y Cerrar Resumen
           </button>
         </div>
       </div>

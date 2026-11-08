@@ -7,7 +7,7 @@ import { CricketBoard } from './CricketBoard';
 import { MatchPdcStatsModal } from './MatchPdcStatsModal';
 import { MatchConfig } from '@/lib/types';
 import { USER_ICEMAN } from '@/lib/constants';
-import { saveCompletedMatch, getActiveMatchSession, clearActiveMatchSession, ActiveMatchSession, getCurrentPlayerProfile } from '@/lib/storage';
+import { saveCompletedMatch, getActiveMatchSession, clearActiveMatchSession, ActiveMatchSession, getCurrentPlayerProfile, reconcileSavedMatchesWithProfile } from '@/lib/storage';
 import { matchBroadcast } from '@/lib/broadcast';
 import { Play, Trash2, Clock } from 'lucide-react';
 
@@ -87,6 +87,9 @@ export const DartScorer: React.FC<DartScorerProps> = ({
   }, [initialConfig]);
 
   useEffect(() => {
+    // Reconciliar partidas finalizadas previas o sesiones completadas pendientes
+    reconcileSavedMatchesWithProfile();
+
     const session = getActiveMatchSession();
     if (session) {
       setStandbySession(session);
@@ -168,7 +171,7 @@ export const DartScorer: React.FC<DartScorerProps> = ({
   };
 
   // Partida completada (Game Shot & Match)
-  const handleMatchCompleted = (result: any) => {
+  const handleMatchCompleted = (result: any, options?: { autoSaveOnly?: boolean }) => {
     clearActiveMatchSession();
     setStandbySession(null);
     const isP1Winner = result.winnerIndex === 0;
@@ -196,36 +199,54 @@ export const DartScorer: React.FC<DartScorerProps> = ({
     };
 
     setMatchStatsData(statsPayload);
-    setShowStatsModal(true);
 
-    // Guardar en persistencia local
+    // Guardar en persistencia local y sincronizar estadísticas separadas por ámbito (Individual / Torneo / Liga Local / Liga Nacional)
     try {
       saveCompletedMatch({
+        id: result.matchId,
         gameType: (activeConfig.gameType === 'X01' ? 'X01' : 'CRICKET') as any,
         isVsCpu: activeConfig.isVsCpu,
         cpuDifficulty: activeConfig.cpuDifficulty,
+        competitionScope: activeConfig.competitionScope,
+        tournamentId: activeConfig.tournamentId,
+        tournamentTitle: activeConfig.tournamentTitle,
+        leagueId: activeConfig.leagueId,
+        leagueName: activeConfig.leagueName,
+        roundOrStage: activeConfig.roundOrStage,
+        modality: activeConfig.modality || (activeConfig.isOnlineRoom ? 'ONLINE' : 'PRESENCIAL'),
+        isDoublePoints: activeConfig.isDoublePoints || activeConfig.pointsMultiplier === 2,
         players: [
           {
+            id: activeConfig.player1.id,
             name: activeConfig.player1.name,
+            nickname: activeConfig.player1.nickname,
             score: statsPayload.highFinishP1,
             avg: parseFloat(result.avgP1 || '0'),
             first9Avg: parseFloat(result.first9P1 || '0'),
             legsWon: statsPayload.legsP1,
-            dartsThrown: statsPayload.bestLegP1,
+            dartsThrown: result.totalDartsP1 || statsPayload.bestLegP1,
+            bestLegDarts: statsPayload.bestLegP1,
             highestCheckout: statsPayload.highFinishP1,
+            checkoutAttempts: result.checkoutAttemptsP1,
+            checkoutHits: result.checkoutHitsP1 ?? statsPayload.legsP1,
             count180s: statsPayload.count180sP1,
             count140Plus: statsPayload.count140sP1,
             count100Plus: statsPayload.count100sP1,
             isWinner: isP1Winner
           },
           {
+            id: activeConfig.player2.id,
             name: activeConfig.player2.name,
+            nickname: activeConfig.player2.nickname,
             score: statsPayload.highFinishP2,
             avg: parseFloat(result.avgP2 || '0'),
             first9Avg: parseFloat(result.first9P2 || '0'),
             legsWon: statsPayload.legsP2,
-            dartsThrown: statsPayload.bestLegP2,
+            dartsThrown: result.totalDartsP2 || statsPayload.bestLegP2,
+            bestLegDarts: statsPayload.bestLegP2,
             highestCheckout: statsPayload.highFinishP2,
+            checkoutAttempts: result.checkoutAttemptsP2,
+            checkoutHits: result.checkoutHitsP2 ?? statsPayload.legsP2,
             count180s: statsPayload.count180sP2,
             count140Plus: statsPayload.count140sP2,
             count100Plus: statsPayload.count100sP2,
@@ -239,7 +260,16 @@ export const DartScorer: React.FC<DartScorerProps> = ({
       console.warn('Error guardando partido localmente:', e);
     }
 
-    // Si viene de un torneo
+    // Si es el auto-guardado instantáneo al clavar el dardo ganador, dejamos el tablero visible hasta que toque "Salir y Guardar"
+    if (options?.autoSaveOnly) {
+      return;
+    }
+
+    // Salir limpiamente del tablero de juego y mostrar el resumen oficial
+    setViewState('SETTINGS');
+    setShowStatsModal(true);
+
+    // Si viene de un torneo, notificar al gestor de llaves
     if (onTournamentMatchFinished) {
       onTournamentMatchFinished(result);
     }

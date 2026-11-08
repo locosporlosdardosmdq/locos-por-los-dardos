@@ -27,6 +27,31 @@ export interface PlayerTournamentWin {
 
 export type HistoryCompetitionType = 'INDIVIDUAL' | 'STANDALONE_TOURNAMENT' | 'LOCAL_LEAGUE' | 'NATIONAL_LEAGUE' | 'TOURNAMENT' | 'LEAGUE';
 
+export type CompetitionScope = 'INDIVIDUAL' | 'STANDALONE_TOURNAMENT' | 'LOCAL_LEAGUE' | 'NATIONAL_LEAGUE' | 'BOT';
+
+export interface ScopedCompetitionRecord {
+  id: string;
+  name: string;
+  scope: 'STANDALONE_TOURNAMENT' | 'LOCAL_LEAGUE' | 'NATIONAL_LEAGUE';
+  modality?: 'ONLINE' | 'PRESENCIAL';
+  isDoublePoints?: boolean;
+  pointsEarned?: number;
+  lastPlayed?: string;
+  stats: PlayerStats;
+}
+
+export interface PlayerScopedStats {
+  individual?: PlayerStats;
+  standaloneTournament?: PlayerStats;
+  localLeague?: PlayerStats;
+  nationalLeague?: PlayerStats;
+  nationalPointsOnline?: number;
+  nationalPointsPresencial?: number;
+  nationalTotalPoints?: number;
+  byCompetitionId?: Record<string, ScopedCompetitionRecord>;
+  syncedMatchIds?: string[];
+}
+
 export interface PlayerHistoryDateItem {
   id: string;
   eventName: string;
@@ -74,6 +99,7 @@ export interface PlayerProfile {
   role?: 'SUPERADMIN' | 'ADMIN' | 'ORGANIZER' | 'PLAYER';
   status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
   stats: PlayerStats;
+  scopedStats?: PlayerScopedStats;
   tournamentsWonList?: PlayerTournamentWin[];
   lastTournamentRank?: number;
   lastTournamentName?: string;
@@ -121,7 +147,15 @@ export interface MatchConfig {
   // Campos retrocompatibles y contexto de competición
   player1Name?: string;
   player2Name?: string;
+  tournamentId?: string;
   tournamentTitle?: string;
+  competitionScope?: 'INDIVIDUAL' | 'STANDALONE_TOURNAMENT' | 'LOCAL_LEAGUE' | 'NATIONAL_LEAGUE';
+  leagueId?: string;
+  leagueName?: string;
+  roundOrStage?: string;
+  modality?: 'ONLINE' | 'PRESENCIAL';
+  isDoublePoints?: boolean;
+  pointsMultiplier?: 1 | 2;
   isOnlineRoom?: boolean;
   onlineRoomCode?: string;
   localPlayerIndex?: 0 | 1;

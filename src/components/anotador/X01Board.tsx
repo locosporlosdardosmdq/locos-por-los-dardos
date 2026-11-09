@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { MatchConfig, DartThrow } from '@/lib/types';
 import { SoundEngine, VoiceCaller, isAppAudioMuted, setAppAudioMuted, unlockAudio } from '@/lib/sound-effects';
 import { getSuggestedCheckout } from '@/lib/constants';
-import { saveActiveMatchSession, clearActiveMatchSession, ActiveMatchSession } from '@/lib/storage';
+import { saveActiveMatchSession, clearActiveMatchSession, ActiveMatchSession, buildLegsBreakdownFromTurnHistory } from '@/lib/storage';
 import { formatCardPlayerName } from '@/components/jugadores/UltimateDartsCard';
 import { ExitMatchModal } from './ExitMatchModal';
 import confetti from 'canvas-confetti';
@@ -1426,8 +1426,21 @@ export const X01Board: React.FC<X01BoardProps> = ({
       return Math.max(attemptsFromTurns, lWon[i]);
     };
 
+    const legsBreakdown = buildLegsBreakdownFromTurnHistory(
+      turns,
+      config.startingScore || 501,
+      lWon,
+      p1Display,
+      p2Display
+    );
+    const nowDate = new Date();
+    const timeStr = nowDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+
     return {
       matchId: matchInstanceIdRef.current,
+      date: nowDate.toISOString(),
+      time: timeStr,
+      startingScore: config.startingScore || 501,
       winnerIndex: winnerIdx,
       winnerName: winnerIdx === 0 ? p1Display : p2Display,
       scores: overrides?.latest?.updatedScores || scores,
@@ -1448,7 +1461,8 @@ export const X01Board: React.FC<X01BoardProps> = ({
       count180s,
       highestCheckout: hCo,
       bestLegDarts: bLeg,
-      turnHistory: turns
+      turnHistory: turns,
+      legsBreakdown
     };
   };
 

@@ -22,14 +22,19 @@ import {
   getBotMatches,
   getSavedMatches,
   reconcileSavedMatchesWithProfile,
+  sanitizeAndDeduplicateProfileMatches,
+  extractMatchTimeStr,
+  buildMatchSummaryFromSavedMatch,
   createEmptyPlayerStats,
   mergePlayerMatchStats,
   doesMatchPlayerBelongToProfile,
-  resolveMatchScope
+  resolveMatchScope,
+  SavedMatch
 } from '@/lib/storage';
 import { UltimateDartsCard, UltimateDartsCardData } from '@/components/jugadores/UltimateDartsCard';
 import { LoginModal } from '@/components/perfil/LoginModal';
 import { InvitePlayersModal } from '@/components/comunidad/InvitePlayersModal';
+import { MatchPdcStatsModal } from '@/components/anotador/MatchPdcStatsModal';
 import { 
   User, 
   MapPin, 
@@ -53,6 +58,8 @@ import {
   MessageCircle,
   AlertTriangle,
   Calendar,
+  Clock,
+  ChevronRight,
   Bot
 } from 'lucide-react';
 
@@ -113,13 +120,157 @@ export const RegisterAndProfile: React.FC = () => {
   const [botMatches, setBotMatches] = useState(getBotMatches());
   const [savedOfficialMatches, setSavedOfficialMatches] = useState(() => getSavedMatches());
 
+  // Estado del Modal de Detalle de Partida y Legs Individuales
+  const [selectedMatchModalData, setSelectedMatchModalData] = useState<{
+    p1Name: string;
+    p2Name: string;
+    tournamentTitle: string;
+    stats: any;
+  } | null>(null);
+
+  const handleOpenHistoryMatchModal = (item: PlayerHistoryDateItem) => {
+    const day = (item.date || '').split('T')[0];
+    const matchingSaved = savedOfficialMatches.find((m) => {
+      if (m.id === item.id) return true;
+      if (item.matchSignature && m.matchSignature === item.matchSignature) return true;
+      const mDay = (m.date || '').split('T')[0];
+      if (mDay !== day) return false;
+      const p0Name = (m.players?.[0]?.name || '').toLowerCase();
+      const p1Name = (m.players?.[1]?.name || '').toLowerCase();
+      const oppName = (item.opponentName || '').toLowerCase();
+      return p0Name.includes(oppName) || p1Name.includes(oppName) || oppName.includes(p0Name) || oppName.includes(p1Name);
+    });
+
+    const summary = matchingSaved
+      ? buildMatchSummaryFromSavedMatch(matchingSaved, true)
+      : item.matchSummary;
+
+    const myDisplayName = profile.fullName || profile.nickname || 'Jugador';
+    const oppDisplayName = item.opponentName || 'Rival';
+    const resolvedTime = item.time || (matchingSaved ? extractMatchTimeStr(matchingSaved) : extractMatchTimeStr(item));
+
+    if (summary) {
+      setSelectedMatchModalData({
+        p1Name: summary.p1Name || myDisplayName,
+        p2Name: summary.p2Name || oppDisplayName,
+        tournamentTitle: `${item.eventName} • ${item.roundOrStage}`,
+        stats: {
+          gameType: summary.gameType || 'X01',
+          startingScore: summary.startingScore || 501,
+          date: day,
+          time: resolvedTime || undefined,
+          legsP1: summary.legsP1 ?? 0,
+          legsP2: summary.legsP2 ?? 0,
+          avgP1: Number(summary.avgP1 || 0).toFixed(2),
+          avgP2: Number(summary.avgP2 || 0).toFixed(2),
+          first9P1: Number(summary.first9P1 || summary.avgP1 || 0).toFixed(2),
+          first9P2: Number(summary.first9P2 || summary.avgP2 || 0).toFixed(2),
+          dartsP1: summary.dartsP1 || 0,
+          dartsP2: summary.dartsP2 || 0,
+          checkoutHitsP1: summary.checkoutHitsP1,
+          checkoutAttemptsP1: summary.checkoutAttemptsP1,
+          checkoutHitsP2: summary.checkoutHitsP2,
+          checkoutAttemptsP2: summary.checkoutAttemptsP2,
+          count100sP1: summary.count100sP1 || 0,
+          count100sP2: summary.count100sP2 || 0,
+          count140sP1: summary.count140sP1 || 0,
+          count140sP2: summary.count140sP2 || 0,
+          count180sP1: summary.count180sP1 || 0,
+          count180sP2: summary.count180sP2 || 0,
+          highFinishP1: summary.highFinishP1 || 0,
+          highFinishP2: summary.highFinishP2 || 0,
+          bestLegP1: summary.bestLegP1 || 0,
+          bestLegP2: summary.bestLegP2 || 0,
+          legsBreakdown: summary.legsBreakdown
+        }
+      });
+      return;
+    }
+
+    // Fallback para partidas donde solo se cuenta con el registro en recentHistory
+    const parts = (item.scoreLegs || '0 - 0').split('-').map((s) => parseInt(s.trim(), 10) || 0);
+    const legsP1 = parts[0] || 0;
+    const legsP2 = parts[1] || 0;
+
+    setSelectedMatchModalData({
+      p1Name: myDisplayName,
+      p2Name: oppDisplayName,
+      tournamentTitle: `${item.eventName} • ${item.roundOrStage}`,
+      stats: {
+        gameType: 'X01',
+        startingScore: 501,
+        date: day,
+        time: resolvedTime || undefined,
+        legsP1,
+        legsP2,
+        avgP1: Number(item.avg || 0).toFixed(2),
+        avgP2: '0.00',
+        first9P1: Number(item.avg || 0).toFixed(2),
+        first9P2: '0.00',
+        count100sP1: 0,
+        count100sP2: 0,
+        count140sP1: 0,
+        count140sP2: 0,
+        count180sP1: item.count180s || 0,
+        count180sP2: 0,
+        highFinishP1: item.highestCheckout || 0,
+        highFinishP2: 0,
+        bestLegP1: 0,
+        bestLegP2: 0
+      }
+    });
+  };
+
+  const handleOpenBotMatchModal = (bm: SavedMatch) => {
+    const summary = buildMatchSummaryFromSavedMatch(bm, true);
+    const day = (bm.date || '').split('T')[0];
+    const resolvedTime = bm.time || extractMatchTimeStr(bm);
+
+    setSelectedMatchModalData({
+      p1Name: summary.p1Name,
+      p2Name: summary.p2Name,
+      tournamentTitle: `Modo Práctica vs Máquina${bm.cpuDifficulty ? ` (${bm.cpuDifficulty})` : ''}`,
+      stats: {
+        gameType: summary.gameType || 'X01',
+        startingScore: summary.startingScore || 501,
+        date: day,
+        time: resolvedTime || undefined,
+        legsP1: summary.legsP1,
+        legsP2: summary.legsP2,
+        avgP1: Number(summary.avgP1 || 0).toFixed(2),
+        avgP2: Number(summary.avgP2 || 0).toFixed(2),
+        first9P1: Number(summary.first9P1 || summary.avgP1 || 0).toFixed(2),
+        first9P2: Number(summary.first9P2 || summary.avgP2 || 0).toFixed(2),
+        dartsP1: summary.dartsP1,
+        dartsP2: summary.dartsP2,
+        checkoutHitsP1: summary.checkoutHitsP1,
+        checkoutAttemptsP1: summary.checkoutAttemptsP1,
+        checkoutHitsP2: summary.checkoutHitsP2,
+        checkoutAttemptsP2: summary.checkoutAttemptsP2,
+        count100sP1: summary.count100sP1,
+        count100sP2: summary.count100sP2,
+        count140sP1: summary.count140sP1,
+        count140sP2: summary.count140sP2,
+        count180sP1: summary.count180sP1,
+        count180sP2: summary.count180sP2,
+        highFinishP1: summary.highFinishP1,
+        highFinishP2: summary.highFinishP2,
+        bestLegP1: summary.bestLegP1,
+        bestLegP2: summary.bestLegP2,
+        legsBreakdown: summary.legsBreakdown
+      }
+    });
+  };
+
   useEffect(() => {
-    // Reconciliar partidas locales pendientes al abrir el perfil
+    // Reconciliar y desduplicar partidas locales pendientes al abrir el perfil
     const reconciled = reconcileSavedMatchesWithProfile();
     if (reconciled) {
       setProfile(reconciled);
     }
     setSavedOfficialMatches(getSavedMatches());
+    setBotMatches(getBotMatches());
+    setBotStats(getBotStats());
 
     // Consultar servidor por si hay estadísticas o historial registrado desde otro dispositivo
     fetch('/api/jugadores')
@@ -134,7 +285,11 @@ export const RegisterAndProfile: React.FC = () => {
             (p.fullName && curr.fullName && p.fullName.toLowerCase() === curr.fullName.toLowerCase())
         );
         if (cloudMatch) {
-          const merged = {
+          const combinedHistory = [
+            ...(Array.isArray(curr.recentHistory) ? curr.recentHistory : []),
+            ...(Array.isArray(cloudMatch.recentHistory) ? cloudMatch.recentHistory : [])
+          ];
+          const mergedRaw = {
             ...curr,
             stats: (cloudMatch.stats?.matchesPlayed || 0) >= (curr.stats?.matchesPlayed || 0) ? cloudMatch.stats : curr.stats,
             scopedStats: {
@@ -145,12 +300,10 @@ export const RegisterAndProfile: React.FC = () => {
                 ...(curr.scopedStats?.byCompetitionId || {})
               }
             },
-            recentHistory:
-              (cloudMatch.recentHistory?.length || 0) >= (curr.recentHistory?.length || 0)
-                ? cloudMatch.recentHistory
-                : curr.recentHistory
+            recentHistory: combinedHistory
           };
-          setProfile(merged);
+          const { profile: cleanMerged } = sanitizeAndDeduplicateProfileMatches(mergedRaw, getSavedMatches());
+          setProfile(cleanMerged);
         }
       })
       .catch(() => {});
@@ -923,27 +1076,43 @@ export const RegisterAndProfile: React.FC = () => {
                 </h3>
                 {botMatches.length > 0 ? (
                   <div className="divide-y divide-[#313647]/50 max-h-72 overflow-y-auto">
-                    {botMatches.map((bm) => (
-                      <div key={bm.id} className="py-2.5 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2.5">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                            bm.players[0]?.isWinner ? 'bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'
-                          }`}>
-                            {bm.players[0]?.isWinner ? 'VICTORIA' : 'DERROTA'}
-                          </span>
-                          <span className="font-bold text-white">vs {bm.players[1]?.name || 'BOT'}</span>
-                          {bm.cpuDifficulty && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#1d68ed]/15 text-sky-300 border border-[#1d68ed]/30 uppercase">
-                              {bm.cpuDifficulty}
+                    {botMatches.map((bm) => {
+                      const bmTime = bm.time || extractMatchTimeStr(bm);
+                      const bmDate = (bm.date || '').split('T')[0];
+                      return (
+                        <button
+                          key={bm.id}
+                          type="button"
+                          onClick={() => handleOpenBotMatchModal(bm)}
+                          className="w-full text-left py-2.5 px-2 rounded-xl hover:bg-[#242836]/80 flex items-center justify-between text-xs transition-colors cursor-pointer group"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                              bm.players[0]?.isWinner ? 'bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'
+                            }`}>
+                              {bm.players[0]?.isWinner ? 'VICTORIA' : 'DERROTA'} ({bm.players[0]?.legsWon ?? 0} - {bm.players[1]?.legsWon ?? 0})
                             </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-slate-400 font-mono">
-                          <span>Tu AVG: <strong className="text-white">{bm.players[0]?.avg?.toFixed(1) || '0.0'}</strong></span>
-                          <span>{new Date(bm.date).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    ))}
+                            <span className="font-bold text-white group-hover:text-sky-300 transition-colors">vs {bm.players[1]?.name || 'BOT'}</span>
+                            {bm.cpuDifficulty && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#1d68ed]/15 text-sky-300 border border-[#1d68ed]/30 uppercase">
+                                {bm.cpuDifficulty}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2.5 text-slate-400 font-mono">
+                            <span>Tu AVG: <strong className="text-white">{bm.players[0]?.avg?.toFixed(1) || '0.0'}</strong></span>
+                            <span>{bmDate}</span>
+                            {bmTime && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#14161f] text-amber-300 border border-amber-500/30 text-[10px]">
+                                <Clock className="w-2.5 h-2.5" />
+                                {bmTime} hs
+                              </span>
+                            )}
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-sky-400 transition-colors" />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="p-6 rounded-2xl bg-[#14161f] border border-[#313647] text-center space-y-2">
@@ -1125,7 +1294,7 @@ export const RegisterAndProfile: React.FC = () => {
           {/* Historial de Evolución por Ámbito y Esquema de Categorías */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-[#1c1f2b] border border-[#313647] rounded-3xl p-5 shadow-lg">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h3 className="font-black text-sm text-white uppercase tracking-wider flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-[#00b853]" />
                   <span>
@@ -1135,6 +1304,9 @@ export const RegisterAndProfile: React.FC = () => {
                     {statsViewMode === 'BOT' && 'Evolución de AVG • Modo Práctica'}
                   </span>
                 </h3>
+                <span className="text-[10px] font-bold text-[#00e676] bg-[#00e676]/10 border border-[#00e676]/30 px-2 py-0.5 rounded-lg">
+                  Toca una partida para ver estadísticas y legs
+                </span>
               </div>
 
               {(() => {
@@ -1170,46 +1342,70 @@ export const RegisterAndProfile: React.FC = () => {
 
                 return (
                   <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                    {itemsToDisplay.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-3 rounded-2xl bg-[#14161f] border border-[#313647] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-                      >
-                        <div className="space-y-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                                item.isWin
-                                  ? 'bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/40'
-                                  : 'bg-red-500/20 text-red-400 border border-red-500/40'
-                              }`}
-                            >
-                              {item.isWin ? 'VICTORIA' : 'DERROTA'} ({item.scoreLegs})
-                            </span>
-                            <span className="font-black text-white truncate">vs {item.opponentName}</span>
-                            {item.isDoublePoints && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
-                                Presencial x2 Pts
+                    {itemsToDisplay.map((item) => {
+                      const resolvedTime = item.time || extractMatchTimeStr(item);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleOpenHistoryMatchModal(item)}
+                          className="w-full text-left p-3 rounded-2xl bg-[#14161f] hover:bg-[#1a1d2a] border border-[#313647] hover:border-[#00e676]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition-all cursor-pointer group"
+                        >
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                  item.isWin
+                                    ? 'bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/40'
+                                    : 'bg-red-500/20 text-red-400 border border-red-500/40'
+                                }`}
+                              >
+                                {item.isWin ? 'VICTORIA' : 'DERROTA'} ({item.scoreLegs})
                               </span>
-                            )}
-                          </div>
-                          <div className="text-[11px] text-slate-400 truncate">
-                            {item.eventName} • {item.roundOrStage} • {item.date}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2.5 flex-shrink-0 font-mono">
-                          <div className="px-2.5 py-1 rounded-xl bg-[#00e676]/10 border border-[#00e676]/30 text-[#00e676] font-black text-xs">
-                            {Number(item.avg || 0).toFixed(1)} AVG
-                          </div>
-                          {item.pointsEarned !== undefined && (
-                            <div className="px-2 py-1 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-300 font-bold text-[11px]">
-                              +{item.pointsEarned} pts
+                              <span className="font-black text-white group-hover:text-[#00e676] transition-colors truncate">
+                                vs {item.opponentName}
+                              </span>
+                              {item.isDoublePoints && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                                  Presencial x2 Pts
+                                </span>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
+                              <span className="truncate">{item.eventName} • {item.roundOrStage}</span>
+                              <span>•</span>
+                              <span className="inline-flex items-center gap-1 font-mono text-slate-300">
+                                <Calendar className="w-3 h-3 text-[#00b853]" />
+                                {item.date}
+                              </span>
+                              {resolvedTime && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#1c2130] text-amber-300 border border-amber-500/30 font-mono font-bold text-[10px]">
+                                  <Clock className="w-2.5 h-2.5 text-amber-400" />
+                                  {resolvedTime} hs
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-shrink-0 font-mono">
+                            <div className="px-2.5 py-1 rounded-xl bg-[#00e676]/10 border border-[#00e676]/30 text-[#00e676] font-black text-xs">
+                              {Number(item.avg || 0).toFixed(1)} AVG
+                            </div>
+                            {item.pointsEarned !== undefined && (
+                              <div className="px-2 py-1 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-300 font-bold text-[11px]">
+                                +{item.pointsEarned} pts
+                              </div>
+                            )}
+                            <span
+                              title="Ver estadísticas completas y legs de la partida"
+                              className="p-1.5 rounded-xl bg-[#1c1f2b] border border-[#313647] group-hover:border-[#00e676]/50 text-slate-400 group-hover:text-[#00e676] transition-colors flex items-center"
+                            >
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 );
               })()}
@@ -1688,6 +1884,18 @@ export const RegisterAndProfile: React.FC = () => {
         onClose={() => setIsInviteModalOpen(false)}
         inviterName={profile.nickname || profile.fullName}
       />
+
+      {/* Modal de Estadísticas Completas de la Partida y Detalle de Legs */}
+      {selectedMatchModalData && (
+        <MatchPdcStatsModal
+          isOpen={!!selectedMatchModalData}
+          onClose={() => setSelectedMatchModalData(null)}
+          p1Name={selectedMatchModalData.p1Name}
+          p2Name={selectedMatchModalData.p2Name}
+          tournamentTitle={selectedMatchModalData.tournamentTitle}
+          stats={selectedMatchModalData.stats}
+        />
+      )}
     </div>
   );
 };

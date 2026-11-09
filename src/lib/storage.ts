@@ -3,7 +3,7 @@
  * Diseñado para operar 100% offline en clubes, pubs y canchas de tiro con mala señal.
  */
 
-import { MatchConfig, LandingShowcaseSettings, GrandTournamentRegistration, PlayerStats, PlayerHistoryDateItem, PlayerScopedStats, CompetitionScope } from './types';
+import { MatchConfig, LandingShowcaseSettings, GrandTournamentRegistration, PlayerStats, PlayerHistoryDateItem, PlayerScopedStats, CompetitionScope, MatchLegBreakdown, MatchLegVisitCompact, PlayerHistoryMatchSummary } from './types';
 import { getAdminRequestHeaders } from './client-auth';
 
 export interface SavedMatchPlayer {
@@ -30,7 +30,9 @@ export interface SavedMatch {
   id: string;
   matchSignature?: string;
   gameType: 'X01' | 'CRICKET' | 'ROUND_THE_CLOCK';
+  startingScore?: number;
   date: string;
+  time?: string;
   isVsCpu?: boolean;
   cpuDifficulty?: string;
   competitionScope?: CompetitionScope;
@@ -45,6 +47,7 @@ export interface SavedMatch {
   players: SavedMatchPlayer[];
   legsTotal: number;
   winnerName?: string;
+  legsBreakdown?: MatchLegBreakdown[];
 }
 
 export function createEmptyPlayerStats(initialAvg = 0): PlayerStats {
@@ -167,6 +170,323 @@ export function doesMatchPlayerBelongToProfile(mp: SavedMatchPlayer, profile: an
   return false;
 }
 
+export function isBotMatchOrOpponent(item: any): boolean {
+  if (!item) return false;
+  if (item.isVsCpu === true || item.competitionScope === 'BOT' || item.eventType === 'BOT') {
+    return true;
+  }
+  const tokensToCheck: string[] = [];
+  if (item.opponentName) tokensToCheck.push(String(item.opponentName));
+  if (item.winnerName) tokensToCheck.push(String(item.winnerName));
+  if (Array.isArray(item.players)) {
+    for (const p of item.players) {
+      if (p?.id) tokensToCheck.push(String(p.id));
+      if (p?.name) tokensToCheck.push(String(p.name));
+      if (p?.nickname) tokensToCheck.push(String(p.nickname));
+    }
+  }
+  const combined = normalizeIdentityToken(tokensToCheck.join(' '));
+  return (
+    combined.includes('dartbot') ||
+    combined.includes('cpu ') ||
+    combined.startsWith('cpu') ||
+    combined.includes(' bot ') ||
+    combined.startsWith('bot ') ||
+    combined.endsWith(' bot') ||
+    combined === 'bot' ||
+    combined.includes('maquina')
+  );
+}
+
+export function extractMatchTimeStr(match: any): string {
+  if (!match) return '';
+  if (typeof match.time === 'string' && /^\d{1,2}:\d{2}/.test(match.time.trim())) {
+    return match.time.trim();
+  }
+  if (Array.isArray(match.turnHistory) && match.turnHistory.length > 0 && match.turnHistory[0]?.timeStr) {
+    return String(match.turnHistory[0].timeStr);
+  }
+  if (typeof match.date === 'string' && match.date.includes('T')) {
+    const d = new Date(match.date);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+  }
+  if (typeof match.id === 'string') {
+    const tsMatch = match.id.match(/(\d{13})/);
+    if (tsMatch) {
+      const ts = parseInt(tsMatch[1], 10);
+      const d = new Date(ts);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      }
+    }
+  }
+  return '';
+}
+
+export function computeCanonicalMatchSignature(match: Partial<SavedMatch>): string {
+  const p0 = match.players?.[0];
+  const p1 = match.players?.[1];
+  const dateDay = (match.date || '').split('T')[0] || 'nodate';
+  const name0 = normalizeIdentityToken(p0?.name || p0?.nickname || 'p1');
+  const name1 = normalizeIdentityToken(p1?.name || p1?.nickname || 'p2');
+  return [
+    dateDay,
+    match.gameType || 'X01',
+    name0,
+    name1,
+    p0?.legsWon ?? 0,
+    p1?.legsWon ?? 0,
+    Number(p0?.avg || 0).toFixed(1),
+    Number(p1?.avg || 0).toFixed(1),
+    match.tournamentId || match.leagueId || 'standalone'
+  ].join('|');
+}
+
+export function buildLegsBreakdownFromTurnHistory(
+  turnHistory: any[] | undefined,
+  startingScore: number = 501,
+  legsWon: [number, number] = [0, 0],
+  p1Name: string = 'Jugador 1',
+  p2Name: string = 'Jugador 2'
+): MatchLegBreakdown[] {
+  if (!Array.isArray(turnHistory) || turnHistory.length === 0) {
+    return [];
+  }
+
+  // En X01Board, turnHistory guarda el turno más reciente primero; invertimos para orden cronológico
+  const chronological = [...turnHistory].reverse();
+  const byLeg = new Map<number, any[]>();
+
+  for (const t of chronological) {
+    const legNum = Number(t.legIndex) || 1;
+    if (!byLeg.has(legNum)) {
+      byLeg.set(legNum, []);
+    }
+    byLeg.get(legNum)!.push(t);
+  }
+
+  const legs: MatchLegBreakdown[] = [];
+  const sortedLegNums = Array.from(byLeg.keys()).sort((a, b) => a - b);
+
+  for (const legNum of sortedLegNums) {
+    const turns = byLeg.get(legNum) || [];
+    if (turns.length === 0) continue;
+
+    const starterIndex: 0 | 1 = turns[0]?.playerIndex === 1 ? 1 : 0;
+    let dartsP1 = 0;
+    let dartsP2 = 0;
+    let pointsP1 = 0;
+    let pointsP2 = 0;
+    let highVisitP1 = 0;
+    let highVisitP2 = 0;
+    let checkoutScore = 0;
+    let winnerIndex: 0 | 1 = 0;
+    let foundZero = false;
+
+    const visits: MatchLegVisitCompact[] = [];
+    let p1VisitCount = 0;
+    let p2VisitCount = 0;
+
+    for (const t of turns) {
+      const pIdx: 0 | 1 = t.playerIndex === 1 ? 1 : 0;
+      const isBust = !!t.isBust;
+      const score = isBust ? 0 : (Number(t.score) || 0);
+      const remAfter = Number(t.remainingAfter ?? startingScore);
+
+      if (pIdx === 0) {
+        p1VisitCount += 1;
+        dartsP1 += 3;
+        pointsP1 += score;
+        if (score > highVisitP1) highVisitP1 = score;
+      } else {
+        p2VisitCount += 1;
+        dartsP2 += 3;
+        pointsP2 += score;
+        if (score > highVisitP2) highVisitP2 = score;
+      }
+
+      const roundNum = pIdx === 0 ? p1VisitCount : p2VisitCount;
+      visits.push({
+        r: roundNum,
+        p: pIdx,
+        s: score,
+        rem: remAfter,
+        ...(isBust ? { bust: true } : {})
+      });
+
+      if (!isBust && remAfter === 0) {
+        winnerIndex = pIdx;
+        checkoutScore = score;
+        foundZero = true;
+      }
+    }
+
+    if (!foundZero) {
+      winnerIndex = legsWon[0] >= legsWon[1] ? 0 : 1;
+    }
+
+    const avgP1 = dartsP1 > 0 ? Number(((pointsP1 / dartsP1) * 3).toFixed(2)) : 0;
+    const avgP2 = dartsP2 > 0 ? Number(((pointsP2 / dartsP2) * 3).toFixed(2)) : 0;
+
+    legs.push({
+      legNumber: legNum,
+      winnerIndex,
+      winnerName: winnerIndex === 0 ? p1Name : p2Name,
+      starterIndex,
+      dartsP1,
+      dartsP2,
+      avgP1,
+      avgP2,
+      checkoutScore: checkoutScore || undefined,
+      highVisitP1,
+      highVisitP2,
+      visits
+    });
+  }
+
+  return legs;
+}
+
+export function synthesizeLegsBreakdownFromSummary(summary: {
+  startingScore?: number;
+  p1Name: string;
+  p2Name: string;
+  legsP1: number;
+  legsP2: number;
+  avgP1: number;
+  avgP2: number;
+  dartsP1?: number;
+  dartsP2?: number;
+  bestLegP1?: number;
+  bestLegP2?: number;
+  highFinishP1?: number;
+  highFinishP2?: number;
+}): MatchLegBreakdown[] {
+  const totalLegs = Math.max(1, (summary.legsP1 || 0) + (summary.legsP2 || 0));
+  const startPts = summary.startingScore || 501;
+  const result: MatchLegBreakdown[] = [];
+
+  let remWinsP1 = summary.legsP1 || 0;
+  let remWinsP2 = summary.legsP2 || 0;
+
+  const estDartsPerLegP1 = summary.avgP1 > 0
+    ? Math.max(9, Math.round((startPts / summary.avgP1) * 3))
+    : 24;
+  const estDartsPerLegP2 = summary.avgP2 > 0
+    ? Math.max(9, Math.round((startPts / summary.avgP2) * 3))
+    : 27;
+
+  for (let i = 1; i <= totalLegs; i++) {
+    let winnerIdx: 0 | 1 = 0;
+    if (remWinsP1 > 0 && (remWinsP2 === 0 || i % 2 === 1)) {
+      winnerIdx = 0;
+      remWinsP1 -= 1;
+    } else if (remWinsP2 > 0) {
+      winnerIdx = 1;
+      remWinsP2 -= 1;
+    } else {
+      winnerIdx = 0;
+    }
+
+    const isBestLegForP1 = winnerIdx === 0 && i === 1 && summary.bestLegP1 && summary.bestLegP1 > 0 && summary.bestLegP1 < 90;
+    const isBestLegForP2 = winnerIdx === 1 && i === 1 && summary.bestLegP2 && summary.bestLegP2 > 0 && summary.bestLegP2 < 90;
+
+    const legDartsP1 = isBestLegForP1
+      ? summary.bestLegP1!
+      : (summary.dartsP1 && totalLegs > 0 && summary.dartsP1 >= totalLegs * 9
+          ? Math.round(summary.dartsP1 / totalLegs)
+          : estDartsPerLegP1);
+
+    const legDartsP2 = isBestLegForP2
+      ? summary.bestLegP2!
+      : (summary.dartsP2 && totalLegs > 0 && summary.dartsP2 >= totalLegs * 9
+          ? Math.round(summary.dartsP2 / totalLegs)
+          : estDartsPerLegP2);
+
+    const checkout = winnerIdx === 0
+      ? (i === 1 && summary.highFinishP1 ? summary.highFinishP1 : undefined)
+      : (i === 1 && summary.highFinishP2 ? summary.highFinishP2 : undefined);
+
+    result.push({
+      legNumber: i,
+      winnerIndex: winnerIdx,
+      winnerName: winnerIdx === 0 ? summary.p1Name : summary.p2Name,
+      starterIndex: ((i - 1) % 2) as 0 | 1,
+      dartsP1: legDartsP1,
+      dartsP2: legDartsP2,
+      avgP1: Number((summary.avgP1 || 0).toFixed(2)),
+      avgP2: Number((summary.avgP2 || 0).toFixed(2)),
+      checkoutScore: checkout,
+      isSynthesized: true
+    });
+  }
+
+  return result;
+}
+
+export function buildMatchSummaryFromSavedMatch(
+  match: SavedMatch,
+  includeLegVisits: boolean = false
+): PlayerHistoryMatchSummary {
+  const p0 = match.players?.[0] || ({ name: 'Jugador 1', avg: 0, legsWon: 0, dartsThrown: 0, isWinner: true } as SavedMatchPlayer);
+  const p1 = match.players?.[1] || ({ name: 'Jugador 2', avg: 0, legsWon: 0, dartsThrown: 0, isWinner: false } as SavedMatchPlayer);
+
+  const rawLegs = Array.isArray(match.legsBreakdown) && match.legsBreakdown.length > 0
+    ? match.legsBreakdown.map(l => includeLegVisits ? l : { ...l, visits: undefined })
+    : synthesizeLegsBreakdownFromSummary({
+        startingScore: match.startingScore || 501,
+        p1Name: p0.name || p0.nickname || 'Jugador 1',
+        p2Name: p1.name || p1.nickname || 'Jugador 2',
+        legsP1: p0.legsWon || 0,
+        legsP2: p1.legsWon || 0,
+        avgP1: p0.avg || 0,
+        avgP2: p1.avg || 0,
+        dartsP1: p0.dartsThrown || 0,
+        dartsP2: p1.dartsThrown || 0,
+        bestLegP1: p0.bestLegDarts || 0,
+        bestLegP2: p1.bestLegDarts || 0,
+        highFinishP1: p0.highestCheckout || p0.score || 0,
+        highFinishP2: p1.highestCheckout || p1.score || 0
+      });
+
+  const hitsP1 = p0.checkoutHits !== undefined ? p0.checkoutHits : (p0.legsWon || 0);
+  const attP1 = p0.checkoutAttempts !== undefined ? Math.max(p0.checkoutAttempts, hitsP1) : Math.max(hitsP1, (p0.legsWon || 0) * 2);
+  const hitsP2 = p1.checkoutHits !== undefined ? p1.checkoutHits : (p1.legsWon || 0);
+  const attP2 = p1.checkoutAttempts !== undefined ? Math.max(p1.checkoutAttempts, hitsP2) : Math.max(hitsP2, (p1.legsWon || 0) * 2);
+
+  return {
+    gameType: match.gameType || 'X01',
+    startingScore: match.startingScore || 501,
+    p1Name: p0.name || p0.nickname || 'Jugador 1',
+    p2Name: p1.name || p1.nickname || 'Jugador 2',
+    legsP1: p0.legsWon || 0,
+    legsP2: p1.legsWon || 0,
+    avgP1: Number((p0.avg || 0).toFixed(2)),
+    avgP2: Number((p1.avg || 0).toFixed(2)),
+    first9P1: Number((p0.first9Avg || p0.avg || 0).toFixed(2)),
+    first9P2: Number((p1.first9Avg || p1.avg || 0).toFixed(2)),
+    dartsP1: p0.dartsThrown || 0,
+    dartsP2: p1.dartsThrown || 0,
+    checkoutHitsP1: hitsP1,
+    checkoutAttemptsP1: attP1,
+    checkoutHitsP2: hitsP2,
+    checkoutAttemptsP2: attP2,
+    highFinishP1: p0.highestCheckout || (p0.isWinner ? p0.score : 0) || 0,
+    highFinishP2: p1.highestCheckout || (p1.isWinner ? p1.score : 0) || 0,
+    bestLegP1: p0.bestLegDarts && p0.bestLegDarts < 99 ? p0.bestLegDarts : 0,
+    bestLegP2: p1.bestLegDarts && p1.bestLegDarts < 99 ? p1.bestLegDarts : 0,
+    count100sP1: p0.count100Plus || 0,
+    count100sP2: p1.count100Plus || 0,
+    count140sP1: p0.count140Plus || 0,
+    count140sP2: p1.count140Plus || 0,
+    count180sP1: p0.count180s || 0,
+    count180sP2: p1.count180s || 0,
+    legsBreakdown: rawLegs
+  };
+}
+
 export function resolveMatchScope(match: Partial<SavedMatch>): Exclude<CompetitionScope, 'BOT'> {
   if (match.competitionScope && match.competitionScope !== 'BOT') {
     return match.competitionScope;
@@ -185,7 +505,7 @@ export function resolveMatchScope(match: Partial<SavedMatch>): Exclude<Competiti
 }
 
 export function applyMatchToPlayerProfile(profile: any, match: SavedMatch): { updated: boolean; profile: any } {
-  if (!profile || match.isVsCpu || !Array.isArray(match.players) || match.players.length < 2) {
+  if (!profile || isBotMatchOrOpponent(match) || !Array.isArray(match.players) || match.players.length < 2) {
     return { updated: false, profile };
   }
 
@@ -213,8 +533,10 @@ export function applyMatchToPlayerProfile(profile: any, match: SavedMatch): { up
     syncedMatchIds: [...(profile.scopedStats?.syncedMatchIds || [])]
   };
 
-  const matchKey = match.matchSignature || match.id;
-  if (matchKey && prevScoped.syncedMatchIds?.includes(matchKey)) {
+  const canonicalSig = computeCanonicalMatchSignature(match);
+  const matchKey = match.matchSignature || canonicalSig;
+
+  if (prevScoped.syncedMatchIds?.includes(canonicalSig) || (matchKey && prevScoped.syncedMatchIds?.includes(matchKey))) {
     return { updated: false, profile };
   }
   if (match.id && prevScoped.syncedMatchIds?.includes(match.id)) {
@@ -270,21 +592,31 @@ export function applyMatchToPlayerProfile(profile: any, match: SavedMatch): { up
     }
   }
 
-  if (matchKey) prevScoped.syncedMatchIds?.push(matchKey);
-  if (match.id && match.id !== matchKey) prevScoped.syncedMatchIds?.push(match.id);
+  if (canonicalSig && !prevScoped.syncedMatchIds?.includes(canonicalSig)) {
+    prevScoped.syncedMatchIds?.push(canonicalSig);
+  }
+  if (matchKey && matchKey !== canonicalSig && !prevScoped.syncedMatchIds?.includes(matchKey)) {
+    prevScoped.syncedMatchIds?.push(matchKey);
+  }
+  if (match.id && !prevScoped.syncedMatchIds?.includes(match.id)) {
+    prevScoped.syncedMatchIds?.push(match.id);
+  }
 
-  // 4. Registrar en recentHistory para trazabilidad por ámbito
+  // 4. Registrar en recentHistory para trazabilidad por ámbito (con hora y resumen de partida/legs)
   const isDouble = scope === 'NATIONAL_LEAGUE' && (!!match.isDoublePoints || match.modality === 'PRESENCIAL');
   const basePts = myPlayer.isWinner ? 15 : 5;
   const computedPoints = scope === 'INDIVIDUAL' ? undefined : (match.pointsEarned ?? (isDouble ? basePts * 2 : basePts));
+  const resolvedTime = extractMatchTimeStr(match);
 
   const historyItem: PlayerHistoryDateItem = {
     id: match.id,
+    matchSignature: canonicalSig,
     eventName: match.leagueName || match.tournamentTitle || (scope === 'NATIONAL_LEAGUE' ? 'Liga Nacional Argentina' : scope === 'LOCAL_LEAGUE' ? 'Liga Local Oficial' : scope === 'STANDALONE_TOURNAMENT' ? 'Torneo Oficial' : 'Partida Individual 1 vs 1'),
     eventType: scope,
     targetId: match.leagueId || match.tournamentId || match.id,
     targetTab: scope === 'LOCAL_LEAGUE' || scope === 'NATIONAL_LEAGUE' ? 'LEAGUES_TAB' : 'HISTORY_TAB',
     date: match.date ? match.date.split('T')[0] : new Date().toISOString().split('T')[0],
+    time: resolvedTime || undefined,
     roundOrStage: match.roundOrStage || (scope === 'INDIVIDUAL' ? `Anotador Oficial (${match.gameType})` : 'Cruces Oficiales'),
     opponentName: oppPlayer.name,
     scoreLegs: `${ myPlayer.legsWon ?? 0 } - ${ oppPlayer.legsWon ?? 0 }`,
@@ -294,11 +626,18 @@ export function applyMatchToPlayerProfile(profile: any, match: SavedMatch): { up
     isDoublePoints: isDouble,
     pointsEarned: computedPoints,
     highestCheckout: myPlayer.highestCheckout || 0,
-    count180s: myPlayer.count180s || 0
+    count180s: myPlayer.count180s || 0,
+    matchSummary: buildMatchSummaryFromSavedMatch(match, false)
   };
 
   const existingHistory: PlayerHistoryDateItem[] = Array.isArray(profile.recentHistory) ? profile.recentHistory : [];
-  const filteredHistory = existingHistory.filter(h => h.id !== match.id);
+  const itemDedupKey = `${historyItem.date}|${normalizeIdentityToken(historyItem.opponentName)}|${historyItem.scoreLegs}|${Number(historyItem.avg).toFixed(1)}`;
+  const filteredHistory = existingHistory.filter(h => {
+    if (h.id === match.id) return false;
+    if (h.matchSignature && h.matchSignature === canonicalSig) return false;
+    const hKey = `${(h.date || '').split('T')[0]}|${normalizeIdentityToken(h.opponentName)}|${h.scoreLegs}|${Number(h.avg || 0).toFixed(1)}`;
+    return hKey !== itemDedupKey;
+  });
   const updatedHistory = [historyItem, ...filteredHistory].slice(0, 40);
 
   const updatedProfile = {
@@ -327,7 +666,7 @@ const STORAGE_KEYS = {
 };
 
 export function syncMatchResultToCloud(match: SavedMatch): void {
-  if (typeof window === 'undefined' || match.isVsCpu) return;
+  if (typeof window === 'undefined' || isBotMatchOrOpponent(match)) return;
   fetch('/api/jugadores', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAdminRequestHeaders() },
@@ -341,23 +680,26 @@ export function syncMatchResultToCloud(match: SavedMatch): void {
 export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'> & { id?: string; date?: string }): SavedMatch {
   if (typeof window === 'undefined') return match as SavedMatch;
 
-  const computedSignature = match.matchSignature || [
-    match.gameType || 'X01',
-    match.players?.[0]?.name || 'P1',
-    match.players?.[1]?.name || 'P2',
-    match.players?.[0]?.legsWon ?? 0,
-    match.players?.[1]?.legsWon ?? 0,
-    Number(match.players?.[0]?.avg || 0).toFixed(2),
-    Number(match.players?.[1]?.avg || 0).toFixed(2),
-    match.tournamentId || 'standalone'
-  ].join('|');
+  const isVsBot = isBotMatchOrOpponent(match);
+  const nowIso = match.date && match.date.includes('T') ? match.date : new Date().toISOString();
+  const resolvedId = match.id || `match_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  const tempMatchForSig: Partial<SavedMatch> = {
+    ...match,
+    id: resolvedId,
+    date: nowIso
+  };
+  const computedSignature = computeCanonicalMatchSignature(tempMatchForSig);
+  const resolvedTime = extractMatchTimeStr(tempMatchForSig) || new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
 
   const newMatch: SavedMatch = {
     ...match,
-    id: match.id || `match_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    id: resolvedId,
     matchSignature: computedSignature,
-    competitionScope: match.isVsCpu ? 'BOT' : resolveMatchScope(match),
-    date: match.date || new Date().toISOString(),
+    isVsCpu: isVsBot,
+    competitionScope: isVsBot ? 'BOT' : resolveMatchScope(match),
+    date: nowIso,
+    time: resolvedTime
   };
 
   try {
@@ -366,7 +708,7 @@ export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'> & { id
     if (newMatch.isVsCpu) {
       const existingBot = getBotMatches();
       const duplicateBot = existingBot.find(
-        m => m.id === newMatch.id || (m.matchSignature && m.matchSignature === newMatch.matchSignature)
+        m => m.id === newMatch.id || computeCanonicalMatchSignature(m) === computedSignature
       );
       if (duplicateBot) {
         return duplicateBot;
@@ -374,54 +716,25 @@ export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'> & { id
 
       const updatedBot = [newMatch, ...existingBot].slice(0, 50);
       localStorage.setItem(STORAGE_KEYS.BOT_MATCHES, JSON.stringify(updatedBot));
-
-      // Actualizar estadísticas acumuladas de práctica vs Máquina
-      const p1 = newMatch.players[0];
-      const prevStats = getBotStats();
-      const isWinner = p1 ? p1.isWinner : false;
-      const p1Avg = p1 ? p1.avg : 0;
-      const p1First9 = p1?.first9Avg || p1Avg;
-
-      const newPlayed = prevStats.matchesPlayed + 1;
-      const newWon = prevStats.matchesWon + (isWinner ? 1 : 0);
-      const newAvg = Number(((prevStats.overallAvg * prevStats.matchesPlayed + p1Avg) / newPlayed).toFixed(2));
-      const newFirst9 = Number(((prevStats.first9Avg * prevStats.matchesPlayed + p1First9) / newPlayed).toFixed(2));
-
-      const p1Checkout = p1?.highestCheckout || p1?.score || 0;
-      const p1BestLeg = p1?.bestLegDarts && p1.bestLegDarts > 0 && p1.bestLegDarts < 99
-        ? p1.bestLegDarts
-        : (p1?.dartsThrown && p1.dartsThrown > 0 && p1.dartsThrown < 99 ? p1.dartsThrown : 0);
-
-      const updatedBotStats = {
-        matchesPlayed: newPlayed,
-        matchesWon: newWon,
-        overallAvg: newAvg,
-        first9Avg: newFirst9,
-        highestCheckout: Math.max(prevStats.highestCheckout || 0, p1Checkout),
-        count180s: (prevStats.count180s || 0) + (p1?.count180s || 0),
-        count140Plus: (prevStats.count140Plus || 0) + (p1?.count140Plus || 0),
-        count100Plus: (prevStats.count100Plus || 0) + (p1?.count100Plus || 0),
-        bestLegDarts: p1BestLeg > 0
-          ? (prevStats.bestLegDarts > 0 ? Math.min(prevStats.bestLegDarts, p1BestLeg) : p1BestLeg)
-          : (prevStats.bestLegDarts || 0),
-        lastPlayed: new Date().toISOString()
-      };
-
-      localStorage.setItem(STORAGE_KEYS.BOT_STATS, JSON.stringify(updatedBotStats));
-      window.dispatchEvent(new CustomEvent('lpld_bot_stats_updated', { detail: updatedBotStats }));
+      recalculateBotStatsFromMatches(updatedBot);
       return newMatch;
     }
 
     // Partida Competitiva Oficial (PvP: Individual, Torneos Locales, Ligas Locales o Liga Nacional)
     const existing = getSavedMatches();
     const duplicateOfficial = existing.find(
-      m => m.id === newMatch.id || (m.matchSignature && m.matchSignature === newMatch.matchSignature)
+      m => m.id === newMatch.id || computeCanonicalMatchSignature(m) === computedSignature
     );
     const matchToProcess = duplicateOfficial || newMatch;
 
     if (!duplicateOfficial) {
       const updated = [newMatch, ...existing].slice(0, 80); // Mantenemos las últimas 80 partidas en local
       localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(updated));
+    } else if (newMatch.legsBreakdown && (!duplicateOfficial.legsBreakdown || duplicateOfficial.legsBreakdown.length === 0)) {
+      // Si llega versión enriquecida con legsBreakdown, actualizar en local
+      duplicateOfficial.legsBreakdown = newMatch.legsBreakdown;
+      duplicateOfficial.time = duplicateOfficial.time || newMatch.time;
+      localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(existing));
     }
 
     // Actualizar inmediatamente el perfil local del jugador conectado (y cuentas recientes)
@@ -454,6 +767,223 @@ export function saveCompletedMatch(match: Omit<SavedMatch, 'id' | 'date'> & { id
   }
 
   return newMatch;
+}
+
+function recalculateBotStatsFromMatches(botMatches: SavedMatch[]) {
+  if (typeof window === 'undefined') return;
+  let played = 0;
+  let won = 0;
+  let sumAvg = 0;
+  let sumFirst9 = 0;
+  let highCo = 0;
+  let c180 = 0;
+  let c140 = 0;
+  let c100 = 0;
+  let bestLeg = 0;
+
+  for (const bm of botMatches) {
+    const p1 = bm.players?.[0];
+    if (!p1) continue;
+    played += 1;
+    if (p1.isWinner) won += 1;
+    sumAvg += p1.avg || 0;
+    sumFirst9 += p1.first9Avg || p1.avg || 0;
+    const co = p1.highestCheckout || (p1.isWinner ? p1.score : 0) || 0;
+    if (co > highCo) highCo = co;
+    c180 += p1.count180s || 0;
+    c140 += p1.count140Plus || 0;
+    c100 += p1.count100Plus || 0;
+    const bl = p1.bestLegDarts && p1.bestLegDarts > 0 && p1.bestLegDarts < 99 ? p1.bestLegDarts : 0;
+    if (bl > 0) {
+      bestLeg = bestLeg > 0 ? Math.min(bestLeg, bl) : bl;
+    }
+  }
+
+  const updatedBotStats = {
+    matchesPlayed: played,
+    matchesWon: won,
+    overallAvg: played > 0 ? Number((sumAvg / played).toFixed(2)) : 0,
+    first9Avg: played > 0 ? Number((sumFirst9 / played).toFixed(2)) : 0,
+    highestCheckout: highCo,
+    count180s: c180,
+    count140Plus: c140,
+    count100Plus: c100,
+    bestLegDarts: bestLeg,
+    lastPlayed: botMatches[0]?.date || new Date().toISOString()
+  };
+
+  localStorage.setItem(STORAGE_KEYS.BOT_STATS, JSON.stringify(updatedBotStats));
+  window.dispatchEvent(new CustomEvent('lpld_bot_stats_updated', { detail: updatedBotStats }));
+}
+
+export function sanitizeAndDeduplicateProfileMatches(
+  profile: any,
+  localOfficialMatches: SavedMatch[] = []
+): { cleaned: boolean; profile: any } {
+  if (!profile) return { cleaned: false, profile };
+
+  const rawHistory: PlayerHistoryDateItem[] = Array.isArray(profile.recentHistory) ? profile.recentHistory : [];
+  const seenKeys = new Set<string>();
+  const cleanHistory: PlayerHistoryDateItem[] = [];
+  let hadDuplicatesOrBotsInHistory = false;
+
+  for (const h of rawHistory) {
+    if (!h) continue;
+    if (isBotMatchOrOpponent(h)) {
+      hadDuplicatesOrBotsInHistory = true;
+      continue;
+    }
+    const day = (h.date || '').split('T')[0] || 'nodate';
+    const key = `${day}|${normalizeIdentityToken(h.opponentName)}|${h.scoreLegs}|${Number(h.avg || 0).toFixed(1)}`;
+    if (seenKeys.has(key)) {
+      hadDuplicatesOrBotsInHistory = true;
+      continue;
+    }
+    seenKeys.add(key);
+
+    // Enriquecer con hora y matchSummary si existe en localOfficialMatches
+    const matchingSaved = localOfficialMatches.find(m => {
+      if (m.id === h.id) return true;
+      const mDay = (m.date || '').split('T')[0] || 'nodate';
+      if (mDay !== day) return false;
+      const p0Name = normalizeIdentityToken(m.players?.[0]?.name || '');
+      const p1Name = normalizeIdentityToken(m.players?.[1]?.name || '');
+      const oppNorm = normalizeIdentityToken(h.opponentName);
+      return p0Name.includes(oppNorm) || p1Name.includes(oppNorm) || oppNorm.includes(p0Name) || oppNorm.includes(p1Name);
+    });
+
+    const enrichedTime = h.time || (matchingSaved ? extractMatchTimeStr(matchingSaved) : extractMatchTimeStr(h));
+    const enrichedSummary = h.matchSummary || (matchingSaved ? buildMatchSummaryFromSavedMatch(matchingSaved, false) : undefined);
+
+    if (enrichedTime !== h.time || (!h.matchSummary && enrichedSummary)) {
+      hadDuplicatesOrBotsInHistory = true;
+    }
+
+    cleanHistory.push({
+      ...h,
+      date: day,
+      time: enrichedTime || undefined,
+      matchSummary: enrichedSummary
+    });
+  }
+
+  // Verificar si el contador de Partidas Individuales o Globales estaba inflado por duplicados previos
+  const indivHistoryCount = cleanHistory.filter(h => h.eventType === 'INDIVIDUAL').length;
+  const currentIndivPlayed = profile.scopedStats?.individual?.matchesPlayed || 0;
+  const statsMismatch =
+    hadDuplicatesOrBotsInHistory ||
+    (indivHistoryCount > 0 && currentIndivPlayed !== indivHistoryCount) ||
+    (cleanHistory.length === 0 && currentIndivPlayed > 0 && localOfficialMatches.length === 0);
+
+  if (!statsMismatch && localOfficialMatches.length === 0) {
+    return { cleaned: false, profile };
+  }
+
+  // Reconstruir limpiamente desde cero aplicando únicamente las partidas únicas reales del jugador
+  let rebuiltProfile: any = {
+    ...profile,
+    stats: createEmptyPlayerStats(profile.estimatedAvg || 48.0),
+    scopedStats: {
+      individual: createEmptyPlayerStats(0),
+      standaloneTournament: createEmptyPlayerStats(0),
+      localLeague: createEmptyPlayerStats(0),
+      nationalLeague: createEmptyPlayerStats(0),
+      nationalPointsOnline: 0,
+      nationalPointsPresencial: 0,
+      nationalTotalPoints: 0,
+      byCompetitionId: {},
+      syncedMatchIds: []
+    },
+    recentHistory: []
+  };
+
+  // 1. Aplicar todas las partidas oficiales únicas guardadas en el dispositivo (orden cronológico)
+  const chronologicalSaved = [...localOfficialMatches].reverse();
+  for (const m of chronologicalSaved) {
+    const res = applyMatchToPlayerProfile(rebuiltProfile, m);
+    if (res.updated) {
+      rebuiltProfile = res.profile;
+    }
+  }
+
+  // 2. Si había ítems únicos en recentHistory (ej. venidos de la nube desde otro dispositivo) que no estaban en localOfficialMatches, aplicarlos también
+  const chronologicalHistory = [...cleanHistory].reverse();
+  for (const h of chronologicalHistory) {
+    const day = (h.date || '').split('T')[0] || 'nodate';
+    const alreadyInRebuilt = (rebuiltProfile.recentHistory || []).some((rh: PlayerHistoryDateItem) => {
+      const rDay = (rh.date || '').split('T')[0] || 'nodate';
+      return (
+        rh.id === h.id ||
+        (rDay === day &&
+          normalizeIdentityToken(rh.opponentName) === normalizeIdentityToken(h.opponentName) &&
+          rh.scoreLegs === h.scoreLegs &&
+          Number(rh.avg || 0).toFixed(1) === Number(h.avg || 0).toFixed(1))
+      );
+    });
+
+    if (!alreadyInRebuilt) {
+      const parts = (h.scoreLegs || '0 - 0').split('-').map(s => parseInt(s.trim(), 10) || 0);
+      const myLegs = parts[0] || 0;
+      const oppLegs = parts[1] || 0;
+      const syntheticMatch: SavedMatch = {
+        id: h.id || `hist_${Date.now()}`,
+        gameType: h.matchSummary?.gameType || 'X01',
+        date: h.date,
+        time: h.time,
+        competitionScope: (h.eventType === 'TOURNAMENT' ? 'STANDALONE_TOURNAMENT' : h.eventType === 'LEAGUE' ? 'LOCAL_LEAGUE' : h.eventType) as CompetitionScope,
+        leagueName: h.eventType === 'LOCAL_LEAGUE' || h.eventType === 'NATIONAL_LEAGUE' ? h.eventName : undefined,
+        tournamentTitle: h.eventType === 'STANDALONE_TOURNAMENT' ? h.eventName : undefined,
+        roundOrStage: h.roundOrStage,
+        modality: h.modality,
+        isDoublePoints: h.isDoublePoints,
+        pointsEarned: h.pointsEarned,
+        legsTotal: Math.max(1, myLegs + oppLegs),
+        legsBreakdown: h.matchSummary?.legsBreakdown,
+        players: [
+          {
+            id: profile.id,
+            name: profile.fullName || profile.nickname || 'Jugador',
+            nickname: profile.nickname,
+            score: h.highestCheckout || 0,
+            avg: h.avg || 0,
+            first9Avg: h.matchSummary?.first9P1 || h.avg || 0,
+            legsWon: myLegs,
+            dartsThrown: h.matchSummary?.dartsP1 || 0,
+            bestLegDarts: h.matchSummary?.bestLegP1 || 0,
+            highestCheckout: h.highestCheckout || 0,
+            checkoutHits: h.matchSummary?.checkoutHitsP1 ?? myLegs,
+            checkoutAttempts: h.matchSummary?.checkoutAttemptsP1 ?? Math.max(myLegs, myLegs * 2),
+            count180s: h.count180s || 0,
+            count140Plus: h.matchSummary?.count140sP1 || 0,
+            count100Plus: h.matchSummary?.count100sP1 || 0,
+            isWinner: !!h.isWin
+          },
+          {
+            name: h.opponentName || 'Rival',
+            score: h.matchSummary?.highFinishP2 || 0,
+            avg: h.matchSummary?.avgP2 || 0,
+            first9Avg: h.matchSummary?.first9P2 || 0,
+            legsWon: oppLegs,
+            dartsThrown: h.matchSummary?.dartsP2 || 0,
+            bestLegDarts: h.matchSummary?.bestLegP2 || 0,
+            highestCheckout: h.matchSummary?.highFinishP2 || 0,
+            checkoutHits: h.matchSummary?.checkoutHitsP2 ?? oppLegs,
+            checkoutAttempts: h.matchSummary?.checkoutAttemptsP2 ?? Math.max(oppLegs, oppLegs * 2),
+            count180s: h.matchSummary?.count180sP2 || 0,
+            count140Plus: h.matchSummary?.count140sP2 || 0,
+            count100Plus: h.matchSummary?.count100sP2 || 0,
+            isWinner: !h.isWin
+          }
+        ]
+      };
+      const res = applyMatchToPlayerProfile(rebuiltProfile, syntheticMatch);
+      if (res.updated) {
+        rebuiltProfile = res.profile;
+      }
+    }
+  }
+
+  return { cleaned: true, profile: rebuiltProfile };
 }
 
 export function reconcileSavedMatchesWithProfile(baseProfile?: any): any {
@@ -489,10 +1019,19 @@ export function reconcileSavedMatchesWithProfile(baseProfile?: any): any {
                 ? Number(((session.first9Points[1] / session.first9Darts[1]) * 3).toFixed(2))
                 : p2Avg;
 
+              const legsBreakdown = buildLegsBreakdownFromTurnHistory(
+                session.turnHistory,
+                session.config.startingScore || 501,
+                [finalP1Legs, finalP2Legs],
+                session.config.player1?.name || 'Jugador 1',
+                session.config.player2?.name || 'Jugador 2'
+              );
+
               saveCompletedMatch({
                 id: session.id,
-                date: session.updatedAt || session.startedAt || new Date().toISOString(),
+                date: session.savedAt || session.updatedAt || session.startedAt || new Date().toISOString(),
                 gameType: (session.config.gameType === 'CRICKET' ? 'CRICKET' : 'X01'),
+                startingScore: session.config.startingScore || 501,
                 isVsCpu: session.config.isVsCpu,
                 cpuDifficulty: session.config.cpuDifficulty,
                 competitionScope: session.config.competitionScope,
@@ -503,6 +1042,7 @@ export function reconcileSavedMatchesWithProfile(baseProfile?: any): any {
                 roundOrStage: session.config.roundOrStage,
                 modality: session.config.modality,
                 isDoublePoints: session.config.isDoublePoints,
+                legsBreakdown,
                 players: [
                   {
                     id: session.config.player1?.id,
@@ -547,27 +1087,91 @@ export function reconcileSavedMatchesWithProfile(baseProfile?: any): any {
       }
     } catch {}
 
-    // 2. Reconciliar todas las partidas guardadas en localStorage con el perfil actual
+    // 2. Saneamiento y deduplicación de lpld_matches_history_v1 (elimina las repeticiones y separa partidas vs CPU DartBot)
+    const rawSaved = getSavedMatches();
+    const seenOfficialSigs = new Set<string>();
+    const cleanOfficialMatches: SavedMatch[] = [];
+    const migratedBotMatches: SavedMatch[] = [];
+    let localMatchesChanged = false;
+
+    for (const m of rawSaved) {
+      if (!m || !Array.isArray(m.players) || m.players.length < 2) {
+        localMatchesChanged = true;
+        continue;
+      }
+      const sig = computeCanonicalMatchSignature(m);
+      const timeStr = extractMatchTimeStr(m);
+
+      if (isBotMatchOrOpponent(m)) {
+        localMatchesChanged = true;
+        migratedBotMatches.push({
+          ...m,
+          isVsCpu: true,
+          competitionScope: 'BOT',
+          matchSignature: sig,
+          time: timeStr || m.time
+        });
+        continue;
+      }
+
+      if (seenOfficialSigs.has(sig)) {
+        // Duplicado detectado (ej: la partida con Albaitero guardada 3 veces el viernes)
+        localMatchesChanged = true;
+        continue;
+      }
+      seenOfficialSigs.add(sig);
+
+      const enrichedMatch: SavedMatch = {
+        ...m,
+        matchSignature: sig,
+        time: timeStr || m.time,
+        competitionScope: m.competitionScope || resolveMatchScope(m)
+      };
+      if (m.matchSignature !== sig || m.time !== enrichedMatch.time) {
+        localMatchesChanged = true;
+      }
+      cleanOfficialMatches.push(enrichedMatch);
+    }
+
+    if (localMatchesChanged) {
+      localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(cleanOfficialMatches));
+    }
+
+    if (migratedBotMatches.length > 0) {
+      const existingBots = getBotMatches();
+      const seenBotSigs = new Set<string>(existingBots.map(b => computeCanonicalMatchSignature(b)));
+      const mergedBots = [...existingBots];
+      for (const bm of migratedBotMatches) {
+        const bSig = computeCanonicalMatchSignature(bm);
+        if (!seenBotSigs.has(bSig)) {
+          seenBotSigs.add(bSig);
+          mergedBots.push(bm);
+        }
+      }
+      localStorage.setItem(STORAGE_KEYS.BOT_MATCHES, JSON.stringify(mergedBots.slice(0, 50)));
+      recalculateBotStatsFromMatches(mergedBots);
+    }
+
+    // 3. Reconciliar y desduplicar el perfil actual
     let current = baseProfile || getCurrentPlayerProfile();
     if (!current) return baseProfile;
 
-    const savedMatches = getSavedMatches();
-    if (!savedMatches.length) return current;
-
-    let anyUpdated = false;
-    const chronological = [...savedMatches].reverse();
-    for (const m of chronological) {
-      const res = applyMatchToPlayerProfile(current, m);
-      if (res.updated) {
-        current = res.profile;
-        anyUpdated = true;
-        syncMatchResultToCloud(m);
-      }
-    }
-
-    if (anyUpdated) {
+    const { cleaned, profile: sanitizedProfile } = sanitizeAndDeduplicateProfileMatches(current, cleanOfficialMatches);
+    if (cleaned || localMatchesChanged) {
+      current = sanitizedProfile;
       localStorage.setItem(STORAGE_KEYS.CURRENT_PLAYER, JSON.stringify(current));
       localStorage.setItem(STORAGE_KEYS.LAST_PLAYER, JSON.stringify(current));
+
+      // Sincronizar el perfil limpio y desduplicado en Supabase
+      fetch('/api/jugadores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAdminRequestHeaders() },
+        body: JSON.stringify({ profile: current })
+      }).catch(() => {});
+
+      for (const m of cleanOfficialMatches) {
+        syncMatchResultToCloud(m);
+      }
     }
 
     return current;

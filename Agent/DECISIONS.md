@@ -1440,3 +1440,23 @@
      - `TournamentManager.tsx` inyecta en `MatchConfig` los metadatos `competitionScope` (`NATIONAL_LEAGUE`, `LOCAL_LEAGUE`, `STANDALONE_TOURNAMENT`), `tournamentId`, `leagueId`, `leagueName` e `isDoublePoints` (`pointsMultiplier = 2`), y actualiza las tablas de `League.standings` al concluir cada cruce.
      - `RegisterAndProfile.tsx` incorpora el selector de 4 ámbitos con filtro por Liga/Torneo Local específico (`byCompetitionId`), desglose de puntos federados (`Online 1x` + `Presencial x2`) y listado dinámico real de evolución histórica de AVG y partidas disputadas.
 - **Motivo:** Garantiza cero pérdida de datos al concluir partidas (incluso ante cierres abruptos o navegación lateral), recupera automáticamente las partidas previas almacenadas en el navegador y cumple estrictamente con la separación reglamentaria de estadísticas individuales, locales y nacionales federadas.
+
+
+---
+
+### [ADR-070] - 2026-11-09: Desduplicación Canónica Retroactiva, Extracción de Hora de Partidas y Modal Ultra-Liviano de Estadísticas Generales y Legs Individuales
+- **Contexto:**
+  1. *Triplicación de la Partida Previa y Filtrado de Bot Legacy:* En la partida jugada el viernes (`2026-11-06`, ICEMAN vs. Víctor Albaitero), antes de la corrección de cierre de pantalla, el usuario pulsó 3 veces el botón de salida, grabando 3 objetos con distintos `id` (`match-17939...`) y sin `matchSignature` en `lpld_matches_history_v1`. Al reconciliar usando `match.id` como fallback, se registraron las 3 copias y además se incluyeron 2 partidas antiguas de octubre contra `"CPU DartBot (Medio)"` que carecían del flag `isVsCpu: true`.
+  2. *Requerimiento de Hora y Modal de Detalle por Partida y por Leg:* El usuario solicitó añadir el dato de la hora a cada partida y evaluar si desplegar al hacer clic un modal con todas las estadísticas generales de la partida y el detalle de los legs individuales implicaría un impacto alto en el código o tornaría más pesada la aplicación.
+- **Decisión:**
+  1. **Desduplicación Canónica y Auto-Saneamiento (`computeCanonicalMatchSignature`, `isBotMatchOrOpponent`, `sanitizeAndDeduplicateProfileMatches`):**
+     - La firma canónica se calcula siempre sobre `fecha | modalidad | jugador1 | jugador2 | legs1 | legs2 | avg1 | avg2 | torneoId` incluso en partidas heredadas sin `matchSignature`.
+     - `isBotMatchOrOpponent` detecta cualquier variante de nombre (`CPU`, `DartBot`, `BOT`, `Máquina`) y migra esas partidas a `lpld_bot_matches_history_v1`, excluyéndolas estrictamente de `Partidas Individuales`.
+     - `sanitizeAndDeduplicateProfileMatches` reconstruye los acumuladores (`stats` y `scopedStats`) a partir de la lista desduplicada tanto en cliente como en servidor (`GET/POST /api/jugadores`), corrigiendo inmediatamente el contador a `1 / 1 PJ` (`71.8 AVG`).
+  2. **Extracción Retroactiva y Registro de Hora (`extractMatchTimeStr`):**
+     - Para partidas nuevas se guarda `time: 'HH:mm'` explícito además del ISO completo en `date`.
+     - Para partidas previas (como la del viernes con Albaitero), `extractMatchTimeStr` recupera la hora exacta de finalización decodificando el timestamp Unix de 13 dígitos incrustado en `match.id` (`match-(\d{13})`) o en `match.date`.
+  3. **Arquitectura Híbrida para el Modal de Partida y Legs (`MatchPdcStatsModal.tsx`):**
+     - **Impacto cero en el bundle JS:** Se reutiliza y extiende `MatchPdcStatsModal.tsx` con un conmutador entre **Partido en General** y **Legs Individuales**, sin añadir dependencias externas.
+     - **Protección de Cuota Vercel (`Fast Origin Transfer`):** En `localStorage` (`lpld_matches_history_v1`) se conserva el desglose completo con visitas ronda por ronda (`visits`), mientras que en `recentHistory` sincronizado a Supabase se almacena únicamente el resumen compacto de cada leg (`legsBreakdown` sin el array de tiros individuales, pesando ~120 bytes por leg).
+- **Motivo:** Elimina de raíz las repeticiones históricas, restaura la exactitud estadística del jugador, exhibe fecha y hora precisas y provee análisis detallado partido por partido y leg por leg sin incrementar el peso de la aplicación ni el tráfico de origen en Vercel.

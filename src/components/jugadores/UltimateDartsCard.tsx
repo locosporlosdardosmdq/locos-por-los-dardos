@@ -8,11 +8,13 @@ export type HistoryCompetitionType = 'INDIVIDUAL' | 'STANDALONE_TOURNAMENT' | 'L
 
 export interface RecentHistoryItem {
   id: string;
+  matchSignature?: string;
   eventType: HistoryCompetitionType;
   eventName: string;
   targetId: string;
   targetTab: string;
   date: string;
+  time?: string;
   opponentName: string;
   isWin: boolean;
   scoreLegs: string;
@@ -23,6 +25,7 @@ export interface RecentHistoryItem {
   pointsEarned?: number;
   highestCheckout?: number;
   count180s?: number;
+  matchSummary?: any;
 }
 
 export interface UltimateDartsCardData {

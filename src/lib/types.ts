@@ -52,13 +52,69 @@ export interface PlayerScopedStats {
   syncedMatchIds?: string[];
 }
 
+export interface MatchLegVisitCompact {
+  r: number;      // Ronda (1, 2, 3...)
+  p: 0 | 1;       // Jugador (0 = P1, 1 = P2)
+  s: number;      // Puntaje anotado en la visita
+  rem: number;    // Puntos restantes tras la visita
+  bust?: boolean;
+}
+
+export interface MatchLegBreakdown {
+  legNumber: number;
+  winnerIndex: 0 | 1;
+  winnerName?: string;
+  starterIndex?: 0 | 1;
+  dartsP1: number;
+  dartsP2: number;
+  avgP1: number;
+  avgP2: number;
+  checkoutScore?: number;
+  highVisitP1?: number;
+  highVisitP2?: number;
+  isSynthesized?: boolean;
+  visits?: MatchLegVisitCompact[];
+}
+
+export interface PlayerHistoryMatchSummary {
+  gameType?: 'X01' | 'CRICKET' | 'ROUND_THE_CLOCK';
+  startingScore?: number;
+  p1Name: string;
+  p2Name: string;
+  legsP1: number;
+  legsP2: number;
+  avgP1: number;
+  avgP2: number;
+  first9P1: number;
+  first9P2: number;
+  dartsP1: number;
+  dartsP2: number;
+  checkoutHitsP1: number;
+  checkoutAttemptsP1: number;
+  checkoutHitsP2: number;
+  checkoutAttemptsP2: number;
+  highFinishP1: number;
+  highFinishP2: number;
+  bestLegP1: number;
+  bestLegP2: number;
+  count100sP1: number;
+  count100sP2: number;
+  count140sP1: number;
+  count140sP2: number;
+  count180sP1: number;
+  count180sP2: number;
+  legsBreakdown?: MatchLegBreakdown[];
+}
+
 export interface PlayerHistoryDateItem {
   id: string;
+  matchSignature?: string;
   eventName: string;
   eventType: HistoryCompetitionType;
   targetId: string;
   targetTab: 'ACTIVE_TAB' | 'HISTORY_TAB' | 'LEAGUES_TAB';
   date: string;
+  time?: string;
   roundOrStage: string;
   opponentName: string;
   scoreLegs: string;
@@ -69,6 +125,7 @@ export interface PlayerHistoryDateItem {
   pointsEarned?: number;
   highestCheckout?: number;
   count180s?: number;
+  matchSummary?: PlayerHistoryMatchSummary;
 }
 
 export interface PlayerProfile {

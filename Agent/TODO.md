@@ -809,3 +809,13 @@
   * Módulo de cálculo automático de costo de envío por código postal con OCA / Correo Argentino / Andreani.
 - [ ] **Notificaciones Push PWA:**
   * Web Push API para avisar al jugador cuándo es su turno de tirar en una pista asignada del torneo.
+
+- [x] **Desduplicación Retroactiva de Partidas, Registro de Hora (`HH:mm hs`) y Modal de Estadísticas Generales y Legs Individuales (Sesión 63):**
+  * **Saneamiento y Desduplicación Canónica (`storage.ts` & `api/jugadores/route.ts`):**
+    - `computeCanonicalMatchSignature` unifica copias idénticas guardadas con distinto `id` (como la partida del viernes contra Víctor Albaitero).
+    - `isBotMatchOrOpponent` detecta y migra partidas antiguas contra `"CPU DartBot (Medio)"` al historial de Modo Práctica (`BOT`), dejándolas fuera de Partidas Individuales.
+    - `sanitizeAndDeduplicateProfileMatches` recalcula los contadores reales (`1 / 1 PJ`, `71.8 AVG`).
+  * **Hora de la Partida (`extractMatchTimeStr`):**
+    - Recuperación automática de la hora exacta desde el timestamp de `match.id` / `match.date` para partidas previas y persistencia explícita de `time: 'HH:mm'` en nuevas partidas.
+  * **Modal Interactivo de Partida y Legs (`MatchPdcStatsModal.tsx` & `RegisterAndProfile.tsx`):**
+    - Al hacer clic sobre cualquier partida en **Mi Perfil**, abre `MatchPdcStatsModal` con las pestañas **Partido en General** (comparativa PDC cara a cara) y **Legs Individuales** (`legsBreakdown` con ganador por leg, saque, dardos lanzados, AVG del leg, cierre y visor desplegable ronda por ronda).

@@ -4,7 +4,7 @@ import { PlayerProfile } from '@/lib/types';
 import { ICEMAN_CARD_DATA } from '@/lib/players-data';
 import { calculateAgeFromBirthDate } from '@/lib/constants';
 import { isAuthorizedAdmin } from '@/lib/server-auth';
-import { applyMatchToPlayerProfile, SavedMatch } from '@/lib/storage';
+import { applyMatchToPlayerProfile, sanitizeAndDeduplicateProfileMatches, SavedMatch } from '@/lib/storage';
 
 export const revalidate = 60;
 
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       const playerId = row.id || row.user_id;
       const extended = scopedMap[playerId] || scopedMap[row.user_id] || (row.nickname ? scopedMap[row.nickname.toLowerCase()] : undefined) || {};
 
-      return {
+      const rawPlayer = {
         id: playerId,
         email: isAdmin ? (row.email || '') : '',
         nickname: row.nickname || '',
@@ -143,6 +143,9 @@ export async function GET(request: NextRequest) {
           bestLegDarts: parseInt(row.best_leg_darts || '0', 10)
         }
       };
+
+      const { cleaned, profile: sanitized } = sanitizeAndDeduplicateProfileMatches(rawPlayer, []);
+      return cleaned ? sanitized : rawPlayer;
     });
 
     // Si la BD no tiene a ICEMAN por algún motivo, inyectarlo como fallback prioritario
@@ -287,8 +290,9 @@ export async function POST(request: NextRequest) {
           }
         };
 
-        const { updated, profile: newProf } = applyMatchToPlayerProfile(candidateProfile, match);
-        if (updated && row.user_id) {
+        const { cleaned, profile: baseCleanProf } = sanitizeAndDeduplicateProfileMatches(candidateProfile, []);
+        const { updated, profile: newProf } = applyMatchToPlayerProfile(baseCleanProf, match);
+        if ((cleaned || updated) && row.user_id) {
           const st = newProf.stats;
           await pool.query(
             `INSERT INTO player_stats (

@@ -1,5 +1,28 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 63] - 2026-11-09
+- **Objetivos:**
+  1. Eliminar la triplicación de la partida jugada el viernes contra Víctor Albaitero (`2026-11-06`, donde al pulsar 3 veces el botón antiguo antes de esta corrección se habían grabado 3 entradas con distintos IDs en `lpld_matches_history_v1`) y separar las partidas antiguas contra `CPU DartBot` que figuraban en Partidas Individuales.
+  2. Incorporar el dato de la **hora (`HH:mm hs`)** en cada partida del historial (extrayendo retroactivamente la hora exacta desde el timestamp de `match.id` / `match.date` para partidas previas y guardándola explícitamente en las nuevas).
+  3. Evaluar e implementar de manera ultra-liviana (cero impacto en el bundle JS y en `Fast Origin Transfer`) la apertura del **Modal de Estadísticas Generales y Detalle de Legs Individuales** al hacer clic sobre cualquier partida en **Mi Perfil**.
+- **Diagnóstico y Evaluación Consultiva:**
+  1. *Por qué la partida con Albaitero apareció 3 veces:* El viernes pasado (`2026-11-06`), como el botón antiguo no cerraba el tablero, se pulsó 3 veces generando 3 objetos en `lpld_matches_history_v1` con 3 `id` distintos (`match-17939...`) y sin propiedad `matchSignature`. Al reconciliar, el fallback por `match.id` las tomó como 3 partidas distintas. Además, existían partidas de octubre contra `"CPU DartBot (Medio)"` sin flag `isVsCpu: true`.
+  2. *Impacto del Modal de Partida y Legs:* Reutilizando `MatchPdcStatsModal.tsx` con una pestaña de **Partido en General** y otra de **Legs Individuales (`legsBreakdown`)**, el impacto en el bundle de cliente es **0 KB de librerías adicionales**. Para proteger el `Fast Origin Transfer` de Vercel, el historial de visitas turno por turno (`visits`) se conserva completo en `localStorage`, mientras que hacia Supabase solo viaja el resumen compacto por leg (~120 bytes por leg).
+- **Realizado:**
+  - `src/lib/types.ts` & `src/components/jugadores/UltimateDartsCard.tsx`:
+    * Añadidos `MatchLegVisitCompact`, `MatchLegBreakdown`, `PlayerHistoryMatchSummary` y campo `time?: string` en `PlayerHistoryDateItem` y `SavedMatch`.
+  - `src/lib/storage.ts` & `src/app/api/jugadores/route.ts`:
+    * Creadas `computeCanonicalMatchSignature`, `isBotMatchOrOpponent`, `extractMatchTimeStr`, `buildLegsBreakdownFromTurnHistory`, `synthesizeLegsBreakdownFromSummary` y `sanitizeAndDeduplicateProfileMatches`.
+    * Auto-saneamiento (`reconcileSavedMatchesWithProfile` y `GET/POST /api/jugadores`): colapsa las 3 copias de la partida contra Víctor Albaitero en **1 única partida real**, migra las partidas contra `CPU DartBot` al historial de Modo Práctica (`BOT`), recalcula limpiamente los contadores (`1 / 1 PJ`, `71.8 AVG`) y extrae la hora exacta del timestamp del ID.
+  - `src/components/anotador/X01Board.tsx`, `src/components/anotador/DartScorer.tsx` & `src/components/anotador/MatchPdcStatsModal.tsx`:
+    * `X01Board.tsx` genera `legsBreakdown` automáticamente a partir de `turnHistory` con dardos por leg, promedio por leg, saque, cierre, mejor visita y rondas.
+    * `MatchPdcStatsModal.tsx` incorpora visualización de fecha y hora (`🕒 HH:mm hs`), selector entre **Partido en General** (comparativa cara a cara completa) y **Legs Individuales** (tarjetas leg por leg + desplegable opcional de tiros ronda por ronda).
+  - `src/components/perfil/RegisterAndProfile.tsx`:
+    * Muestra fecha y hora en cada tarjeta del historial y abre `MatchPdcStatsModal` al hacer clic sobre cualquier partida.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Historial y contadores 100% desduplicados, hora visible en cada partida y modal interactivo de estadísticas generales y legs individuales operativo en Mi Perfil.
+
 ## [Sesión 62] - 2026-11-08
 - **Objetivos:**
   1. Diagnosticar y corregir de raíz el fallo reportado al finalizar una partida en el Anotador (donde pulsar *"Salir y guardar la partida"* no cerraba el tablero y obligaba a salir haciendo clic en otro módulo del menú sin impactar los datos en el perfil).

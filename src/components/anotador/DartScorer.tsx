@@ -176,14 +176,26 @@ export const DartScorer: React.FC<DartScorerProps> = ({
     setStandbySession(null);
     const isP1Winner = result.winnerIndex === 0;
 
+    const nowIso = result.date || new Date().toISOString();
+    const nowTime = result.time || new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+
     const statsPayload = {
       gameType: activeConfig.gameType,
+      startingScore: activeConfig.startingScore || 501,
+      date: nowIso.split('T')[0],
+      time: nowTime,
       legsP1: result.legsWon ? result.legsWon[0] : isP1Winner ? 1 : 0,
       legsP2: result.legsWon ? result.legsWon[1] : isP1Winner ? 0 : 1,
       avgP1: result.avgP1 || '0.00',
       avgP2: result.avgP2 || '0.00',
       first9P1: result.first9P1 || '0.00',
       first9P2: result.first9P2 || '0.00',
+      dartsP1: result.totalDartsP1 || 0,
+      dartsP2: result.totalDartsP2 || 0,
+      checkoutHitsP1: result.checkoutHitsP1 ?? (result.legsWon ? result.legsWon[0] : 0),
+      checkoutAttemptsP1: result.checkoutAttemptsP1 || 0,
+      checkoutHitsP2: result.checkoutHitsP2 ?? (result.legsWon ? result.legsWon[1] : 0),
+      checkoutAttemptsP2: result.checkoutAttemptsP2 || 0,
       count100sP1: result.count100s ? result.count100s[0] : 0,
       count100sP2: result.count100s ? result.count100s[1] : 0,
       count140sP1: result.count140s ? result.count140s[0] : 0,
@@ -195,7 +207,8 @@ export const DartScorer: React.FC<DartScorerProps> = ({
       bestLegP1: result.bestLegDarts && result.bestLegDarts[0] < 99 && (result.legsWon ? result.legsWon[0] : 0) > 0 ? result.bestLegDarts[0] : 0,
       bestLegP2: result.bestLegDarts && result.bestLegDarts[1] < 99 && (result.legsWon ? result.legsWon[1] : 0) > 0 ? result.bestLegDarts[1] : 0,
       mprP1: result.mprP1 || '0.00',
-      mprP2: result.mprP2 || '0.00'
+      mprP2: result.mprP2 || '0.00',
+      legsBreakdown: result.legsBreakdown
     };
 
     setMatchStatsData(statsPayload);
@@ -204,7 +217,10 @@ export const DartScorer: React.FC<DartScorerProps> = ({
     try {
       saveCompletedMatch({
         id: result.matchId,
+        date: nowIso,
+        time: nowTime,
         gameType: (activeConfig.gameType === 'X01' ? 'X01' : 'CRICKET') as any,
+        startingScore: activeConfig.startingScore || 501,
         isVsCpu: activeConfig.isVsCpu,
         cpuDifficulty: activeConfig.cpuDifficulty,
         competitionScope: activeConfig.competitionScope,
@@ -215,6 +231,7 @@ export const DartScorer: React.FC<DartScorerProps> = ({
         roundOrStage: activeConfig.roundOrStage,
         modality: activeConfig.modality || (activeConfig.isOnlineRoom ? 'ONLINE' : 'PRESENCIAL'),
         isDoublePoints: activeConfig.isDoublePoints || activeConfig.pointsMultiplier === 2,
+        legsBreakdown: result.legsBreakdown,
         players: [
           {
             id: activeConfig.player1.id,

@@ -405,19 +405,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
                 </div>
 
                 {magicErrorMsg && (
-                  <div className="space-y-2 p-3 rounded-2xl bg-red-500/10 border border-red-500/25">
+                  <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/25">
                     <p className="text-xs text-red-400 font-bold leading-relaxed">{magicErrorMsg}</p>
-                    {magicEmail.trim() && (
-                      <button
-                        type="button"
-                        onClick={() => handleDirectLogin()}
-                        disabled={isMagicLoading}
-                        className="w-full py-2.5 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-amber-400/20 active:scale-98"
-                      >
-                        <Sparkles className="w-4 h-4 fill-black" />
-                        <span>⚡ Acceder Directamente con {magicEmail.trim()}</span>
-                      </button>
-                    )}
                   </div>
                 )}
 
@@ -438,18 +427,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onOpenR
                     </>
                   )}
                 </button>
-
-                <div className="pt-1 flex items-center justify-center">
-                  <button
-                    type="button"
-                    onClick={() => handleDirectLogin()}
-                    disabled={isMagicLoading || !magicEmail.trim()}
-                    className="text-xs text-sky-400 hover:text-sky-300 hover:underline flex items-center gap-1.5 font-bold disabled:opacity-40"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>¿Problemas con el correo? Ingresar directamente</span>
-                  </button>
-                </div>
               </form>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-3.5">

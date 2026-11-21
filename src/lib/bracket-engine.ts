@@ -12,7 +12,7 @@
  * 6. Edición administrativa con previsualización de impacto y cascada segura.
  */
 
-import { TournamentBracketMatch, TournamentPodium } from './types';
+import { TournamentBracketMatch, TournamentPodium, RoundLegsConfig, MatchRole } from './types';
 
 export interface Participant {
   id: string;
@@ -24,6 +24,7 @@ export interface Participant {
   nationality?: string;
   countryCode?: string;
   isBye?: boolean;
+  teamMembers?: Array<{ id: string; name: string; avatarUrl?: string }>;
 }
 
 export type BracketFormat = 'SINGLE_ELIMINATION' | 'DOUBLE_ELIMINATION';
@@ -37,6 +38,7 @@ export interface SingleEliminationOptions {
   setTarget?: number;
   distanceMode?: 'LEGS' | 'SETS';
   resolveByes?: boolean;
+  roundLegsConfig?: RoundLegsConfig;
 }
 
 export interface DoubleEliminationOptions {
@@ -47,9 +49,152 @@ export interface DoubleEliminationOptions {
   setTarget?: number;
   distanceMode?: 'LEGS' | 'SETS';
   resolveByes?: boolean;
+  roundLegsConfig?: RoundLegsConfig;
 }
 
 export type BracketConfig = SingleEliminationOptions & DoubleEliminationOptions;
+
+/**
+ * Resuelve y consolida las unidades reales de competición de un torneo.
+ * En certámenes individuales, cada inscripto es una unidad.
+ * En certámenes por parejas, consolida parejas pre-armadas y duplas de sorteo a ciegas,
+ * evitando la duplicación artificial de cupos y la dispersión masiva de Byes innecesarios.
+ */
+export function resolveCompetitorUnits(tournament: {
+  isDoubles?: boolean;
+  enrolledPlayers?: Array<{
+    id: string;
+    name: string;
+    nickname?: string;
+    avatarUrl?: string;
+    seed?: number;
+    nationality?: string;
+    countryCode?: string;
+    avg?: number;
+    teammateId?: string;
+    teammateName?: string;
+  }>;
+  registeredPairs?: Array<{
+    id: string;
+    player1Id: string;
+    player1Name: string;
+    player1Avatar?: string;
+    player2Id: string;
+    player2Name: string;
+    player2Avatar?: string;
+    seed?: number;
+  }>;
+  groupStageData?: {
+    pairs?: Array<any>;
+  };
+}): {
+  competitors: Participant[];
+  unpairedPlayers: Array<{ id: string; name: string; avatarUrl?: string }>;
+} {
+  const enrolled = tournament.enrolledPlayers || [];
+  if (!tournament.isDoubles) {
+    return {
+      competitors: enrolled.map((p, idx) => ({
+        id: p.id,
+        name: p.name,
+        nickname: p.nickname,
+        avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
+        seed: p.seed ?? idx + 1,
+        avg: p.avg,
+        nationality: p.nationality || 'Argentina',
+        countryCode: p.countryCode || 'AR'
+      })),
+      unpairedPlayers: []
+    };
+  }
+
+  const competitors: Participant[] = [];
+  const pairedPlayerIds = new Set<string>();
+
+  // 1. Parejas registradas explícitas en registeredPairs
+  const registeredPairs = tournament.registeredPairs || [];
+  for (let i = 0; i < registeredPairs.length; i++) {
+    const rp = registeredPairs[i];
+    competitors.push({
+      id: rp.id,
+      name: `${rp.player1Name} / ${rp.player2Name}`,
+      nickname: `${rp.player1Name.split(' ')[0]} & ${rp.player2Name.split(' ')[0]}`,
+      avatarUrl: rp.player1Avatar || '/logos/logo-mdq.png',
+      seed: rp.seed ?? (i + 1),
+      nationality: 'Argentina',
+      countryCode: 'AR',
+      teamMembers: [
+        { id: rp.player1Id, name: rp.player1Name, avatarUrl: rp.player1Avatar },
+        { id: rp.player2Id, name: rp.player2Name, avatarUrl: rp.player2Avatar }
+      ]
+    });
+    pairedPlayerIds.add(rp.player1Id);
+    pairedPlayerIds.add(rp.player2Id);
+  }
+
+  // 2. Parejas de enrolledPlayers con teammateId
+  const remaining = enrolled.filter((p) => !pairedPlayerIds.has(p.id));
+  const processedTeammates = new Set<string>();
+
+  for (const p of remaining) {
+    if (processedTeammates.has(p.id)) continue;
+    if (p.teammateId) {
+      const mate = remaining.find((m) => m.id === p.teammateId);
+      if (mate) {
+        processedTeammates.add(p.id);
+        processedTeammates.add(mate.id);
+        pairedPlayerIds.add(p.id);
+        pairedPlayerIds.add(mate.id);
+        competitors.push({
+          id: `pair-${p.id}-${mate.id}`,
+          name: `${p.name} / ${mate.name}`,
+          nickname: `${p.nickname || p.name.split(' ')[0]} & ${mate.nickname || mate.name.split(' ')[0]}`,
+          avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
+          seed: competitors.length + 1,
+          nationality: p.nationality || 'Argentina',
+          countryCode: p.countryCode || 'AR',
+          teamMembers: [
+            { id: p.id, name: p.name, avatarUrl: p.avatarUrl },
+            { id: mate.id, name: mate.name, avatarUrl: mate.avatarUrl }
+          ]
+        });
+      }
+    }
+  }
+
+  // 3. Parejas sorteadas por Blind Draw en groupStageData.pairs
+  if (tournament.groupStageData?.pairs && Array.isArray(tournament.groupStageData.pairs)) {
+    for (const gp of tournament.groupStageData.pairs) {
+      if (!competitors.some((c) => c.id === gp.id)) {
+        competitors.push({
+          id: gp.id,
+          name: gp.name,
+          nickname: gp.nickname,
+          avatarUrl: gp.avatarUrl || '/logos/logo-mdq.png',
+          seed: gp.seed ?? (competitors.length + 1),
+          avg: gp.avg,
+          nationality: gp.nationality || 'Argentina',
+          countryCode: gp.countryCode || 'AR',
+          teamMembers: gp.teamMembers
+        });
+        if (gp.teamMembers && Array.isArray(gp.teamMembers)) {
+          gp.teamMembers.forEach((tm: any) => pairedPlayerIds.add(tm.id));
+        }
+      }
+    }
+  }
+
+  // 4. Inscriptos que aún no poseen compañero asignado
+  const unpairedPlayers = enrolled
+    .filter((p) => !pairedPlayerIds.has(p.id))
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      avatarUrl: p.avatarUrl
+    }));
+
+  return { competitors, unpairedPlayers };
+}
 
 /**
  * Calcula la potencia de 2 más cercana hacia arriba (4, 8, 16, 32, 64)
@@ -173,18 +318,32 @@ export function seedCompact(
 }
 
 /**
+ * Algoritmo Fisher-Yates genuino para mezcla aleatoria uniforme e imparcial.
+ */
+export function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+  }
+  return arr;
+}
+
+/**
  * Siembra a los participantes según el modo elegido y rellena con Byes si faltan jugadores.
+ * Aplica distribución simétrica estándar n01darts / Challonge mediante getSeededOrder.
  */
 export function seedParticipants(
   participants: Participant[],
   bracketSize: number,
   mode: SeedingMode = 'RANKED'
 ): (Participant | null)[] {
-  const list = [...participants];
+  let list = [...participants];
 
   if (mode === 'RANDOM') {
-    list.sort(() => Math.random() - 0.5);
-    return seedCompact(list, bracketSize);
+    list = shuffleArray(list);
   } else if (mode === 'COMPACT') {
     list.sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999));
     return seedCompact(list, bracketSize);
@@ -195,14 +354,14 @@ export function seedParticipants(
   const seededOrder = getSeededOrder(bracketSize);
   const slots: (Participant | null)[] = new Array(bracketSize).fill(null);
 
-  // Colocar a cada jugador en su slot correspondiente
+  // Colocar a cada jugador en su slot correspondiente según el árbol oficial
   for (let i = 0; i < list.length; i++) {
     const seedNumber = i + 1;
     const targetSlotIndex = seededOrder.indexOf(seedNumber);
     if (targetSlotIndex !== -1) {
       slots[targetSlotIndex] = {
         ...list[i],
-        seed: seedNumber
+        seed: list[i].seed ?? seedNumber
       };
     }
   }
@@ -231,15 +390,27 @@ export function generateSingleElimination(
 
   // 1. Crear todos los partidos ronda por ronda
   const roundMatchesMap = new Map<number, TournamentBracketMatch[]>();
+  const roundLegs = options.roundLegsConfig;
 
   for (let round = 1; round <= numRounds; round++) {
     const matchesInRound = bracketSize / Math.pow(2, round);
     const roundList: TournamentBracketMatch[] = [];
 
     let roundLabel = `Ronda ${round}`;
-    if (round === numRounds) roundLabel = 'Finales';
-    else if (round === numRounds - 1) roundLabel = 'Semifinales';
-    else if (round === numRounds - 2) roundLabel = 'Cuartos de Final';
+    let role: MatchRole = 'MATCH';
+    let roundTarget = legTarget;
+
+    if (round === numRounds) {
+      roundLabel = 'Finales';
+      role = 'FINAL' as MatchRole;
+      roundTarget = roundLegs?.finals || legTarget;
+    } else if (round === numRounds - 1) {
+      roundLabel = 'Semifinales';
+      roundTarget = roundLegs?.semiFinals || legTarget;
+    } else if (round === numRounds - 2) {
+      roundLabel = 'Cuartos de Final';
+      roundTarget = roundLegs?.quarterFinals || legTarget;
+    }
 
     for (let pos = 0; pos < matchesInRound; pos++) {
       const matchId = `se_r${round}_m${pos + 1}`;
@@ -248,8 +419,9 @@ export function generateSingleElimination(
         round,
         matchIndex: pos,
         bracketType: 'WINNERS',
+        matchRole: role,
         distanceMode,
-        legTarget,
+        legTarget: roundTarget,
         scoreP1: 0,
         scoreP2: 0,
         status: 'SCHEDULED',
@@ -269,8 +441,9 @@ export function generateSingleElimination(
       round: numRounds,
       matchIndex: 99,
       bracketType: 'FINALS',
+      matchRole: 'THIRD_PLACE',
       distanceMode,
-      legTarget,
+      legTarget: roundLegs?.semiFinals || legTarget,
       scoreP1: 0,
       scoreP2: 0,
       status: 'SCHEDULED',
@@ -308,8 +481,28 @@ export function generateSingleElimination(
     const p2 = seeded[i * 2 + 1];
     const match = r1List[i];
 
-    if (p1) match.player1 = { id: p1.id, name: p1.name, avatarUrl: p1.avatarUrl || '/logos/logo-mdq.png', seed: p1.seed, nationality: p1.nationality, countryCode: p1.countryCode };
-    if (p2) match.player2 = { id: p2.id, name: p2.name, avatarUrl: p2.avatarUrl || '/logos/logo-mdq.png', seed: p2.seed, nationality: p2.nationality, countryCode: p2.countryCode };
+    if (p1) {
+      match.player1 = { 
+        id: p1.id, 
+        name: p1.name, 
+        avatarUrl: p1.avatarUrl || '/logos/logo-mdq.png', 
+        seed: p1.seed, 
+        nationality: p1.nationality, 
+        countryCode: p1.countryCode,
+        teamMembers: p1.teamMembers
+      };
+    }
+    if (p2) {
+      match.player2 = { 
+        id: p2.id, 
+        name: p2.name, 
+        avatarUrl: p2.avatarUrl || '/logos/logo-mdq.png', 
+        seed: p2.seed, 
+        nationality: p2.nationality, 
+        countryCode: p2.countryCode,
+        teamMembers: p2.teamMembers
+      };
+    }
   }
 
   // 4. Registrar Byes en la Ronda 1 sin simular partidos jugados ficticios con 3-0
@@ -375,6 +568,7 @@ export function generateDoubleElimination(
   // Mapas para conectar con precisión
   const winnersRounds = new Map<number, TournamentBracketMatch[]>();
   const losersRounds = new Map<number, TournamentBracketMatch[]>();
+  const roundLegs = options.roundLegsConfig;
 
   // --- A. CUADRO DE GANADORES (WINNERS) ---
   for (let round = 1; round <= numWinnersRounds; round++) {
@@ -382,8 +576,20 @@ export function generateDoubleElimination(
     const roundList: TournamentBracketMatch[] = [];
 
     let label = `Winners - Ronda ${round}`;
-    if (round === numWinnersRounds) label = 'Final de Ganadores';
-    else if (round === numWinnersRounds - 1) label = 'Semifinales de Ganadores';
+    let role: MatchRole = 'MATCH';
+    let roundTarget = legTarget;
+
+    if (round === numWinnersRounds) {
+      label = 'Final de Ganadores';
+      role = 'WINNERS_FINAL';
+      roundTarget = roundLegs?.finals || legTarget;
+    } else if (round === numWinnersRounds - 1) {
+      label = 'Semifinales de Ganadores';
+      roundTarget = roundLegs?.semiFinals || legTarget;
+    } else if (round === numWinnersRounds - 2) {
+      label = 'Cuartos de Ganadores';
+      roundTarget = roundLegs?.quarterFinals || legTarget;
+    }
 
     for (let pos = 0; pos < count; pos++) {
       const match: TournamentBracketMatch = {
@@ -391,8 +597,9 @@ export function generateDoubleElimination(
         round,
         matchIndex: pos,
         bracketType: 'WINNERS',
+        matchRole: role,
         distanceMode,
-        legTarget,
+        legTarget: roundTarget,
         scoreP1: 0,
         scoreP2: 0,
         status: 'SCHEDULED',
@@ -415,7 +622,14 @@ export function generateDoubleElimination(
     const roundList: TournamentBracketMatch[] = [];
 
     let label = `Perdedores de la ronda ${lRound}`;
-    if (lRound === numLosersRounds) label = 'Final de Perdedores';
+    let role: MatchRole = 'MATCH';
+    let roundTarget = roundLegs?.losersRound || legTarget;
+
+    if (lRound === numLosersRounds) {
+      label = 'Final de Perdedores';
+      role = 'LOSERS_FINAL';
+      roundTarget = roundLegs?.losersFinals || roundLegs?.semiFinals || legTarget;
+    }
 
     for (let pos = 0; pos < count; pos++) {
       const match: TournamentBracketMatch = {
@@ -423,8 +637,9 @@ export function generateDoubleElimination(
         round: lRound,
         matchIndex: pos,
         bracketType: 'LOSERS',
+        matchRole: role,
         distanceMode,
-        legTarget,
+        legTarget: roundTarget,
         scoreP1: 0,
         scoreP2: 0,
         status: 'SCHEDULED',
@@ -436,20 +651,41 @@ export function generateDoubleElimination(
     losersRounds.set(lRound, roundList);
   }
 
-  // --- C. GRAN FINAL ---
+  // --- C. GRAN FINAL & GRAN FINAL RESET (Si aplica) ---
   const grandFinal: TournamentBracketMatch = {
     id: 'de_gf_1',
     round: numWinnersRounds + 1,
     matchIndex: 0,
     bracketType: 'FINALS',
+    matchRole: 'GRAND_FINAL_1',
     distanceMode,
-    legTarget,
+    legTarget: roundLegs?.grandFinal || roundLegs?.finals || legTarget,
     scoreP1: 0,
     scoreP2: 0,
     status: 'SCHEDULED',
     note: 'Gran Final'
   };
   matches.push(grandFinal);
+
+  let grandFinalResetMatch: TournamentBracketMatch | null = null;
+  if (options.grandFinalReset !== false) {
+    grandFinalResetMatch = {
+      id: 'de_gf_2',
+      round: numWinnersRounds + 2,
+      matchIndex: 1,
+      bracketType: 'FINALS',
+      matchRole: 'GRAND_FINAL_2',
+      distanceMode,
+      legTarget: roundLegs?.grandFinal || roundLegs?.finals || legTarget,
+      scoreP1: 0,
+      scoreP2: 0,
+      status: 'SCHEDULED',
+      note: 'Gran Final (Desempate - Si es necesario)'
+    };
+    matches.push(grandFinalResetMatch);
+    grandFinal.nextMatchId = grandFinalResetMatch.id;
+    grandFinal.nextSlot = 1;
+  }
 
   // --- D. ENRUTAMIENTO DE PUNTEROS ---
 
@@ -525,8 +761,28 @@ export function generateDoubleElimination(
     const p2 = seeded[i * 2 + 1];
     const match = wR1[i];
 
-    if (p1) match.player1 = { id: p1.id, name: p1.name, avatarUrl: p1.avatarUrl || '/logos/logo-mdq.png', seed: p1.seed, nationality: p1.nationality, countryCode: p1.countryCode };
-    if (p2) match.player2 = { id: p2.id, name: p2.name, avatarUrl: p2.avatarUrl || '/logos/logo-mdq.png', seed: p2.seed, nationality: p2.nationality, countryCode: p2.countryCode };
+    if (p1) {
+      match.player1 = { 
+        id: p1.id, 
+        name: p1.name, 
+        avatarUrl: p1.avatarUrl || '/logos/logo-mdq.png', 
+        seed: p1.seed, 
+        nationality: p1.nationality, 
+        countryCode: p1.countryCode,
+        teamMembers: p1.teamMembers
+      };
+    }
+    if (p2) {
+      match.player2 = { 
+        id: p2.id, 
+        name: p2.name, 
+        avatarUrl: p2.avatarUrl || '/logos/logo-mdq.png', 
+        seed: p2.seed, 
+        nationality: p2.nationality, 
+        countryCode: p2.countryCode,
+        teamMembers: p2.teamMembers
+      };
+    }
   }
 
   // --- F. REGISTRO DE BYES EN W-R1 (Sin resultados 3-0 ficticios) ---
@@ -588,6 +844,7 @@ export function hasRealMatchesPlayed(
 /**
  * Registra o reporta un resultado de forma pura e inmutable, propagando
  * automáticamente al ganador al siguiente partido y al perdedor a Losers.
+ * Soporta desempate de Gran Final (Grand Final Reset) estilo n01darts / Challonge.
  */
 export function reportResult(
   matches: TournamentBracketMatch[],
@@ -622,6 +879,32 @@ export function reportResult(
   current.status = 'FINISHED';
   if (result.note) current.note = result.note;
 
+  // Manejo especial de Gran Final en Doble Eliminación (Grand Final Reset)
+  const isGrandFinal1 = current.matchRole === 'GRAND_FINAL_1' || current.id.endsWith('de_gf_1');
+  const gfResetMatch = updated.find(m => m.matchRole === 'GRAND_FINAL_2' || m.id.endsWith('de_gf_2'));
+
+  if (isGrandFinal1 && gfResetMatch) {
+    const isP1Winner = winner?.id === current.player1?.id;
+    if (isP1Winner) {
+      // El finalista invicto de Winners gana la final: Torneo concluido, reset no requerido
+      gfResetMatch.status = 'FINISHED';
+      gfResetMatch.scoreP1 = 0;
+      gfResetMatch.scoreP2 = 0;
+      gfResetMatch.winnerId = winner?.id;
+      gfResetMatch.note = 'No requerido (Ganó invicto)';
+    } else {
+      // El finalista de Losers gana la primera final: Ambos tienen 1 derrota -> Se juega el Reset
+      gfResetMatch.player1 = current.player1 ? { ...current.player1 } : undefined;
+      gfResetMatch.player2 = current.player2 ? { ...current.player2 } : undefined;
+      gfResetMatch.status = 'SCHEDULED';
+      gfResetMatch.scoreP1 = 0;
+      gfResetMatch.scoreP2 = 0;
+      gfResetMatch.winnerId = undefined;
+      gfResetMatch.note = 'Gran Final Reset (Partido Decisivo)';
+    }
+    return updated;
+  }
+
   // 1. Propagar Ganador al siguiente partido
   if (current.nextMatchId && winner) {
     const nextMatch = updated.find(m => m.id === current.nextMatchId);
@@ -652,6 +935,7 @@ export function reportResult(
 
       const siblingIsBye = siblingWinnerMatch && (
         siblingWinnerMatch.isBye || 
+        siblingWinnerMatch.isDeadBye ||
         (!siblingWinnerMatch.player1 && !siblingWinnerMatch.player2)
       );
 
@@ -680,8 +964,64 @@ export function reportResult(
 }
 
 /**
+ * Propaga y resuelve Byes en cascada para Cuadro de Perdedores evitando partidos huérfanos.
+ */
+export function propagateBracketByes(matches: TournamentBracketMatch[]): TournamentBracketMatch[] {
+  const updated = matches.map(m => ({ ...m }));
+  let changed = false;
+
+  for (let iter = 0; iter < 10; iter++) {
+    changed = false;
+    for (const m of updated) {
+      if (m.bracketType === 'LOSERS' && m.status === 'SCHEDULED' && !m.isDeadBye) {
+        const feed1 = updated.find(f => (f.nextMatchId === m.id && f.nextSlot === 1) || (f.loserNextMatchId === m.id && f.loserNextSlot === 1));
+        const feed2 = updated.find(f => (f.nextMatchId === m.id && f.nextSlot === 2) || (f.loserNextMatchId === m.id && f.loserNextSlot === 2));
+
+        const feed1Dead = feed1 && (feed1.isDeadBye || (feed1.isBye && !feed1.player1 && !feed1.player2));
+        const feed2Dead = feed2 && (feed2.isDeadBye || (feed2.isBye && !feed2.player1 && !feed2.player2));
+
+        if (feed1Dead && feed2Dead && !m.player1 && !m.player2) {
+          m.isDeadBye = true;
+          m.isBye = true;
+          m.note = 'Pase Automático (DEAD BYE)';
+          m.status = 'FINISHED';
+          changed = true;
+        } else if (feed1Dead && !m.player1 && m.player2) {
+          m.isBye = true;
+          m.note = 'Pase Automático (BYE)';
+          m.winnerId = m.player2.id;
+          if (m.nextMatchId) {
+            const next = updated.find(n => n.id === m.nextMatchId);
+            if (next) {
+              if (m.nextSlot === 1) next.player1 = { ...m.player2 };
+              else next.player2 = { ...m.player2 };
+              changed = true;
+            }
+          }
+        } else if (feed2Dead && m.player1 && !m.player2) {
+          m.isBye = true;
+          m.note = 'Pase Automático (BYE)';
+          m.winnerId = m.player1.id;
+          if (m.nextMatchId) {
+            const next = updated.find(n => n.id === m.nextMatchId);
+            if (next) {
+              if (m.nextSlot === 1) next.player1 = { ...m.player1 };
+              else next.player2 = { ...m.player1 };
+              changed = true;
+            }
+          }
+        }
+      }
+    }
+    if (!changed) break;
+  }
+
+  return updated;
+}
+
+/**
  * Calcula de forma automática el Podio de Premiación (1º, 2º y 3º puesto)
- * con medallas idénticas a Challonge.
+ * con medallas idénticas a Challonge y compatibilidad con namespacing y Grand Final Reset.
  */
 export function computePodium(
   matches: TournamentBracketMatch[],
@@ -690,19 +1030,25 @@ export function computePodium(
   const podium: TournamentPodium = {};
 
   if (format === 'DOUBLE_ELIMINATION') {
-    // 1º y 2º Puesto provienen de la Gran Final (de_gf_1)
-    const grandFinal = matches.find(m => m.id === 'de_gf_1' && m.status === 'FINISHED');
-    if (grandFinal && grandFinal.winnerId) {
-      const isP1 = grandFinal.player1?.id === grandFinal.winnerId;
-      const champ = isP1 ? grandFinal.player1 : grandFinal.player2;
-      const runner = isP1 ? grandFinal.player2 : grandFinal.player1;
+    // 1. Verificar si se jugó el Gran Final Reset (de_gf_2)
+    const gfReset = matches.find(m => 
+      (m.matchRole === 'GRAND_FINAL_2' || m.id.endsWith('de_gf_2')) && 
+      m.status === 'FINISHED' && 
+      m.winnerId && 
+      !m.note?.includes('No requerido')
+    );
+
+    if (gfReset && gfReset.winnerId) {
+      const isP1 = gfReset.player1?.id === gfReset.winnerId;
+      const champ = isP1 ? gfReset.player1 : gfReset.player2;
+      const runner = isP1 ? gfReset.player2 : gfReset.player1;
 
       if (champ) {
         podium.first = {
           id: champ.id,
           name: champ.name,
           avatarUrl: champ.avatarUrl,
-          scoreDisplay: `${grandFinal.scoreP1}-${grandFinal.scoreP2}`
+          scoreDisplay: `${gfReset.scoreP1}-${gfReset.scoreP2}`
         };
       }
       if (runner) {
@@ -710,13 +1056,48 @@ export function computePodium(
           id: runner.id,
           name: runner.name,
           avatarUrl: runner.avatarUrl,
-          scoreDisplay: isP1 ? `${grandFinal.scoreP2}-${grandFinal.scoreP1}` : `${grandFinal.scoreP1}-${grandFinal.scoreP2}`
+          scoreDisplay: isP1 ? `${gfReset.scoreP2}-${gfReset.scoreP1}` : `${gfReset.scoreP1}-${gfReset.scoreP2}`
         };
+      }
+    } else {
+      // 2. Si no hubo Reset, 1º y 2º provienen de la Gran Final 1 (de_gf_1)
+      const grandFinal = matches.find(m => 
+        (m.matchRole === 'GRAND_FINAL_1' || m.id.endsWith('de_gf_1')) && 
+        m.status === 'FINISHED' && 
+        m.winnerId
+      );
+
+      if (grandFinal && grandFinal.winnerId) {
+        const isP1 = grandFinal.player1?.id === grandFinal.winnerId;
+        const champ = isP1 ? grandFinal.player1 : grandFinal.player2;
+        const runner = isP1 ? grandFinal.player2 : grandFinal.player1;
+
+        if (champ) {
+          podium.first = {
+            id: champ.id,
+            name: champ.name,
+            avatarUrl: champ.avatarUrl,
+            scoreDisplay: `${grandFinal.scoreP1}-${grandFinal.scoreP2}`
+          };
+        }
+        if (runner) {
+          podium.second = {
+            id: runner.id,
+            name: runner.name,
+            avatarUrl: runner.avatarUrl,
+            scoreDisplay: isP1 ? `${grandFinal.scoreP2}-${grandFinal.scoreP1}` : `${grandFinal.scoreP1}-${grandFinal.scoreP2}`
+          };
+        }
       }
     }
 
     // 3º Puesto proviene del perdedor de la Final de Perdedores
-    const losersFinal = matches.find(m => m.note?.includes('Final de Perdedores') && m.status === 'FINISHED');
+    const losersFinal = matches.find(m => 
+      (m.matchRole === 'LOSERS_FINAL' || m.note?.includes('Final de Perdedores')) && 
+      m.status === 'FINISHED' && 
+      m.winnerId
+    );
+
     if (losersFinal && losersFinal.winnerId) {
       const isWinnerP1 = losersFinal.player1?.id === losersFinal.winnerId;
       const bronze = isWinnerP1 ? losersFinal.player2 : losersFinal.player1;
@@ -731,7 +1112,13 @@ export function computePodium(
     }
   } else {
     // Single Elimination: Final y 3er Puesto
-    const finalMatch = matches.find(m => m.note === 'Finales' && m.status === 'FINISHED');
+    const finalMatch = matches.find(m => 
+      (m.matchRole === 'FINAL' || m.note === 'Finales' || m.note?.includes('Gran Final del Torneo')) && 
+      !m.id.endsWith('se_third_place') && 
+      m.status === 'FINISHED' && 
+      m.winnerId
+    );
+
     if (finalMatch && finalMatch.winnerId) {
       const isP1 = finalMatch.player1?.id === finalMatch.winnerId;
       const champ = isP1 ? finalMatch.player1 : finalMatch.player2;
@@ -754,7 +1141,12 @@ export function computePodium(
       }
     }
 
-    const thirdMatch = matches.find(m => m.id === 'se_third_place' && m.status === 'FINISHED');
+    const thirdMatch = matches.find(m => 
+      (m.matchRole === 'THIRD_PLACE' || m.id === 'se_third_place' || m.id.endsWith('se_third_place')) && 
+      m.status === 'FINISHED' && 
+      m.winnerId
+    );
+
     if (thirdMatch && thirdMatch.winnerId) {
       const bronze = thirdMatch.player1?.id === thirdMatch.winnerId ? thirdMatch.player1 : thirdMatch.player2;
       if (bronze) {
@@ -802,7 +1194,7 @@ export function previewDownstreamImpact(
 
 /**
  * Resetea un partido a 0-0 y opcionalmente invalida en cascada todos
- * los partidos posteriores afectados de forma segura.
+ * los partidos posteriores afectados de forma segura, vaciando los slots río abajo.
  */
 export function resetMatchSafely(
   matches: TournamentBracketMatch[],
@@ -812,6 +1204,8 @@ export function resetMatchSafely(
   const updated: TournamentBracketMatch[] = matches.map(m => ({ ...m }));
   const target = updated.find(m => m.id === matchId);
   if (!target) return matches;
+
+  const previousWinnerId = target.winnerId;
 
   target.scoreP1 = 0;
   target.scoreP2 = 0;
@@ -824,7 +1218,26 @@ export function resetMatchSafely(
     for (const dId of downstreamIds) {
       const dMatch = updated.find(m => m.id === dId);
       if (dMatch) {
-        // Si el jugador provenía del partido reseteado, limpiarlo
+        // Vaciar slots del jugador que provenía del partido reseteado
+        if (previousWinnerId) {
+          if (dMatch.player1?.id === previousWinnerId) {
+            dMatch.player1 = undefined;
+          }
+          if (dMatch.player2?.id === previousWinnerId) {
+            dMatch.player2 = undefined;
+          }
+        }
+
+        // Si este partido es receptor directo del partido reseteado, vaciar el slot correspondiente
+        if (target.nextMatchId === dMatch.id) {
+          if (target.nextSlot === 1) dMatch.player1 = undefined;
+          else if (target.nextSlot === 2) dMatch.player2 = undefined;
+        }
+        if (target.loserNextMatchId === dMatch.id) {
+          if (target.loserNextSlot === 1) dMatch.player1 = undefined;
+          else if (target.loserNextSlot === 2) dMatch.player2 = undefined;
+        }
+
         dMatch.scoreP1 = 0;
         dMatch.scoreP2 = 0;
         dMatch.winnerId = undefined;

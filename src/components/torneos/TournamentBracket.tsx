@@ -49,11 +49,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
   const [isRandomSeeding, setIsRandomSeeding] = useState<boolean>(true);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
-  // Separación dinámica para Eliminación Simple
-  const singleMatches = matches.filter((m) => (!m.bracketType || m.bracketType === 'WINNERS' || m.bracketType === 'FINALS') && m.id !== 'se_third_place');
+  // Separación dinámica para Eliminación Simple (con soporte de matchRole y namespacing de IDs)
+  const isThirdPlaceMatch = (m: TournamentBracketMatch) => m.matchRole === 'THIRD_PLACE' || m.id.endsWith('se_third_place');
+  const thirdPlaceMatch = matches.find(isThirdPlaceMatch);
+
+  const singleMatches = matches.filter((m) => (!m.bracketType || m.bracketType === 'WINNERS' || m.bracketType === 'FINALS') && !isThirdPlaceMatch(m));
   const singleRounds = Array.from(new Set(singleMatches.map((m) => m.round))).sort((a, b) => a - b);
   const maxSingleRound = singleRounds.length > 0 ? Math.max(...singleRounds) : 1;
-  const thirdPlaceMatch = matches.find((m) => m.id === 'se_third_place');
 
   // Separación dinámica para Doble Eliminación
   const winnersMatches = matches.filter((m) => m.bracketType === 'WINNERS');
@@ -64,7 +66,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
   const losersRounds = Array.from(new Set(losersMatches.map((m) => m.round))).sort((a, b) => a - b);
   const maxLosersRound = losersRounds.length > 0 ? Math.max(...losersRounds) : 1;
 
-  const grandFinalMatches = matches.filter((m) => m.bracketType === 'FINALS' && m.id !== 'se_third_place');
+  const grandFinalMatches = matches.filter((m) => (m.bracketType === 'FINALS' || m.matchRole === 'GRAND_FINAL_1' || m.matchRole === 'GRAND_FINAL_2') && !isThirdPlaceMatch(m));
 
   const legsToWin = Math.ceil(bestOfLegs / 2);
 
@@ -792,8 +794,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = ({
                   Partida de Campeonato
                 </span>
               </div>
-              <div className="flex items-center justify-center py-4">
-                {grandFinalMatches.map(renderMatchCard)}
+              <div className="flex flex-wrap items-center justify-center gap-6 py-4">
+                {grandFinalMatches.map((m) => {
+                  const isResetMatch = m.matchRole === 'GRAND_FINAL_2' || m.id.endsWith('de_gf_2');
+                  const isNotRequired = m.note === 'No requerido' || m.isDeadBye;
+                  return (
+                    <div key={m.id} className="flex flex-col items-center gap-1.5">
+                      <div className="text-[11px] font-black uppercase tracking-wider text-amber-400">
+                        {isResetMatch ? 'Gran Final #2 (Desempate si gana retador)' : 'Gran Final #1'}
+                        {isNotRequired && <span className="ml-2 text-slate-400">(No requerido)</span>}
+                      </div>
+                      {renderMatchCard(m)}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

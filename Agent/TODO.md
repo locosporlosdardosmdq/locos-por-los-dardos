@@ -1,3 +1,31 @@
+- [x] **Refactor Integral de Llaves (Estilo n01darts.com), Doble Eliminación con Gran Final Reset, Ámbitos Jerárquicos de Competición (Opción C), Modalidades de Parejas y Control de Acceso (`bracket-engine.ts`, `TournamentManager.tsx`, `TournamentBracket.tsx`, `NakkaTvBracketView.tsx`, `EditTournamentModal.tsx`, `PlayerEnrollModal.tsx`, `TournamentGroupStage.tsx`, `api/torneos/route.ts`, `LoginModal.tsx`, `types.ts`):**
+  * **Motor Matemático de Llaves Puro (`bracket-engine.ts`):**
+    - Implementación de barajado aleatorio imparcial con algoritmo genuino Fisher-Yates (`shuffleArray`).
+    - Siembra simétrica estricta de árbol oficial (`getSeededOrder`) asegurando que los cabezas de serie no se crucen antes de instancias finales y dispersión balanceada de Byes.
+    - Consolidación pura de unidades de competición (`resolveCompetitorUnits`), resolviendo duplas pre-armadas y duplas sorteadas a ciegas sin inflar el tamaño de la llave eliminatoria (e.g. 17 inscriptos en duplas se resuelven a 8 parejas en cuadro de 8 en vez de cuadro de 32 con 15 Byes).
+    - Doble Eliminación con Gran Final Reset (`de_gf_2`) condicionado a `grandFinalResetEnabled !== false`. Si el finalista invicto de Ganadores gana la primera final, la segunda final se marca como "No requerida"; si gana el retador de Perdedores, ambos avanzan a la Gran Final #2 decisiva.
+    - Propagación en punto fijo de Byes en Losers Bracket eliminando cruces fantasma (`DEAD_BYE`).
+    - Desacoplamiento seguro de reseteo de resultados (`resetMatchSafely`) con limpieza de slots río abajo.
+    - Detección precisa de podio (`computePodium`) con soporte de namespacing de IDs (`m.id.endsWith(...)` y `m.matchRole`).
+  * **Fase de Grupos y Cruces Olímpicos (`TournamentGroupStage.tsx`):**
+    - Refactorizado `generatePlayoffCrossMatches` para delegar en `generateSingleElimination` con orden olímpico (1ºA vs 2ºB, 1ºB vs 2ºA), suprimiendo +220 líneas de código rígido y garantizando conectores válidos.
+  * **Visualización de Llaves & Pantalla TV 32" (`TournamentBracket.tsx` & `NakkaTvBracketView.tsx`):**
+    - En `TournamentBracket.tsx`, renderizado claro de Gran Final #1 y Gran Final #2 (Desempate) con notas de campeonato, soporte para partidos de 3er puesto por rol y tarjetas de Bye limpias.
+    - En `NakkaTvBracketView.tsx`, separación interactiva para Doble Eliminación en 3 vistas estilo n01darts.com: Cuadro de Ganadores (Winners), Cuadro de Perdedores (Losers) y Gran Final.
+  * **Ámbitos de Competición & Restricción Geográfica (Opción C Jerárquico Híbrido en `EditTournamentModal.tsx`):**
+    - Niveles de competición seleccionables: Global, Nacional (por país), Provincial (por provincias argentinas), Club (por sede) y Privado.
+    - Switch independiente de elegibilidad: *"Restringir inscripción solo a jugadores de este ámbito"*.
+    - Switch para activar/desactivar el *Gran Final Reset* en Doble Eliminación.
+    - Selector de modalidad de parejas si es en duplas (`BOTH`, `PRE_FORMED`, `BLIND_DRAW`).
+  * **Seguridad, Contraseñas, Enlaces Directos y Co-Administradores (`EditTournamentModal.tsx`, `TournamentManager.tsx`, `PlayerEnrollModal.tsx`, `api/torneos/route.ts`, `LoginModal.tsx`):**
+    - Control de acceso por PIN/contraseña de torneo en inscripción (`joinPasswordRequired` y PIN).
+    - Enlaces directos autogenerados en cabecera y modal: Link de Espectadores, Link de Inscripción (con joinToken) y Link de Mesa de Control para planilleros (con deskToken).
+    - Gobernanza multirrol: Superadmin, Creador, Co-Administradores designados y Planilleros con Desk Token autorizados en frontend y backend (`api/torneos/route.ts`).
+    - Eliminado el bypass de autenticación sin OTP en `LoginModal.tsx`.
+    - Eliminación de 6 archivos huérfanos de código muerto (`Navbar.tsx`, `Footer.tsx`, `AppTopBar.tsx`, `CheckoutGuide.tsx`, `DartKeypad.tsx`, `api/diagnostic/route.ts`).
+  * **Validación:**
+    - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Formalización de Modalidad Individual vs Parejas en Torneos & Adaptación Integral del Asesor Inteligente (`EditTournamentModal.tsx`, `TournamentManager.tsx`, `TournamentFormatAdvisor.tsx`):**
   * **Configuración Explícita de Modalidad de Juego (`EditTournamentModal.tsx` y `TournamentManager.tsx`):**
     - En `EditTournamentModal.tsx`: incorporado selector prominente en la grilla de parámetros (`Modalidad de Pista`, `Modalidad de Juego` [👤 Individual vs 👥 Por Parejas / Duplas], `Formato de Competición`).

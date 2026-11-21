@@ -1501,3 +1501,32 @@
      - Se agregó un conmutador interactivo en el panel de control del simulador (`👤 Individual (1v1)` vs `👥 Parejas (2v2)`) para permitir a los organizadores auditar el cronograma bajo ambas modalidades antes de definir el formato final.
      - Se adaptaron dinámicamente todos los textos a la terminología de duplas (`parejas`, `mínimo X partidos garantizados por dupla`, etc.).
 - **Motivo:** Garantiza precisión reglamentaria, coherencia en la cantidad de partidos de llave y exactitud cronológica en certámenes individuales y por parejas sin añadir librerías ni incrementar el bundle.
+
+---
+
+### [ADR-073] - 2026-11-21: Refactor Integral de Llaves (Estilo n01darts.com), Doble Eliminación con Gran Final Reset, Ámbitos Jerárquicos de Competición (Opción C) y Seguridad de Torneos
+- **Contexto:**
+  1. *Fidelidad con n01darts.com:* El motor eliminatorio requería cumplir con los estándares internacionales de Nakka N01: barajado imparcial mediante Fisher-Yates, siembra simétrica estricta de potencias de 2, eliminación de emparejamientos fantasma (`DEAD_BYE`) en Losers Bracket, y soporte oficial de Gran Final Reset (`de_gf_2`) para respetar la ventaja del invicto en Doble Eliminación.
+  2. *Inflación de Byes en Parejas:* Al generar cuadros de torneos por parejas con inscriptos individuales impares o sin emparejar, el sistema dimensionaba la llave basándose en $N$ individuos en vez de duplas consolidadas ($N_{teams}$), generando desproporciones (ej. 17 inscriptos generaban cuadro de 32 con 15 Byes).
+  3. *Ámbitos de Competición y Control de Acceso:* Al abrir la plataforma a nivel global, se requería circunscribir ligas y torneos a ámbitos específicos (Global, País, Provincia, Club, Privado) con control de elegibilidad opcional (*"Restringir inscripción solo a jugadores de este ámbito"*), protección mediante contraseña/PIN del certamen, links directos para espectadores y mesa de control, y gobernanza multi-administrador mediante designación de co-administradores y tokens para planilleros.
+  4. *Seguridad y Código Muerto:* Se detectó un bypass de login directo sin OTP en `LoginModal.tsx` y 6 componentes/rutas huérfanos que sumaban deuda técnica.
+- **Decisión:**
+  1. **Motor de Llaves Puro (`bracket-engine.ts`):**
+     - Se implementó `shuffleArray` con algoritmo Fisher-Yates auténtico y siembra simétrica de árbol oficial (`getSeededOrder`).
+     - Se implementó `resolveCompetitorUnits` que consolida parejas (pre-armadas y por sorteo a ciegas) aislando inscriptos impares sin fabricar duplas ficticias de 1 persona.
+     - Se implementó soporte de *Gran Final Reset* (`de_gf_2`) condicionado a `grandFinalResetEnabled !== false`. Si el finalista invicto gana la primera final, la segunda final se marca como "No requerida"; si gana el retador, ambos avanzan a la Gran Final #2 decisiva.
+     - Se implementó propagación en punto fijo de Byes en Losers Bracket eliminando partidos fantasma.
+     - Se refactorizó `computePodium` para evaluar `matchRole` y namespacing de IDs (`m.id.endsWith(...)`).
+  2. **Ámbitos Jerárquicos de Competición (Opción C en `EditTournamentModal.tsx`):**
+     - Soporte de 5 niveles: `GLOBAL`, `NACIONAL`, `PROVINCIAL`, `CLUB` y `PRIVADO` con selector de país, provincia o club anfitrión.
+     - Switch de elegibilidad: `restrictEnrollmentToScope` para restringir la inscripción solo a competidores del ámbito.
+     - Selector de modalidad de duplas (`BOTH`, `PRE_FORMED`, `BLIND_DRAW`) y switch para activar/desactivar el *Gran Final Reset*.
+  3. **Control de Acceso, Mesa de Control y Co-Administradores:**
+     - Soporte de PIN/contraseña de torneo (`joinPasswordRequired` y `joinPasswordHash`).
+     - Tokens independientes autogenerados: `joinToken` (inscripción directa) y `deskToken` (Mesa de Control para planilleros).
+     - Comprobación de permisos en frontend (`TournamentManager.tsx`) y backend (`api/torneos/route.ts`) admitiendo Superadmin, Creador, Co-Administradores y Planilleros con Desk Token.
+     - Pantalla TV de 32" (`NakkaTvBracketView.tsx`) con pestañas independientes para Winners, Losers y Gran Final estilo n01darts.com.
+  4. **Seguridad y Limpieza:**
+     - Retiro del bypass sin OTP en `LoginModal.tsx`.
+     - Eliminación de 6 archivos huérfanos de código muerto: `Navbar.tsx`, `Footer.tsx`, `AppTopBar.tsx`, `CheckoutGuide.tsx`, `DartKeypad.tsx`, `api/diagnostic/route.ts`.
+- **Motivo:** Alineación total con el estándar de n01darts.com, robustez matemática en llaves y protección de integridad en la apertura pública de torneos sin dependencias externas pesadas.

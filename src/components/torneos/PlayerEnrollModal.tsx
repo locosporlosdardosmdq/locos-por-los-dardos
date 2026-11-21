@@ -30,7 +30,14 @@ interface PlayerEnrollModalProps {
   isOpen: boolean;
   onClose: () => void;
   tournament?: Tournament | null;
-  onEnrollPlayer: (playerData: { name: string; pin: string; useWebcam: boolean }) => void;
+  onEnrollPlayer: (playerData: { 
+    name: string; 
+    pin: string; 
+    useWebcam: boolean;
+    teammateId?: string;
+    teammateName?: string;
+    pairingStatus?: 'CONFIRMED' | 'PENDING_PARTNER' | 'BLIND_DRAW';
+  }) => void;
 }
 
 export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
@@ -48,6 +55,11 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
   const [useWebcam, setUseWebcam] = useState(true);
   const [showWebcamModal, setShowWebcamModal] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Estados para torneo por parejas y contraseña
+  const [pairingChoice, setPairingChoice] = useState<'PRE_FORMED' | 'BLIND_DRAW'>('BLIND_DRAW');
+  const [selectedTeammateId, setSelectedTeammateId] = useState<string>('');
+  const [tournamentPasswordInput, setTournamentPasswordInput] = useState<string>('');
 
   const [bankAccount, setBankAccount] = useState<AssociationBankAccount>(() => {
     return getStoredAssociationBankAccount(DEFAULT_ASSOCIATION_BANK_ACCOUNT);
@@ -91,10 +103,26 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
       return;
     }
 
+    if (tournament?.joinPasswordRequired && tournament.joinPasswordHash) {
+      if (tournamentPasswordInput.trim() !== tournament.joinPasswordHash.trim()) {
+        alert('Contraseña / PIN del torneo incorrecto. Por favor solicita el acceso al organizador.');
+        return;
+      }
+    }
+
+    let teammateName: string | undefined = undefined;
+    if (tournament?.isDoubles && pairingChoice === 'PRE_FORMED' && selectedTeammateId) {
+      const mate = availablePlayers.find((p) => p.id === selectedTeammateId);
+      if (mate) teammateName = mate.fullName || mate.nickname;
+    }
+
     onEnrollPlayer({
       name: finalName,
       pin,
-      useWebcam
+      useWebcam,
+      teammateId: pairingChoice === 'PRE_FORMED' ? selectedTeammateId : undefined,
+      teammateName,
+      pairingStatus: tournament?.isDoubles ? (pairingChoice === 'PRE_FORMED' && selectedTeammateId ? 'CONFIRMED' : 'BLIND_DRAW') : undefined
     });
     setCustomPlayerName('');
     setIsCustomPlayer(false);
@@ -346,6 +374,80 @@ export const PlayerEnrollModal: React.FC<PlayerEnrollModalProps> = ({
                   autoFocus
                   className="w-full bg-[#111622] border-2 border-[#00e676] rounded-xl px-3 py-2 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#00e676]"
                 />
+              </div>
+            )}
+
+            {/* SELECCIÓN DE PAREJA SI EL TORNEO ES EN DUPLAS */}
+            {tournament?.isDoubles && (
+              <div className="bg-[#111622] p-3.5 rounded-2xl border border-purple-500/30 space-y-2.5">
+                <label className="text-xs font-black text-purple-300 uppercase block">
+                  Modalidad de Pareja (Torneo en Duplas)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPairingChoice('BLIND_DRAW')}
+                    className={`p-2 rounded-xl border text-xs font-bold transition-all ${
+                      pairingChoice === 'BLIND_DRAW'
+                        ? 'bg-purple-600/25 border-purple-400 text-white shadow'
+                        : 'bg-[#07090e] border-slate-700 text-slate-400'
+                    }`}
+                  >
+                    🎲 Sorteo a Ciegas (Blind Draw)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPairingChoice('PRE_FORMED')}
+                    className={`p-2 rounded-xl border text-xs font-bold transition-all ${
+                      pairingChoice === 'PRE_FORMED'
+                        ? 'bg-purple-600/25 border-purple-400 text-white shadow'
+                        : 'bg-[#07090e] border-slate-700 text-slate-400'
+                    }`}
+                  >
+                    👥 Pareja Pre-armada
+                  </button>
+                </div>
+
+                {pairingChoice === 'PRE_FORMED' && (
+                  <div className="pt-1.5 space-y-1">
+                    <label className="text-[10px] text-slate-400 block font-bold">Seleccionar Compañero/a:</label>
+                    <select
+                      value={selectedTeammateId}
+                      onChange={(e) => setSelectedTeammateId(e.target.value)}
+                      className="w-full bg-[#07090e] border border-purple-500/40 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-purple-400"
+                    >
+                      <option value="">Selecciona a tu compañero...</option>
+                      {availablePlayers
+                        .filter((p) => p.id !== currentUser.id)
+                        .map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.fullName} (@{p.nickname})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* CONTRASEÑA / PIN DE ACCESO AL TORNEO */}
+            {tournament?.joinPasswordRequired && (
+              <div className="bg-[#111622] p-3.5 rounded-2xl border border-amber-500/40 space-y-1.5">
+                <label className="text-xs font-black text-amber-300 uppercase block flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Contraseña de Acceso al Torneo *</span>
+                </label>
+                <input
+                  type="password"
+                  value={tournamentPasswordInput}
+                  onChange={(e) => setTournamentPasswordInput(e.target.value)}
+                  placeholder="PIN / Clave provista por el organizador"
+                  required
+                  className="w-full bg-[#07090e] border border-amber-500/50 rounded-xl px-3 py-2 text-xs font-bold text-amber-300 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-400 font-mono"
+                />
+                <p className="text-[10px] text-slate-400">
+                  Este certamen requiere autorización del administrador para ingresar a la llave.
+                </p>
               </div>
             )}
 

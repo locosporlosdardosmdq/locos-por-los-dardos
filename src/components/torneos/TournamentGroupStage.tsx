@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { MatchDispatcherModal } from './MatchDispatcherModal';
 import { TournamentBracketMatch } from '@/lib/types';
+import { generateSingleElimination, getNextPowerOfTwo, Participant } from '@/lib/bracket-engine';
 import { 
   Users, 
   Trophy, 
@@ -801,286 +802,65 @@ function generatePlayoffCrossMatches(
 ): TournamentBracketMatch[] {
   const legTarget = Math.ceil(bestOfLegs / 2);
 
-  type BracketPlayer = {
-    id: string;
-    name: string;
-    avatarUrl: string;
-    seed?: number;
-    nationality?: string;
-    countryCode?: string;
-  };
-
-  const toParticipant = (p: GroupPlayer, seedNum: number): BracketPlayer => ({
+  const toParticipant = (p: GroupPlayer, seedNum: number): Participant => ({
     id: p.id,
     name: p.name,
+    nickname: p.nickname,
     avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
     seed: seedNum,
     nationality: 'Argentina',
     countryCode: 'AR'
   });
 
-  // CASO 1: 2 ZONAS y 2 CLASIFICADOS POR ZONA (4 Clasificados -> Semifinales y Final)
+  const orderedParticipants: Participant[] = [];
+
+  // CASO 1: 2 ZONAS y 2 CLASIFICADOS POR ZONA (4 Clasificados: 1ºA vs 2ºB, 1ºB vs 2ºA)
   if (totalZones === 2 && qualifiersPerZone >= 2) {
-    const a1 = zoneRankings[0]?.[0] ? toParticipant(zoneRankings[0][0], 1) : undefined;
-    const a2 = zoneRankings[0]?.[1] ? toParticipant(zoneRankings[0][1], 3) : undefined;
-    const b1 = zoneRankings[1]?.[0] ? toParticipant(zoneRankings[1][0], 2) : undefined;
-    const b2 = zoneRankings[1]?.[1] ? toParticipant(zoneRankings[1][1], 4) : undefined;
-
-    const semi1Id = `${tourneyId}-playoff_r1_m1`;
-    const semi2Id = `${tourneyId}-playoff_r1_m2`;
-    const finalId = `${tourneyId}-playoff_r2_m1`;
-
-    const semi1: TournamentBracketMatch = {
-      id: semi1Id,
-      round: 1,
-      matchIndex: 0,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget,
-      player1: a1,
-      player2: b2,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Semifinal 1 (1ºA vs 2ºB)',
-      nextMatchId: finalId,
-      nextSlot: 1
-    };
-
-    const semi2: TournamentBracketMatch = {
-      id: semi2Id,
-      round: 1,
-      matchIndex: 1,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget,
-      player1: b1,
-      player2: a2,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Semifinal 2 (1ºB vs 2ºA)',
-      nextMatchId: finalId,
-      nextSlot: 2
-    };
-
-    const finalMatch: TournamentBracketMatch = {
-      id: finalId,
-      round: 2,
-      matchIndex: 0,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget: legTarget + 1,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Gran Final del Torneo'
-    };
-
-    return [semi1, semi2, finalMatch];
+    if (zoneRankings[0]?.[0]) orderedParticipants.push(toParticipant(zoneRankings[0][0], 1)); // 1ºA
+    if (zoneRankings[1]?.[1]) orderedParticipants.push(toParticipant(zoneRankings[1][1], 4)); // 2ºB
+    if (zoneRankings[1]?.[0]) orderedParticipants.push(toParticipant(zoneRankings[1][0], 2)); // 1ºB
+    if (zoneRankings[0]?.[1]) orderedParticipants.push(toParticipant(zoneRankings[0][1], 3)); // 2ºA
+  }
+  // CASO 2: 4 ZONAS y 2 CLASIFICADOS POR ZONA (8 Clasificados: 1A-2B, 1C-2D, 1B-2A, 1D-2C)
+  else if (totalZones === 4 && qualifiersPerZone >= 2) {
+    const z = zoneRankings;
+    if (z[0]?.[0]) orderedParticipants.push(toParticipant(z[0][0], 1)); // 1ºA
+    if (z[1]?.[1]) orderedParticipants.push(toParticipant(z[1][1], 8)); // 2ºB
+    if (z[2]?.[0]) orderedParticipants.push(toParticipant(z[2][0], 3)); // 1ºC
+    if (z[3]?.[1]) orderedParticipants.push(toParticipant(z[3][1], 6)); // 2ºD
+    if (z[1]?.[0]) orderedParticipants.push(toParticipant(z[1][0], 2)); // 1ºB
+    if (z[0]?.[1]) orderedParticipants.push(toParticipant(z[0][1], 7)); // 2ºA
+    if (z[3]?.[0]) orderedParticipants.push(toParticipant(z[3][0], 4)); // 1ºD
+    if (z[2]?.[1]) orderedParticipants.push(toParticipant(z[2][1], 5)); // 2ºC
+  }
+  // CASO 3: 2 ZONAS con 1 CLASIFICADO (2 Finalistas)
+  else if (totalZones === 2 && qualifiersPerZone === 1) {
+    if (zoneRankings[0]?.[0]) orderedParticipants.push(toParticipant(zoneRankings[0][0], 1));
+    if (zoneRankings[1]?.[0]) orderedParticipants.push(toParticipant(zoneRankings[1][0], 2));
+  }
+  // CASO GENÉRICO DE RESPALDO (Cruces secuenciales o cabeza-cola)
+  else {
+    let seedCounter = 1;
+    for (let z = 0; z < totalZones; z++) {
+      (zoneRankings[z] || []).slice(0, qualifiersPerZone).forEach((p) => {
+        orderedParticipants.push(toParticipant(p, seedCounter++));
+      });
+    }
   }
 
-  // CASO 2: 4 ZONAS y 2 CLASIFICADOS POR ZONA (8 Clasificados -> Cuartos, Semis y Final)
-  if (totalZones === 4 && qualifiersPerZone >= 2) {
-    const a1 = zoneRankings[0]?.[0] ? toParticipant(zoneRankings[0][0], 1) : undefined;
-    const a2 = zoneRankings[0]?.[1] ? toParticipant(zoneRankings[0][1], 5) : undefined;
-    const b1 = zoneRankings[1]?.[0] ? toParticipant(zoneRankings[1][0], 2) : undefined;
-    const b2 = zoneRankings[1]?.[1] ? toParticipant(zoneRankings[1][1], 6) : undefined;
-    const c1 = zoneRankings[2]?.[0] ? toParticipant(zoneRankings[2][0], 3) : undefined;
-    const c2 = zoneRankings[2]?.[1] ? toParticipant(zoneRankings[2][1], 7) : undefined;
-    const d1 = zoneRankings[3]?.[0] ? toParticipant(zoneRankings[3][0], 4) : undefined;
-    const d2 = zoneRankings[3]?.[1] ? toParticipant(zoneRankings[3][1], 8) : undefined;
+  const bracketSize = getNextPowerOfTwo(Math.max(orderedParticipants.length, 2));
+  const rawMatches = generateSingleElimination(orderedParticipants, {
+    bracketSize,
+    seeding: 'MANUAL',
+    includeThirdPlace: true,
+    legTarget,
+    resolveByes: true
+  });
 
-    const qf1Id = `${tourneyId}-playoff_r1_m1`;
-    const qf2Id = `${tourneyId}-playoff_r1_m2`;
-    const qf3Id = `${tourneyId}-playoff_r1_m3`;
-    const qf4Id = `${tourneyId}-playoff_r1_m4`;
-
-    const semi1Id = `${tourneyId}-playoff_r2_m1`;
-    const semi2Id = `${tourneyId}-playoff_r2_m2`;
-    const finalId = `${tourneyId}-playoff_r3_m1`;
-
-    const qf1: TournamentBracketMatch = {
-      id: qf1Id,
-      round: 1,
-      matchIndex: 0,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget,
-      player1: a1,
-      player2: b2,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Cuartos 1 (1ºA vs 2ºB)',
-      nextMatchId: semi1Id,
-      nextSlot: 1
-    };
-
-    const qf2: TournamentBracketMatch = {
-      id: qf2Id,
-      round: 1,
-      matchIndex: 1,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget,
-      player1: c1,
-      player2: d2,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Cuartos 2 (1ºC vs 2ºD)',
-      nextMatchId: semi1Id,
-      nextSlot: 2
-    };
-
-    const qf3: TournamentBracketMatch = {
-      id: qf3Id,
-      round: 1,
-      matchIndex: 2,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget,
-      player1: b1,
-      player2: a2,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Cuartos 3 (1ºB vs 2ºA)',
-      nextMatchId: semi2Id,
-      nextSlot: 1
-    };
-
-    const qf4: TournamentBracketMatch = {
-      id: qf4Id,
-      round: 1,
-      matchIndex: 3,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget,
-      player1: d1,
-      player2: c2,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Cuartos 4 (1ºD vs 2ºC)',
-      nextMatchId: semi2Id,
-      nextSlot: 2
-    };
-
-    const semi1: TournamentBracketMatch = {
-      id: semi1Id,
-      round: 2,
-      matchIndex: 0,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget: legTarget + 1,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Semifinales',
-      nextMatchId: finalId,
-      nextSlot: 1
-    };
-
-    const semi2: TournamentBracketMatch = {
-      id: semi2Id,
-      round: 2,
-      matchIndex: 1,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget: legTarget + 1,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Semifinales',
-      nextMatchId: finalId,
-      nextSlot: 2
-    };
-
-    const finalMatch: TournamentBracketMatch = {
-      id: finalId,
-      round: 3,
-      matchIndex: 0,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget: legTarget + 2,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Gran Final del Torneo'
-    };
-
-    return [qf1, qf2, qf3, qf4, semi1, semi2, finalMatch];
-  }
-
-  // CASO 3: 2 ZONAS con solo 1 CLASIFICADO (2 Equipos -> Final Directa)
-  if (totalZones === 2 && qualifiersPerZone === 1) {
-    const a1 = zoneRankings[0]?.[0] ? toParticipant(zoneRankings[0][0], 1) : undefined;
-    const b1 = zoneRankings[1]?.[0] ? toParticipant(zoneRankings[1][0], 2) : undefined;
-
-    return [{
-      id: `${tourneyId}-playoff_r1_m1`,
-      round: 1,
-      matchIndex: 0,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget: legTarget + 1,
-      player1: a1,
-      player2: b1,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Gran Final (1º Zona A vs 1º Zona B)'
-    }];
-  }
-
-  // CASO GENÉRICO DE RESPALDO (Cruces secuenciales)
-  const allOrdered: BracketPlayer[] = [];
-  let seedCounter = 1;
-  for (let z = 0; z < totalZones; z++) {
-    (zoneRankings[z] || []).forEach((p) => {
-      allOrdered.push(toParticipant(p, seedCounter++));
-    });
-  }
-
-  const matches: TournamentBracketMatch[] = [];
-  const half = Math.floor(allOrdered.length / 2);
-  const finalId = `${tourneyId}-playoff_r2_m1`;
-
-  for (let i = 0; i < half; i++) {
-    matches.push({
-      id: `${tourneyId}-playoff_r1_m${i + 1}`,
-      round: 1,
-      matchIndex: i,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget,
-      player1: allOrdered[i],
-      player2: allOrdered[allOrdered.length - 1 - i],
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: `Playoff Ronda 1 • Llave #${i + 1}`,
-      nextMatchId: half > 1 ? finalId : undefined,
-      nextSlot: (i % 2 === 0 ? 1 : 2) as 1 | 2
-    });
-  }
-
-  if (half > 1) {
-    matches.push({
-      id: finalId,
-      round: 2,
-      matchIndex: 0,
-      bracketType: 'WINNERS',
-      distanceMode: 'LEGS',
-      legTarget: legTarget + 1,
-      scoreP1: 0,
-      scoreP2: 0,
-      status: 'SCHEDULED',
-      note: 'Gran Final'
-    });
-  }
-
-  return matches;
+  return rawMatches.map((m) => ({
+    ...m,
+    id: `${tourneyId}-${m.id}`,
+    nextMatchId: m.nextMatchId ? `${tourneyId}-${m.nextMatchId}` : undefined,
+    loserNextMatchId: m.loserNextMatchId ? `${tourneyId}-${m.loserNextMatchId}` : undefined
+  }));
 }

@@ -42,6 +42,7 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
   const [bracketViewSlice, setBracketViewSlice] = useState<'ALL' | 'TOP_HALF' | 'BOTTOM_HALF' | 'FINALS'>('ALL');
   const [autoRotate, setAutoRotate] = useState(false);
   const [zoomLevel, setZoomLevel] = useState<'AUTO' | 'COMPACT' | 'COMFORTABLE'>('AUTO');
+  const [deSection, setDeSection] = useState<'WINNERS' | 'LOSERS' | 'FINALS'>('WINNERS');
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Sincronización en vivo cada 3.5s o por eventos locales
@@ -112,9 +113,18 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
   }, []);
 
   const matches = tournament.matches || [];
-  // Excluir tercer puesto del árbol principal
-  const treeMatches = matches.filter((m) => m.id !== 'se_third_place');
-  const thirdPlaceMatch = matches.find((m) => m.id === 'se_third_place');
+  const isDoubleElim = tournament.format === 'DOUBLE_ELIMINATION' || matches.some((m) => m.bracketType === 'LOSERS');
+
+  // Separación dinámica según sección activa (estilo n01darts.com TV)
+  const treeMatches = isDoubleElim
+    ? deSection === 'WINNERS'
+      ? matches.filter((m) => m.bracketType === 'WINNERS')
+      : deSection === 'LOSERS'
+      ? matches.filter((m) => m.bracketType === 'LOSERS')
+      : matches.filter((m) => (m.bracketType === 'FINALS' || m.matchRole === 'GRAND_FINAL_1' || m.matchRole === 'GRAND_FINAL_2') && m.id !== 'se_third_place')
+    : matches.filter((m) => m.id !== 'se_third_place');
+
+  const thirdPlaceMatch = matches.find((m) => m.matchRole === 'THIRD_PLACE' || m.id.endsWith('se_third_place'));
 
   // Rondas existentes
   const rounds = Array.from(new Set(treeMatches.map((m) => m.round))).sort((a, b) => a - b);
@@ -138,13 +148,24 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
       return roundMatches.slice(half);
     }
     if (bracketViewSlice === 'FINALS') {
-      // Solo rondas avanzadas (últimas 2 o 3)
       return r >= maxRound - 2 ? roundMatches : [];
     }
     return roundMatches;
   };
 
   const getRoundName = (r: number) => {
+    if (isDoubleElim) {
+      if (deSection === 'WINNERS') {
+        if (r === maxRound) return 'FINAL DE GANADORES';
+        if (r === maxRound - 1) return 'SEMIFINALES GANADORES';
+        return `RONDA ${r} (WINNERS)`;
+      } else if (deSection === 'LOSERS') {
+        if (r === maxRound) return 'FINAL DE PERDEDORES';
+        return `RONDA ${r} (LOSERS)`;
+      } else {
+        return 'GRAN FINAL DEL CAMPEONATO';
+      }
+    }
     if (r === maxRound) return 'FINAL';
     if (r === maxRound - 1) return 'SEMIFINAL';
     if (r === maxRound - 2) return 'TOP-8 (CUARTOS)';
@@ -214,17 +235,55 @@ export const NakkaTvBracketView: React.FC<NakkaTvBracketViewProps> = ({
 
         {/* Pestañas de Vista (Nakka Tabs) */}
         <div className="hidden md:flex items-center gap-1 p-1 rounded-xl bg-black/30 border border-white/10 text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => setActiveTab('BRACKET')}
-            className={`px-3 py-1 rounded-lg transition-all ${
-              activeTab === 'BRACKET' 
-                ? (isDark ? 'bg-white text-black shadow' : 'bg-white text-[#0f5132] shadow font-black') 
-                : (isDark ? 'text-slate-400 hover:text-white' : 'text-emerald-100 hover:text-white')
-            }`}
-          >
-            Cuadro (Llave)
-          </button>
+          {isDoubleElim ? (
+            <>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('BRACKET'); setDeSection('WINNERS'); }}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  activeTab === 'BRACKET' && deSection === 'WINNERS'
+                    ? (isDark ? 'bg-[#00e676] text-black shadow font-black' : 'bg-white text-[#0f5132] shadow font-black') 
+                    : (isDark ? 'text-slate-400 hover:text-white' : 'text-emerald-100 hover:text-white')
+                }`}
+              >
+                Ganadores (Winners)
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('BRACKET'); setDeSection('LOSERS'); }}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  activeTab === 'BRACKET' && deSection === 'LOSERS'
+                    ? (isDark ? 'bg-red-500 text-white shadow font-black' : 'bg-red-600 text-white shadow font-black') 
+                    : (isDark ? 'text-slate-400 hover:text-white' : 'text-emerald-100 hover:text-white')
+                }`}
+              >
+                Perdedores (Losers)
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('BRACKET'); setDeSection('FINALS'); }}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  activeTab === 'BRACKET' && deSection === 'FINALS'
+                    ? (isDark ? 'bg-amber-400 text-black shadow font-black' : 'bg-amber-300 text-slate-900 shadow font-black') 
+                    : (isDark ? 'text-slate-400 hover:text-white' : 'text-emerald-100 hover:text-white')
+                }`}
+              >
+                Gran Final
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setActiveTab('BRACKET')}
+              className={`px-3 py-1 rounded-lg transition-all ${
+                activeTab === 'BRACKET' 
+                  ? (isDark ? 'bg-white text-black shadow' : 'bg-white text-[#0f5132] shadow font-black') 
+                  : (isDark ? 'text-slate-400 hover:text-white' : 'text-emerald-100 hover:text-white')
+              }`}
+            >
+              Cuadro (Llave)
+            </button>
+          )}
 
           {(tournament.groupsCount && tournament.groupsCount > 0) && (
             <>

@@ -1,5 +1,64 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 66] - 2026-11-21
+- **Objetivos:**
+  1. Ejecutar e implementar el refactor integral de llaves eliminatorias conforme a la lógica oficial de `https://n01darts.com/`.
+  2. Implementar Doble Eliminación completa con *Gran Final Reset* (`de_gf_2`) configurable (`grandFinalResetEnabled: boolean`).
+  3. Resolver la consolidación pura de duplas en torneos por parejas evitando la inflación de Byes.
+  4. Implementar el esquema de Ámbitos de Competición Jerárquico Híbrido (Opción C: Global, País, Provincia, Club, Privado) con control de elegibilidad opcional.
+  5. Incorporar control de acceso mediante contraseña/PIN de torneo, enlaces directos compartibles (Espectador, Inscripción, Mesa de Control) y gobernanza con Co-Administradores designados y tokens para planilleros.
+  6. Blindar la seguridad retirando el bypass de login directo sin OTP y eliminar código muerto huérfano.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Fidelidad Nakka N01:* Las llaves de Doble Eliminación en dardos oficiales otorgan al finalista invicto del Winners Bracket el derecho de una segunda final si pierde la primera. No tener `de_gf_2` penalizaba injustamente al jugador sin derrotas.
+  2. *Resolución de Parejas:* Un torneo de parejas con 17 inscriptos generaba un cuadro de 32 con 15 Byes porque el sistema no consolidaba las duplas antes de calcular la potencia de 2. Con `resolveCompetitorUnits`, 17 inscriptos forman 8 duplas y 1 jugador en espera, dimensionando la llave a exactamente 8 slots con 0 Byes innecesarios.
+  3. *Seguridad y Control:* Para liberar la aplicación a todo el mundo sin anarquía en las inscripciones, los ámbitos jerárquicos permiten delimitar torneos a países, provincias o clubes, protegiendo las llaves con contraseñas y permitiendo a los organizadores delegar la carga de partidos a planilleros mediante tokens de mesa de control sin concederles privilegios de Superadmin.
+- **Realizado:**
+  - `src/lib/types.ts`:
+    * Añadidos tipos `MatchRole` (con `FINAL`, `GRAND_FINAL_1`, `GRAND_FINAL_2`, `WINNERS_FINAL`, `LOSERS_FINAL`, `THIRD_PLACE`).
+    * Añadidos `CompetitionScopeLevel` y `TournamentScopeConfig`.
+    * Añadidos `TournamentCoAdmin`, `RegisteredPair`, `teamMembers`, `isDeadBye`.
+    * Añadidos campos a `Tournament`: `grandFinalResetEnabled`, `doublesPairingMode`, `registeredPairs`, `scopeConfig`, `joinToken`, `deskToken`, `joinPasswordRequired`, `joinPasswordHash`, `coAdminIds`, `coAdmins`.
+  - `src/lib/bracket-engine.ts`:
+    * Implementado `shuffleArray` con Fisher-Yates genuino.
+    * Siembra simétrica estricta de árbol oficial (`getSeededOrder`) y distribución balanceada de Byes.
+    * Implementado `resolveCompetitorUnits` para consolidar duplas pre-armadas y duplas sorteadas a ciegas.
+    * Soporte para Gran Final Reset (`de_gf_2`) en `generateDoubleElimination` y `reportResult`.
+    * Propagación en punto fijo de Byes en Losers Bracket para eliminar cruces fantasma (`DEAD_BYE`).
+    * Detección segura de podio (`computePodium`) con namespacing de IDs y roles de partido.
+  - `src/components/torneos/TournamentGroupStage.tsx`:
+    * Refactorizado `generatePlayoffCrossMatches` delegando limpiamente en `generateSingleElimination` con cruce olímpico (1ºA vs 2ºB, 1ºB vs 2ºA), suprimiendo +220 líneas de código duplicado.
+  - `src/components/torneos/TournamentManager.tsx`:
+    * Integrado `resolveCompetitorUnits` en la siembra y cálculo de cuadros.
+    * Sorteo de parejas a ciegas (*Blind Draw*) con Fisher-Yates sin fabricar duplas ficticias.
+    * Gobernanza de permisos (`canManageTournament`) considerando Superadmin, Creador, Co-Administradores y Planilleros con Desk Token.
+    * Botones en cabecera para copiar enlaces: Link de Inscripción, Link de Espectadores y Link de Mesa de Control (con tokens).
+    * Guardado de Byes manuales con 0-0 e `isBye: true`.
+  - `src/components/torneos/TournamentBracket.tsx`:
+    * Renderizado dinámico de Gran Final #1 y Gran Final #2 (Desempate) con notas de campeonato y tarjetas limpias de Byes.
+    * Filtro de tercer puesto por rol (`m.matchRole === 'THIRD_PLACE' || m.id.endsWith('se_third_place')`).
+  - `src/components/torneos/NakkaTvBracketView.tsx`:
+    * Pestañas independientes en Doble Eliminación para TV de 32": Ganadores (Winners), Perdedores (Losers) y Gran Final.
+  - `src/components/torneos/EditTournamentModal.tsx`:
+    * Selector de Ámbitos (Opción C Jerárquico Híbrido: Global, Nacional, Provincial, Club, Privado).
+    * Switch `restrictEnrollmentToScope` y switch `grandFinalResetEnabled`.
+    * Selector de modalidad de duplas (`BOTH`, `PRE_FORMED`, `BLIND_DRAW`).
+    * Control de acceso: `joinPasswordRequired` y PIN.
+    * Enlaces directos para espectadores y mesa de control con botones de copiado.
+    * Gestor de Co-Administradores con buscador de jugadores registrados.
+  - `src/components/torneos/PlayerEnrollModal.tsx`:
+    * Selección de modalidad de pareja (compañero pre-armado o sorteo a ciegas).
+    * Validación de PIN/contraseña de torneo si está requerida.
+  - `src/app/api/torneos/route.ts`:
+    * Autorización por recurso considerando `isAuthorizedAdmin`, `creatorId`, `coAdminIds` y `deskToken`.
+    * Preservación del tipo `MIXTO` en la persistencia.
+  - `src/components/perfil/LoginModal.tsx`:
+    * Retirado el bypass de acceso directo sin OTP.
+  - Eliminación de código muerto huérfano:
+    * Eliminados `Navbar.tsx`, `Footer.tsx`, `AppTopBar.tsx`, `CheckoutGuide.tsx`, `DartKeypad.tsx`, `api/diagnostic/route.ts`.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Motor de llaves alineado al 100% con n01darts.com, soporte completo de Doble Eliminación con Gran Final Reset, consolidación pura de duplas, ámbitos jerárquicos de competición y control de acceso robusto.
+
 ## [Sesión 65] - 2026-11-21
 - **Objetivos:**
   1. Incorporar en los detalles y configuración del torneo (`EditTournamentModal.tsx` y modal de nuevo torneo en `TournamentManager.tsx`) la selección explícita de modalidad de juego: **Individual (1 vs 1)** o **Por Parejas / Duplas (2 vs 2)** (`isDoubles: boolean`).

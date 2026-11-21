@@ -124,13 +124,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!isAuthorizedAdmin(request)) {
-      return NextResponse.json(
-        { success: false, error: 'No autorizado. Se requieren credenciales de administrador.' },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
     const tournament: Tournament = body.tournament;
 
@@ -141,13 +134,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const deskHeader = request.headers.get('x-desk-token') || request.headers.get('x-tournament-desk-token');
+    const userHeader = request.headers.get('x-user-id');
+    const isOwnerOrCoAdmin = userHeader && (tournament.creatorId === userHeader || tournament.coAdminIds?.includes(userHeader));
+    const isDeskAuthorized = deskHeader && (tournament.deskToken === deskHeader || deskHeader === `desk-${tournament.id}`);
+
+    if (!isAuthorizedAdmin(request) && !isOwnerOrCoAdmin && !isDeskAuthorized) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado. Se requieren credenciales de administrador u organizador.' },
+        { status: 401 }
+      );
+    }
+
     const pool = getDbPool();
 
     const id = String(tournament.id);
     const title = tournament.title.trim();
     const slug = tournament.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const description = tournament.description || '';
-    const tournamentType = tournament.type === 'ONLINE' ? 'ONLINE' : 'PRESENCIAL';
+    const tournamentType = tournament.type === 'ONLINE' ? 'ONLINE' : tournament.type === 'MIXTO' ? 'MIXTO' : 'PRESENCIAL';
     const format = ['SINGLE_ELIMINATION', 'DOUBLE_ELIMINATION', 'ROUND_ROBIN', 'HYBRID'].includes(tournament.format)
       ? tournament.format
       : 'SINGLE_ELIMINATION';

@@ -253,7 +253,43 @@ export interface CricketMarkState {
 
 export type TournamentType = 'PRESENCIAL' | 'ONLINE' | 'MIXTO';
 export type TournamentFormat = 'SINGLE_ELIMINATION' | 'ROUND_ROBIN' | 'DOUBLE_ELIMINATION' | 'HYBRID';
-export type TournamentStatus = 'UPCOMING' | 'REGISTRATION_OPEN' | 'IN_PROGRESS' | 'COMPLETED';
+export type TournamentStatus = 'UPCOMING' | 'REGISTRATION_OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+export type MatchRole = 'MATCH' | 'THIRD_PLACE' | 'WINNERS_FINAL' | 'LOSERS_FINAL' | 'GRAND_FINAL_1' | 'GRAND_FINAL_2' | 'FINAL';
+
+export type CompetitionScopeLevel = 'GLOBAL' | 'COUNTRY' | 'SUBDIVISION' | 'CLUB' | 'PRIVATE' | 'NACIONAL' | 'PROVINCIAL' | 'PRIVADO';
+
+export interface TournamentScopeConfig {
+  level: CompetitionScopeLevel;
+  countryCode?: string;         // ej: 'AR', 'CL', 'UY', 'ES'
+  subdivisionCode?: string;     // ej: 'B' (Buenos Aires), 'X' (Córdoba), 'S' (Santa Fe)
+  subdivisionName?: string;     // ej: 'Buenos Aires', 'Córdoba'
+  country?: string;
+  province?: string;
+  club?: string;
+  clubId?: string;
+  clubName?: string;
+  restrictEnrollmentToScope?: boolean; // Restringir inscripción exclusivamente a jugadores de este ámbito
+  currency?: string;            // ej: 'ARS', 'CLP', 'USD'
+}
+
+export interface TournamentCoAdmin {
+  id: string;
+  name: string;
+  nickname?: string;
+  avatarUrl?: string;
+}
+
+export interface RegisteredPair {
+  id: string;
+  player1Id: string;
+  player1Name: string;
+  player1Avatar?: string;
+  player2Id: string;
+  player2Name: string;
+  player2Avatar?: string;
+  registeredAt?: string;
+}
 
 export interface RoundLegsConfig {
   distanceMode?: 'LEGS' | 'SETS';
@@ -271,13 +307,31 @@ export interface TournamentBracketMatch {
   round: number; // 1, 2, 3...
   matchIndex: number;
   bracketType?: 'WINNERS' | 'LOSERS' | 'FINALS';
+  matchRole?: MatchRole;
+  isDeadBye?: boolean;
   distanceMode?: 'LEGS' | 'SETS';
   legTarget?: number;
   setTarget?: number;
   scoreSetsP1?: number;
   scoreSetsP2?: number;
-  player1?: { id: string; name: string; avatarUrl: string; seed?: number; nationality?: string; countryCode?: string };
-  player2?: { id: string; name: string; avatarUrl: string; seed?: number; nationality?: string; countryCode?: string };
+  player1?: {
+    id: string;
+    name: string;
+    avatarUrl: string;
+    seed?: number;
+    nationality?: string;
+    countryCode?: string;
+    teamMembers?: Array<{ id: string; name: string; avatarUrl?: string }>;
+  };
+  player2?: {
+    id: string;
+    name: string;
+    avatarUrl: string;
+    seed?: number;
+    nationality?: string;
+    countryCode?: string;
+    teamMembers?: Array<{ id: string; name: string; avatarUrl?: string }>;
+  };
   scoreP1: number;
   scoreP2: number;
   winnerId?: string;
@@ -398,6 +452,14 @@ export interface Tournament {
   isPaid?: boolean;
   hasCashPrizes?: boolean;
   isDoubles?: boolean;
+  doublesPairingMode?: 'PRE_FORMED' | 'BLIND_DRAW' | 'BOTH';
+  registeredPairs?: RegisteredPair[];
+  grandFinalResetEnabled?: boolean; // Habilita de_gf_2 si el finalista de Losers gana la primera final (estilo n01 / Challonge)
+  scopeConfig?: TournamentScopeConfig;
+  joinToken?: string; // Token público de acceso directo para inscripción
+  deskToken?: string; // Token seguro para mesa de control / planilleros
+  joinPasswordRequired?: boolean;
+  joinPasswordHash?: string; // Hash o PIN de acceso al torneo estilo n01
   prizesBreakdown?: {
     first: number;
     second: number;
@@ -407,6 +469,7 @@ export interface Tournament {
   creatorId?: string;
   creatorName?: string;
   coAdminIds?: string[];
+  coAdmins?: TournamentCoAdmin[];
   matches?: TournamentBracketMatch[];
   stats?: TournamentStats;
   podium?: TournamentPodium;
@@ -422,6 +485,9 @@ export interface Tournament {
     hasWebcam?: boolean;
     isBye?: boolean;
     enrolledAt?: string;
+    teammateId?: string;
+    teammateName?: string;
+    pairingStatus?: 'PAIRED' | 'WAITING_DRAW' | 'CONFIRMED' | 'PENDING_PARTNER' | 'BLIND_DRAW';
   }>;
   groupStageData?: any;
 }

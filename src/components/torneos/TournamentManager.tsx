@@ -109,7 +109,9 @@ import {
   getNextPowerOfTwo,
   hasRealMatchesPlayed,
   Participant,
-  SeedingMode 
+  SeedingMode,
+  resolveCompetitorUnits,
+  shuffleArray
 } from '@/lib/bracket-engine';
 
 // Helper de traducción y estilo visual de estados de torneo en español (sin cortes)
@@ -239,6 +241,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
   // Estado de feedback al copiar enlaces de inscripción
   const [copiedTournamentId, setCopiedTournamentId] = useState<string | null>(null);
+  const [copiedLinkType, setCopiedLinkType] = useState<string | null>(null);
 
   // Modal de Detalle de Modalidad y Lista de Inscriptos (para usuarios generales y no administradores)
   const [tournamentForPublicDetail, setTournamentForPublicDetail] = useState<Tournament | null>(null);
@@ -271,12 +274,24 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   });
   const isAdmin = canUserManageTournaments(currentUser);
 
-  // Gobernanza de Torneo: Master Key para Superadmin o Creador / Co-Admin nato
+  // Token de mesa de control desde URL para planilleros autorizados
+  const [activeDeskToken, setActiveDeskToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const desk = urlParams.get('deskToken');
+      if (desk) setActiveDeskToken(desk);
+    }
+  }, []);
+
+  // Gobernanza de Torneo: Master Key para Superadmin o Creador / Co-Admin nato / Planillero autorizado
   const canManageTournament = (t: Tournament | null | undefined): boolean => {
     if (!t) return false;
     if (isUserSuperAdmin(currentUser) || currentUser.email?.toLowerCase() === 'marianodeux@gmail.com') return true;
     if (t.creatorId && t.creatorId === currentUser.id) return true;
     if (t.coAdminIds && t.coAdminIds.includes(currentUser.id)) return true;
+    if (activeDeskToken && (t.deskToken === activeDeskToken || activeDeskToken === `desk-${t.id}`)) return true;
     if (!t.creatorId && isAdmin) return true;
     return false;
   };
@@ -333,17 +348,28 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     }
   }, [initialTournamentId, initialEnroll, tournaments]);
 
-  // Copiar link directo de inscripción al portapapeles
-  const handleCopyEnrollLink = (tourney: Tournament, e?: React.MouseEvent) => {
+  // Copiar links directos (Espectadores, Inscripción o Mesa de Control)
+  const handleCopyCustomLink = (type: 'SPECTATOR' | 'ENROLL' | 'DESK', tourney: Tournament, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://locosporlosdardos.com.ar';
-    const link = `${origin}/torneos?inscribir=${tourney.id}`;
+    let url = `${origin}/torneos?id=${tourney.id}`;
+    if (type === 'ENROLL') {
+      url = `${origin}/torneos?id=${tourney.id}&joinToken=${tourney.joinToken || tourney.id}&inscribir=${tourney.id}`;
+    } else if (type === 'DESK') {
+      url = `${origin}/torneos?id=${tourney.id}&deskToken=${tourney.deskToken || 'desk-' + tourney.id}`;
+    }
+
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(link).then(() => {
-        setCopiedTournamentId(tourney.id);
-        setTimeout(() => setCopiedTournamentId(null), 3000);
+      navigator.clipboard.writeText(url).then(() => {
+        setCopiedLinkType(`${type}-${tourney.id}`);
+        setTimeout(() => setCopiedLinkType(null), 3000);
       }).catch(() => {});
     }
+  };
+
+  // Copiar link directo de inscripción al portapapeles
+  const handleCopyEnrollLink = (tourney: Tournament, e?: React.MouseEvent) => {
+    handleCopyCustomLink('ENROLL', tourney, e);
   };
 
   // Generar URL de WhatsApp para invitar e inscribirse directamente
@@ -623,7 +649,14 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   }, [tournamentEnrolledList, currentUser]);
 
   // Inscripción y acreditación de jugadores al torneo
-  const handleEnrollPlayer = (playerData: { name: string; pin: string; useWebcam: boolean }) => {
+  const handleEnrollPlayer = (playerData: { 
+    name: string; 
+    pin: string; 
+    useWebcam: boolean;
+    teammateId?: string;
+    teammateName?: string;
+    pairingStatus?: 'CONFIRMED' | 'PENDING_PARTNER' | 'BLIND_DRAW';
+  }) => {
     if (!currentTournament) return;
 
     const matchedProfile = communityPlayers.find(
@@ -640,7 +673,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       avg: matchedProfile?.estimatedAvg || 45,
       nationality: matchedProfile?.nationality || 'Argentina',
       countryCode: matchedProfile?.countryCode || 'AR',
-      enrolledAt: new Date().toISOString()
+      enrolledAt: new Date().toISOString(),
+      teammateId: playerData.teammateId,
+      teammateName: playerData.teammateName,
+      pairingStatus: playerData.pairingStatus
     };
 
     setTournaments((prev) => {
@@ -805,48 +841,47 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   // Motor Nakka N01: Asignación Automática de la Llave
   const handleAutoAssignBracket = (isRandom: boolean) => {
     if (!currentTournament) return;
-    const participants: Participant[] = tournamentEnrolledList.map((p, idx) => ({
-      id: p.id,
-      name: p.name,
-      nickname: p.nickname,
-      avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
-      seed: p.seed || idx + 1,
-      nationality: p.nationality || 'Argentina',
-      countryCode: p.countryCode || 'AR'
-    }));
+    const { competitors, unpairedPlayers } = resolveCompetitorUnits(currentTournament);
 
-    if (participants.length === 0) {
-      alert('Debes tener al menos un jugador inscripto para realizar la asignación.');
+    if (competitors.length === 0) {
+      alert('Debes tener al menos un competidor o pareja inscripta para realizar la asignación.');
       return;
     }
 
+    if (currentTournament.isDoubles && unpairedPlayers.length > 0) {
+      alert(`Aviso: Hay ${unpairedPlayers.length} jugador(es) sin compañero asignado. Se sembrarán las ${competitors.length} duplas confirmadas en la llave.`);
+    }
+
     // Dimensionamiento matemático Nakka N01 / Challonge:
-    // Al presionar "Asignación Automática", dimensionamos la llave a la potencia de 2 exacta de los inscriptos reales
+    // Al presionar "Asignación Automática", dimensionamos la llave a la potencia de 2 exacta de los competidores reales
     // y resolvemos los Byes inmediatamente (resolveByes = true) para que los competidores con pase libre
-    // avancen de inmediato a la siguiente ronda (Cuartos) y todos los partidos queden listos para jugar sin slots varados ("Por definir").
-    const bracketSize = getNextPowerOfTwo(participants.length);
+    // avancen de inmediato a la siguiente ronda (Cuartos) y todos los partidos queden listos para jugar sin slots varados.
+    const bracketSize = getNextPowerOfTwo(competitors.length);
     const resolveByes = true;
     const legTarget = currentTournament.bestOfLegs || 3;
     const distMode = currentTournament.roundLegsConfig?.distanceMode || 'LEGS';
-    const seedingMode: SeedingMode = isRandom ? 'COMPACT' : 'RANKED';
+    const seedingMode: SeedingMode = isRandom ? 'RANDOM' : 'RANKED';
 
     let rawMatches: TournamentBracketMatch[] = [];
     if (currentTournament.format === 'DOUBLE_ELIMINATION') {
-      rawMatches = generateDoubleElimination(participants, {
+      rawMatches = generateDoubleElimination(competitors, {
         bracketSize,
         seeding: seedingMode,
         legTarget,
         distanceMode: distMode,
-        resolveByes
+        resolveByes,
+        grandFinalReset: currentTournament.grandFinalResetEnabled !== false,
+        roundLegsConfig: currentTournament.roundLegsConfig
       });
     } else {
-      rawMatches = generateSingleElimination(participants, {
+      rawMatches = generateSingleElimination(competitors, {
         bracketSize,
         seeding: seedingMode,
         includeThirdPlace: true,
         legTarget,
         distanceMode: distMode,
-        resolveByes
+        resolveByes,
+        roundLegsConfig: currentTournament.roundLegsConfig
       });
     }
 
@@ -951,41 +986,51 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       return;
     }
 
-    // 1. Barajar jugadores con Fisher-Yates
-    const shuffled = [...tournamentEnrolledList].sort(() => Math.random() - 0.5);
+    // 1. Barajar jugadores con Fisher-Yates genuino
+    const shuffled = shuffleArray([...tournamentEnrolledList]);
 
     // 2. Conformar duplas
     const pairs: Participant[] = [];
+    const registeredPairsList: any[] = [];
+    let oddPlayer: any = null;
+
     for (let i = 0; i < shuffled.length; i += 2) {
       const p1 = shuffled[i];
       const p2 = shuffled[i + 1];
 
       if (p2) {
+        const pairId = `pair-${p1.id}-${p2.id}`;
+        const pairName = `${p1.nickname || p1.name} & ${p2.nickname || p2.name}`;
         pairs.push({
-          id: `pair-${p1.id}-${p2.id}`,
-          name: `${p1.nickname || p1.name} & ${p2.nickname || p2.name}`,
+          id: pairId,
+          name: pairName,
           nickname: `${p1.nickname || p1.name} / ${p2.nickname || p2.name}`,
           avatarUrl: p1.avatarUrl || p2.avatarUrl || '/logos/logo-mdq.png',
           seed: Math.floor(i / 2) + 1,
           avg: Math.round(((p1.avg || 45) + (p2.avg || 45)) / 2),
           nationality: p1.nationality || p2.nationality || 'Argentina',
-          countryCode: p1.countryCode || p2.countryCode || 'AR'
+          countryCode: p1.countryCode || p2.countryCode || 'AR',
+          teamMembers: [
+            { id: p1.id, name: p1.name, avatarUrl: p1.avatarUrl },
+            { id: p2.id, name: p2.name, avatarUrl: p2.avatarUrl }
+          ]
+        });
+        registeredPairsList.push({
+          id: pairId,
+          player1Id: p1.id,
+          player1Name: p1.name,
+          player1Avatar: p1.avatarUrl,
+          player2Id: p2.id,
+          player2Name: p2.name,
+          player2Avatar: p2.avatarUrl,
+          seed: Math.floor(i / 2) + 1
         });
       } else {
-        pairs.push({
-          id: `pair-${p1.id}-solo`,
-          name: `${p1.nickname || p1.name} (Libre)`,
-          nickname: p1.nickname || p1.name,
-          avatarUrl: p1.avatarUrl || '/logos/logo-mdq.png',
-          seed: Math.floor(i / 2) + 1,
-          avg: p1.avg || 45,
-          nationality: p1.nationality || 'Argentina',
-          countryCode: p1.countryCode || 'AR'
-        });
+        oddPlayer = p1;
       }
     }
 
-    // 3. Sembrar parejas en la llave
+    // 3. Sembrar parejas en la llave sin crear slots ficticios para jugadores impares
     const bracketSize = getNextPowerOfTwo(pairs.length);
     const legTarget = currentTournament.bestOfLegs || 3;
     const distMode = currentTournament.roundLegsConfig?.distanceMode || 'LEGS';
@@ -996,7 +1041,10 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         bracketSize,
         seeding: 'RANDOM',
         legTarget,
-        distanceMode: distMode
+        distanceMode: distMode,
+        resolveByes: true,
+        grandFinalReset: currentTournament.grandFinalResetEnabled !== false,
+        roundLegsConfig: currentTournament.roundLegsConfig
       });
     } else {
       rawMatches = generateSingleElimination(pairs, {
@@ -1004,7 +1052,9 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         seeding: 'RANDOM',
         includeThirdPlace: true,
         legTarget,
-        distanceMode: distMode
+        distanceMode: distMode,
+        resolveByes: true,
+        roundLegsConfig: currentTournament.roundLegsConfig
       });
     }
 
@@ -1020,6 +1070,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         if (t.id !== currentTournament.id) return t;
         return {
           ...t,
+          registeredPairs: registeredPairsList,
           matches: namespacedMatches
         };
       });
@@ -1029,7 +1080,11 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       return updated;
     });
 
-    alert(`¡Sorteo a Ciegas completado con éxito! Se armaron ${pairs.length} duplas y se sembraron en la llave. Puedes intercambiar o editar cualquier dupla tocando el botón de asignación de cada slot.`);
+    if (oddPlayer) {
+      alert(`¡Sorteo a Ciegas completado con éxito! Se armaron ${pairs.length} duplas oficiales. El jugador ${oddPlayer.name} quedó en espera de compañero.`);
+    } else {
+      alert(`¡Sorteo a Ciegas completado con éxito! Se armaron ${pairs.length} duplas y se sembraron en la llave.`);
+    }
   };
 
   // Motor Nakka N01: Confirmar asignación manual slot a slot
@@ -1055,6 +1110,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           } else if (choice.isBye) {
             if (slotIndex === 1) newMatch.player1 = undefined;
             else newMatch.player2 = undefined;
+            newMatch.isBye = true;
           } else if (choice.player) {
             const assignedPlayer = {
               id: choice.player.id,
@@ -1071,14 +1127,15 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           return newMatch;
         });
 
-        // Si se asignó un BYE y en el otro slot hay un jugador, auto-avanzar con reportResult
+        // Si se asignó un BYE y en el otro slot hay un jugador, auto-avanzar limpiamente con score 0-0
         const targetMatch = updatedMatches.find((m) => m.id === match.id);
         if (targetMatch && choice.isBye) {
           const activePlayer = slotIndex === 1 ? targetMatch.player2 : targetMatch.player1;
           if (activePlayer) {
+            targetMatch.isBye = true;
             updatedMatches = reportResult(updatedMatches, targetMatch.id, {
-              scoreP1: slotIndex === 1 ? 0 : (targetMatch.legTarget || 3),
-              scoreP2: slotIndex === 1 ? (targetMatch.legTarget || 3) : 0,
+              scoreP1: 0,
+              scoreP2: 0,
               winnerId: activePlayer.id,
               note: 'Pase Automático (BYE)'
             });
@@ -1158,40 +1215,39 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
         }
       }
 
-      // Consolidar la llave definitiva resolviendo Byes oficiales según los inscriptos reales
+      // Consolidar la llave definitiva resolviendo Byes oficiales según las unidades de competición reales
       let updatedMatches = tourney.matches;
       if (enrolled.length > 0 && tourney.format !== 'ROUND_ROBIN') {
-        const participants: Participant[] = enrolled.map((p, idx) => ({
-          id: p.id,
-          name: p.name,
-          nickname: p.nickname,
-          avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
-          seed: p.seed || idx + 1,
-          nationality: p.nationality || 'Argentina',
-          countryCode: p.countryCode || 'AR'
-        }));
+        const { competitors, unpairedPlayers } = resolveCompetitorUnits(tourney);
 
-        const bracketSize = getNextPowerOfTwo(participants.length);
+        if (tourney.isDoubles && unpairedPlayers.length > 0) {
+          alert(`Aviso: Hay ${unpairedPlayers.length} jugador(es) sin compañero asignado. Se fijará la llave con las ${competitors.length} duplas confirmadas.`);
+        }
+
+        const bracketSize = getNextPowerOfTwo(Math.max(competitors.length, 2));
         const legTarget = tourney.bestOfLegs || 3;
         const distMode = tourney.roundLegsConfig?.distanceMode || 'LEGS';
 
         let rawMatches: TournamentBracketMatch[] = [];
         if (tourney.format === 'DOUBLE_ELIMINATION') {
-          rawMatches = generateDoubleElimination(participants, {
+          rawMatches = generateDoubleElimination(competitors, {
             bracketSize,
             seeding: 'RANKED',
             legTarget,
             distanceMode: distMode,
-            resolveByes: true
+            resolveByes: true,
+            grandFinalReset: tourney.grandFinalResetEnabled !== false,
+            roundLegsConfig: tourney.roundLegsConfig
           });
         } else {
-          rawMatches = generateSingleElimination(participants, {
+          rawMatches = generateSingleElimination(competitors, {
             bracketSize,
             seeding: 'RANKED',
             includeThirdPlace: true,
             legTarget,
             distanceMode: distMode,
-            resolveByes: true
+            resolveByes: true,
+            roundLegsConfig: tourney.roundLegsConfig
           });
         }
 
@@ -1298,24 +1354,17 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
     let finalTourney = { ...updatedTourney };
 
     if (shouldRegenerateMatches) {
-      const participants: Participant[] = (updatedTourney.enrolledPlayers && updatedTourney.enrolledPlayers.length > 0)
-        ? updatedTourney.enrolledPlayers.map((p, idx) => ({
-            id: p.id,
-            name: p.name,
-            nickname: p.nickname,
-            avatarUrl: p.avatarUrl || '/logos/logo-mdq.png',
-            seed: p.seed || idx + 1,
-            nationality: p.nationality || 'Argentina',
-            countryCode: p.countryCode || 'AR'
-          }))
+      const { competitors } = resolveCompetitorUnits(updatedTourney);
+      const participants: Participant[] = competitors.length > 0
+        ? competitors
         : createTournamentParticipants(updatedTourney.maxParticipants, currentUser || undefined);
 
       const isOpen = updatedTourney.status === 'REGISTRATION_OPEN';
       const hasFullQuota = Boolean(updatedTourney.maxParticipants && participants.length >= updatedTourney.maxParticipants);
 
       const bracketSize = (!isOpen || hasFullQuota)
-        ? getNextPowerOfTwo(participants.length)
-        : getNextPowerOfTwo(updatedTourney.maxParticipants || participants.length);
+        ? getNextPowerOfTwo(Math.max(participants.length, 2))
+        : getNextPowerOfTwo(updatedTourney.maxParticipants || Math.max(participants.length, 2));
 
       const resolveByes = !isOpen || hasFullQuota;
       const legTarget = updatedTourney.bestOfLegs || 3;
@@ -1328,7 +1377,9 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           seeding: 'RANKED',
           legTarget,
           distanceMode: distMode,
-          resolveByes
+          resolveByes,
+          grandFinalReset: updatedTourney.grandFinalResetEnabled !== false,
+          roundLegsConfig: updatedTourney.roundLegsConfig
         });
       } else if (updatedTourney.format === 'SINGLE_ELIMINATION') {
         rawMatches = generateSingleElimination(participants, {
@@ -1337,7 +1388,8 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
           includeThirdPlace: true,
           legTarget,
           distanceMode: distMode,
-          resolveByes
+          resolveByes,
+          roundLegsConfig: updatedTourney.roundLegsConfig
         });
       } else {
         // En Fase de Grupos (ROUND_ROBIN), la llave eliminatoria se arma únicamente
@@ -2596,29 +2648,79 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
 
                     {/* Selector rápido y Acciones */}
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* Botón Compartir Link Directo */}
+                      {/* Botón Copiar Link Inscripción */}
                       <button
                         type="button"
-                        onClick={(e) => handleCopyEnrollLink(currentTournament, e)}
+                        onClick={(e) => handleCopyCustomLink('ENROLL', currentTournament, e)}
                         className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1.5 transition-all ${
-                          copiedTournamentId === currentTournament.id
+                          copiedLinkType === `ENROLL-${currentTournament.id}`
                             ? 'bg-[#00e676] text-black border-[#00e676] shadow-md shadow-[#00e676]/30'
                             : 'bg-[#111622] hover:bg-[#1a2234] text-slate-200 border-slate-700 hover:border-[#00e676]'
                         }`}
-                        title="Copiar enlace para invitar a otros jugadores"
+                        title="Copiar enlace para invitar a inscribirse"
                       >
-                        {copiedTournamentId === currentTournament.id ? (
+                        {copiedLinkType === `ENROLL-${currentTournament.id}` ? (
                           <>
                             <Check className="w-4 h-4" />
-                            <span>¡Link Copiado!</span>
+                            <span>¡Link Inscripción!</span>
                           </>
                         ) : (
                           <>
                             <Share2 className="w-4 h-4 text-[#00e676]" />
-                            <span>Compartir Link</span>
+                            <span>Link Inscripción</span>
                           </>
                         )}
                       </button>
+
+                      {/* Botón Copiar Link Espectador */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyCustomLink('SPECTATOR', currentTournament, e)}
+                        className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1.5 transition-all ${
+                          copiedLinkType === `SPECTATOR-${currentTournament.id}`
+                            ? 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-500/30'
+                            : 'bg-[#111622] hover:bg-[#1a2234] text-slate-300 border-slate-700 hover:border-blue-400'
+                        }`}
+                        title="Copiar enlace público de espectador en vivo"
+                      >
+                        {copiedLinkType === `SPECTATOR-${currentTournament.id}` ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>¡Link Espectador!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Link2 className="w-4 h-4 text-blue-400" />
+                            <span className="hidden sm:inline">Espectadores</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Botón Copiar Link Mesa de Control (solo para organizadores) */}
+                      {canManageTournament(currentTournament) && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleCopyCustomLink('DESK', currentTournament, e)}
+                          className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1.5 transition-all ${
+                            copiedLinkType === `DESK-${currentTournament.id}`
+                              ? 'bg-amber-400 text-black border-amber-400 shadow-md shadow-amber-400/30'
+                              : 'bg-[#111622] hover:bg-[#1a2234] text-amber-300 border-amber-500/40 hover:border-amber-400'
+                          }`}
+                          title="Copiar enlace con acceso administrativo para Mesa de Control / Planilleros"
+                        >
+                          {copiedLinkType === `DESK-${currentTournament.id}` ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              <span>¡Link Mesa!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-4 h-4 text-amber-400" />
+                              <span className="hidden sm:inline">Mesa de Control</span>
+                            </>
+                          )}
+                        </button>
+                      )}
 
                       {/* Botón WhatsApp */}
                       <a
@@ -4246,14 +4348,6 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
             setSelectedHistoryTournamentId(targetId);
           }
         }}
-      />
-
-      {/* MODAL: INSCRIPCIÓN OFICIAL AL TORNEO */}
-      <PlayerEnrollModal
-        isOpen={showEnrollModal}
-        onClose={() => setShowEnrollModal(false)}
-        tournament={currentTournament}
-        onEnrollPlayer={handleEnrollPlayer}
       />
 
       {/* MODAL: ASIGNACIÓN DE SLOT ESTILO NAKKA N01 */}

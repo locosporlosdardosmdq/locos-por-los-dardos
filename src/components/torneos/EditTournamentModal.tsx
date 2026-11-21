@@ -9,9 +9,15 @@ import {
   CompetitionMode,
   NationalStageType,
   RoundLegsConfig,
-  League
+  League,
+  CompetitionScopeLevel,
+  TournamentScopeConfig,
+  TournamentCoAdmin,
+  PlayerProfile
 } from '@/lib/types';
 import { hasRealMatchesPlayed } from '@/lib/bracket-engine';
+import { COUNTRIES, PROVINCIAS_ARGENTINA } from '@/lib/constants';
+import { fetchRegisteredPlayersFromCloud } from '@/lib/storage';
 import { 
   X, 
   Trophy, 
@@ -27,7 +33,15 @@ import {
   Sparkles,
   Flame,
   Zap,
-  Save
+  Save,
+  Globe,
+  Shield,
+  Key,
+  Copy,
+  UserPlus,
+  Trash2,
+  Link2,
+  Share2
 } from 'lucide-react';
 
 interface EditTournamentModalProps {
@@ -88,6 +102,39 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
   const [finalsLegs, setFinalsLegs] = useState(tournament?.roundLegsConfig?.finals || 5);
   const [grandFinalLegs, setGrandFinalLegs] = useState(tournament?.roundLegsConfig?.grandFinal || 5);
 
+  // Ámbito de Competición (Opción C Jerárquico Híbrido)
+  const [scopeLevel, setScopeLevel] = useState<CompetitionScopeLevel>(tournament?.scopeConfig?.level || 'GLOBAL');
+  const [scopeCountry, setScopeCountry] = useState<string>(tournament?.scopeConfig?.country || 'AR');
+  const [scopeProvince, setScopeProvince] = useState<string>(tournament?.scopeConfig?.province || 'Buenos Aires');
+  const [scopeClub, setScopeClub] = useState<string>(tournament?.scopeConfig?.club || 'Darderos Mar del Plata');
+  const [restrictEnrollmentToScope, setRestrictEnrollmentToScope] = useState<boolean>(Boolean(tournament?.scopeConfig?.restrictEnrollmentToScope));
+
+  // Gran Final Reset (Doble Eliminación)
+  const [grandFinalResetEnabled, setGrandFinalResetEnabled] = useState<boolean>(tournament?.grandFinalResetEnabled !== false);
+
+  // Modalidad de Parejas (si isDoubles)
+  const [doublesPairingMode, setDoublesPairingMode] = useState<'BOTH' | 'PRE_FORMED' | 'BLIND_DRAW'>(tournament?.doublesPairingMode || 'BOTH');
+
+  // Control de Acceso y Contraseña
+  const [joinPasswordRequired, setJoinPasswordRequired] = useState<boolean>(Boolean(tournament?.joinPasswordRequired));
+  const [joinPassword, setJoinPassword] = useState<string>(tournament?.joinPasswordHash || '');
+  const [joinToken] = useState<string>(tournament?.joinToken || `join-${Math.random().toString(36).substring(2, 9)}`);
+  const [deskToken] = useState<string>(tournament?.deskToken || `desk-${Math.random().toString(36).substring(2, 9)}`);
+
+  // Co-Administradores
+  const [coAdmins, setCoAdmins] = useState<TournamentCoAdmin[]>(tournament?.coAdmins || []);
+  const [communityPlayers, setCommunityPlayers] = useState<PlayerProfile[]>([]);
+  const [selectedCoAdminId, setSelectedCoAdminId] = useState<string>('');
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchRegisteredPlayersFromCloud().then((players) => {
+      if (players && players.length > 0) {
+        setCommunityPlayers(players);
+      }
+    });
+  }, []);
+
   // Sincronizar estado cuando se abre el modal o cambia el ID del torneo (no resetear en polling)
   useEffect(() => {
     if (isOpen && tournament) {
@@ -116,6 +163,16 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
       setSemiLegs(tournament.roundLegsConfig?.semiFinals || 4);
       setFinalsLegs(tournament.roundLegsConfig?.finals || 5);
       setGrandFinalLegs(tournament.roundLegsConfig?.grandFinal || 5);
+      setScopeLevel(tournament.scopeConfig?.level || 'GLOBAL');
+      setScopeCountry(tournament.scopeConfig?.country || 'AR');
+      setScopeProvince(tournament.scopeConfig?.province || 'Buenos Aires');
+      setScopeClub(tournament.scopeConfig?.club || 'Darderos Mar del Plata');
+      setRestrictEnrollmentToScope(Boolean(tournament.scopeConfig?.restrictEnrollmentToScope));
+      setGrandFinalResetEnabled(tournament.grandFinalResetEnabled !== false);
+      setDoublesPairingMode(tournament.doublesPairingMode || 'BOTH');
+      setJoinPasswordRequired(Boolean(tournament.joinPasswordRequired));
+      setJoinPassword(tournament.joinPasswordHash || '');
+      setCoAdmins(tournament.coAdmins || []);
     }
   }, [isOpen, tournament?.id]);
 
@@ -176,6 +233,14 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
       });
     }
 
+    const scopeConfig: TournamentScopeConfig = {
+      level: scopeLevel,
+      country: scopeLevel === 'NACIONAL' ? scopeCountry : undefined,
+      province: scopeLevel === 'PROVINCIAL' ? scopeProvince : undefined,
+      club: scopeLevel === 'CLUB' ? scopeClub : undefined,
+      restrictEnrollmentToScope
+    };
+
     const updatedTourney: Tournament = {
       ...tournament,
       title: title.trim(),
@@ -184,6 +249,15 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
       type,
       format,
       isDoubles,
+      doublesPairingMode: isDoubles ? doublesPairingMode : undefined,
+      grandFinalResetEnabled: format === 'DOUBLE_ELIMINATION' ? grandFinalResetEnabled : undefined,
+      scopeConfig,
+      joinPasswordRequired,
+      joinPasswordHash: joinPasswordRequired && joinPassword.trim() ? joinPassword.trim() : undefined,
+      joinToken,
+      deskToken,
+      coAdminIds: coAdmins.map((c) => c.id),
+      coAdmins,
       competitionMode,
       leagueId: selectedLeague?.id,
       leagueName: selectedLeague?.name,
@@ -411,6 +485,317 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
               </p>
             </div>
           )}
+
+          {/* CONFIGURACIÓN ESPECIAL DOBLE ELIMINACIÓN */}
+          {format === 'DOUBLE_ELIMINATION' && (
+            <div className="bg-[#0f1422] p-4 rounded-2xl border border-amber-500/40 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-amber-300 font-bold block text-xs">Gran Final Reset (Oficial n01darts / PDC)</span>
+                  <span className="text-[10px] text-slate-400">Si el finalista del cuadro de ganadores pierde el partido 1, se disputa una segunda final decisiva</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={grandFinalResetEnabled}
+                    onChange={(e) => setGrandFinalResetEnabled(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-400"></div>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* CONFIGURACIÓN ESPECIAL MODALIDAD PAREJAS */}
+          {isDoubles && (
+            <div className="bg-[#0f1422] p-4 rounded-2xl border border-purple-500/40 space-y-2.5">
+              <span className="text-purple-300 font-bold block text-xs">Modalidad de Formación de Duplas</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { id: 'BOTH', title: 'Mixta / Ambas', desc: 'Pre-armadas y Blind Draw' },
+                  { id: 'PRE_FORMED', title: 'Solo Pre-armadas', desc: 'Compañero elegido' },
+                  { id: 'BLIND_DRAW', title: 'Solo Sorteo a Ciegas', desc: 'Duplas 100% al azar' }
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => setDoublesPairingMode(mode.id as any)}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      doublesPairingMode === mode.id
+                        ? 'bg-purple-600/20 border-purple-400 text-white shadow'
+                        : 'bg-[#07090e] border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="font-black text-xs">{mode.title}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">{mode.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ÁMBITO DE COMPETICIÓN & RESTRICCIÓN GEOGRÁFICA (OPCIÓN C) */}
+          <div className="bg-[#0f1422] p-4 rounded-2xl border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-sky-400" />
+                <span className="text-xs font-black text-white uppercase tracking-wider">
+                  Ámbito de Competición & Alcance
+                </span>
+              </div>
+              <span className="text-[10px] text-sky-400 font-bold bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/30">
+                Opción C (Jerárquico Híbrido)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Nivel Geográfico de Competición</label>
+                <select
+                  value={scopeLevel}
+                  onChange={(e) => setScopeLevel(e.target.value as any)}
+                  className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-white font-bold"
+                >
+                  <option value="GLOBAL">🌐 Abierto Global (Sin Restricción)</option>
+                  <option value="NACIONAL">🇦🇷 Abierto Nacional (Por País)</option>
+                  <option value="PROVINCIAL">🏛️ Provincial / Regional</option>
+                  <option value="CLUB">🎯 Local de Club / Sede</option>
+                  <option value="PRIVADO">🔒 Privado / Cerrado</option>
+                </select>
+              </div>
+
+              {scopeLevel === 'NACIONAL' && (
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">País Seleccionado</label>
+                  <select
+                    value={scopeCountry}
+                    onChange={(e) => setScopeCountry(e.target.value)}
+                    className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-white font-bold"
+                  >
+                    {COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>{c.name} ({c.code})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {scopeLevel === 'PROVINCIAL' && (
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Provincia</label>
+                  <select
+                    value={scopeProvince}
+                    onChange={(e) => setScopeProvince(e.target.value)}
+                    className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-white font-bold"
+                  >
+                    {PROVINCIAS_ARGENTINA.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {scopeLevel === 'CLUB' && (
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Club o Entidad Anfitriona</label>
+                  <input
+                    type="text"
+                    value={scopeClub}
+                    onChange={(e) => setScopeClub(e.target.value)}
+                    placeholder="ej: Darderos Mar del Plata"
+                    className="w-full bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-white font-bold"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Switch Restringir inscripción al ámbito */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+              <div>
+                <span className="text-white font-bold block text-xs">Restringir inscripción solo a jugadores de este ámbito</span>
+                <span className="text-[10px] text-slate-400">Si está activo, los jugadores de otras procedencias no podrán inscribirse automáticamente</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={restrictEnrollmentToScope}
+                  onChange={(e) => setRestrictEnrollmentToScope(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+              </label>
+            </div>
+          </div>
+
+          {/* SEGURIDAD, CONTRASEÑA Y ENLACES DIRECTOS */}
+          <div className="bg-[#0f1422] p-4 rounded-2xl border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Key className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-black text-white uppercase tracking-wider">
+                  Control de Acceso, Contraseña y Mesa de Control
+                </span>
+              </div>
+              <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                Nakka / Challonge Security
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-white font-bold block text-xs">Requerir Contraseña / PIN para Inscribirse</span>
+                  <span className="text-[10px] text-slate-400">Solo podrán inscribirse quienes conozcan el PIN establecido por el administrador</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={joinPasswordRequired}
+                    onChange={(e) => setJoinPasswordRequired(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-400"></div>
+                </label>
+              </div>
+
+              {joinPasswordRequired && (
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Contraseña / PIN de Inscripción</label>
+                  <input
+                    type="text"
+                    value={joinPassword}
+                    onChange={(e) => setJoinPassword(e.target.value)}
+                    placeholder="ej: DARDOS2026"
+                    className="w-full bg-[#07090e] border border-amber-500/50 rounded-xl px-3 py-2 text-amber-300 font-mono font-bold"
+                  />
+                </div>
+              )}
+
+              {/* Enlaces Directos del Torneo */}
+              <div className="pt-2 border-t border-slate-800 space-y-2">
+                <span className="text-[11px] font-bold text-slate-300 block">Enlaces Directos del Torneo:</span>
+                
+                {/* Link Espectador */}
+                <div className="flex items-center justify-between bg-[#07090e] p-2 rounded-xl border border-slate-800 text-xs">
+                  <div className="truncate mr-2">
+                    <span className="text-[10px] font-bold text-blue-400 block">👁️ Espectadores en Vivo:</span>
+                    <span className="text-slate-400 text-[10px] font-mono truncate">{typeof window !== 'undefined' ? `${window.location.origin}/torneos?id=${tournament.id}` : ''}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/torneos?id=${tournament.id}`;
+                      navigator.clipboard.writeText(url);
+                      setCopiedLink('SPECTATOR');
+                      setTimeout(() => setCopiedLink(null), 2500);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold flex items-center gap-1 shrink-0"
+                  >
+                    {copiedLink === 'SPECTATOR' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedLink === 'SPECTATOR' ? 'Copiado' : 'Copiar'}</span>
+                  </button>
+                </div>
+
+                {/* Link Mesa de Control */}
+                <div className="flex items-center justify-between bg-[#07090e] p-2 rounded-xl border border-slate-800 text-xs">
+                  <div className="truncate mr-2">
+                    <span className="text-[10px] font-bold text-amber-400 block">📋 Mesa de Control / Planilleros (Token Privado):</span>
+                    <span className="text-slate-400 text-[10px] font-mono truncate">{typeof window !== 'undefined' ? `${window.location.origin}/torneos?id=${tournament.id}&deskToken=${deskToken}` : ''}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/torneos?id=${tournament.id}&deskToken=${deskToken}`;
+                      navigator.clipboard.writeText(url);
+                      setCopiedLink('DESK');
+                      setTimeout(() => setCopiedLink(null), 2500);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-[10px] font-black flex items-center gap-1 shrink-0"
+                  >
+                    {copiedLink === 'DESK' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedLink === 'DESK' ? 'Copiado' : 'Copiar'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* CO-ADMINISTRADORES DEL TORNEO */}
+          <div className="bg-[#0f1422] p-4 rounded-2xl border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-black text-white uppercase tracking-wider">
+                  Co-Administradores Designados
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400">
+                {coAdmins.length} designados
+              </span>
+            </div>
+
+            <div className="flex gap-2">
+              <select
+                value={selectedCoAdminId}
+                onChange={(e) => setSelectedCoAdminId(e.target.value)}
+                className="flex-1 bg-[#07090e] border border-slate-700 rounded-xl px-3 py-2 text-white font-bold"
+              >
+                <option value="">Seleccionar jugador registrado para co-admin...</option>
+                {communityPlayers
+                  .filter((p) => !coAdmins.some((c) => c.id === p.id))
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.fullName || p.nickname} (@{p.nickname})
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!selectedCoAdminId) return;
+                  const found = communityPlayers.find((p) => p.id === selectedCoAdminId);
+                  if (found) {
+                    setCoAdmins((prev) => [
+                      ...prev,
+                      {
+                        id: found.id,
+                        name: found.fullName || found.nickname,
+                        nickname: found.nickname,
+                        email: found.email,
+                        assignedAt: new Date().toISOString()
+                      }
+                    ]);
+                    setSelectedCoAdminId('');
+                  }
+                }}
+                disabled={!selectedCoAdminId}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Agregar</span>
+              </button>
+            </div>
+
+            {coAdmins.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {coAdmins.map((admin) => (
+                  <span
+                    key={admin.id}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#07090e] border border-emerald-500/30 text-emerald-300 text-xs font-bold"
+                  >
+                    <span>{admin.name} (@{admin.nickname})</span>
+                    <button
+                      type="button"
+                      onClick={() => setCoAdmins((prev) => prev.filter((c) => c.id !== admin.id))}
+                      className="text-slate-400 hover:text-red-400 p-0.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Sede y Ubicación */}
           <div className="bg-[#0f1422] p-3.5 rounded-2xl border border-slate-800 space-y-2.5">

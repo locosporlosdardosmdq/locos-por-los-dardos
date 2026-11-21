@@ -1480,3 +1480,24 @@
      - Se computan duraciones ponderadas independientes (`matchDurationBase`, `matchDurationQF`, `matchDurationSF`, `matchDurationFinal`, `matchDurationGrandFinal`), integrándolas en las fórmulas de oleadas por dianas para Fase de Grupos + Playoffs, Doble Eliminación y Eliminación Simple.
      - `phaseBreakdownText` explicita la distancia de cada instancia (e.g. `Zonas (1º a 3): 1h 40m + Semis (1º a 4): 32m + Final (1º a 5): 24m`), y se añadió un banner interactivo que informa cuando la distancia progresiva está activa.
 - **Motivo:** Otorga a los organizadores y jugadores la máxima certeza sobre los tiempos reales de desarrollo de cada torneo contemplando todas las variantes reglamentarias de legs, recopilando además estadísticas empíricas de tiempo real de juego.
+
+---
+
+### [ADR-072] - 2026-11-21: Formalización de Modalidad por Parejas (2 vs 2) y Modelo Matemático de Llaves y Tiempos en Torneos
+- **Contexto:**
+  1. *Deuda de Detección Heurística:* Anteriormente, la aplicación no disponía de un selector dedicado de modalidad deportiva en el modal de edición (`EditTournamentModal.tsx`) ni en el de creación de torneos, viéndose forzada a deducir si el certamen era por parejas mediante inspección de texto en el título (`tournament.title.includes('pareja')`).
+  2. *Distorsión Matemática de Llaves en Parejas:* Al planificar un torneo con $N$ inscriptos por parejas (ej. 16 jugadores), la unidad de competición real son las duplas ($N_{teams} = \lfloor N / 2 \rfloor = 8$). Si el recomendador de formatos asumía 16 competidores, sugería 4 zonas de 4 jugadores o llaves de 16 slots, inflando artificialmente la cantidad de partidos a 31 en lugar de 15 partidos de duplas (2 zonas de 4 duplas + Semis + Final).
+  3. *Impacto Temporal de la Rotación de 4 Jugadores:* En partidas de 501 por parejas juegan 4 tiradores rotando en la diana (P1A $\rightarrow$ P2A $\rightarrow$ P1B $\rightarrow$ P2B). El tiempo físico de transición en el oche y el diálogo de toma de decisiones para los cierres dobles extienden la duración en aproximadamente un 30% por leg.
+- **Decisión:**
+  1. **Selector Explícito de Modalidad (`EditTournamentModal.tsx` & `TournamentManager.tsx`):**
+     - Se añadió el selector de 3 columnas: **Modalidad de Pista** (`type`), **Modalidad de Juego** (`isDoubles`: `👤 Individual (1 vs 1)` vs `👥 Por Parejas / Duplas (2 vs 2)`), y **Formato de Competición** (`format`).
+     - Se persistió de manera consistente `isDoubles: boolean` en `Tournament`, propagándolo además al Anotador Oficial en `handleLaunchBracketMatch` y `handleAdminAddManualMatch` para inicializar el tanteador en 2 vs 2 cuando corresponde.
+  2. **Modelo Deportivo de Unidades Competitivas (`TournamentFormatAdvisor.tsx`):**
+     - Se redefinió la cantidad efectiva de equipos competidores: $N_{teams} = \text{isDoublesMode} ? \lfloor \text{enrolledCount} / 2 \rfloor : \text{enrolledCount}$.
+     - Las recomendaciones de Fase de Grupos, Doble Eliminación y Eliminación Simple se generan en función de $N_{teams}$.
+     - Se incorporó detección visual para jugadores impares: `⚠️ 1 inscripto sin compañero`.
+  3. **Calibración de Duración por Parejas:**
+     - Se incorporaron `DOUBLES_LEG_FACTOR = 1.30` y `MATCH_OVERHEAD_MINS = 2.5` en el cálculo de minutos por leg y por partido.
+     - Se agregó un conmutador interactivo en el panel de control del simulador (`👤 Individual (1v1)` vs `👥 Parejas (2v2)`) para permitir a los organizadores auditar el cronograma bajo ambas modalidades antes de definir el formato final.
+     - Se adaptaron dinámicamente todos los textos a la terminología de duplas (`parejas`, `mínimo X partidos garantizados por dupla`, etc.).
+- **Motivo:** Garantiza precisión reglamentaria, coherencia en la cantidad de partidos de llave y exactitud cronológica en certámenes individuales y por parejas sin añadir librerías ni incrementar el bundle.

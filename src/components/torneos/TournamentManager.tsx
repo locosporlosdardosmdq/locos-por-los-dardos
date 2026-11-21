@@ -415,6 +415,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
   const [newNationalStageType, setNewNationalStageType] = useState<NationalStageType>('ONLINE');
   const [newType, setNewType] = useState<TournamentType>('PRESENCIAL');
   const [newFormat, setNewFormat] = useState<TournamentFormat>('SINGLE_ELIMINATION');
+  const [newIsDoubles, setNewIsDoubles] = useState<boolean>(false);
   const [newBestOfLegs, setNewBestOfLegs] = useState(5);
   const [newVenue, setNewVenue] = useState('Sede Darderos Mar del Plata');
   const [newCity, setNewCity] = useState('Mar del Plata');
@@ -1477,7 +1478,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       bestOfLegs: currentTournament.bestOfLegs,
       doubleIn: false,
       twoClearLegs: false,
-      isDoubles: false,
+      isDoubles: Boolean(currentTournament?.isDoubles || currentTournament?.title.toLowerCase().includes('pareja') || currentTournament?.title.toLowerCase().includes('dupla')),
       isVsCpu: false,
       cpuDifficulty: 'MEDIUM',
       player1: { id: match.player1Id, name: match.player1Name },
@@ -1743,7 +1744,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       bestOfLegs: match.legTarget || currentTournament.bestOfLegs || 3,
       doubleIn: false,
       twoClearLegs: false,
-      isDoubles: false,
+      isDoubles: Boolean(currentTournament?.isDoubles || currentTournament?.title.toLowerCase().includes('pareja') || currentTournament?.title.toLowerCase().includes('dupla')),
       isVsCpu: false,
       cpuDifficulty: 'MEDIUM',
       player1: { id: match.player1.id, name: match.player1.name, avatarUrl: match.player1.avatarUrl },
@@ -1990,6 +1991,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
       description: `Torneo oficial de competición federada. Modalidad ${newType.toLowerCase()}, formato ${newFormat === 'DOUBLE_ELIMINATION' ? 'Doble Eliminación' : newFormat === 'ROUND_ROBIN' ? 'Liga / Grupos' : 'Eliminación Simple'}.`,
       type: newType,
       format: newFormat,
+      isDoubles: newIsDoubles,
       podium: {},
       competitionMode: newCompetitionMode,
       leagueId: selectedLeague?.id,
@@ -2750,6 +2752,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                         outMode={currentTournament.outMode || 'DOUBLE_OUT'}
                         bestOfLegs={currentTournament.bestOfLegs || 3}
                         roundLegsConfig={currentTournament.roundLegsConfig}
+                        isDoubles={Boolean(currentTournament.isDoubles || currentTournament.title.toLowerCase().includes('pareja') || currentTournament.title.toLowerCase().includes('dupla'))}
                         onApplyFormat={handleApplyAdvisorRecommendation}
                       />
                     </div>
@@ -3612,9 +3615,9 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
-                  <label className="text-slate-300 font-bold block mb-1">Modalidad de Juego</label>
+                  <label className="text-slate-300 font-bold block mb-1">Modalidad de Pista</label>
                   <select
                     value={newType}
                     onChange={(e) => setNewType(e.target.value as any)}
@@ -3623,6 +3626,17 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({
                     <option value="PRESENCIAL">Presencial (En Club)</option>
                     <option value="ONLINE">Online Conectado</option>
                     <option value="MIXTO">Mixto / Híbrido (Presencial + Online)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1">Modalidad de Juego</label>
+                  <select
+                    value={newIsDoubles ? 'DOUBLES' : 'INDIVIDUAL'}
+                    onChange={(e) => setNewIsDoubles(e.target.value === 'DOUBLES')}
+                    className="w-full bg-[#111622] border border-slate-700 rounded-xl px-2.5 py-2 text-white font-bold focus:outline-none focus:border-[#00e676]"
+                  >
+                    <option value="INDIVIDUAL">👤 Individual (1 vs 1)</option>
+                    <option value="DOUBLES">👥 Por Parejas / Duplas (2 vs 2)</option>
                   </select>
                 </div>
                 <div>

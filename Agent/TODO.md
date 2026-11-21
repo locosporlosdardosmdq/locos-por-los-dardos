@@ -1,3 +1,15 @@
+- [x] **Formalización de Modalidad Individual vs Parejas en Torneos & Adaptación Integral del Asesor Inteligente (`EditTournamentModal.tsx`, `TournamentManager.tsx`, `TournamentFormatAdvisor.tsx`):**
+  * **Configuración Explícita de Modalidad de Juego (`EditTournamentModal.tsx` y `TournamentManager.tsx`):**
+    - En `EditTournamentModal.tsx`: incorporado selector prominente en la grilla de parámetros (`Modalidad de Pista`, `Modalidad de Juego` [👤 Individual vs 👥 Por Parejas / Duplas], `Formato de Competición`).
+    - En `TournamentManager.tsx`: añadido selector de modalidad en el modal de creación de certámenes ("Crear Nuevo Torneo"), persistencia garantizada de `isDoubles` en `newTourney` y propagación de `isDoubles` hacia el Anotador Oficial en `handleLaunchBracketMatch` y `handleAdminAddManualMatch`.
+  * **Modelo Deportivo y Matemático en Parejas (`TournamentFormatAdvisor.tsx`):**
+    - Unidades reales de competición: para $N$ inscriptos en parejas, $N_{units} = \lfloor N / 2 \rfloor$. Las llaves (zonas de grupos, cuadros de doble eliminación y cuadros directos) se calculan para el número exacto de duplas (e.g. 16 inscriptos $\rightarrow 8$ duplas = 2 zonas de 4 duplas, 15 partidos totales en lugar de 31).
+    - Detección de inscripciones impares: alerta visual interactiva si $N \% 2 \ne 0$ (`⚠️ 1 inscripto sin compañero`).
+    - Factor de tiempo por rotación física de 4 jugadores: multiplicador de tiempo por leg de $1.30\times$ y overhead de 2.5 min de transición/estrategia entre compañeros.
+    - Toggle interactivo en el panel de simulación (`👤 Individual (1v1)` vs `👥 Parejas (2v2)`) para auditar en tiempo real el impacto en el cronograma.
+  * **Validación:**
+    - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Cronometraje y Registro de Duración de Partidas en el Anotador & Estimación Dinámica de Torneos con Distancia Progresiva (`X01Board.tsx`, `DartScorer.tsx`, `MatchPdcStatsModal.tsx`, `TournamentFormatAdvisor.tsx`, `storage.ts`, `types.ts`, `RegisterAndProfile.tsx`):**
   * **Cronometraje Real de Partidas en el Anotador (`X01Board.tsx` & `DartScorer.tsx`):**
     - Inicialización de `matchStartTimeRef` anclado a `initialSession.startedAt` o `Date.now()`, persistido de manera ininterrumpida en `ActiveMatchSession` (`startedAt`) ante recargas de página o stand by.

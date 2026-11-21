@@ -1,5 +1,37 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 65] - 2026-11-21
+- **Objetivos:**
+  1. Incorporar en los detalles y configuración del torneo (`EditTournamentModal.tsx` y modal de nuevo torneo en `TournamentManager.tsx`) la selección explícita de modalidad de juego: **Individual (1 vs 1)** o **Por Parejas / Duplas (2 vs 2)** (`isDoubles: boolean`).
+  2. Que este seteo determine de forma directa y matemáticamente exacta las **sugerencias de llave** (Fase de grupos, doble eliminación, eliminación simple) y los **tiempos de partida y duración** en el Asesor Inteligente (`TournamentFormatAdvisor.tsx`).
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Deuda de Detección Heurística de Parejas:* Anteriormente, el sistema inspeccionaba cadenas de texto buscando si el título contenía `"pareja"` o `"dupla"`. Esto resultaba frágil si el organizador titulaba el certamen "Torneo Apertura" o "Supercopa MDQ". Era imperativo formalizar `isDoubles: boolean` como parámetro deportivo de primer nivel tanto al crear como al editar torneos.
+  2. *Consistencia Matemática de Llaves en Parejas:* En torneos por parejas, la unidad de competición real son las duplas ($N_{teams} = \lfloor N / 2 \rfloor$). Un torneo de 16 jugadores inscriptos por parejas no es un cuadro de 16, sino un cuadro de 8 duplas (Cuartos $\rightarrow$ Semis $\rightarrow$ Final), o 2 zonas de 4 duplas (3 partidos por dupla = 12 partidos zonales + playoffs). Calcular las llaves con base en jugadores individuales duplicaba artificialmente la cantidad de partidos (31 en lugar de 15).
+  3. *Ajuste Temporal por Rotación de 4 Jugadores:* En partidas de 501 por parejas juegan 4 personas alternando (P1A $\rightarrow$ P2A $\rightarrow$ P1B $\rightarrow$ P2B). El tiempo físico de transición en el oche y las consultas de tiro entre compañeros incrementan la duración en $\sim 30\%$ por leg (`DOUBLES_LEG_FACTOR = 1.30`) y el overhead de llamados a 2.5 min.
+- **Realizado:**
+  - `src/components/torneos/EditTournamentModal.tsx`:
+    * Añadido estado `isDoubles` inicializado desde `tournament.isDoubles` (con fallback de heurística en título para torneos antiguos).
+    * Sincronizado en `useEffect` al abrir el modal.
+    * Grilla del formulario ampliada a 3 columnas: **Modalidad de Pista** (`type`), **Modalidad de Juego** (`isDoubles`: `👤 Individual (1 vs 1)` vs `👥 Por Parejas / Duplas (2 vs 2)`), y **Formato de Competición** (`format`).
+    * Persistencia de `isDoubles` en `updatedTourney` en `handleSubmit`.
+  - `src/components/torneos/TournamentManager.tsx`:
+    * Añadido estado `newIsDoubles: boolean` en el formulario modal de "Crear Nuevo Torneo".
+    * Grilla de creación reorganizada a 3 columnas con el selector de Individual vs Parejas.
+    * Guardado garantizado de `isDoubles: newIsDoubles` en `newTourney`.
+    * En el lanzamiento de partidos de llave (`handleLaunchBracketMatch` y `handleAdminAddManualMatch`), propagado `isDoubles: Boolean(currentTournament?.isDoubles || ...)` al Anotador Oficial.
+    * Pasado `isDoubles` como prop a `<TournamentFormatAdvisor ... />`.
+  - `src/components/torneos/TournamentFormatAdvisor.tsx`:
+    * Añadida prop `isDoubles?: boolean` y estado reactivo `isDoublesMode` sincronizado en `useEffect`.
+    * Selector interactivo de modalidad (`👤 Individual (1v1)` vs `👥 Parejas (2v2)`) en el panel de control del simulador para evaluar el cronograma bajo ambas modalidades.
+    * Redefinición de unidades de competición: $N = \text{isDoublesMode} ? \lfloor \text{enrolledCount} / 2 \rfloor : \text{enrolledCount}$.
+    * Cálculo de llaves de Grupos, Doble Eliminación y KO Simple dimensionadas exactamente para la cantidad de duplas resultantes.
+    * Alerta visual en cabecera si hay inscriptos impares: `⚠️ 1 inscripto sin compañero`.
+    * Aplicación de `DOUBLES_LEG_FACTOR = 1.30` y `MATCH_OVERHEAD_MINS = 2.5` en el cálculo de minutos por leg y por partido.
+    * Terminología adaptada dinámicamente en títulos, subtítulos y perks de cada tarjeta (`parejas / duplas`, `partidos garantizados por dupla`).
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Configuración de torneos individuales y por parejas 100% formalizada, con cálculo dinámico de llaves y tiempos adaptado al número de duplas y ritmo de juego.
+
 ## [Sesión 64] - 2026-11-21
 - **Objetivos:**
   1. Registrar automáticamente la duración de las partidas en el Anotador (`durationSeconds`, `durationMinutes`, `durationFormatted`, `avgMinutesPerLeg`, `startedAt`, `finishedAt`) para recopilar estadísticas reales de tiempo de juego e informar el ritmo promedio por leg.

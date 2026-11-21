@@ -60,6 +60,9 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
   const [status, setStatus] = useState<TournamentStatus>(tournament?.status || 'REGISTRATION_OPEN');
   const [type, setType] = useState<TournamentType>(tournament?.type || 'PRESENCIAL');
   const [format, setFormat] = useState<TournamentFormat>(tournament?.format || 'SINGLE_ELIMINATION');
+  const [isDoubles, setIsDoubles] = useState<boolean>(
+    Boolean(tournament?.isDoubles || tournament?.title.toLowerCase().includes('pareja') || tournament?.title.toLowerCase().includes('dupla'))
+  );
   const [competitionMode, setCompetitionMode] = useState<CompetitionMode>(tournament?.competitionMode || 'STANDALONE_DAY');
   const [leagueId, setLeagueId] = useState<string>(tournament?.leagueId || 'league-local-mdq');
   const [nationalStageType, setNationalStageType] = useState<NationalStageType>(tournament?.nationalStageType || 'ONLINE');
@@ -93,6 +96,7 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
       setStatus(tournament.status);
       setType(tournament.type);
       setFormat(tournament.format);
+      setIsDoubles(Boolean(tournament.isDoubles || tournament.title.toLowerCase().includes('pareja') || tournament.title.toLowerCase().includes('dupla')));
       setCompetitionMode(tournament.competitionMode || 'STANDALONE_DAY');
       setLeagueId(tournament.leagueId || 'league-local-mdq');
       setNationalStageType(tournament.nationalStageType || 'ONLINE');
@@ -179,6 +183,7 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
       status,
       type,
       format,
+      isDoubles,
       competitionMode,
       leagueId: selectedLeague?.id,
       leagueName: selectedLeague?.name,
@@ -301,7 +306,7 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
           </div>
 
           {/* Modalidad y Formato */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-slate-300 font-bold block mb-1">Modalidad de Pista</label>
               <select
@@ -312,6 +317,18 @@ export const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
                 <option value="PRESENCIAL">Presencial (En Club)</option>
                 <option value="ONLINE">Online Conectado (WebRTC)</option>
                 <option value="MIXTO">Mixto / Híbrido (Presencial + Online)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-slate-300 font-bold block mb-1">Modalidad de Juego</label>
+              <select
+                value={isDoubles ? 'DOUBLES' : 'INDIVIDUAL'}
+                onChange={(e) => setIsDoubles(e.target.value === 'DOUBLES')}
+                className="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500"
+              >
+                <option value="INDIVIDUAL">👤 Individual (1 vs 1)</option>
+                <option value="DOUBLES">👥 Por Parejas / Duplas (2 vs 2)</option>
               </select>
             </div>
 

@@ -72,6 +72,7 @@ interface TournamentFormatAdvisorProps {
   outMode?: OutMode;
   bestOfLegs?: number;
   roundLegsConfig?: RoundLegsConfig;
+  isDoubles?: boolean;
   onApplyFormat?: (rec: FormatRecommendation) => void;
   onApplyRecommendation?: (rec: FormatRecommendation) => void;
   isAdmin?: boolean;
@@ -139,12 +140,20 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
   outMode = 'DOUBLE_OUT',
   bestOfLegs = 3,
   roundLegsConfig,
+  isDoubles = false,
   onApplyFormat,
   onApplyRecommendation,
   isAdmin = true
 }) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [showPlayersAvgBreakdown, setShowPlayersAvgBreakdown] = useState<boolean>(false);
+
+  // Modo de juego: Individual (1 vs 1) o Parejas / Duplas (2 vs 2)
+  const [isDoublesMode, setIsDoublesMode] = useState<boolean>(Boolean(isDoubles));
+
+  useEffect(() => {
+    setIsDoublesMode(Boolean(isDoubles));
+  }, [isDoubles]);
 
   // Modo de cálculo de AVG: 'AUTO' (dinámico por estadísticas/declarado de los inscriptos) vs 'MANUAL' (valor único seteado)
   const [avgMode, setAvgMode] = useState<'AUTO' | 'MANUAL'>('AUTO');
@@ -299,15 +308,23 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
   }, [legsToWin, roundLegsConfig]);
 
   const recommendations = useMemo<FormatRecommendation[]>(() => {
-    const N = enrolledCount;
-    if (N < 3) return [];
+    // Si es modo parejas, cada equipo está compuesto por 2 jugadores
+    const effectiveUnits = isDoublesMode ? Math.floor(enrolledCount / 2) : enrolledCount;
+    const N = effectiveUnits;
+    if (N < 2) return [];
+
+    const unitLabelPlural = isDoublesMode ? 'parejas' : 'jugadores';
+    const unitLabelSingular = isDoublesMode ? 'pareja' : 'jugador';
 
     const recs: FormatRecommendation[] = [];
 
-    // Tiempo base por leg y por partido (con 2 min de llamado a diana + calentamiento)
-    const MATCH_OVERHEAD_MINS = 2.0;
-    const minsPerLegBase = calculateMinutesPerLeg(activeBaseAvg, startingScore, outMode);
-    const minsPerLegFinalRounds = calculateMinutesPerLeg(activePlayoffsAvg, startingScore, outMode);
+    // Tiempo base por leg y por partido
+    // En parejas compiten 4 tiradores alternando (P1A -> P2A -> P1B -> P2B), lo que incrementa
+    // el tiempo de cruce en pista y la toma de decisiones compartida (+30% tiempo por leg, 2.5m de overhead)
+    const DOUBLES_LEG_FACTOR = isDoublesMode ? 1.30 : 1.0;
+    const MATCH_OVERHEAD_MINS = isDoublesMode ? 2.5 : 2.0;
+    const minsPerLegBase = Number((calculateMinutesPerLeg(activeBaseAvg, startingScore, outMode) * DOUBLES_LEG_FACTOR).toFixed(1));
+    const minsPerLegFinalRounds = Number((calculateMinutesPerLeg(activePlayoffsAvg, startingScore, outMode) * DOUBLES_LEG_FACTOR).toFixed(1));
 
     // 1. Progresión de legs por instancia de llave (Rounds Leg Progression)
     const baseLegs = Math.max(1, legsToWin);
@@ -408,7 +425,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       badge: '🥇 Opción Ideal Deportiva',
       badgeColor: 'bg-emerald-500/20 text-[#00e676] border-emerald-500/40',
       title: `Fase de Grupos (${idealGroups} ${idealGroups === 1 ? 'Zona' : 'Zonas'}) + Playoffs`,
-      subtitle: `${idealGroups} ${idealGroups === 1 ? 'zona' : 'zonas'} de ${basePerGroup}${extra > 0 ? `-${basePerGroup + 1}` : ''} jugadores • Clasifican los ${idealQualifiers} primeros`,
+      subtitle: `${idealGroups} ${idealGroups === 1 ? 'zona' : 'zonas'} de ${basePerGroup}${extra > 0 ? `-${basePerGroup + 1}` : ''} ${unitLabelPlural} • Clasifican ${isDoublesMode ? 'las' : 'los'} ${idealQualifiers} ${isDoublesMode ? 'primeras duplas' : 'primeros'}`,
       groupsCount: idealGroups,
       qualifiersPerGroup: idealQualifiers,
       selectedLegsToWin: legsToWin,
@@ -422,9 +439,9 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       avgMinutesPerMatch: Math.round(matchDurationBase),
       avgMinutesPerLeg: minsPerLegBase,
       perks: [
-        'Cero Byes en fase de grupos: todos compiten desde el inicio',
-        `Mínimo ${Math.max(2, basePerGroup - 1)} partidos garantizados por jugador`,
-        `Definición en Playoffs (${totalPlayoffQualifiers} clasificados)`
+        `Cero Byes en fase de grupos: ${isDoublesMode ? 'todas las duplas compiten' : 'todos compiten'} desde el inicio`,
+        `Mínimo ${Math.max(2, basePerGroup - 1)} partidos garantizados por ${unitLabelSingular}`,
+        `Definición en Playoffs (${totalPlayoffQualifiers} ${isDoublesMode ? 'duplas clasificadas' : 'clasificados'})`
       ],
       isCurrentFormat: isGroupsCurrent
     });
@@ -456,7 +473,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       badge: '🥈 Doble Vida (Estilo Nakka N01)',
       badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
       title: 'Doble Eliminación (Winners + Losers)',
-      subtitle: `Cuadro de ${bracketSize} con repesca • Emparejamiento Compacto en R1 y R2`,
+      subtitle: `Cuadro de ${bracketSize} ${unitLabelPlural} con repesca • Emparejamiento Compacto en R1 y R2`,
       selectedLegsToWin: legsToWin,
       totalMatches: deMatchesCount,
       minMatchesPerPlayer: 2,
@@ -468,7 +485,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       avgMinutesPerMatch: Math.round(matchDurationBase),
       avgMinutesPerLeg: minsPerLegBase,
       perks: [
-        'Segunda oportunidad garantizada (mínimo 2 derrotas para quedar eliminado)',
+        `Segunda oportunidad garantizada (mínimo 2 derrotas por ${unitLabelSingular} para quedar eliminada)`,
         'Emparejamiento compacto: Byes juegan de inmediato en Ronda 2',
         'Estándar oficial competitivo de Nakka N01 y Challonge'
       ],
@@ -512,7 +529,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       badge: '🥉 Cierre Rápido / Knockout',
       badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
       title: 'Eliminación Simple Directa',
-      subtitle: `${seMatchesCount} partidos en total (+ 3º puesto) • Mínima duración`,
+      subtitle: `${seMatchesCount} partidos en total (+ 3º puesto) • Mínima duración para ${N} ${unitLabelPlural}`,
       selectedLegsToWin: legsToWin,
       totalMatches: seMatchesCount,
       minMatchesPerPlayer: 1,
@@ -534,6 +551,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
     return recs;
   }, [
     enrolledCount,
+    isDoublesMode,
     currentFormat,
     activeGroupsCount,
     activeQualifiersPerGroup,
@@ -545,6 +563,9 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
     boardsCount,
     roundLegsConfig
   ]);
+
+  const effectiveTeams = isDoublesMode ? Math.floor(enrolledCount / 2) : enrolledCount;
+  const isOddEnrolled = isDoublesMode && enrolledCount % 2 !== 0;
 
   if (enrolledCount < 3 || recommendations.length === 0) {
     return null;
@@ -564,8 +585,13 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
                 <span>Asesor Inteligente de Formato & Estimador de Tiempos</span>
               </h4>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                {enrolledCount} inscriptos
+                {isDoublesMode ? `${effectiveTeams} parejas (${enrolledCount} inscriptos)` : `${enrolledCount} inscriptos`}
               </span>
+              {isOddEnrolled && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                  ⚠️ 1 inscripto sin compañero
+                </span>
+              )}
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
                 <Activity className="w-3 h-3" />
                 <span>
@@ -574,7 +600,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
-              Cálculo dinámico de duración de llave según el AVG real registrado en la App / declarado, cantidad de dianas y modalidad ({startingScore} {outMode === 'DOUBLE_OUT' ? 'Double Out' : 'Single Out'})
+              Cálculo dinámico de duración de llave según {isDoublesMode ? 'modalidad por parejas (2 vs 2)' : 'modalidad individual (1 vs 1)'}, el AVG real registrado en la App / declarado, cantidad de dianas y formato ({startingScore} {outMode === 'DOUBLE_OUT' ? 'Double Out' : 'Single Out'})
             </p>
           </div>
         </div>
@@ -710,8 +736,44 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
                 )}
               </div>
 
-              {/* Controles de Nro. de Dianas y Legs para Ganar cada Partido */}
+              {/* Controles de Modalidad (Individual vs Parejas), Nro. de Dianas y Legs para Ganar cada Partido */}
               <div className="flex flex-wrap items-center gap-4 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-800/80">
+                {/* Selector de Modalidad: Individual vs Parejas */}
+                <div className="space-y-1">
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider text-slate-300 block"
+                    title="Modalidad deportiva del certamen: Individual (1 vs 1) o Por Parejas / Duplas (2 vs 2)"
+                  >
+                    👥 Modalidad:
+                  </span>
+                  <div className="inline-flex rounded-xl bg-[#07090e] p-0.5 border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setIsDoublesMode(false)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-1.5 ${
+                        !isDoublesMode
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="1 jugador por slot de llave (partidos 1 vs 1)"
+                    >
+                      <span>👤 Individual</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsDoublesMode(true)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-1.5 ${
+                        isDoublesMode
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Duplas de 2 jugadores por slot de llave (partidos 2 vs 2 con rotación de 4 jugadores)"
+                    >
+                      <span>👥 Parejas</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Selector y Seteo Libre de Nro. de Dianas */}
                 <div className="space-y-1">
                   <span

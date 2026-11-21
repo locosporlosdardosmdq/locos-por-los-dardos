@@ -253,6 +253,11 @@ export const X01Board: React.FC<X01BoardProps> = ({
   const matchInstanceIdRef = useRef<string>(
     (initialSession as any)?.id || `match_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
   );
+  const matchStartTimeRef = useRef<number>(
+    initialSession?.startedAt && !isNaN(new Date(initialSession.startedAt).getTime())
+      ? new Date(initialSession.startedAt).getTime()
+      : Date.now()
+  );
   const latestFinalPayloadRef = useRef<any | null>(null);
 
   // Modal de opciones para Volver / Stand By / Abandonar
@@ -722,6 +727,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
         history,
         turnHistory,
         tournamentTitle: config.tournamentTitle,
+        startedAt: new Date(matchStartTimeRef.current).toISOString(),
         savedAt: new Date().toISOString()
       });
     }
@@ -769,6 +775,7 @@ export const X01Board: React.FC<X01BoardProps> = ({
       history,
       turnHistory,
       tournamentTitle: config.tournamentTitle,
+      startedAt: new Date(matchStartTimeRef.current).toISOString(),
       savedAt: new Date().toISOString()
     });
     setShowExitModal(false);
@@ -1435,11 +1442,24 @@ export const X01Board: React.FC<X01BoardProps> = ({
     );
     const nowDate = new Date();
     const timeStr = nowDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const startedIso = new Date(matchStartTimeRef.current).toISOString();
+    const finishedIso = nowDate.toISOString();
+    const elapsedSec = Math.max(10, Math.round((nowDate.getTime() - matchStartTimeRef.current) / 1000));
+    const elapsedMin = Number((elapsedSec / 60).toFixed(1));
+    const totalLegsDisputed = Math.max(1, (lWon[0] || 0) + (lWon[1] || 0));
+    const minPerLeg = Number((elapsedMin / totalLegsDisputed).toFixed(1));
+    const durFormatted = `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60 < 10 ? `0${elapsedSec % 60}` : elapsedSec % 60}s`;
 
     return {
       matchId: matchInstanceIdRef.current,
       date: nowDate.toISOString(),
       time: timeStr,
+      durationSeconds: elapsedSec,
+      durationMinutes: elapsedMin,
+      durationFormatted: durFormatted,
+      avgMinutesPerLeg: minPerLeg,
+      startedAt: startedIso,
+      finishedAt: finishedIso,
       startingScore: config.startingScore || 501,
       winnerIndex: winnerIdx,
       winnerName: winnerIdx === 0 ? p1Display : p2Display,

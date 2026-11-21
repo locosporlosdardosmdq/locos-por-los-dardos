@@ -1,3 +1,18 @@
+- [x] **Cronometraje y Registro de Duración de Partidas en el Anotador & Estimación Dinámica de Torneos con Distancia Progresiva (`X01Board.tsx`, `DartScorer.tsx`, `MatchPdcStatsModal.tsx`, `TournamentFormatAdvisor.tsx`, `storage.ts`, `types.ts`, `RegisterAndProfile.tsx`):**
+  * **Cronometraje Real de Partidas en el Anotador (`X01Board.tsx` & `DartScorer.tsx`):**
+    - Inicialización de `matchStartTimeRef` anclado a `initialSession.startedAt` o `Date.now()`, persistido de manera ininterrumpida en `ActiveMatchSession` (`startedAt`) ante recargas de página o stand by.
+    - Al cantar victoria (`buildMatchResultPayload` en `X01Board.tsx`), cálculo automático de `durationSeconds`, `durationMinutes`, `durationFormatted` (e.g. `18m 25s`) y ritmo de juego `avgMinutesPerLeg` (minutos por leg disputado), transmitidos a `saveCompletedMatch` y `statsPayload`.
+  * **Visualización de Duración y Ritmo por Leg (`MatchPdcStatsModal.tsx` & `RegisterAndProfile.tsx`):**
+    - En la cabecera de `MatchPdcStatsModal`, agregado badge visual `⏱️ 18m 25s (~5.8m/leg)` con ícono `Timer` junto a la fecha y hora de la partida.
+    - En la pestaña de Partido en General, agregada fila destacada de **Duración Total** y ritmo medio por leg.
+    - En Mi Perfil (`RegisterAndProfile.tsx`), cada partida del historial incluye la insignia de duración `⏱️` y propaga los datos de tiempo al abrir el modal de estadísticas.
+  * **Cálculo de Duración en Torneos con Distancia Progresiva (`TournamentFormatAdvisor.tsx`):**
+    - El Asesor Inteligente de Formato contempla ahora todas las variantes del torneo: integra `roundLegsConfig` (`quarterFinals`, `semiFinals`, `finals`, `grandFinal`) para calcular la duración exacta de cada fase (e.g. Cuartos 1º a 3, Semifinales al mejor de 7 / 1º a 4, Finales al mejor de 9 / 1º a 5).
+    - Desglose detallado por fases en `phaseBreakdownText` (e.g. `Zonas (1º a 3): 1h 40m + Semis (1º a 4): 32m + Final (1º a 5): 24m`).
+    - Banner interactivo en el Asesor que informa cuando la distancia progresiva está activa y muestra los legs configurados por ronda.
+  * **Validación:**
+    - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Persistencia Garantizada de Fin de Partida y Separación Estricta de Estadísticas por Ámbito Competitivo (`X01Board.tsx`, `DartScorer.tsx`, `storage.ts`, `api/jugadores/route.ts`, `TournamentManager.tsx`, `RegisterAndProfile.tsx`):**
   * **Cierre y Auto-Guardado Instantáneo en el Anotador (`X01Board.tsx` & `DartScorer.tsx`):**
     - Resuelto el bug donde al finalizar una partida y pulsar el botón de salida (`confirmExitMatch` / `handleMatchCompleted`), `DartScorer.tsx` nunca transicionaba `viewState` de `'PLAYING'` a `'SETTINGS'`, dejando al jugador atrapado en la pantalla de partido finalizado.

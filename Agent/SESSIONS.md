@@ -1,5 +1,39 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 64] - 2026-11-21
+- **Objetivos:**
+  1. Registrar automáticamente la duración de las partidas en el Anotador (`durationSeconds`, `durationMinutes`, `durationFormatted`, `avgMinutesPerLeg`, `startedAt`, `finishedAt`) para recopilar estadísticas reales de tiempo de juego e informar el ritmo promedio por leg.
+  2. Exhibir el tiempo de la partida en el modal oficial de estadísticas (`MatchPdcStatsModal.tsx`) y en el historial de Mi Perfil (`RegisterAndProfile.tsx`).
+  3. Contemplar **todas las variantes del torneo** en el Asesor Inteligente de Formato (`TournamentFormatAdvisor.tsx`), específicamente la progresión de legs por ronda configurada en `roundLegsConfig` (por ejemplo: Zonas al mejor de 5 / 1º a 3, Semifinales al mejor de 7 / 1º a 4, Final al mejor de 9 / 1º a 5, y Gran Final de Doble Eliminación).
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Ausencia de Registro Temporal:* Anteriormente el sistema registraba la fecha y la hora (`time: 'HH:mm'`), pero no computaba el tiempo transcurrido desde el inicio de la partida hasta el *Game Shot & Match*, perdiendo la oportunidad de auditar el ritmo de juego promedio en minutos por leg y por partido.
+  2. *Cálculo Homogéneo en el Asesor de Formato:* En `TournamentFormatAdvisor.tsx`, las recomendaciones calculaban todas las rondas asumiendo una distancia uniforme basada únicamente en `legsToWin`. Si el organizador configuraba semifinales y finales más largas en `roundLegsConfig`, el estimador subestimaba la duración total del torneo.
+  3. *Impacto Cero en Bundle y Cuota Vercel:* El cronometraje se implementó mediante operaciones matemáticas elementales (`Date.now() - startTime`), persistiendo campos de texto y número ultraligeros (~30 bytes por partida en `SavedMatch` y `PlayerHistoryDateItem`), sin añadir dependencias ni afectar la cuota de *Fast Origin Transfer*.
+- **Realizado:**
+  - `src/lib/types.ts`:
+    * Añadidos `durationSeconds?: number`, `durationMinutes?: number`, `durationFormatted?: string`, `avgMinutesPerLeg?: number`, `startedAt?: string`, `finishedAt?: string` en `PlayerHistoryMatchSummary`.
+    * Añadidos `durationMinutes?: number`, `durationFormatted?: string`, `avgMinutesPerLeg?: number` en `PlayerHistoryDateItem`.
+  - `src/lib/storage.ts`:
+    * Actualizado `SavedMatch` con campos de duración y timestamps.
+    * Añadido `startedAt?: string` en `ActiveMatchSession`.
+    * En `buildMatchSummaryFromSavedMatch`, mapeo y reenvío íntegro de campos de duración.
+    * En `applyMatchToPlayerProfile`, propagación de `durationMinutes`, `durationFormatted` y `avgMinutesPerLeg` hacia `historyItem`.
+  - `src/components/anotador/X01Board.tsx` & `src/components/anotador/DartScorer.tsx`:
+    * En `X01Board.tsx`: inicializado `matchStartTimeRef` anclado a `initialSession.startedAt` o `Date.now()`, persistido en `saveActiveMatchSession` para recuperarse tras Stand By o F5.
+    * En `buildMatchResultPayload`: cálculo de tiempo transcurrido, minutos por leg disputado y formato amigable (`18m 25s`), transmitidos al cantar *Game Shot*.
+    * En `DartScorer.tsx`: propagación de duración a `statsPayload` y `saveCompletedMatch`.
+  - `src/components/anotador/MatchPdcStatsModal.tsx` & `src/components/perfil/RegisterAndProfile.tsx`:
+    * En `MatchPdcStatsModal.tsx`: badge visual de duración con ícono `Timer` en la cabecera (`⏱️ 18m 25s (~5.8m/leg)`) y fila dedicada de **Duración Total** en la tabla comparativa.
+    * En `RegisterAndProfile.tsx`: badge de duración visible en el historial y apertura de modal con todas las estadísticas de tiempo.
+  - `src/components/torneos/TournamentFormatAdvisor.tsx`:
+    * Incorporada la resolución dinámica de legs por ronda a partir de `roundLegsConfig`: `baseLegs`, `qfLegs`, `sfLegs`, `finalLegs` y `grandFinalLegs`.
+    * Cálculo independiente de legs esperados y duraciones ponderadas para cada instancia: `matchDurationBase`, `matchDurationQF`, `matchDurationSF`, `matchDurationFinal` y `matchDurationGrandFinal`.
+    * Aplicación de la distancia progresiva en las 3 opciones (Grupos + Playoffs, Doble Eliminación y KO Simple) con desglose en `phaseBreakdownText` (e.g. `Zonas (1º a 3): 1h 40m + Semis (1º a 4): 32m + Final (1º a 5): 24m`).
+    * Banner interactivo informativo en el Asesor que notifica cuando la distancia progresiva está activa.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Anotador cronometrado con métricas de duración y ritmo por leg, e integradas todas las variantes progresivas de rondas en el Asesor Inteligente de Formatos.
+
 ## [Sesión 63] - 2026-11-09
 - **Objetivos:**
   1. Eliminar la triplicación de la partida jugada el viernes contra Víctor Albaitero (`2026-11-06`, donde al pulsar 3 veces el botón antiguo antes de esta corrección se habían grabado 3 entradas con distintos IDs en `lpld_matches_history_v1`) y separar las partidas antiguas contra `CPU DartBot` que figuraban en Partidas Individuales.

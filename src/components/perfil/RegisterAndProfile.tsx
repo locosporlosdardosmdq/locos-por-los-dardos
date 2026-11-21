@@ -159,6 +159,12 @@ export const RegisterAndProfile: React.FC = () => {
           startingScore: summary.startingScore || 501,
           date: day,
           time: resolvedTime || undefined,
+          durationSeconds: summary.durationSeconds || matchingSaved?.durationSeconds,
+          durationMinutes: summary.durationMinutes || matchingSaved?.durationMinutes || item.durationMinutes,
+          durationFormatted: summary.durationFormatted || matchingSaved?.durationFormatted || item.durationFormatted,
+          avgMinutesPerLeg: summary.avgMinutesPerLeg || matchingSaved?.avgMinutesPerLeg || item.avgMinutesPerLeg,
+          startedAt: summary.startedAt || matchingSaved?.startedAt,
+          finishedAt: summary.finishedAt || matchingSaved?.finishedAt,
           legsP1: summary.legsP1 ?? 0,
           legsP2: summary.legsP2 ?? 0,
           avgP1: Number(summary.avgP1 || 0).toFixed(2),
@@ -201,6 +207,9 @@ export const RegisterAndProfile: React.FC = () => {
         startingScore: 501,
         date: day,
         time: resolvedTime || undefined,
+        durationMinutes: item.durationMinutes,
+        durationFormatted: item.durationFormatted,
+        avgMinutesPerLeg: item.avgMinutesPerLeg,
         legsP1,
         legsP2,
         avgP1: Number(item.avg || 0).toFixed(2),
@@ -235,6 +244,12 @@ export const RegisterAndProfile: React.FC = () => {
         startingScore: summary.startingScore || 501,
         date: day,
         time: resolvedTime || undefined,
+        durationSeconds: summary.durationSeconds || bm.durationSeconds,
+        durationMinutes: summary.durationMinutes || bm.durationMinutes,
+        durationFormatted: summary.durationFormatted || bm.durationFormatted,
+        avgMinutesPerLeg: summary.avgMinutesPerLeg || bm.avgMinutesPerLeg,
+        startedAt: summary.startedAt || bm.startedAt,
+        finishedAt: summary.finishedAt || bm.finishedAt,
         legsP1: summary.legsP1,
         legsP2: summary.legsP2,
         avgP1: Number(summary.avgP1 || 0).toFixed(2),
@@ -1382,6 +1397,11 @@ export const RegisterAndProfile: React.FC = () => {
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#1c2130] text-amber-300 border border-amber-500/30 font-mono font-bold text-[10px]">
                                   <Clock className="w-2.5 h-2.5 text-amber-400" />
                                   {resolvedTime} hs
+                                </span>
+                              )}
+                              {item.durationFormatted && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#00e676]/10 text-[#00e676] border border-[#00e676]/30 font-mono font-bold text-[10px]" title={item.avgMinutesPerLeg ? `Ritmo: ${item.avgMinutesPerLeg} min/leg` : undefined}>
+                                  ⏱️ {item.durationFormatted}
                                 </span>
                               )}
                             </div>

@@ -103,6 +103,12 @@ export interface PlayerHistoryMatchSummary {
   count140sP2: number;
   count180sP1: number;
   count180sP2: number;
+  durationSeconds?: number;
+  durationMinutes?: number;
+  durationFormatted?: string;
+  avgMinutesPerLeg?: number;
+  startedAt?: string;
+  finishedAt?: string;
   legsBreakdown?: MatchLegBreakdown[];
 }
 
@@ -115,6 +121,9 @@ export interface PlayerHistoryDateItem {
   targetTab: 'ACTIVE_TAB' | 'HISTORY_TAB' | 'LEAGUES_TAB';
   date: string;
   time?: string;
+  durationMinutes?: number;
+  durationFormatted?: string;
+  avgMinutesPerLeg?: number;
   roundOrStage: string;
   opponentName: string;
   scoreLegs: string;

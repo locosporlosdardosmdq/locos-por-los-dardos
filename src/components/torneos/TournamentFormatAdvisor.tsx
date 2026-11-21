@@ -273,6 +273,31 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
     }
   }, [rosterAvgStats.meanAvg, avgMode]);
 
+  // Auditoría reactiva de configuración de legs progresivos por ronda (ej. Semis Bo7 / Final Bo9)
+  const progressiveInfo = useMemo(() => {
+    const baseL = Math.max(1, legsToWin);
+    const qf = roundLegsConfig?.quarterFinals && roundLegsConfig.quarterFinals > 0 ? roundLegsConfig.quarterFinals : baseL;
+    const sf = roundLegsConfig?.semiFinals && roundLegsConfig.semiFinals > 0 ? roundLegsConfig.semiFinals : baseL;
+    const fin = roundLegsConfig?.finals && roundLegsConfig.finals > 0 ? roundLegsConfig.finals : baseL;
+    const gFin = roundLegsConfig?.grandFinal && roundLegsConfig.grandFinal > 0 ? roundLegsConfig.grandFinal : fin;
+
+    const isActive = !!(
+      (roundLegsConfig?.quarterFinals && roundLegsConfig.quarterFinals !== baseL) ||
+      (roundLegsConfig?.semiFinals && roundLegsConfig.semiFinals !== baseL) ||
+      (roundLegsConfig?.finals && roundLegsConfig.finals !== baseL) ||
+      (roundLegsConfig?.grandFinal && roundLegsConfig.grandFinal !== baseL)
+    );
+
+    return {
+      isActive,
+      baseLegs: baseL,
+      qfLegs: qf,
+      sfLegs: sf,
+      finalLegs: fin,
+      grandFinalLegs: gFin
+    };
+  }, [legsToWin, roundLegsConfig]);
+
   const recommendations = useMemo<FormatRecommendation[]>(() => {
     const N = enrolledCount;
     if (N < 3) return [];
@@ -284,9 +309,31 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
     const minsPerLegBase = calculateMinutesPerLeg(activeBaseAvg, startingScore, outMode);
     const minsPerLegFinalRounds = calculateMinutesPerLeg(activePlayoffsAvg, startingScore, outMode);
 
-    const expectedLegsBase = calculateExpectedLegsInMatch(legsToWin);
+    // 1. Progresión de legs por instancia de llave (Rounds Leg Progression)
+    const baseLegs = Math.max(1, legsToWin);
+    const qfLegs = roundLegsConfig?.quarterFinals && roundLegsConfig.quarterFinals > 0 ? roundLegsConfig.quarterFinals : baseLegs;
+    const sfLegs = roundLegsConfig?.semiFinals && roundLegsConfig.semiFinals > 0 ? roundLegsConfig.semiFinals : baseLegs;
+    const finalLegs = roundLegsConfig?.finals && roundLegsConfig.finals > 0 ? roundLegsConfig.finals : baseLegs;
+    const grandFinalLegs = roundLegsConfig?.grandFinal && roundLegsConfig.grandFinal > 0 ? roundLegsConfig.grandFinal : finalLegs;
+
+    const hasProgressiveConfig = !!(
+      (roundLegsConfig?.quarterFinals && roundLegsConfig.quarterFinals !== baseLegs) ||
+      (roundLegsConfig?.semiFinals && roundLegsConfig.semiFinals !== baseLegs) ||
+      (roundLegsConfig?.finals && roundLegsConfig.finals !== baseLegs) ||
+      (roundLegsConfig?.grandFinal && roundLegsConfig.grandFinal !== baseLegs)
+    );
+
+    const expectedLegsBase = calculateExpectedLegsInMatch(baseLegs);
+    const expectedLegsQF = calculateExpectedLegsInMatch(qfLegs);
+    const expectedLegsSF = calculateExpectedLegsInMatch(sfLegs);
+    const expectedLegsFinal = calculateExpectedLegsInMatch(finalLegs);
+    const expectedLegsGrandFinal = calculateExpectedLegsInMatch(grandFinalLegs);
+
     const matchDurationBase = expectedLegsBase * minsPerLegBase + MATCH_OVERHEAD_MINS;
-    const matchDurationFinalRounds = expectedLegsBase * minsPerLegFinalRounds + MATCH_OVERHEAD_MINS;
+    const matchDurationQF = expectedLegsQF * minsPerLegBase + MATCH_OVERHEAD_MINS;
+    const matchDurationSF = expectedLegsSF * minsPerLegFinalRounds + MATCH_OVERHEAD_MINS;
+    const matchDurationFinal = expectedLegsFinal * minsPerLegFinalRounds + MATCH_OVERHEAD_MINS;
+    const matchDurationGrandFinal = expectedLegsGrandFinal * minsPerLegFinalRounds + MATCH_OVERHEAD_MINS;
 
     // --- RECOMENDACIÓN 1: IDEAL DEPORTIVA (FASE DE GRUPOS + PLAYOFFS) ---
     let idealGroups = 2;
@@ -330,22 +377,30 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
     const groupStageMinutes = Math.round(groupWaves * matchDurationBase);
 
     // Playoffs de grupos: Cuartos (si pasan 8) -> Semis (2 partidos) -> Final (1 partido)
-    let playoffMinutes = 0;
+    let qfMinutes = 0;
+    let sfMinutes = 0;
+    let finalMinutes = 0;
+
     if (totalPlayoffQualifiers > 4) {
       const qfMatches = totalPlayoffQualifiers - 4;
-      playoffMinutes += Math.ceil(qfMatches / safeBoards) * matchDurationBase;
+      qfMinutes = Math.ceil(qfMatches / safeBoards) * matchDurationQF;
     }
     if (totalPlayoffQualifiers >= 4) {
       // Semifinales: 2 partidos (máximo usan 2 dianas)
-      playoffMinutes += Math.ceil(2 / Math.min(safeBoards, 2)) * matchDurationFinalRounds;
+      sfMinutes = Math.ceil(2 / Math.min(safeBoards, 2)) * matchDurationSF;
     }
     if (totalPlayoffQualifiers >= 2) {
       // Final: 1 partido en 1 diana
-      playoffMinutes += matchDurationFinalRounds;
+      finalMinutes = matchDurationFinal;
     }
+    const playoffMinutes = Math.round(qfMinutes + sfMinutes + finalMinutes);
     const totalGroupsDurationMins = Math.round(groupStageMinutes + playoffMinutes);
 
     const isGroupsCurrent = currentFormat === 'ROUND_ROBIN' && activeGroupsCount === idealGroups;
+
+    const groupsPhaseText = hasProgressiveConfig
+      ? `Zonas (1º a ${baseLegs}): ${formatMinutesToHoursAndMins(groupStageMinutes)}${sfMinutes > 0 ? ` + Semis (1º a ${sfLegs}): ${formatMinutesToHoursAndMins(sfMinutes)}` : ''} + Final (1º a ${finalLegs}): ${formatMinutesToHoursAndMins(finalMinutes)}`
+      : `Zonas: ${formatMinutesToHoursAndMins(groupStageMinutes)} + Playoffs: ${formatMinutesToHoursAndMins(playoffMinutes)}`;
 
     recs.push({
       id: 'GROUPS',
@@ -363,7 +418,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       estimatedMinutes2Boards: totalGroupsDurationMins,
       estimatedTotalMinutes: totalGroupsDurationMins,
       formattedDuration: formatMinutesToHoursAndMins(totalGroupsDurationMins),
-      phaseBreakdownText: `Zonas: ${formatMinutesToHoursAndMins(groupStageMinutes)} + Playoffs: ${formatMinutesToHoursAndMins(playoffMinutes)}`,
+      phaseBreakdownText: groupsPhaseText,
       avgMinutesPerMatch: Math.round(matchDurationBase),
       avgMinutesPerLeg: minsPerLegBase,
       perks: [
@@ -384,12 +439,16 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
     const losersMatchesCount = Math.max(1, N - 2);
     const parallelDeMatches = Math.max(0, deMatchesCount - 3);
     const parallelDeWaves = Math.ceil(parallelDeMatches / safeBoards);
-    // Últimos cruces (Final Winners / Final Losers / Gran Final) requieren turnos secuenciales
+    // Últimos cruces: Final Winners y Final Losers usan matchDurationSF; Gran Final usa matchDurationGrandFinal
     const deWinnersLosersMins = Math.round(
-      parallelDeWaves * matchDurationBase + matchDurationFinalRounds * 2
+      parallelDeWaves * matchDurationBase + matchDurationSF * 2
     );
-    const deGrandFinalMins = Math.round(matchDurationFinalRounds);
+    const deGrandFinalMins = Math.round(matchDurationGrandFinal);
     const totalDeDurationMins = deWinnersLosersMins + deGrandFinalMins;
+
+    const dePhaseText = hasProgressiveConfig
+      ? `Cuadros W/L: ${formatMinutesToHoursAndMins(deWinnersLosersMins)} + Gran Final (1º a ${grandFinalLegs}): ${formatMinutesToHoursAndMins(deGrandFinalMins)}`
+      : `Cuadros W/L (${winnersMatchesCount + losersMatchesCount} pj): ${formatMinutesToHoursAndMins(deWinnersLosersMins)} + Final: ${formatMinutesToHoursAndMins(deGrandFinalMins)}`;
 
     recs.push({
       id: 'DOUBLE_ELIM',
@@ -405,7 +464,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       estimatedMinutes2Boards: totalDeDurationMins,
       estimatedTotalMinutes: totalDeDurationMins,
       formattedDuration: formatMinutesToHoursAndMins(totalDeDurationMins),
-      phaseBreakdownText: `Cuadros W/L (${winnersMatchesCount + losersMatchesCount} pj): ${formatMinutesToHoursAndMins(deWinnersLosersMins)} + Final: ${formatMinutesToHoursAndMins(deGrandFinalMins)}`,
+      phaseBreakdownText: dePhaseText,
       avgMinutesPerMatch: Math.round(matchDurationBase),
       avgMinutesPerLeg: minsPerLegBase,
       perks: [
@@ -427,17 +486,25 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       sePreviousRoundsMins += Math.ceil(r1RealMatches / safeBoards) * matchDurationBase;
     }
     let currentRoundMatches = Math.floor(bracketSize / 4);
+    let seSfMinutes = 0;
     while (currentRoundMatches >= 2) {
       if (currentRoundMatches === 2) {
         // Semifinales (2 partidos, usan hasta 2 dianas en simultáneo)
-        sePreviousRoundsMins += Math.ceil(2 / Math.min(safeBoards, 2)) * matchDurationFinalRounds;
+        seSfMinutes = Math.ceil(2 / Math.min(safeBoards, 2)) * matchDurationSF;
+      } else if (currentRoundMatches === 4) {
+        // Cuartos de Final
+        sePreviousRoundsMins += Math.ceil(currentRoundMatches / safeBoards) * matchDurationQF;
       } else {
         sePreviousRoundsMins += Math.ceil(currentRoundMatches / safeBoards) * matchDurationBase;
       }
       currentRoundMatches = Math.floor(currentRoundMatches / 2);
     }
-    const seFinalMins = Math.round(matchDurationFinalRounds);
-    const totalSeDurationMins = Math.round(sePreviousRoundsMins) + seFinalMins;
+    const seFinalMins = Math.round(matchDurationFinal);
+    const totalSeDurationMins = Math.round(sePreviousRoundsMins + seSfMinutes) + seFinalMins;
+
+    const sePhaseText = hasProgressiveConfig
+      ? `Previas (1º a ${baseLegs}): ${formatMinutesToHoursAndMins(Math.round(sePreviousRoundsMins))}${seSfMinutes > 0 ? ` + Semis (1º a ${sfLegs}): ${formatMinutesToHoursAndMins(seSfMinutes)}` : ''} + Final (1º a ${finalLegs}): ${formatMinutesToHoursAndMins(seFinalMins)}`
+      : `Rondas previas: ${formatMinutesToHoursAndMins(Math.round(sePreviousRoundsMins + seSfMinutes))} + Final: ${formatMinutesToHoursAndMins(seFinalMins)}`;
 
     recs.push({
       id: 'SINGLE_ELIM',
@@ -453,7 +520,7 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
       estimatedMinutes2Boards: totalSeDurationMins,
       estimatedTotalMinutes: totalSeDurationMins,
       formattedDuration: formatMinutesToHoursAndMins(totalSeDurationMins),
-      phaseBreakdownText: `Rondas previas: ${formatMinutesToHoursAndMins(Math.round(sePreviousRoundsMins))} + Final: ${formatMinutesToHoursAndMins(seFinalMins)}`,
+      phaseBreakdownText: sePhaseText,
       avgMinutesPerMatch: Math.round(matchDurationBase),
       avgMinutesPerLeg: minsPerLegBase,
       perks: [
@@ -816,6 +883,41 @@ export const TournamentFormatAdvisor: React.FC<TournamentFormatAdvisorProps> = (
               </div>
             )}
           </div>
+
+          {/* Banner Informativo de Distancia Progresiva Contemplada */}
+          {progressiveInfo.isActive && (
+            <div className="px-3.5 py-2.5 rounded-2xl bg-purple-500/15 border border-purple-500/40 text-purple-200 text-xs flex flex-wrap items-center justify-between gap-2 shadow-inner animate-in fade-in">
+              <div className="flex items-center gap-1.5 font-bold">
+                <Zap className="w-3.5 h-3.5 text-purple-400" />
+                <span>Distancia Progresiva Contemplada en la Estimación:</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
+                <span className="px-2 py-0.5 rounded bg-[#07090e] border border-purple-500/40 text-purple-300">
+                  Base/Grupos: 1º a {progressiveInfo.baseLegs}
+                </span>
+                {progressiveInfo.qfLegs !== progressiveInfo.baseLegs && (
+                  <span className="px-2 py-0.5 rounded bg-[#07090e] border border-purple-500/40 text-purple-300">
+                    Cuartos: 1º a {progressiveInfo.qfLegs}
+                  </span>
+                )}
+                {progressiveInfo.sfLegs !== progressiveInfo.baseLegs && (
+                  <span className="px-2 py-0.5 rounded bg-[#07090e] border border-purple-500/40 text-purple-300">
+                    Semis: 1º a {progressiveInfo.sfLegs}
+                  </span>
+                )}
+                {progressiveInfo.finalLegs !== progressiveInfo.baseLegs && (
+                  <span className="px-2 py-0.5 rounded bg-[#07090e] border border-emerald-500/40 text-[#00e676] font-black">
+                    Final: 1º a {progressiveInfo.finalLegs}
+                  </span>
+                )}
+                {progressiveInfo.grandFinalLegs !== progressiveInfo.finalLegs && (
+                  <span className="px-2 py-0.5 rounded bg-[#07090e] border border-amber-500/40 text-amber-300 font-black">
+                    Gran Final: 1º a {progressiveInfo.grandFinalLegs}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Grilla de las 3 Opciones de Formato con Estimación Dinámica de Tiempo */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">

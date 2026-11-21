@@ -33,6 +33,12 @@ export interface SavedMatch {
   startingScore?: number;
   date: string;
   time?: string;
+  durationSeconds?: number;
+  durationMinutes?: number;
+  durationFormatted?: string;
+  avgMinutesPerLeg?: number;
+  startedAt?: string;
+  finishedAt?: string;
   isVsCpu?: boolean;
   cpuDifficulty?: string;
   competitionScope?: CompetitionScope;
@@ -483,6 +489,12 @@ export function buildMatchSummaryFromSavedMatch(
     count140sP2: p1.count140Plus || 0,
     count180sP1: p0.count180s || 0,
     count180sP2: p1.count180s || 0,
+    durationSeconds: match.durationSeconds,
+    durationMinutes: match.durationMinutes,
+    durationFormatted: match.durationFormatted,
+    avgMinutesPerLeg: match.avgMinutesPerLeg,
+    startedAt: match.startedAt,
+    finishedAt: match.finishedAt,
     legsBreakdown: rawLegs
   };
 }
@@ -617,6 +629,9 @@ export function applyMatchToPlayerProfile(profile: any, match: SavedMatch): { up
     targetTab: scope === 'LOCAL_LEAGUE' || scope === 'NATIONAL_LEAGUE' ? 'LEAGUES_TAB' : 'HISTORY_TAB',
     date: match.date ? match.date.split('T')[0] : new Date().toISOString().split('T')[0],
     time: resolvedTime || undefined,
+    durationMinutes: match.durationMinutes,
+    durationFormatted: match.durationFormatted,
+    avgMinutesPerLeg: match.avgMinutesPerLeg,
     roundOrStage: match.roundOrStage || (scope === 'INDIVIDUAL' ? `Anotador Oficial (${match.gameType})` : 'Cruces Oficiales'),
     opponentName: oppPlayer.name,
     scoreLegs: `${ myPlayer.legsWon ?? 0 } - ${ oppPlayer.legsWon ?? 0 }`,
@@ -1593,6 +1608,7 @@ export interface ActiveMatchSession {
   tournamentTitle?: string;
   matchId?: string;
   isLeague?: boolean;
+  startedAt?: string;
   savedAt: string;
 }
 

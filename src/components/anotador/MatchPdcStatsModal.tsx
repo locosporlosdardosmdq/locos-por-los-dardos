@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Trophy, ArrowLeft, BarChart2, CheckCircle2, Calendar, Clock, Target, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { Trophy, ArrowLeft, BarChart2, CheckCircle2, Calendar, Clock, Target, ChevronDown, ChevronUp, Zap, Timer } from 'lucide-react';
 import { MatchLegBreakdown } from '@/lib/types';
 import { synthesizeLegsBreakdownFromSummary } from '@/lib/storage';
 
@@ -15,6 +15,12 @@ interface MatchPdcStatsModalProps {
     startingScore?: number;
     date?: string;
     time?: string;
+    durationSeconds?: number;
+    durationMinutes?: number;
+    durationFormatted?: string;
+    avgMinutesPerLeg?: number;
+    startedAt?: string;
+    finishedAt?: string;
     legsP1: number;
     legsP2: number;
     avgP1: string;
@@ -121,11 +127,11 @@ export const MatchPdcStatsModal: React.FC<MatchPdcStatsModalProps> = ({
           </button>
         </div>
 
-        {/* Título de Torneo / Partido + Fecha y Hora */}
+        {/* Título de Torneo / Partido + Fecha, Hora y Duración */}
         <div className="py-2.5 px-4 bg-[#0a0d15] border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
           <div className="text-xs font-black text-slate-300 truncate">{tournamentTitle}</div>
-          {(stats.date || stats.time) && (
-            <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
+          {(stats.date || stats.time || stats.durationFormatted) && (
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-slate-400">
               {stats.date && (
                 <span className="inline-flex items-center gap-1">
                   <Calendar className="w-3 h-3 text-[#00e676]" />
@@ -136,6 +142,16 @@ export const MatchPdcStatsModal: React.FC<MatchPdcStatsModalProps> = ({
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#141a29] text-amber-300 border border-amber-500/30 font-bold">
                   <Clock className="w-3 h-3 text-amber-400" />
                   {stats.time} hs
+                </span>
+              )}
+              {stats.durationFormatted && (
+                <span
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#00e676]/10 text-[#00e676] border border-[#00e676]/30 font-bold"
+                  title={stats.avgMinutesPerLeg ? `Ritmo: ${stats.avgMinutesPerLeg} min/leg` : undefined}
+                >
+                  <Timer className="w-3 h-3 text-[#00e676]" />
+                  ⏱️ {stats.durationFormatted}
+                  {stats.avgMinutesPerLeg ? ` (~${stats.avgMinutesPerLeg}m/leg)` : ''}
                 </span>
               )}
             </div>
@@ -205,6 +221,21 @@ export const MatchPdcStatsModal: React.FC<MatchPdcStatsModalProps> = ({
                 <div className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Legs Ganados</div>
                 <div className="text-center font-black text-white text-base">{stats.legsP2}</div>
               </div>
+
+              {/* Duración Total del Partido */}
+              {stats.durationFormatted && (
+                <div className="grid grid-cols-[1fr_1.4fr_1fr] items-center py-2.5 px-4 bg-[#00e676]/5 hover:bg-[#00e676]/10">
+                  <div className="text-center font-black text-[#00e676] font-mono text-xs sm:text-sm">
+                    ⏱️ {stats.durationFormatted}
+                  </div>
+                  <div className="text-center text-xs font-black text-slate-300 uppercase tracking-wider">
+                    Duración Total {stats.avgMinutesPerLeg ? `(~${stats.avgMinutesPerLeg}m/leg)` : ''}
+                  </div>
+                  <div className="text-center font-black text-[#00e676] font-mono text-xs sm:text-sm">
+                    ⏱️ {stats.durationFormatted}
+                  </div>
+                </div>
+              )}
 
               {!isCricket ? (
                 <>

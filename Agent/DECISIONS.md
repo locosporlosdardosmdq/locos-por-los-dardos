@@ -1460,3 +1460,23 @@
      - **Impacto cero en el bundle JS:** Se reutiliza y extiende `MatchPdcStatsModal.tsx` con un conmutador entre **Partido en General** y **Legs Individuales**, sin añadir dependencias externas.
      - **Protección de Cuota Vercel (`Fast Origin Transfer`):** En `localStorage` (`lpld_matches_history_v1`) se conserva el desglose completo con visitas ronda por ronda (`visits`), mientras que en `recentHistory` sincronizado a Supabase se almacena únicamente el resumen compacto de cada leg (`legsBreakdown` sin el array de tiros individuales, pesando ~120 bytes por leg).
 - **Motivo:** Elimina de raíz las repeticiones históricas, restaura la exactitud estadística del jugador, exhibe fecha y hora precisas y provee análisis detallado partido por partido y leg por leg sin incrementar el peso de la aplicación ni el tráfico de origen en Vercel.
+
+---
+
+### [ADR-071] - 2026-11-21: Cronometraje Compacto de Partidas en Anotador y Estimación de Duración de Torneos con Distancia Progresiva (Rounds Leg Progression)
+- **Contexto:**
+  1. *Registro Real de Duración de Partidas:* Para alimentar estimadores empíricos y proyectar con precisión la duración de certámenes presenciales y online, era necesario cronometrar automáticamente las partidas desde el momento en que se inicia el marcador (`startedAt`) hasta que se canta *Game Shot & Match* (`finishedAt`), calculando tanto la duración total (`durationFormatted`, e.g. `18m 25s`) como el ritmo promedio por leg (`avgMinutesPerLeg`).
+  2. *Contemplación de Todas las Variantes del Torneo en la Estimación de Tiempos:* En torneos oficiales (estándar Nakka N01 y PDC), las rondas decisivas extienden la distancia de juego (por ejemplo: Zonas o fases previas al mejor de 5 legs / primero a 3; Semifinales al mejor de 7 / primero a 4; Final al mejor de 9 / primero a 5). El estimador de tiempos (`TournamentFormatAdvisor.tsx`) calculaba una distancia uniforme para todas las rondas utilizando únicamente `legsToWin`, sin contemplar los valores configurados en `roundLegsConfig` (`quarterFinals`, `semiFinals`, `finals`, `grandFinal`).
+- **Decisión:**
+  1. **Cronometraje Ininterrumpido en el Anotador (`X01Board.tsx`, `DartScorer.tsx`, `storage.ts`, `types.ts`):**
+     - Se introdujo `matchStartTimeRef` anclado a `initialSession.startedAt` o `Date.now()`. Ante refrescos (F5) o stand by, `startedAt` se preserva inmutable en `ActiveMatchSession`.
+     - Al cantar victoria, `buildMatchResultPayload` calcula `durationSeconds`, `durationMinutes`, `durationFormatted` y `avgMinutesPerLeg = durationMinutes / totalLegsDisputed`.
+     - Estos campos se persisten en `SavedMatch` y `PlayerHistoryDateItem` con impacto cero en peso (~30 bytes por partida).
+  2. **Visualización en Modal de Estadísticas e Historial (`MatchPdcStatsModal.tsx` & `RegisterAndProfile.tsx`):**
+     - En `MatchPdcStatsModal`, la cabecera expone la insignia `⏱️ 18m 25s (~5.8m/leg)` junto a la fecha y hora. En la tabla comparativa se incorporó la fila oficial de **Duración Total** y ritmo medio por leg.
+     - En Mi Perfil, cada tarjeta del historial exhibe la duración y la transmite al abrir el modal de estadísticas.
+  3. **Motor de Estimación con Distancia Progresiva (`TournamentFormatAdvisor.tsx`):**
+     - Se integró `roundLegsConfig` para resolver dinámicamente los legs de Cuartos (`qfLegs`), Semifinales (`sfLegs`), Final (`finalLegs`) y Gran Final (`grandFinalLegs`).
+     - Se computan duraciones ponderadas independientes (`matchDurationBase`, `matchDurationQF`, `matchDurationSF`, `matchDurationFinal`, `matchDurationGrandFinal`), integrándolas en las fórmulas de oleadas por dianas para Fase de Grupos + Playoffs, Doble Eliminación y Eliminación Simple.
+     - `phaseBreakdownText` explicita la distancia de cada instancia (e.g. `Zonas (1º a 3): 1h 40m + Semis (1º a 4): 32m + Final (1º a 5): 24m`), y se añadió un banner interactivo que informa cuando la distancia progresiva está activa.
+- **Motivo:** Otorga a los organizadores y jugadores la máxima certeza sobre los tiempos reales de desarrollo de cada torneo contemplando todas las variantes reglamentarias de legs, recopilando además estadísticas empíricas de tiempo real de juego.

@@ -55,6 +55,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Search,
+  Filter,
   Image as ImageIcon
 } from 'lucide-react';
 import { 
@@ -69,6 +71,8 @@ import {
   DEFAULT_ASSOCIATION_AUTHORITIES,
   DEFAULT_ASSOCIATION_BANK_ACCOUNT,
   calculateAgeFromBirthDate,
+  calculateCategory,
+  getCountryFlag,
   getAuthorityHierarchyWeight,
   getAuthorityTierInfo,
   DEFAULT_LEAGUES
@@ -163,6 +167,13 @@ export default function SuperadminPage() {
   const [leagues, setLeagues] = useState<League[]>(() => {
     return getStoredLeagues(DEFAULT_LEAGUES);
   });
+
+  // Segmentadores del Padrón de Jugadores & Demografía (Pestaña 2)
+  const [demographicsCategoryFilter, setDemographicsCategoryFilter] = useState<string>('TODAS');
+  const [demographicsAgeFilter, setDemographicsAgeFilter] = useState<string>('TODOS');
+  const [demographicsCountryFilter, setDemographicsCountryFilter] = useState<string>('TODOS');
+  const [demographicsProvinceFilter, setDemographicsProvinceFilter] = useState<string>('TODAS');
+  const [demographicsSearchFilter, setDemographicsSearchFilter] = useState<string>('');
 
   // Sincronización en vivo con Supabase PostgreSQL (Inscripciones de todos los competidores)
   useEffect(() => {
@@ -408,7 +419,7 @@ export default function SuperadminPage() {
           age: playerAge,
           club: p.club || 'Darderos Mar del Plata',
           photoUrl: cleanPhoto || cleanAvatar || undefined,
-          category: p.category || 'INTERMEDIA',
+          category: p.category || (p.estimatedAvg ? calculateCategory(Number(p.estimatedAvg)) : 'INTERMEDIA'),
           status: p.status || 'ACTIVE',
           estimatedAvg: p.estimatedAvg || (p.stats?.overallAvg ? Number(p.stats.overallAvg) : 45.0),
           email: p.email
@@ -517,6 +528,100 @@ export default function SuperadminPage() {
       overallAvg
     };
   }, [availablePlayers]);
+
+  // Países registrados dinámicos para segmentador
+  const demographicsCountries = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; flag: string; count: number }>();
+    availablePlayers.forEach(p => {
+      const name = p.nationality || 'Argentina';
+      const code = p.countryCode || 'AR';
+      const flag = getCountryFlag(code || name);
+      if (!map.has(name)) {
+        map.set(name, { code, name, flag, count: 0 });
+      }
+      map.get(name)!.count += 1;
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [availablePlayers]);
+
+  // Provincias registradas dinámicas para segmentador
+  const demographicsProvinces = useMemo(() => {
+    const map = new Map<string, number>();
+    availablePlayers
+      .filter(p => demographicsCountryFilter === 'TODOS' || p.nationality === demographicsCountryFilter || p.countryCode === demographicsCountryFilter)
+      .forEach(p => {
+        const prov = p.province || 'Buenos Aires';
+        map.set(prov, (map.get(prov) || 0) + 1);
+      });
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [availablePlayers, demographicsCountryFilter]);
+
+  // Jugadores filtrados para la tabla del Padrón (Pestaña 2)
+  const filteredRosterPlayers = useMemo(() => {
+    return availablePlayers.filter(p => {
+      // 1. Filtro Búsqueda Texto
+      if (demographicsSearchFilter) {
+        const term = demographicsSearchFilter.toLowerCase();
+        const matchesTerm = 
+          (p.name && p.name.toLowerCase().includes(term)) ||
+          (p.nickname && p.nickname.toLowerCase().includes(term)) ||
+          (p.email && p.email.toLowerCase().includes(term)) ||
+          (p.city && p.city.toLowerCase().includes(term)) ||
+          (p.club && p.club.toLowerCase().includes(term));
+        if (!matchesTerm) return false;
+      }
+
+      // 2. Filtro Categoría
+      if (demographicsCategoryFilter !== 'TODAS') {
+        const pCat = p.category || (p.estimatedAvg ? calculateCategory(Number(p.estimatedAvg)) : 'INTERMEDIA');
+        if (pCat !== demographicsCategoryFilter) {
+          return false;
+        }
+      }
+
+      // 3. Filtro Rango de Edad
+      if (demographicsAgeFilter !== 'TODOS') {
+        const age = Number(p.age);
+        if (demographicsAgeFilter === 'SIN_EDAD') {
+          if (!isNaN(age) && age > 0) return false;
+        } else {
+          if (isNaN(age) || age <= 0) return false;
+          if (demographicsAgeFilter === '18-25' && (age < 18 || age > 25)) return false;
+          if (demographicsAgeFilter === '26-35' && (age < 26 || age > 35)) return false;
+          if (demographicsAgeFilter === '36-45' && (age < 36 || age > 45)) return false;
+          if (demographicsAgeFilter === '46+' && age < 46) return false;
+        }
+      }
+
+      // 4. Filtro País
+      if (demographicsCountryFilter !== 'TODOS') {
+        const pCountry = p.nationality || 'Argentina';
+        const pCode = p.countryCode || 'AR';
+        if (pCountry !== demographicsCountryFilter && pCode !== demographicsCountryFilter) {
+          return false;
+        }
+      }
+
+      // 5. Filtro Provincia
+      if (demographicsProvinceFilter !== 'TODAS') {
+        const pProv = p.province || 'Buenos Aires';
+        if (pProv !== demographicsProvinceFilter) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [
+    availablePlayers,
+    demographicsSearchFilter,
+    demographicsCategoryFilter,
+    demographicsAgeFilter,
+    demographicsCountryFilter,
+    demographicsProvinceFilter
+  ]);
 
   // Modificar categoría de jugador directamente desde el Superadmin
   const handleUpdatePlayerCategoryFromAdmin = async (player: any, newCategory: string) => {
@@ -1641,8 +1746,138 @@ export default function SuperadminPage() {
                     <span>Refrescar Lista</span>
                   </button>
                   <span className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[#00e676] text-xs font-mono font-bold">
-                    {availablePlayers.length} Jugadores
+                    {filteredRosterPlayers.length} de {availablePlayers.length} Jugadores
                   </span>
+                </div>
+              </div>
+
+              {/* SEGMENTADORES DEL PADRÓN: CATEGORÍA, EDADES, PAÍSES, PROVINCIAS & BÚSQUEDA */}
+              <div className="bg-[#07090e] border border-[#1e2a40] rounded-2xl p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-[#00e676]" />
+                    <span className="font-bold text-white uppercase tracking-wider text-[11px]">
+                      Segmentar Padrón
+                    </span>
+                    {(demographicsCategoryFilter !== 'TODAS' || demographicsAgeFilter !== 'TODOS' || demographicsCountryFilter !== 'TODOS' || demographicsProvinceFilter !== 'TODAS' || demographicsSearchFilter) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDemographicsCategoryFilter('TODAS');
+                          setDemographicsAgeFilter('TODOS');
+                          setDemographicsCountryFilter('TODOS');
+                          setDemographicsProvinceFilter('TODAS');
+                          setDemographicsSearchFilter('');
+                        }}
+                        className="text-[10px] text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer ml-1"
+                      >
+                        Limpiar Filtros
+                      </button>
+                    )}
+                  </div>
+
+                  <span className="text-slate-400 text-xs font-mono">
+                    Mostrando <strong>{filteredRosterPlayers.length}</strong> de {availablePlayers.length} jugadores
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                  {/* 1. Segmentador de Categoría */}
+                  <div className="flex items-center gap-1.5 bg-[#0f1422] border border-[#1e2a40] rounded-xl px-3 py-2">
+                    <Trophy className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block leading-none mb-0.5">Categoría</span>
+                      <select
+                        value={demographicsCategoryFilter}
+                        onChange={(e) => setDemographicsCategoryFilter(e.target.value)}
+                        className="w-full bg-[#0f1422] text-white font-bold text-xs focus:outline-none cursor-pointer [&>option]:bg-[#0f1422] [&>option]:text-white"
+                      >
+                        <option value="TODAS">Todas ({availablePlayers.length})</option>
+                        <option value="ELITE">🏆 Elite Pro (70+)</option>
+                        <option value="AVANZADA">🎯 Avanzada (55-69.9)</option>
+                        <option value="INTERMEDIA">⚡ Intermedia (40-54.9)</option>
+                        <option value="PRINCIPIANTE">🌱 Principiante (&lt;40)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 2. Segmentador de Rango de Edades */}
+                  <div className="flex items-center gap-1.5 bg-[#0f1422] border border-[#1e2a40] rounded-xl px-3 py-2">
+                    <PieChart className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block leading-none mb-0.5">Rango de Edad</span>
+                      <select
+                        value={demographicsAgeFilter}
+                        onChange={(e) => setDemographicsAgeFilter(e.target.value)}
+                        className="w-full bg-[#0f1422] text-white font-bold text-xs focus:outline-none cursor-pointer [&>option]:bg-[#0f1422] [&>option]:text-white"
+                      >
+                        <option value="TODOS">Todas las Edades</option>
+                        <option value="18-25">18 a 25 años</option>
+                        <option value="26-35">26 a 35 años (Núcleo)</option>
+                        <option value="36-45">36 a 45 años</option>
+                        <option value="46+">46 a 65+ años (Veteranos)</option>
+                        <option value="SIN_EDAD">Sin edad registrada</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 3. Segmentador de País */}
+                  <div className="flex items-center gap-1.5 bg-[#0f1422] border border-[#1e2a40] rounded-xl px-3 py-2">
+                    <Globe className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block leading-none mb-0.5">País</span>
+                      <select
+                        value={demographicsCountryFilter}
+                        onChange={(e) => {
+                          setDemographicsCountryFilter(e.target.value);
+                          setDemographicsProvinceFilter('TODAS');
+                        }}
+                        className="w-full bg-[#0f1422] text-white font-bold text-xs focus:outline-none cursor-pointer [&>option]:bg-[#0f1422] [&>option]:text-white"
+                      >
+                        <option value="TODOS">Todos los Países</option>
+                        {demographicsCountries.map((c) => (
+                          <option key={c.name} value={c.name}>
+                            {c.flag} {c.name} ({c.count})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 4. Segmentador de Provincia */}
+                  <div className="flex items-center gap-1.5 bg-[#0f1422] border border-[#1e2a40] rounded-xl px-3 py-2">
+                    <MapPin className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block leading-none mb-0.5">Provincia</span>
+                      <select
+                        value={demographicsProvinceFilter}
+                        onChange={(e) => setDemographicsProvinceFilter(e.target.value)}
+                        className="w-full bg-[#0f1422] text-white font-bold text-xs focus:outline-none cursor-pointer [&>option]:bg-[#0f1422] [&>option]:text-white"
+                      >
+                        <option value="TODAS">Todas las Provincias</option>
+                        {demographicsProvinces.map((prov) => (
+                          <option key={prov.name} value={prov.name}>
+                            {prov.name} ({prov.count})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 5. Buscador Rápido de Jugador */}
+                  <div className="flex items-center gap-1.5 bg-[#0f1422] border border-[#1e2a40] rounded-xl px-3 py-2">
+                    <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block leading-none mb-0.5">Buscar</span>
+                      <input
+                        type="text"
+                        value={demographicsSearchFilter}
+                        onChange={(e) => setDemographicsSearchFilter(e.target.value)}
+                        placeholder="Nombre, apodo, club..."
+                        className="w-full bg-transparent text-white font-bold text-xs placeholder:text-slate-600 focus:outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1662,7 +1897,15 @@ export default function SuperadminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1e2a40]/60">
-                    {availablePlayers.map((player) => {
+                    {filteredRosterPlayers.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-slate-400 text-xs">
+                          <p className="font-bold text-white mb-1">No se encontraron jugadores</p>
+                          <p className="text-[11px] text-slate-500">Ningún competidor coincide con los filtros demográficos seleccionados.</p>
+                        </td>
+                      </tr>
+                    )}
+                    {filteredRosterPlayers.map((player) => {
                       const currentCat = player.category || 'INTERMEDIA';
                       const currentStatus = player.status || 'ACTIVE';
                       const isIceman = player.id === 'user-iceman-admin' || player.nickname?.toUpperCase() === 'ICEMAN';

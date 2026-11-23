@@ -1,5 +1,39 @@
 # Bitácora de Sesiones • Locos por los Dardos
 
+## [Sesión 67] - 2026-11-23
+- **Objetivos:**
+  1. Corregir el desborde horizontal del campo tipo de dardo (`DARTS`) en `UltimateDartsCard.tsx` (que invadía `HOME TOWN` a través de la línea divisoria central en modelos de dardos largos como "UNICORN 23 GARY ANDERSON").
+  2. Implementar un segmentador dinámico de países en `PlayerDirectory.tsx` que descubra y liste las nacionalidades en función de los jugadores registrados, con selector dependiente de provincias/regiones.
+  3. Resolver el problema de opciones en blanco/invisibles al desplegar selectores en Windows Chrome aplicando estilizado explícito oscuro.
+  4. Clarificar y hacer explícita la relación entre categorías y colores temáticos en las cartas coleccionables, mostrando la categoría en la carta y emparentándola rigurosamente con el AVG (`calculateCategory(avg)`).
+  5. Incorporar segmentadores completos (Categoría, Rango de Edades, Países, Provincias y Búsqueda rápida) en la pestaña 2 ("Demografía & Edades") de `/superadmin` sobre la tabla de Padrón de Jugadores.
+- **Diagnóstico y Análisis Consultivo:**
+  1. *Desborde SVG:* En `UltimateDartsCard.tsx`, el campo `DARTS` usaba un tamaño de fuente fijo (12.5px) y centrado horizontal en `x="235"`. Al ingresar marcas extensas (~25 caracteres), el ancho del texto superaba los 220px, solapando la línea en `x="170"` y la columna de `HOME TOWN`. Se requería auto-escalado de fuente dinámico y restricción vectorial `textLength` con `lengthAdjust="spacingAndGlyphs"`.
+  2. *Dropdowns en Blanco en Chrome Windows:* Los elementos `<select>` tenían fondo transparente y sus `<option>` carecían de color de fondo explícito. En Windows Chrome, el menú nativo se renderizaba sobre fondo blanco con texto blanco heredado, volviendo el menú completamente ilegible.
+  3. *Categorías Huérfanas de Texto:* Las cartas coleccionables cambiaban de color según la categoría (Oro, Rojo, Azul, Verde), pero el nombre de la categoría nunca aparecía escrito en el frente de la carta, y en `mapPlayerToCard` se caía en un fallback a `'INTERMEDIA'` sin evaluar el promedio real.
+  4. *Falta de Segmentación en Superadmin:* En la pestaña 2 de `/superadmin`, existían gráficos de distribución demográfica pero la tabla inferior del padrón mostraba a todos los jugadores en una lista plana sin herramientas de filtrado.
+- **Realizado:**
+  - `src/components/jugadores/UltimateDartsCard.tsx`:
+    * Implementado auto-escalado dinámico de fuente y limitación estricta con `textLength="110-115"` y `lengthAdjust="spacingAndGlyphs"` en `DARTS`, `HOME TOWN`, `NICKNAME` y `WEIGHT`.
+    * Emparentamiento de categoría con el promedio: `effectiveCategory = player.category || calculateCategory(effectiveAvg)`.
+    * Exhibición de la categoría oficial en el bloque superior izquierdo bajo el promedio (`CAT. ${theme.badgeText}`) y en la cápsula central (`CATEGORÍA ${theme.badgeText} • ${bestPerformance.badgeSubtitle}`).
+  - `src/components/jugadores/PlayerDirectory.tsx`:
+    * Mapeo de categoría en `mapPlayerToCard` correlacionado con el AVG efectivo (`p.category || calculateCategory(effectiveAvg)`).
+    * Segmentador de países dinámico con banderas emoji y conteo de jugadores extraído en tiempo real desde `playersList`.
+    * Segmentador de provincias dependiente del país seleccionado.
+    * Estilizado oscuro explícito en todos los `<select>` y `<option>` (`bg-[#07090e] text-white [&>option]:bg-[#0f1422] [&>option]:text-white`).
+  - `src/app/superadmin/page.tsx`:
+    * Agregados 5 controles de segmentación sobre la tabla "Padrón de Jugadores & Asignación de Categorías":
+      1. Categoría oficial (`ELITE`, `AVANZADA`, `INTERMEDIA`, `PRINCIPIANTE`).
+      2. Rango de edades (`18 a 25 años`, `26 a 35 años`, `36 a 45 años`, `46 a 65+ años`, `Sin edad`).
+      3. País dinámico con banderas.
+      4. Provincia dinámica dependiente del país seleccionado.
+      5. Búsqueda rápida reactiva por nombre, apodo, email, ciudad o club.
+    * Tabla reactiva alimentada por `filteredRosterPlayers` con estado vacío amigable.
+- **Validación:**
+  - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+- **Estado del Proyecto:** Cartas coleccionables sin desbordes de texto y con categoría visible, directorio con segmentador dinámico internacional sin bugs de contraste en Windows, y padrón de Superadmin completamente segmentable.
+
 ## [Sesión 66] - 2026-11-21
 - **Objetivos:**
   1. Ejecutar e implementar el refactor integral de llaves eliminatorias conforme a la lógica oficial de `https://n01darts.com/`.

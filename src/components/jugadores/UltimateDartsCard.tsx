@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Target, ArrowUpRight } from 'lucide-react';
+import { calculateCategory } from '@/lib/constants';
 
 export type HistoryCompetitionType = 'INDIVIDUAL' | 'STANDALONE_TOURNAMENT' | 'LOCAL_LEAGUE' | 'NATIONAL_LEAGUE' | 'TOURNAMENT' | 'LEAGUE';
 
@@ -403,7 +404,9 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
   displayRank,
   onViewFicha
 }) => {
-  const theme = TIER_THEMES[player.category] || TIER_THEMES.ELITE;
+  const effectiveAvg = typeof player.avg === 'number' ? player.avg : 40.0;
+  const effectiveCategory = player.category || calculateCategory(effectiveAvg);
+  const theme = TIER_THEMES[effectiveCategory] || TIER_THEMES.INTERMEDIA;
   const cardId = `card-${player.id}`;
   const clipId = `fut-clip-${player.id}`;
   const bgGradId = `bg-grad-${player.id}`;
@@ -420,25 +423,25 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
   // Parseo del título o badge según el criterio de ranking seleccionado o última mejor actuación
   let titleNumber = bestPerformance.number;
   let titleText = bestPerformance.cornerLine1;
-  let subtitleText = bestPerformance.cornerLine2;
+  let subtitleText = `CAT. ${theme.badgeText}`;
 
   const currentYear = new Date().getFullYear();
   if (rankingMode === 'AVG') {
     titleNumber = `#${displayRank || player.nationalRank || 1}`;
-    titleText = `${player.avg.toFixed(1)} AVG`;
-    subtitleText = `TEMPORADA ${currentYear}`;
+    titleText = `${effectiveAvg.toFixed(1)} AVG`;
+    subtitleText = `CAT. ${theme.badgeText}`;
   } else if (rankingMode === 'LIGA_ARG') {
     titleNumber = `#${player.nationalRank || displayRank || 1}`;
-    titleText = 'LIGA';
-    subtitleText = 'ARGENTINA';
+    titleText = 'LIGA ARG';
+    subtitleText = `CAT. ${theme.badgeText}`;
   } else if (rankingMode === 'LIGA_MDQ') {
     titleNumber = player.mdqLeagueRank ? `#${player.mdqLeagueRank}` : 'MDQ';
-    titleText = 'LIGA';
-    subtitleText = 'DARDEROS';
+    titleText = 'LIGA MDQ';
+    subtitleText = `CAT. ${theme.badgeText}`;
   } else if (rankingMode === 'PRESENCIAL_MDQ') {
     titleNumber = `#${player.presentialRank || displayRank || 1}`;
-    titleText = 'TORNEO';
-    subtitleText = 'PRESENCIAL';
+    titleText = 'PRESENCIAL';
+    subtitleText = `CAT. ${theme.badgeText}`;
   }
 
   return (
@@ -692,7 +695,7 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                   {bestPerformance.badgeTitle}
                 </text>
 
-                {/* Renglón 2: Nombre de la competición disputada */}
+                {/* Renglón 2: Categoría oficial y competición disputada */}
                 <text 
                   x="0" 
                   y="26" 
@@ -702,8 +705,10 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
                   fontWeight="800" 
                   fontFamily="system-ui, -apple-system, sans-serif"
                   letterSpacing="0.5"
+                  textLength="250"
+                  lengthAdjust="spacingAndGlyphs"
                 >
-                  {bestPerformance.badgeSubtitle}
+                  {`CATEGORÍA ${theme.badgeText} • ${bestPerformance.badgeSubtitle}`}
                 </text>
               </g>
             </g>
@@ -737,17 +742,53 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
               <text x="105" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
                 HOME TOWN
               </text>
-              <text x="105" y="16" textAnchor="middle" fill="#ffffff" fontSize="12.5" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="0.5">
-                {player.city.toUpperCase()}
-              </text>
+              {(() => {
+                const cityText = (player.city || 'MAR DEL PLATA').toUpperCase();
+                const cLen = cityText.length;
+                const cFontSize = cLen > 20 ? "7.5" : cLen > 15 ? "8.5" : cLen > 12 ? "10" : "12.5";
+                return (
+                  <text 
+                    x="105" 
+                    y="16" 
+                    textAnchor="middle" 
+                    fill="#ffffff" 
+                    fontSize={cFontSize} 
+                    fontWeight="900" 
+                    fontFamily="system-ui, sans-serif" 
+                    letterSpacing="0.4"
+                    textLength={cLen > 11 ? "110" : undefined}
+                    lengthAdjust={cLen > 11 ? "spacingAndGlyphs" : undefined}
+                  >
+                    {cityText}
+                  </text>
+                );
+              })()}
 
               {/* Columna Derecha */}
               <text x="235" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
                 DARTS
               </text>
-              <text x="235" y="16" textAnchor="middle" fill={theme.accentColor} fontSize="12.5" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="0.5">
-                {player.dartBrand ? player.dartBrand.toUpperCase() : 'TARGET 90%'}
-              </text>
+              {(() => {
+                const dartText = (player.dartBrand || 'TARGET 90%').toUpperCase();
+                const dLen = dartText.length;
+                const dFontSize = dLen > 24 ? "7.5" : dLen > 18 ? "8.5" : dLen > 14 ? "9.5" : dLen > 11 ? "11" : "12.5";
+                return (
+                  <text 
+                    x="235" 
+                    y="16" 
+                    textAnchor="middle" 
+                    fill={theme.accentColor} 
+                    fontSize={dFontSize} 
+                    fontWeight="900" 
+                    fontFamily="system-ui, sans-serif" 
+                    letterSpacing="0.3"
+                    textLength={dLen > 12 ? "115" : undefined}
+                    lengthAdjust={dLen > 12 ? "spacingAndGlyphs" : undefined}
+                  >
+                    {dartText}
+                  </text>
+                );
+              })()}
             </g>
 
             {/* Fila 2: NICKNAME | WEIGHT */}
@@ -756,9 +797,27 @@ export const UltimateDartsCard: React.FC<UltimateDartsCardProps> = ({
               <text x="105" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">
                 NICKNAME
               </text>
-              <text x="105" y="16" textAnchor="middle" fill={theme.accentColor} fontSize="12" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="0.5">
-                {player.nickname.toUpperCase()}
-              </text>
+              {(() => {
+                const nickText = (player.nickname || 'JUGADOR').toUpperCase();
+                const nLen = nickText.length;
+                const nFontSize = nLen > 18 ? "8" : nLen > 14 ? "9.5" : nLen > 10 ? "11" : "12";
+                return (
+                  <text 
+                    x="105" 
+                    y="16" 
+                    textAnchor="middle" 
+                    fill={theme.accentColor} 
+                    fontSize={nFontSize} 
+                    fontWeight="900" 
+                    fontFamily="system-ui, sans-serif" 
+                    letterSpacing="0.4"
+                    textLength={nLen > 11 ? "110" : undefined}
+                    lengthAdjust={nLen > 11 ? "spacingAndGlyphs" : undefined}
+                  >
+                    {nickText}
+                  </text>
+                );
+              })()}
 
               {/* Columna Derecha */}
               <text x="235" y="0" textAnchor="middle" fill={theme.labelColor} fontSize="8.5" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">

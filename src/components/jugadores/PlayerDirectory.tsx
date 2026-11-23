@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ARGENTINE_PROVINCES, PLAYER_CATEGORIES, getCountryFlag } from '@/lib/constants';
+import { ARGENTINE_PROVINCES, PLAYER_CATEGORIES, getCountryFlag, calculateCategory, COUNTRIES } from '@/lib/constants';
 import { UltimateDartsCard, UltimateDartsCardData, RankingMode } from './UltimateDartsCard';
 import { CANONICAL_PLAYERS } from '@/lib/players-data';
 import { 
@@ -20,7 +20,8 @@ import {
   Calendar,
   Sparkles,
   ChevronDown,
-  RefreshCw
+  RefreshCw,
+  Globe
 } from 'lucide-react';
 
 import { getCurrentPlayerProfile } from '@/lib/storage';
@@ -28,6 +29,7 @@ import { getCurrentPlayerProfile } from '@/lib/storage';
 import { PlayerDetailModal } from './PlayerDetailModal';
 
 function mapPlayerToCard(p: any): UltimateDartsCardData {
+  const effectiveAvg = p.stats?.overallAvg ?? p.estimatedAvg ?? p.avg ?? 40.0;
   return {
     id: p.id,
     name: p.fullName || p.name || p.nickname || 'Jugador',
@@ -40,8 +42,8 @@ function mapPlayerToCard(p: any): UltimateDartsCardData {
     province: p.province || 'Buenos Aires',
     city: p.city || 'Mar del Plata',
     club: p.club || 'Darderos Mar del Plata',
-    avg: p.stats?.overallAvg ?? p.estimatedAvg ?? p.avg ?? 40.0,
-    category: p.category || 'INTERMEDIA',
+    avg: effectiveAvg,
+    category: p.category || calculateCategory(effectiveAvg),
     matchesWon: p.stats?.matchesWon ?? p.matchesWon ?? 0,
     matchesTotal: p.stats?.matchesPlayed ?? p.matchesTotal ?? 0,
     count180s: p.stats?.count180s ?? p.count180s ?? 0,
@@ -80,11 +82,43 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
   });
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState('TODOS');
   const [selectedProvince, setSelectedProvince] = useState('TODAS');
   const [selectedCategory, setSelectedCategory] = useState<string>('TODAS');
   const [rankingMode, setRankingMode] = useState<RankingMode>('AVG');
   const [onlyMdqLeague, setOnlyMdqLeague] = useState(false);
   const [selectedPlayerForDetail, setSelectedPlayerForDetail] = useState<UltimateDartsCardData | null>(null);
+
+  // Países detectados dinámicamente según el padrón de jugadores registrados
+  const availableCountries = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; flag: string; count: number }>();
+    playersList.forEach((p) => {
+      const countryName = p.nationality || 'Argentina';
+      const countryCode = p.countryCode || 'AR';
+      const flag = getCountryFlag(countryCode || countryName);
+      if (!map.has(countryName)) {
+        map.set(countryName, { code: countryCode, name: countryName, flag, count: 0 });
+      }
+      map.get(countryName)!.count += 1;
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [playersList]);
+
+  // Provincias detectadas dinámicamente según el país seleccionado
+  const availableProvinces = useMemo(() => {
+    if (selectedCountry !== 'TODOS' && selectedCountry.toLowerCase() !== 'argentina' && selectedCountry.toUpperCase() !== 'AR') {
+      // Para otros países, obtener las provincias/regiones registradas por jugadores de ese país
+      const set = new Set<string>();
+      playersList
+        .filter((p) => p.nationality === selectedCountry || p.countryCode === selectedCountry)
+        .forEach((p) => {
+          if (p.province) set.add(p.province);
+        });
+      return Array.from(set).sort();
+    }
+    // Para Argentina (o Todos los países), listar todas las provincias oficiales
+    return ARGENTINE_PROVINCES;
+  }, [playersList, selectedCountry]);
 
   // Cargar jugadores desde /api/jugadores
   const loadCloudPlayers = React.useCallback(async () => {
@@ -138,6 +172,10 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
         player.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
         player.club.toLowerCase().includes(searchTerm.toLowerCase());
 
+      const matchesCountry = selectedCountry === 'TODOS' || 
+        player.nationality === selectedCountry || 
+        player.countryCode === selectedCountry;
+
       const matchesProvince = selectedProvince === 'TODAS' || player.province === selectedProvince;
       const matchesCategory = selectedCategory === 'TODAS' || player.category === selectedCategory;
 
@@ -150,7 +188,7 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
       // Excluir jugadores suspendidos o dados de baja
       const isActive = !player.status || player.status === 'ACTIVE';
 
-      return isActive && matchesSearch && matchesProvince && matchesCategory && matchesMdqExclusive;
+      return isActive && matchesSearch && matchesCountry && matchesProvince && matchesCategory && matchesMdqExclusive;
     });
 
     // Ordenamiento estricto según la competencia seleccionada
@@ -169,7 +207,7 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
       }
       return 0;
     });
-  }, [playersList, searchTerm, selectedProvince, selectedCategory, rankingMode, onlyMdqLeague]);
+  }, [playersList, searchTerm, selectedCountry, selectedProvince, selectedCategory, rankingMode, onlyMdqLeague]);
 
   return (
     <div className="space-y-6">
@@ -317,19 +355,43 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
           />
         </div>
 
-        {/* Selectores Provincia & Categoría */}
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {/* Selector de Provincia */}
+        {/* Selectores País, Provincia & Categoría */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          {/* Selector Dinámico de País */}
           <div className="flex items-center gap-1.5 bg-[#07090e] border border-[#1e2638] rounded-2xl px-3 py-2 text-xs">
-            <MapPin className="w-4 h-4 text-[#00e676]" />
+            <Globe className="w-4 h-4 text-sky-400 flex-shrink-0" />
+            <select
+              value={selectedCountry}
+              onChange={(e) => {
+                setSelectedCountry(e.target.value);
+                setSelectedProvince('TODAS');
+              }}
+              className="bg-[#07090e] text-white font-bold text-xs focus:outline-none cursor-pointer [&>option]:bg-[#0f1422] [&>option]:text-white"
+            >
+              <option value="TODOS" className="bg-[#0f1422] text-white">🌍 Todos los Países ({playersList.length})</option>
+              {availableCountries.map((c) => (
+                <option key={c.name} value={c.name} className="bg-[#0f1422] text-white">
+                  {c.flag} {c.name} ({c.count})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Selector de Provincia / Región */}
+          <div className="flex items-center gap-1.5 bg-[#07090e] border border-[#1e2638] rounded-2xl px-3 py-2 text-xs">
+            <MapPin className="w-4 h-4 text-[#00e676] flex-shrink-0" />
             <select
               value={selectedProvince}
               onChange={(e) => setSelectedProvince(e.target.value)}
-              className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
+              className="bg-[#07090e] text-white font-bold text-xs focus:outline-none cursor-pointer [&>option]:bg-[#0f1422] [&>option]:text-white"
             >
-              <option value="TODAS">Toda la Argentina</option>
-              {ARGENTINE_PROVINCES.map((p) => (
-                <option key={p} value={p}>
+              <option value="TODAS" className="bg-[#0f1422] text-white">
+                {selectedCountry === 'TODOS' || selectedCountry.toLowerCase() === 'argentina' || selectedCountry === 'AR' 
+                  ? 'Toda la Argentina' 
+                  : 'Todas las Regiones'}
+              </option>
+              {availableProvinces.map((p) => (
+                <option key={p} value={p} className="bg-[#0f1422] text-white">
                   {p}
                 </option>
               ))}
@@ -338,17 +400,17 @@ export const PlayerDirectory: React.FC<PlayerDirectoryProps> = ({ initialPlayers
 
           {/* Selector de Categoría */}
           <div className="flex items-center gap-1.5 bg-[#07090e] border border-[#1e2638] rounded-2xl px-3 py-2 text-xs">
-            <Trophy className="w-4 h-4 text-[#0284c7]" />
+            <Trophy className="w-4 h-4 text-[#0284c7] flex-shrink-0" />
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
+              className="bg-[#07090e] text-white font-bold text-xs focus:outline-none cursor-pointer [&>option]:bg-[#0f1422] [&>option]:text-white"
             >
-              <option value="TODAS">Todas las Categorías</option>
-              <option value="ELITE">Elite Pro (70+ AVG)</option>
-              <option value="AVANZADA">Avanzada (55-69.9)</option>
-              <option value="INTERMEDIA">Intermedia (40-54.9)</option>
-              <option value="PRINCIPIANTE">Principiante (0-39.9)</option>
+              <option value="TODAS" className="bg-[#0f1422] text-white">Todas las Categorías</option>
+              <option value="ELITE" className="bg-[#0f1422] text-white">🏆 Elite Pro (70+ AVG)</option>
+              <option value="AVANZADA" className="bg-[#0f1422] text-white">🎯 Avanzada (55-69.9)</option>
+              <option value="INTERMEDIA" className="bg-[#0f1422] text-white">⚡ Intermedia (40-54.9)</option>
+              <option value="PRINCIPIANTE" className="bg-[#0f1422] text-white">🌱 Principiante (&lt; 40 AVG)</option>
             </select>
           </div>
 

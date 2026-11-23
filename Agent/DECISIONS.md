@@ -1530,3 +1530,26 @@
      - Retiro del bypass sin OTP en `LoginModal.tsx`.
      - Eliminación de 6 archivos huérfanos de código muerto: `Navbar.tsx`, `Footer.tsx`, `AppTopBar.tsx`, `CheckoutGuide.tsx`, `DartKeypad.tsx`, `api/diagnostic/route.ts`.
 - **Motivo:** Alineación total con el estándar de n01darts.com, robustez matemática en llaves y protección de integridad en la apertura pública de torneos sin dependencias externas pesadas.
+
+
+---
+
+### [ADR-074] - 2026-11-23: Autoajuste de Textos en Cartas Coleccionables, Visibilidad y Emparentamiento de Categorías por AVG, y Segmentación Demográfica en Directorio y Superadmin
+- **Contexto:**
+  1. *Desborde de Texto en Cartas Coleccionables (`UltimateDartsCard.tsx`):* En tarjetas con modelos de dardos largos (ej. "UNICORN 23 GARY ANDERSON" en la carta #3 de Martín Pezzato) o localidades extensas, el texto en SVG con tamaño fijo (12.5px) y centrado horizontal (`x="235"`) desbordaba la columna derecha e invadía la columna izquierda a través de la línea divisoria central (`x="170"`).
+  2. *Dropdowns Inconsistentes en Windows Chrome:* Al desplegar los elementos `<select>` en `PlayerDirectory.tsx`, las opciones se renderizaban como rectángulos blancos vacíos con texto blanco invisible debido a la ausencia de fondo explícito en las etiquetas `<option>` en navegadores Chromium sobre Windows.
+  3. *Emparentamiento de Categorías y Visibilidad en Cartas:* La tarjeta coleccionable usaba colores temáticos basados en `player.category` (Oro = Elite, Rojo = Avanzada, Azul = Intermedia, Verde = Principiante), pero la categoría nunca se mostraba textualmente en la carta. Además, jugadores sin categoría explícita caían en un fallback ciego a `'INTERMEDIA'` en lugar de derivarse rigurosamente de su promedio 501 (`calculateCategory(avg)`).
+  4. *Segmentación Demográfica en Superadmin:* En la pestaña 2 ("Demografía & Edades") de `/superadmin`, la tabla de Padrón de Jugadores carecía de filtros para segmentar por categoría, rango de edad, país o provincia.
+- **Decisión:**
+  1. **Autoajuste y Clamping SVG en `UltimateDartsCard.tsx`:**
+     - En `DARTS`, `HOME TOWN`, `NICKNAME` y `WEIGHT`, se implementó escalado tipográfico dinámico según la longitud del texto (desde 12.5px hasta 7.5px) y restricción estricta mediante `textLength="110-115"` y `lengthAdjust="spacingAndGlyphs"` cuando la cadena supera los 11-13 caracteres, impidiendo cualquier desborde horizontal más allá de los límites de cada columna.
+  2. **Emparentamiento por AVG y Visibilidad de Categoría:**
+     - Se vinculó determinísticamente la categoría al promedio: `effectiveCategory = player.category || calculateCategory(effectiveAvg)`.
+     - Se exhibe la categoría explícita en dos ubicaciones de la tarjeta: en el bloque superior izquierdo bajo el promedio (`CAT. ${theme.badgeText}`) y en la cápsula central de méritos (`CATEGORÍA ${theme.badgeText} • ${bestPerformance.badgeSubtitle}`).
+     - En `PlayerDirectory.tsx`, se aseguró que `mapPlayerToCard` compute `category: p.category || calculateCategory(effectiveAvg)`.
+  3. **Segmentador Dinámico de Países y Corrección de Selectores en Directorio:**
+     - Se implementó la extracción dinámica de países registrados a partir de `playersList`, listando banderas y conteo de jugadores por país.
+     - Se aplicó estilizado explícito oscuro (`bg-[#0f1422] text-white`) a todos los `<select>` y `<option>`, erradicando la pantalla en blanco en Chrome Windows.
+  4. **Segmentadores Demográficos en Superadmin (Pestaña 2):**
+     - Se agregaron 5 segmentadores interactivos encima de la tabla de Padrón: Categoría (`TODAS`, `ELITE`, `AVANZADA`, `INTERMEDIA`, `PRINCIPIANTE`), Rango de Edad (`TODOS`, `18-25`, `26-35`, `36-45`, `46+`, `SIN_EDAD`), País dinámico, Provincia dinámica y Búsqueda textual reactiva.
+- **Motivo:** Garantiza legibilidad impecable en todas las cartas coleccionables, coherencia visual deportiva de categorías por AVG, compatibilidad cross-browser en formularios y herramientas de auditoría operativa para la superadministración.

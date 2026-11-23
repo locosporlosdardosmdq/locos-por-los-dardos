@@ -1,3 +1,25 @@
+- [x] **Autoajuste de Textos en Cartas Coleccionables, Visibilidad y Emparentamiento de Categorías por AVG, y Segmentación Demográfica en Directorio y Superadmin (`UltimateDartsCard.tsx`, `PlayerDirectory.tsx`, `superadmin/page.tsx`):**
+  * **Autoajuste y Clamping SVG en Cartas (`UltimateDartsCard.tsx`):**
+    - En el campo `DARTS` (columna derecha, `x="235"`), se erradicó el desborde horizontal hacia `HOME TOWN` mediante auto-escalado dinámico de fuente (desde 12.5px hasta 7.5px según longitud) y restricción estricta con `textLength="115"` y `lengthAdjust="spacingAndGlyphs"` para textos extensos como *"UNICORN 23 GARY ANDERSON"*.
+    - Mismo blindaje SVG implementado para `HOME TOWN` (`player.city`), `NICKNAME` (`player.nickname`) y `WEIGHT`.
+  * **Emparentamiento de Categoría por AVG y Visibilidad en Cartas:**
+    - Se resolvió la categoría efectiva correlacionada con el promedio del competidor: `player.category || calculateCategory(player.avg || 40.0)`.
+    - La categoría oficial (`ELITE PRO`, `AVANZADA`, `INTERMEDIA`, `PRINCIPIANTE`) se expone ahora claramente en dos puntos de la carta: en el bloque superior izquierdo bajo el promedio (`CAT. ${theme.badgeText}`) y en la cápsula central de méritos (`CATEGORÍA ${theme.badgeText} • ${bestPerformance.badgeSubtitle}`).
+    - En `PlayerDirectory.tsx`, `mapPlayerToCard` ahora asigna la categoría derivada de su AVG si no tiene una categoría forzada manualmente.
+  * **Segmentador Dinámico de Países y Corrección de Dropdowns en Directorio (`PlayerDirectory.tsx`):**
+    - Se extraen dinámicamente los países registrados desde `playersList` (con bandera emoji y conteo de jugadores).
+    - El segmentador de países permite filtrar por país y adapta automáticamente el selector de provincias/regiones.
+    - Se aplicó fondo oscuro explícito (`bg-[#0f1422] text-white`) en todos los elementos `<select>` y `<option>`, solucionando el menú desplegable en blanco en Chrome sobre Windows.
+  * **Segmentadores Demográficos en Superadmin (`superadmin/page.tsx` - Pestaña 2):**
+    - Se añadieron 5 controles de filtrado sobre la tabla del Padrón de Jugadores:
+      1. **Categoría:** `Todas`, `Elite Pro (70+)`, `Avanzada (55-69.9)`, `Intermedia (40-54.9)`, `Principiante (<40)`.
+      2. **Rango de Edad:** `Todas las Edades`, `18 a 25 años`, `26 a 35 años (Núcleo)`, `36 a 45 años`, `46 a 65+ años (Veteranos)`, `Sin edad registrada`.
+      3. **País:** Segmentador dinámico con los países presentes en el padrón y banderas.
+      4. **Provincia:** Segmentador dependiente del país seleccionado con conteo de jugadores.
+      5. **Búsqueda Reactiva:** Filtro rápido por nombre, apodo, club, email o ciudad.
+  * **Validación:**
+    - `npx tsc --noEmit` completado exitosamente con 0 errores (código de salida 0).
+
 - [x] **Refactor Integral de Llaves (Estilo n01darts.com), Doble Eliminación con Gran Final Reset, Ámbitos Jerárquicos de Competición (Opción C), Modalidades de Parejas y Control de Acceso (`bracket-engine.ts`, `TournamentManager.tsx`, `TournamentBracket.tsx`, `NakkaTvBracketView.tsx`, `EditTournamentModal.tsx`, `PlayerEnrollModal.tsx`, `TournamentGroupStage.tsx`, `api/torneos/route.ts`, `LoginModal.tsx`, `types.ts`):**
   * **Motor Matemático de Llaves Puro (`bracket-engine.ts`):**
     - Implementación de barajado aleatorio imparcial con algoritmo genuino Fisher-Yates (`shuffleArray`).
